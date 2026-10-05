@@ -60,6 +60,8 @@ export type AgentView = {
 	currentTool: CurrentTool | null;
 	lastToolError: boolean;
 	lastSeen: number;
+	/** Usage of this agent's turns since the hub first saw it, including its subagents' turns. */
+	usage: UsageTotals;
 };
 
 export type HostView = {
@@ -79,14 +81,23 @@ export type WorldSnapshot = {
 	usage: UsageRollup[];
 };
 
+/**
+ * Applied in order: each entry of `hostsUpserted` replaces the whole host
+ * (agents included), then each of `agentsUpserted` replaces one agent, then
+ * `agentsRemoved` deletes agents by id. A non-null `usage` replaces the
+ * global rollups. `event` is null when the hub changed the world itself, for
+ * example when a collector disconnects or the day rolls over.
+ */
 export type WorldDelta = {
 	v: 1;
 	type: "delta";
 	ts: number;
 	seq: number;
-	event: TerrariumEvent;
+	event: TerrariumEvent | null;
 	hostsUpserted: HostView[];
 	agentsUpserted: AgentView[];
 	agentsRemoved: string[];
 	usage: UsageRollup[] | null;
 };
+
+export type WorldMessage = WorldSnapshot | WorldDelta;

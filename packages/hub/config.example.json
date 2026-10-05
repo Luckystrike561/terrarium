@@ -1,0 +1,8 @@
+{
+	"collectorTokens": {
+		"laptop-a": "dev-only-collector-token-laptop-a",
+		"laptop-b": "dev-only-collector-token-laptop-b",
+		"server": "dev-only-collector-token-server"
+	},
+	"viewTokens": ["dev-only-view-token"]
+}

@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "../../dist/web",
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
+		"types": []
+	},
+	"include": ["src"],
+	"references": [
+		{
+			"path": "../protocol"
+		}
+	]
+}

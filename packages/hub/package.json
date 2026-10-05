@@ -1,0 +1,15 @@
+{
+	"name": "@terrarium/hub",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"terrarium-hub": "./src/main.ts"
+	},
+	"scripts": {
+		"start": "bun src/main.ts"
+	},
+	"dependencies": {
+		"@terrarium/protocol": "workspace:*"
+	}
+}

@@ -27,6 +27,12 @@
 			"path": "extensions/omp"
 		},
 		{
+			"path": "packages/hub"
+		},
+		{
+			"path": "packages/web"
+		},
+		{
 			"path": "scripts"
 		}
 	]

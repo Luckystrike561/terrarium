@@ -10,7 +10,11 @@
 		"typecheck": "tsc -b",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"test": "bun test --pass-with-no-tests"
+		"test": "bun test --pass-with-no-tests",
+		"dev:hub": "bun --watch packages/hub/src/main.ts --config packages/hub/config.example.json --db packages/hub/data/dev.db",
+		"start:hub": "bun packages/hub/src/main.ts",
+		"dev:web": "bun run --cwd packages/web dev",
+		"build:web": "bun run --cwd packages/web build"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.15",
