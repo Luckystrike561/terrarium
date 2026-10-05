@@ -26,6 +26,46 @@ Prints one `TerrariumEvent` JSON line per event; logs go to stderr. Flags: `--ho
 
 The collector listens on that socket (mode 0600) and merges the stream with herdr by agentId: once the extension reports an agent, its states and tool events win over herdr's; `turn.usage` is only taken from `stats.db`. `extensions/omp/harness.ts` loads the extension against a stand-in API so hooks can be fired without omp; `scripts/verify-M2.sh` uses it.
 
+## Hub and plain view
+
+```sh
+bun run build:web   # builds packages/web/dist, which the hub serves
+bun run dev:hub     # hub on http://127.0.0.1:8787 with the dev config and packages/hub/data/dev.db
+bun run dev:web     # optional: Vite dev server on 127.0.0.1:5173, proxies /view to the hub
+```
+
+Open `http://127.0.0.1:8787/?token=dev-only-view-token`. The page moves the token into local storage and drops it from the URL; without one it shows a token form.
+
+`bun run start:hub` runs the hub with its defaults; flags: `--bind` (default `127.0.0.1`), `--port` (default `8787`, `0` picks a free one), `--config` (default `~/.config/terrarium/hub.json`), `--db` (default `~/.local/share/terrarium/hub.db`), `--web-dist` (default `packages/web/dist`). `dev:web` reads `TERRARIUM_HUB_URL` (proxy target) and `TERRARIUM_WEB_HOST`.
+
+Endpoints:
+
+- `/ingest`: collector WebSocket, `Authorization: Bearer <host token>`. The token decides the host; events stamped with another host are dropped.
+- `/view`: browser WebSocket, `?token=<view token>`. Sends a `WorldSnapshot`, then `WorldDelta`s. A bad token is closed with code 4401. Read-only.
+- `/healthz`, and every other GET serves the built frontend.
+
+Config (`packages/hub/config.example.json`) maps each host to its collector token and lists the view tokens:
+
+```json
+{
+	"collectorTokens": { "laptop-a": "<token>", "laptop-b": "<token>", "server": "<token>" },
+	"viewTokens": ["<token>"]
+}
+```
+
+The tokens in `config.example.json` (`dev-only-collector-token-<host>`, `dev-only-view-token`) are public dev defaults for 127.0.0.1 only. For a real deployment copy it to `~/.config/terrarium/hub.json` outside the repo and replace every token, e.g. with `openssl rand -hex 32`.
+
+Connect a collector:
+
+```sh
+TERRARIUM_HUB_TOKEN=dev-only-collector-token-laptop-a \
+  bun packages/collector/src/main.ts --host laptop-a --hub ws://127.0.0.1:8787/ingest
+```
+
+The hub stores raw events and usage rollups in SQLite and rebuilds its world state from them on start. Only contract fields are kept; anything else in `data`, including any prompt or response text, is dropped before storage and broadcast.
+
+`scripts/verify-M3.sh` starts a hub on a free port with a temp DB and config, drives a synthetic collector and a browser client, restarts the hub on the same DB, and checks the rebuilt state.
+
 ## Decision log
 
 - Network option: Tailscale on all machines, hub listening on the tailnet IP only. NOT installed in this milestone.
