@@ -1,0 +1,20 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "../dist/scripts",
+		"types": ["bun"]
+	},
+	"include": ["*.ts"],
+	"references": [
+		{
+			"path": "../packages/protocol"
+		},
+		{
+			"path": "../packages/collector"
+		},
+		{
+			"path": "../extensions/omp"
+		}
+	]
+}

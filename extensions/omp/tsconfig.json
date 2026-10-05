@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "dist",
+		"types": ["bun"]
+	},
+	"include": ["*.ts"],
+	"references": [
+		{
+			"path": "../../packages/protocol"
+		}
+	]
+}

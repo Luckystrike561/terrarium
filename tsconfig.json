@@ -22,6 +22,12 @@
 		},
 		{
 			"path": "packages/collector"
+		},
+		{
+			"path": "extensions/omp"
+		},
+		{
+			"path": "scripts"
 		}
 	]
 }

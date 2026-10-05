@@ -3,7 +3,9 @@ import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { TerrariumEvent } from "@terrarium/protocol";
+import { createMerger } from "./merge";
 import { startHerdrSource } from "./sources/herdr";
+import { startOmpSource } from "./sources/omp";
 import { startStatsSource } from "./sources/stats";
 
 const USAGE = `Usage: terrarium-collector --stdout [options]
@@ -11,6 +13,8 @@ const USAGE = `Usage: terrarium-collector --stdout [options]
   --stdout                 Print one TerrariumEvent JSON line per event
   --host <name>            Host name stamped on events (default: hostname)
   --herdr-socket <path>    herdr socket (default: ~/.config/herdr/herdr.sock)
+  --omp-socket <path>      socket the omp extension writes to
+                           (default: $XDG_RUNTIME_DIR/terrarium.sock, else /tmp/terrarium.sock)
   --stats-db <path>        omp stats DB, opened read-only (default: ~/.omp/stats.db)
   --poll-ms <n>            stats.db poll interval (default: 5000)
   --stats-sync-ms <n>      run \`omp stats\` this often while an agent works,
@@ -40,6 +44,7 @@ const OPTIONS = {
 	stdout: { type: "boolean" },
 	host: { type: "string" },
 	"herdr-socket": { type: "string" },
+	"omp-socket": { type: "string" },
 	"stats-db": { type: "string" },
 	"poll-ms": { type: "string" },
 	"stats-sync-ms": { type: "string" },
@@ -73,13 +78,13 @@ const log = (message: string): void => {
 };
 
 /**
- * Agents herdr reports as working. The stats source syncs stats.db while any
- * exist and once more when one stops, so a turn's usage lands promptly.
- * `stats` is only touched from herdr events, which start after it exists.
+ * Agents currently working. The stats source syncs stats.db while any exist
+ * and once more when one stops, so a turn's usage lands promptly. `stats` is
+ * only touched from agent events, which start after it exists.
  */
 const working = new Set<string>();
 
-const emit = (event: TerrariumEvent): void => {
+const emit = createMerger((event: TerrariumEvent): void => {
 	process.stdout.write(`${JSON.stringify(event)}\n`);
 	if (event.kind === "agent.state" && event.data.state === "working") {
 		working.add(event.agentId);
@@ -89,7 +94,7 @@ const emit = (event: TerrariumEvent): void => {
 	) {
 		stats.requestSync();
 	}
-};
+});
 
 const stats = startStatsSource({
 	dbPath: args["stats-db"] ?? join(homedir(), ".omp", "stats.db"),
@@ -109,10 +114,24 @@ const herdr = startHerdrSource({
 	log,
 });
 
+const runtimeDir = process.env.XDG_RUNTIME_DIR;
+const omp = startOmpSource({
+	socketPath:
+		args["omp-socket"] ??
+		join(
+			runtimeDir !== undefined && runtimeDir.length > 0 ? runtimeDir : "/tmp",
+			"terrarium.sock",
+		),
+	host,
+	emit,
+	log,
+});
+
 log(`collector: host=${host} poll=${pollMs}ms stats-sync=${syncMs}ms`);
 
 const shutdown = (): void => {
 	herdr.stop();
+	omp.stop();
 	stats.stop();
 	process.exit(0);
 };

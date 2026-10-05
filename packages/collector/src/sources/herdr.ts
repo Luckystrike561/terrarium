@@ -2,6 +2,7 @@ import { connect, type Socket } from "node:net";
 import { basename } from "node:path";
 import type { AgentState, TerrariumEvent } from "@terrarium/protocol";
 import { errorMessage, isRecord } from "../guards";
+import { LineReader } from "../lines";
 import type { Emit, Log, Source } from "../types";
 
 const EXPECTED_PROTOCOL = 22;
@@ -45,21 +46,6 @@ type Pane = {
 	folder: string | null;
 	state: AgentState;
 };
-
-class LineReader {
-	#buffer = "";
-
-	push(chunk: string, onLine: (line: string) => void): void {
-		this.#buffer += chunk;
-		let newline = this.#buffer.indexOf("\n");
-		while (newline >= 0) {
-			const line = this.#buffer.slice(0, newline).trim();
-			this.#buffer = this.#buffer.slice(newline + 1);
-			if (line.length > 0) onLine(line);
-			newline = this.#buffer.indexOf("\n");
-		}
-	}
-}
 
 function describeError(error: RpcResponse["error"]): string {
 	const code = typeof error?.code === "string" ? error.code : "error";

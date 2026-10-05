@@ -1,0 +1,13 @@
+{
+	"name": "@terrarium/omp-extension",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./terrarium.ts",
+		"./harness": "./harness.ts"
+	},
+	"dependencies": {
+		"@terrarium/protocol": "workspace:*"
+	}
+}

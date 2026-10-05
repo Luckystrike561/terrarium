@@ -10,6 +10,13 @@
         "typescript": "^7.0.2",
       },
     },
+    "extensions/omp": {
+      "name": "@terrarium/omp-extension",
+      "version": "0.0.0",
+      "dependencies": {
+        "@terrarium/protocol": "workspace:*",
+      },
+    },
     "packages/collector": {
       "name": "@terrarium/collector",
       "version": "0.0.0",
@@ -45,6 +52,8 @@
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.15", "", { "os": "win32", "cpu": "x64" }, "sha512-yAzh4UqEImV6Hcy0zjUqNfJAsUhoD64FBQCdTG8Md/Z2wQeVP/ZmJ3XRYAs1g8J9fjTFyl2fCtc5FB5til47+g=="],
 
     "@terrarium/collector": ["@terrarium/collector@workspace:packages/collector"],
+
+    "@terrarium/omp-extension": ["@terrarium/omp-extension@workspace:extensions/omp"],
 
     "@terrarium/protocol": ["@terrarium/protocol@workspace:packages/protocol"],
 
