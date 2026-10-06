@@ -116,7 +116,9 @@ const crab: Species = {
 			g.moveTo(side * 18, 0)
 				.lineTo(x, -10)
 				.stroke({ width: 5, color: p.outline });
-			g.circle(x + side * 4, -18, 10).fill(p.body).stroke(outline(p));
+			g.circle(x + side * 4, -18, 10)
+				.fill(p.body)
+				.stroke(outline(p));
 			g.moveTo(x + side * 4, -18)
 				.lineTo(x + side * 14, -26)
 				.stroke({ width: 3, color: p.outline });
@@ -279,7 +281,11 @@ export function speciesFor(kind: string): Species {
 }
 
 /** Kinds without their own species are fish, tinted per kind so two such kinds still differ. */
-export function paletteFor(species: Species, kind: string, deep: boolean): Palette {
+export function paletteFor(
+	species: Species,
+	kind: string,
+	deep: boolean,
+): Palette {
 	let { body, accent } = BASE_PALETTE[species.id];
 	if (species.id === "fish" && Object.hasOwn(KIND_SPECIES, kind) === false) {
 		const hue = kind === "unknown" ? 205 : hashString(kind) % 360;

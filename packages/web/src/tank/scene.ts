@@ -1,5 +1,6 @@
 import type { AgentView, TerrariumEvent } from "@terrarium/protocol";
 import { Application, Container, Graphics, type Ticker } from "pixi.js";
+import type { WorldState } from "../world";
 import { Creature } from "./creature";
 import { FALLBACK_FPS, FrameGovernor, FULL_FPS } from "./frame-rate";
 import {
@@ -66,7 +67,11 @@ export class Tank {
 		const dot = new Graphics().circle(16, 16, 16).fill(0xffffff);
 		const texture = app.renderer.generateTexture(dot);
 		dot.destroy();
-		this.#particles = new Particles(this.#particlesLayer, texture, MAX_PARTICLES);
+		this.#particles = new Particles(
+			this.#particlesLayer,
+			texture,
+			MAX_PARTICLES,
+		);
 		app.ticker.maxFPS = FULL_FPS;
 		app.ticker.add((ticker) => this.#tick(ticker));
 		this.#host.dataset.fps = String(FULL_FPS);
@@ -81,7 +86,12 @@ export class Tank {
 				seen.add(agent.agentId);
 				let creature = this.#creatures.get(agent.agentId);
 				if (creature === undefined) {
-					creature = new Creature(agent.agentId, this.#labelsLayer, this.#particles, this.#time);
+					creature = new Creature(
+						agent.agentId,
+						this.#labelsLayer,
+						this.#particles,
+						this.#time,
+					);
 					this.#creaturesLayer.addChild(creature.root);
 					this.#creatures.set(agent.agentId, creature);
 				}
@@ -106,7 +116,9 @@ export class Tank {
 	}
 
 	#hosts(): string[] {
-		return this.#world === null ? DEFAULT_HOSTS : Object.keys(this.#world.hosts);
+		return this.#world === null
+			? DEFAULT_HOSTS
+			: Object.keys(this.#world.hosts);
 	}
 
 	#layout(): void {
@@ -185,7 +197,8 @@ export class Tank {
 				const parent = this.#creatures.get(agent.parentAgentId ?? "");
 				const creature = this.#creatures.get(agent.agentId);
 				const placement = parent?.placement;
-				if (parent === undefined || creature === undefined || placement == null) continue;
+				if (parent === undefined || creature === undefined || placement == null)
+					continue;
 				const index = counts.get(parent.agentId) ?? 0;
 				counts.set(parent.agentId, index + 1);
 				const side = index % 2 === 0 ? -parent.direction : parent.direction;
@@ -202,24 +215,30 @@ export class Tank {
 		}
 	}
 
-
 	#tick(ticker: Ticker): void {
 		const now = performance.now();
 		const limit = this.#governor.sample(ticker.elapsedMS, now);
 		if (limit !== null) {
 			ticker.maxFPS = limit;
-			this.#particles.cap = limit === FALLBACK_FPS ? MAX_PARTICLES / 2 : MAX_PARTICLES;
+			this.#particles.cap =
+				limit === FALLBACK_FPS ? MAX_PARTICLES / 2 : MAX_PARTICLES;
 			this.#host.dataset.fps = String(limit);
 		}
 		const dt = Math.min(MAX_STEP_S, ticker.deltaMS / 1000);
 		this.#time += dt;
 		const { width, height } = this.#app.screen;
-		if (this.#layoutDirty || width !== this.#size.w || height !== this.#size.h) {
+		if (
+			this.#layoutDirty ||
+			width !== this.#size.w ||
+			height !== this.#size.h
+		) {
 			this.#layout();
 		}
 		this.#placeBabies();
-		for (const zone of this.#zones.values()) zone.update(this.#time, dt, this.#particles);
-		for (const creature of this.#creatures.values()) creature.update(this.#time, dt);
+		for (const zone of this.#zones.values())
+			zone.update(this.#time, dt, this.#particles);
+		for (const creature of this.#creatures.values())
+			creature.update(this.#time, dt);
 		for (let index = this.#leaving.length - 1; index >= 0; index--) {
 			const creature = this.#leaving[index];
 			if (creature === undefined) continue;
@@ -233,6 +252,11 @@ export class Tank {
 	}
 }
 
-function isBaby(agent: AgentView, siblings: Record<string, AgentView>): boolean {
-	return agent.parentAgentId !== null && Object.hasOwn(siblings, agent.parentAgentId);
+function isBaby(
+	agent: AgentView,
+	siblings: Record<string, AgentView>,
+): boolean {
+	return (
+		agent.parentAgentId !== null && Object.hasOwn(siblings, agent.parentAgentId)
+	);
 }

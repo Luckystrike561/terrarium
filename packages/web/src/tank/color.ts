@@ -8,7 +8,11 @@ export function hashString(value: string): number {
 	return hash >>> 0;
 }
 
-export function hsl(hue: number, saturation: number, lightness: number): number {
+export function hsl(
+	hue: number,
+	saturation: number,
+	lightness: number,
+): number {
 	const h = (((hue % 360) + 360) % 360) / 60;
 	const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
 	const x = chroma * (1 - Math.abs((h % 2) - 1));

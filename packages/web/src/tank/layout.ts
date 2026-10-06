@@ -32,7 +32,8 @@ export function layoutZones(
 		: 0;
 	const topHeight = height - deepHeight - (hasDeep && top.length > 0 ? GAP : 0);
 	const zones: ZoneLayout[] = [];
-	const columnWidth = (width - GAP * (top.length - 1)) / Math.max(1, top.length);
+	const columnWidth =
+		(width - GAP * (top.length - 1)) / Math.max(1, top.length);
 	top.forEach((host, index) => {
 		zones.push({
 			host,

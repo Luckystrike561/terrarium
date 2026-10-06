@@ -54,10 +54,6 @@ body {
 	opacity: 0.85;
 }
 
-.hud .status {
-	background: rgba(13, 17, 23, 0.7);
-}
-
 .hud-button {
 	font: inherit;
 	font-weight: 600;
@@ -134,6 +130,10 @@ h2 {
 	background: var(--panel);
 	font-weight: 600;
 	white-space: nowrap;
+}
+
+.hud .status {
+	background: rgba(13, 17, 23, 0.7);
 }
 
 .status-dot,

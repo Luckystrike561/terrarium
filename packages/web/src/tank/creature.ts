@@ -27,8 +27,8 @@ import {
 	hatFor,
 	type Palette,
 	paletteFor,
-	STONE_PALETTE,
 	type Species,
+	STONE_PALETTE,
 	speciesFor,
 } from "./species";
 
@@ -57,21 +57,126 @@ type Motion = {
 };
 
 const MOTION: Record<Activity, Motion> = {
-	sleep: { bob: 2, bobHz: 0.25, wagHz: 0.3, wag: 0.05, eyes: "closed", look: { x: 0, y: 0 } },
-	think: { bob: 4, bobHz: 0.6, wagHz: 2.2, wag: 0.3, eyes: "open", look: { x: 0.4, y: -0.8 } },
-	read: { bob: 2, bobHz: 0.5, wagHz: 1, wag: 0.12, eyes: "open", look: { x: 1, y: 0.5 } },
-	sniff: { bob: 1.5, bobHz: 0.8, wagHz: 3, wag: 0.25, eyes: "open", look: { x: 1, y: 1 } },
-	build: { bob: 2, bobHz: 0.8, wagHz: 2.5, wag: 0.2, eyes: "open", look: { x: 1, y: 0.4 } },
-	hammer: { bob: 1, bobHz: 0.8, wagHz: 3, wag: 0.2, eyes: "open", look: { x: 1, y: 0.6 } },
-	telescope: { bob: 2, bobHz: 0.4, wagHz: 1, wag: 0.12, eyes: "open", look: { x: 1, y: -0.8 } },
-	notepad: { bob: 2, bobHz: 0.5, wagHz: 1.2, wag: 0.12, eyes: "open", look: { x: 1, y: 0.6 } },
-	messenger: { bob: 4, bobHz: 0.7, wagHz: 2.5, wag: 0.3, eyes: "open", look: { x: 0.6, y: -0.6 } },
-	hatch: { bob: 2, bobHz: 0.6, wagHz: 1.5, wag: 0.15, eyes: "open", look: { x: 1, y: 0.4 } },
-	knock: { bob: 0, bobHz: 1, wagHz: 5, wag: 0.35, eyes: "open", look: { x: 0, y: 0.2 } },
-	celebrate: { bob: 0, bobHz: 1, wagHz: 6, wag: 0.4, eyes: "happy", look: { x: 0, y: 0 } },
-	rest: { bob: 2.5, bobHz: 0.3, wagHz: 0.6, wag: 0.08, eyes: "half", look: { x: 0, y: 0.3 } },
-	trip: { bob: 0, bobHz: 1, wagHz: 0, wag: 0, eyes: "closed", look: { x: 0, y: 0 } },
-	stone: { bob: 0, bobHz: 1, wagHz: 0, wag: 0, eyes: "stone", look: { x: 0, y: 0 } },
+	sleep: {
+		bob: 2,
+		bobHz: 0.25,
+		wagHz: 0.3,
+		wag: 0.05,
+		eyes: "closed",
+		look: { x: 0, y: 0 },
+	},
+	think: {
+		bob: 4,
+		bobHz: 0.6,
+		wagHz: 2.2,
+		wag: 0.3,
+		eyes: "open",
+		look: { x: 0.4, y: -0.8 },
+	},
+	read: {
+		bob: 2,
+		bobHz: 0.5,
+		wagHz: 1,
+		wag: 0.12,
+		eyes: "open",
+		look: { x: 1, y: 0.5 },
+	},
+	sniff: {
+		bob: 1.5,
+		bobHz: 0.8,
+		wagHz: 3,
+		wag: 0.25,
+		eyes: "open",
+		look: { x: 1, y: 1 },
+	},
+	build: {
+		bob: 2,
+		bobHz: 0.8,
+		wagHz: 2.5,
+		wag: 0.2,
+		eyes: "open",
+		look: { x: 1, y: 0.4 },
+	},
+	hammer: {
+		bob: 1,
+		bobHz: 0.8,
+		wagHz: 3,
+		wag: 0.2,
+		eyes: "open",
+		look: { x: 1, y: 0.6 },
+	},
+	telescope: {
+		bob: 2,
+		bobHz: 0.4,
+		wagHz: 1,
+		wag: 0.12,
+		eyes: "open",
+		look: { x: 1, y: -0.8 },
+	},
+	notepad: {
+		bob: 2,
+		bobHz: 0.5,
+		wagHz: 1.2,
+		wag: 0.12,
+		eyes: "open",
+		look: { x: 1, y: 0.6 },
+	},
+	messenger: {
+		bob: 4,
+		bobHz: 0.7,
+		wagHz: 2.5,
+		wag: 0.3,
+		eyes: "open",
+		look: { x: 0.6, y: -0.6 },
+	},
+	hatch: {
+		bob: 2,
+		bobHz: 0.6,
+		wagHz: 1.5,
+		wag: 0.15,
+		eyes: "open",
+		look: { x: 1, y: 0.4 },
+	},
+	knock: {
+		bob: 0,
+		bobHz: 1,
+		wagHz: 5,
+		wag: 0.35,
+		eyes: "open",
+		look: { x: 0, y: 0.2 },
+	},
+	celebrate: {
+		bob: 0,
+		bobHz: 1,
+		wagHz: 6,
+		wag: 0.4,
+		eyes: "happy",
+		look: { x: 0, y: 0 },
+	},
+	rest: {
+		bob: 2.5,
+		bobHz: 0.3,
+		wagHz: 0.6,
+		wag: 0.08,
+		eyes: "half",
+		look: { x: 0, y: 0.3 },
+	},
+	trip: {
+		bob: 0,
+		bobHz: 1,
+		wagHz: 0,
+		wag: 0,
+		eyes: "closed",
+		look: { x: 0, y: 0 },
+	},
+	stone: {
+		bob: 0,
+		bobHz: 1,
+		wagHz: 0,
+		wag: 0,
+		eyes: "stone",
+		look: { x: 0, y: 0 },
+	},
 };
 
 export type Placement = {
@@ -136,7 +241,12 @@ export class Creature {
 	#time = 0;
 	#shells: Graphics[] = [];
 
-	constructor(agentId: string, labels: Container, particles: Particles, now: number) {
+	constructor(
+		agentId: string,
+		labels: Container,
+		particles: Particles,
+		now: number,
+	) {
 		this.agentId = agentId;
 		this.#particles = particles;
 		this.#bornAt = now;
@@ -156,7 +266,13 @@ export class Creature {
 		});
 		this.label.anchor.set(0.5, 0);
 		labels.addChild(this.label);
-		this.#rig.addChild(this.#tail, this.#body, this.#lure, this.#face, this.#hat);
+		this.#rig.addChild(
+			this.#tail,
+			this.#body,
+			this.#lure,
+			this.#face,
+			this.#hat,
+		);
 		this.#facing.addChild(this.#back, this.#rig, this.#front);
 		this.root.addChild(this.#facing, this.#overlay);
 		this.#facing.alpha = 0;
@@ -207,7 +323,10 @@ export class Creature {
 			this.#base !== "stone";
 		this.#base = base;
 		if (celebrates) {
-			this.#transient = { activity: "celebrate", until: this.#time + CELEBRATE_S };
+			this.#transient = {
+				activity: "celebrate",
+				until: this.#time + CELEBRATE_S,
+			};
 		} else if (this.#transient?.activity === "celebrate" || base === "stone") {
 			this.#transient = null;
 		}
@@ -256,7 +375,8 @@ export class Creature {
 		const age = now - this.#bornAt;
 		const hatch = Math.min(1, age / HATCH_S);
 		const pop = hatch < 1 ? 0.4 + 0.6 * easeOutBack(hatch) : 1;
-		const leave = this.#leftAt === null ? 0 : Math.min(1, (now - this.#leftAt) / LEAVE_S);
+		const leave =
+			this.#leftAt === null ? 0 : Math.min(1, (now - this.#leftAt) / LEAVE_S);
 		this.root.scale.set(scale * pop * (1 - leave * 0.4));
 		this.root.alpha = 1 - leave;
 		this.#facing.alpha = this.#overlay.alpha = Math.min(1, hatch * 1.6);
@@ -280,17 +400,22 @@ export class Creature {
 		let eyes = motion.eyes;
 		if (eyes === "open" && now >= this.#blinkAt) {
 			eyes = "closed";
-			if (now >= this.#blinkAt + 0.13) this.#blinkAt = now + 2 + Math.random() * 4;
+			if (now >= this.#blinkAt + 0.13)
+				this.#blinkAt = now + 2 + Math.random() * 4;
 		}
 		this.#drawFace(eyes, motion.look, activity);
 		this.#animate(now - this.#shownSince, dt);
 
 		const radius = (placement.radius * (this.baby ? BABY_SCALE : 1)) | 0;
 		this.label.visible = !this.baby;
-		this.label.alpha = this.root.alpha * this.#facing.alpha * (activity === "stone" ? 0.6 : 0.95);
+		this.label.alpha =
+			this.root.alpha *
+			this.#facing.alpha *
+			(activity === "stone" ? 0.6 : 0.95);
 		this.label.position.set(this.root.x, this.root.y + radius * 1.3);
 		const fontSize = Math.round(Math.min(22, Math.max(12, radius * 0.45)));
-		if (this.label.style.fontSize !== fontSize) this.label.style.fontSize = fontSize;
+		if (this.label.style.fontSize !== fontSize)
+			this.label.style.fontSize = fontSize;
 	}
 
 	#scale(): number {
@@ -315,8 +440,12 @@ export class Creature {
 				this.#roamUntil = now + 3 + Math.random() * 4;
 			}
 		} else if (activity === "sniff" && !this.baby) {
-			const side = Math.floor((now - this.#shownSince) / 2.4) % 2 === 0 ? 1 : -1;
-			this.#target = { x: home.x + side * radius * 1.4, y: home.y + radius * 0.4 };
+			const side =
+				Math.floor((now - this.#shownSince) / 2.4) % 2 === 0 ? 1 : -1;
+			this.#target = {
+				x: home.x + side * radius * 1.4,
+				y: home.y + radius * 0.4,
+			};
 		} else {
 			this.#target = { x: home.x, y: home.y };
 		}
@@ -325,7 +454,11 @@ export class Creature {
 		const distance = Math.hypot(dx, dy);
 		const speed = radius * (this.baby ? 4 : activity === "sniff" ? 0.9 : 1.8);
 		if (distance > 0.5) {
-			const step = Math.min(distance, speed * dt, distance * Math.min(1, dt * 4));
+			const step = Math.min(
+				distance,
+				speed * dt,
+				distance * Math.min(1, dt * 4),
+			);
 			this.root.x += (dx / distance) * step;
 			this.root.y += (dy / distance) * step;
 		}
@@ -391,7 +524,9 @@ export class Creature {
 				.moveTo(x, y)
 				.quadraticCurveTo(x + 4, y - 22, x + 18, y - 18)
 				.stroke({ width: 2.5, color: palette.outline });
-			this.#lure.circle(x + 18, y - 16, 8).fill({ color: palette.glow, alpha: 0.25 });
+			this.#lure
+				.circle(x + 18, y - 16, 8)
+				.fill({ color: palette.glow, alpha: 0.25 });
 			this.#lure.circle(x + 18, y - 16, 4).fill(palette.glow);
 		}
 
@@ -416,8 +551,14 @@ export class Creature {
 			switch (mode) {
 				case "open":
 					g.circle(x, y, r).fill(0xffffff).stroke({ width: 1.5, color: ink });
-					g.circle(x + look.x * r * 0.35, y + look.y * r * 0.35, r * 0.55).fill(ink);
-					g.circle(x + look.x * r * 0.35 - r * 0.2, y + look.y * r * 0.35 - r * 0.25, r * 0.18).fill(0xffffff);
+					g.circle(x + look.x * r * 0.35, y + look.y * r * 0.35, r * 0.55).fill(
+						ink,
+					);
+					g.circle(
+						x + look.x * r * 0.35 - r * 0.2,
+						y + look.y * r * 0.35 - r * 0.25,
+						r * 0.18,
+					).fill(0xffffff);
 					break;
 				case "half":
 					g.circle(x, y, r).fill(0xffffff).stroke({ width: 1.5, color: ink });
@@ -426,7 +567,9 @@ export class Creature {
 						.bezierCurveTo(x - r, y - r * 1.4, x + r, y - r * 1.4, x + r, y)
 						.closePath()
 						.fill(this.#palette.body);
-					g.moveTo(x - r, y).lineTo(x + r, y).stroke({ width: 2, color: ink });
+					g.moveTo(x - r, y)
+						.lineTo(x + r, y)
+						.stroke({ width: 2, color: ink });
 					break;
 				case "closed":
 					g.moveTo(x - r, y)
@@ -448,7 +591,12 @@ export class Creature {
 			g.ellipse(x, y, 3, 3.5).fill(ink);
 		} else if (mode !== "stone") {
 			g.moveTo(x - 4, y - 1)
-				.quadraticCurveTo(x, y + (activity === "celebrate" ? 6 : 3), x + 4, y - 1)
+				.quadraticCurveTo(
+					x,
+					y + (activity === "celebrate" ? 6 : 3),
+					x + 4,
+					y - 1,
+				)
 				.stroke({ width: 2, color: ink, cap: "round" });
 		}
 	}
@@ -477,7 +625,12 @@ export class Creature {
 		const rig = this.#rig;
 		const front = this.#front;
 		const overlay = this.#overlay;
-		const add = <T extends Container>(layer: Container, child: T, x = 0, y = 0): T => {
+		const add = <T extends Container>(
+			layer: Container,
+			child: T,
+			x = 0,
+			y = 0,
+		): T => {
 			child.position.set(x, y);
 			layer.addChild(child);
 			return child;
@@ -496,7 +649,10 @@ export class Creature {
 					rig.scale.set(1 + wave(elapsed, 0.25) * 0.03);
 					zs.forEach((z, index) => {
 						const phase = (elapsed / 2.4 + index / 3) % 1;
-						z.position.set(this.#direction * (22 + phase * 20), -30 - phase * 42);
+						z.position.set(
+							this.#direction * (22 + phase * 20),
+							-30 - phase * 42,
+						);
 						z.alpha = Math.sin(phase * Math.PI);
 						z.scale.set(0.6 + phase * 0.9);
 					});
@@ -514,7 +670,8 @@ export class Creature {
 					bubble.x = this.#direction * 18;
 					bubble.scale.x = this.#direction;
 					dots.forEach((dot, index) => {
-						dot.alpha = 0.25 + 0.75 * Math.max(0, wave(elapsed - index * 0.22, 0.9));
+						dot.alpha =
+							0.25 + 0.75 * Math.max(0, wave(elapsed - index * 0.22, 0.9));
 					});
 				};
 			}
@@ -524,14 +681,23 @@ export class Creature {
 				return (elapsed) => {
 					scroll.rotation = -0.12 + wave(elapsed, 0.3) * 0.04;
 					const turn = (elapsed % 2.2) / 2.2;
-					scroll.scale.set(1, turn > 0.9 ? 1 - Math.sin(((turn - 0.9) / 0.1) * Math.PI) * 0.25 : 1);
+					scroll.scale.set(
+						1,
+						turn > 0.9
+							? 1 - Math.sin(((turn - 0.9) / 0.1) * Math.PI) * 0.25
+							: 1,
+					);
 					rig.rotation = 0.06 + wave(elapsed, 0.45) * 0.06;
 				};
 			}
 			case "sniff": {
 				const lines = add(front, new Graphics(), 36, 14);
-				lines.arc(0, 0, 6, -0.8, 0.8).stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
-				lines.arc(0, 0, 11, -0.8, 0.8).stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
+				lines
+					.arc(0, 0, 6, -0.8, 0.8)
+					.stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
+				lines
+					.arc(0, 0, 11, -0.8, 0.8)
+					.stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
 				let next = 0;
 				return (elapsed) => {
 					rig.rotation = 0.32 + wave(elapsed, 3) * 0.05;
@@ -561,7 +727,8 @@ export class Creature {
 					if (shown !== placed) {
 						placed = shown;
 						const spot = layout[shown - 1];
-						if (spot !== undefined) this.#emit("dust", { x: spot.x, y: spot.y + 8 }, 3);
+						if (spot !== undefined)
+							this.#emit("dust", { x: spot.x, y: spot.y + 8 }, 3);
 					}
 					blocks.forEach((block, index) => {
 						const spot = layout[index] ?? { x: 0, y: 0 };
@@ -621,7 +788,10 @@ export class Creature {
 						for (let line = 0; line < count; line++) drawNoteLine(lines, line);
 					}
 					const along = (elapsed % 1.2) / 1.2;
-					pencil.position.set(-9 + along * 18, -6 + count * 6 + wave(elapsed, 6) * 1.5);
+					pencil.position.set(
+						-9 + along * 18,
+						-6 + count * 6 + wave(elapsed, 6) * 1.5,
+					);
 					rig.rotation = 0.08;
 				};
 			}
@@ -630,7 +800,10 @@ export class Creature {
 				return (elapsed) => {
 					bird.clear();
 					drawBird(bird, (wave(elapsed, 4) + 1) / 2);
-					bird.position.set(Math.cos(elapsed * 1.8) * 52, -46 + Math.sin(elapsed * 1.8) * 16);
+					bird.position.set(
+						Math.cos(elapsed * 1.8) * 52,
+						-46 + Math.sin(elapsed * 1.8) * 16,
+					);
 					bird.scale.x = Math.sin(elapsed * 1.8) > 0 ? -1 : 1;
 				};
 			}
@@ -645,14 +818,20 @@ export class Creature {
 						egg.clear();
 						drawEgg(egg, cracks);
 					}
-					const shaking = cycle > 1 ? Math.sin(elapsed * 30) * 0.18 * Math.min(1, (cycle - 1) * 2) : 0;
+					const shaking =
+						cycle > 1
+							? Math.sin(elapsed * 30) * 0.18 * Math.min(1, (cycle - 1) * 2)
+							: 0;
 					egg.rotation = shaking;
 					rig.rotation = 0.06;
 				};
 			}
 			case "knock": {
 				const fin = add(front, new Graphics(), 34, 4);
-				fin.ellipse(0, 0, 7, 5).fill(this.#palette.body).stroke({ width: 2.5, color: this.#palette.outline });
+				fin
+					.ellipse(0, 0, 7, 5)
+					.fill(this.#palette.body)
+					.stroke({ width: 2.5, color: this.#palette.outline });
 				const ripples = add(overlay, new Graphics());
 				const mark = add(overlay, new Graphics(), 0, -60);
 				drawExclamation(mark);
@@ -688,7 +867,10 @@ export class Creature {
 			}
 			case "rest":
 				return (elapsed) => {
-					rig.scale.set(1 + wave(elapsed, 0.3) * 0.025, 1 - wave(elapsed, 0.3) * 0.02);
+					rig.scale.set(
+						1 + wave(elapsed, 0.3) * 0.025,
+						1 - wave(elapsed, 0.3) * 0.02,
+					);
 				};
 			case "trip": {
 				const stars = [0, 1, 2].map(() => {

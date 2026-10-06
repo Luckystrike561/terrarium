@@ -26,7 +26,7 @@ Prints one `TerrariumEvent` JSON line per event; logs go to stderr. Flags: `--ho
 
 The collector listens on that socket (mode 0600) and merges the stream with herdr by agentId: once the extension reports an agent, its states and tool events win over herdr's; `turn.usage` is only taken from `stats.db`. `extensions/omp/harness.ts` loads the extension against a stand-in API so hooks can be fired without omp; `scripts/verify-M2.sh` uses it.
 
-## Hub and plain view
+## Hub and web page
 
 ```sh
 bun run build:web   # builds packages/web/dist, which the hub serves
@@ -65,6 +65,20 @@ TERRARIUM_HUB_TOKEN=dev-only-collector-token-laptop-a \
 The hub stores raw events and usage rollups in SQLite and rebuilds its world state from them on start. Only contract fields are kept; anything else in `data`, including any prompt or response text, is dropped before storage and broadcast.
 
 `scripts/verify-M3.sh` starts a hub on a free port with a temp DB and config, drives a synthetic collector and a browser client, restarts the hub on the same DB, and checks the rebuilt state.
+
+## The tank
+
+The page is a full-screen PixiJS tank fed by the same `/view` snapshot and delta stream. laptop-a is the left zone, laptop-b the right, and `server` the deep bottom layer (darker water, glowing motes, creatures with dimmer bodies and bioluminescent lures). Other host names get extra top zones.
+
+- Species per agent kind: omp axolotl, claude crab, codex jellyfish, opencode pufferfish, gemini octopus; any other kind is a fish tinted by its kind name. Each project folder gets a hat style and colour hashed from its name, so the same project looks the same on every host. Subagents (`parentAgentId` set) are smaller babies that trail their parent.
+- Animations come from one table in `packages/web/src/tank/activity.ts`: idle sleeps with Zzz; working without a tool roams with a thought bubble; `read`/`lsp` read a scroll; `grep`/`glob`/`find` sniff the ground; `edit`/`write`/`ast_edit` stack blocks; `bash`/`shell`/`exec`/`eval` hammer on an anvil; `web_search`/fetch use a telescope; `todo` writes on a notepad; `hub` sends a messenger bird; `task` shakes an egg; `blocked` knocks on the glass with a pulsing "!"; `done` celebrates, then rests; a failed `tool.end` trips; offline agents or hosts turn to stone and the zone dims. Tool names are normalized (`WebFetch` -> `web_fetch`); unknown tools animate as working.
+- New agents hatch out of an egg; `agent.gone` fades them out.
+- All art is drawn with Pixi Graphics; there are no image assets. The PNG app icons are rasterized at build time by `packages/web/build/icons.ts`.
+- Particles share one pool capped at 160. When frames stay slower than about 45 fps for 2 s, the ticker drops to 30 fps and the cap halves; it retries 60 fps after 20 s, backing off up to 5 min.
+- The top-right HUD has the connection status, a wake-lock dot (filled: screen kept on), a `List` button that opens the M3 tables, and `Fullscreen`.
+- Install on a tablet with "Add to Home Screen" / "Install app"; the manifest asks for fullscreen landscape. The Screen Wake Lock API only works in a secure context (HTTPS or localhost); over plain HTTP on the tailnet the dot stays hollow and the tablet's own sleep setting applies.
+
+`scripts/verify-M4.sh` builds the web package, checks the bundle, manifest and icons in `dist`, then starts a hub on a free port and checks it serves that `index.html`, the entry script, the manifest and an icon.
 
 ## Decision log
 

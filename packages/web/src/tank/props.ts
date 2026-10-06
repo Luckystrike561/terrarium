@@ -88,7 +88,9 @@ export function drawBird(g: Graphics, flap: number): void {
 		.stroke({ width: 3, color: 0xf7f4ea, cap: "round", join: "round" });
 	g.ellipse(0, 1, 5, 3.5).fill(0xf7f4ea);
 	g.poly([5, 0, 9, 1, 5, 2.5]).fill(0xf2a541);
-	g.roundRect(-4, 4, 8, 6, 1).fill(0xe8d7a8).stroke({ width: 1.2, color: 0x8a6a35 });
+	g.roundRect(-4, 4, 8, 6, 1)
+		.fill(0xe8d7a8)
+		.stroke({ width: 1.2, color: 0x8a6a35 });
 }
 
 export function drawEgg(g: Graphics, cracks: number): void {
@@ -143,7 +145,12 @@ export function drawZ(g: Graphics, size: number): void {
 		.lineTo(half, -half)
 		.lineTo(-half, half)
 		.lineTo(half, half)
-		.stroke({ width: Math.max(2, size / 4), color: 0xe9f4ff, cap: "round", join: "round" });
+		.stroke({
+			width: Math.max(2, size / 4),
+			color: 0xe9f4ff,
+			cap: "round",
+			join: "round",
+		});
 }
 
 export function drawStar(g: Graphics): void {

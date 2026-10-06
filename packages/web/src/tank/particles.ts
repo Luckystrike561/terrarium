@@ -45,7 +45,13 @@ export class Particles {
 		}
 	}
 
-	emit(kind: ParticleKind, x: number, y: number, scale: number, count = 1): void {
+	emit(
+		kind: ParticleKind,
+		x: number,
+		y: number,
+		scale: number,
+		count = 1,
+	): void {
 		for (let index = 0; index < count; index++) {
 			if (this.#live.length >= this.#cap) return;
 			const particle = this.#free.pop() ?? this.#create();

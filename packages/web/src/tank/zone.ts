@@ -91,10 +91,22 @@ export class Zone {
 			fill: 0xf0f6ff,
 			stroke: { color: 0x02101e, width: 5 },
 		};
-		this.#title = new Text({ text: layout.host, style: { ...style, fontWeight: "700" } });
-		this.#meta = new Text({ text: "", style: { ...style, fontWeight: "500", fill: 0xbcd3e8 } });
+		this.#title = new Text({
+			text: layout.host,
+			style: { ...style, fontWeight: "700" },
+		});
+		this.#meta = new Text({
+			text: "",
+			style: { ...style, fontWeight: "500", fill: 0xbcd3e8 },
+		});
 		this.back.addChild(this.#water, this.#rays, this.#floor);
-		this.front.addChild(this.#dim, this.#glass, this.#dot, this.#title, this.#meta);
+		this.front.addChild(
+			this.#dim,
+			this.#glass,
+			this.#dot,
+			this.#title,
+			this.#meta,
+		);
 		this.#draw();
 	}
 
@@ -142,10 +154,20 @@ export class Zone {
 		const scale = Math.max(0.6, h / 360);
 		if (this.#theme.ambient === "bubble") {
 			this.#nextAmbient = time + 0.5 + Math.random() * 0.9;
-			particles.emit("bubble", x + Math.random() * w, y + h * (1 - ZONE_FLOOR), scale);
+			particles.emit(
+				"bubble",
+				x + Math.random() * w,
+				y + h * (1 - ZONE_FLOOR),
+				scale,
+			);
 		} else {
 			this.#nextAmbient = time + 0.35 + Math.random() * 0.5;
-			particles.emit("mote", x + Math.random() * w, y + h * (0.3 + Math.random() * 0.6), scale);
+			particles.emit(
+				"mote",
+				x + Math.random() * w,
+				y + h * (0.3 + Math.random() * 0.6),
+				scale,
+			);
 		}
 	}
 
@@ -172,7 +194,16 @@ export class Zone {
 				const start = x + w * (0.1 + ray * 0.24 + random() * 0.08);
 				const spread = w * 0.08;
 				this.#rays
-					.poly([start, y, start + spread, y, start + spread * 2.6, y + h * 0.85, start + spread * 0.9, y + h * 0.85])
+					.poly([
+						start,
+						y,
+						start + spread,
+						y,
+						start + spread * 2.6,
+						y + h * 0.85,
+						start + spread * 0.9,
+						y + h * 0.85,
+					])
 					.fill({ color: 0xffffff, alpha: 0.05 });
 			}
 		}
@@ -190,20 +221,35 @@ export class Zone {
 				floorTop + h * 0.025 * random(),
 			);
 		}
-		floor.lineTo(x + w, y + h).lineTo(x, y + h).closePath().fill(theme.sand);
+		floor
+			.lineTo(x + w, y + h)
+			.lineTo(x, y + h)
+			.closePath()
+			.fill(theme.sand);
 		for (let speck = 0; speck < Math.round(w / 18); speck++) {
 			floor
-				.circle(x + random() * w, floorTop + h * 0.04 + random() * h * 0.07, 1 + random() * 2)
+				.circle(
+					x + random() * w,
+					floorTop + h * 0.04 + random() * h * 0.07,
+					1 + random() * 2,
+				)
 				.fill({ color: darken(theme.sand, 0.25), alpha: 0.6 });
 		}
 		const unit = Math.max(8, Math.min(w, h) * 0.04);
 		for (let rock = 0; rock < 3; rock++) {
 			const rx = x + w * (0.12 + random() * 0.76);
 			floor
-				.ellipse(rx, floorTop + unit * 0.4, unit * (1.2 + random()), unit * (0.7 + random() * 0.4))
+				.ellipse(
+					rx,
+					floorTop + unit * 0.4,
+					unit * (1.2 + random()),
+					unit * (0.7 + random() * 0.4),
+				)
 				.fill(theme.rock)
 				.stroke({ width: 2, color: darken(theme.rock, 0.35) });
-			floor.ellipse(rx - unit * 0.4, floorTop, unit * 0.4, unit * 0.2).fill(lighten(theme.rock, 0.2));
+			floor
+				.ellipse(rx - unit * 0.4, floorTop, unit * 0.4, unit * 0.2)
+				.fill(lighten(theme.rock, 0.2));
 		}
 
 		for (const weed of this.#weeds) weed.g.destroy();
@@ -217,13 +263,31 @@ export class Zone {
 				const offset = (blade - (blades - 1) / 2) * unit * 0.5;
 				const sway = (random() - 0.5) * unit * 2;
 				g.moveTo(offset, 0)
-					.bezierCurveTo(offset + sway, -height * 0.35, offset - sway, -height * 0.7, offset + sway * 0.5, -height * (0.8 + blade * 0.08))
-					.stroke({ width: Math.max(3, unit * 0.35), color: theme.weed, cap: "round" });
+					.bezierCurveTo(
+						offset + sway,
+						-height * 0.35,
+						offset - sway,
+						-height * 0.7,
+						offset + sway * 0.5,
+						-height * (0.8 + blade * 0.08),
+					)
+					.stroke({
+						width: Math.max(3, unit * 0.35),
+						color: theme.weed,
+						cap: "round",
+					});
 				if (theme.weedTip !== null) {
-					g.circle(offset + sway * 0.5, -height * (0.8 + blade * 0.08), unit * 0.25).fill(theme.weedTip);
+					g.circle(
+						offset + sway * 0.5,
+						-height * (0.8 + blade * 0.08),
+						unit * 0.25,
+					).fill(theme.weedTip);
 				}
 			}
-			g.position.set(x + w * ((index + 0.3 + random() * 0.4) / weedCount), floorTop + unit * 0.3);
+			g.position.set(
+				x + w * ((index + 0.3 + random() * 0.4) / weedCount),
+				floorTop + unit * 0.3,
+			);
 			this.back.addChild(g);
 			this.#weeds.push({ g, phase: random() * Math.PI * 2 });
 		}
@@ -239,13 +303,21 @@ export class Zone {
 			.lineTo(x + w * 0.03, y + h * 0.08)
 			.stroke({ width: 6, color: 0xffffff, alpha: 0.07, cap: "round" });
 
-		const titleSize = Math.round(Math.min(34, Math.max(16, Math.min(w * 0.05, h * 0.075))));
+		const titleSize = Math.round(
+			Math.min(34, Math.max(16, Math.min(w * 0.05, h * 0.075))),
+		);
 		this.#title.style.fontSize = titleSize;
 		this.#meta.style.fontSize = Math.round(titleSize * 0.6);
 		const pad = titleSize * 0.6;
-		this.#dot.position.set(x + pad + titleSize * 0.3, y + pad + titleSize * 0.62);
+		this.#dot.position.set(
+			x + pad + titleSize * 0.3,
+			y + pad + titleSize * 0.62,
+		);
 		this.#dot.scale.set(titleSize * 0.3);
 		this.#title.position.set(x + pad + titleSize * 0.8, y + pad);
-		this.#meta.position.set(x + pad + titleSize * 0.8, y + pad + titleSize * 1.15);
+		this.#meta.position.set(
+			x + pad + titleSize * 0.8,
+			y + pad + titleSize * 1.15,
+		);
 	}
 }

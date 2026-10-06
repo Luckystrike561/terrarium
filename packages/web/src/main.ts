@@ -29,7 +29,13 @@ const tokenInput = byId<HTMLInputElement>("token-input");
 const usageTable = byId<HTMLTableElement>("usage");
 const agentsTable = byId<HTMLTableElement>("agents");
 
-const tank = await Tank.create(tankBox);
+/** Without a working renderer the page still connects and shows the tables. */
+const tank = await Tank.create(tankBox).catch((error: unknown) => {
+	console.error("tank: renderer failed to start", error);
+	details.hidden = false;
+	detailsButton.setAttribute("aria-pressed", "true");
+	return null;
+});
 
 let world: WorldState | null = null;
 let socket: WebSocket | null = null;
@@ -89,9 +95,9 @@ function connect(token: string): void {
 		}
 		world = applyMessage(world, message);
 		if (world === null) return;
-		tank.sync(world);
+		tank?.sync(world);
 		if (message.type === "delta" && message.event !== null) {
-			tank.notify(message.event);
+			tank?.notify(message.event);
 		}
 		queueDetails();
 	});

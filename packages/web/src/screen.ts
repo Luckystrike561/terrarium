@@ -13,10 +13,16 @@ function fullscreenElement(): Element | null {
 }
 
 /** Wires a toggle button; hides it where the page cannot go fullscreen (iPhone, or already installed fullscreen). */
-export function setupFullscreen(button: HTMLButtonElement, target: HTMLElement): void {
+export function setupFullscreen(
+	button: HTMLButtonElement,
+	target: HTMLElement,
+): void {
 	const element = target as PrefixedElement;
 	const request = element.requestFullscreen ?? element.webkitRequestFullscreen;
-	if (request === undefined || matchMedia("(display-mode: fullscreen)").matches) {
+	if (
+		request === undefined ||
+		matchMedia("(display-mode: fullscreen)").matches
+	) {
 		button.hidden = true;
 		return;
 	}
@@ -30,7 +36,9 @@ export function setupFullscreen(button: HTMLButtonElement, target: HTMLElement):
 		if (fullscreenElement() !== null) {
 			void (doc.exitFullscreen ?? doc.webkitExitFullscreen)?.call(doc);
 		} else {
-			void Promise.resolve(request.call(element, { navigationUI: "hide" })).catch(() => {});
+			void Promise.resolve(
+				request.call(element, { navigationUI: "hide" }),
+			).catch(() => {});
 		}
 	});
 	document.addEventListener("fullscreenchange", sync);

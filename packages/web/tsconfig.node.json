@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "../../dist/web-node",
+		"types": ["bun"],
+		"rewriteRelativeImportExtensions": true
+	},
+	"include": ["vite.config.ts", "build"]
+}

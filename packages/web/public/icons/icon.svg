@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+	<title>Terrarium</title>
 	<defs>
 		<linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
 			<stop offset="0" stop-color="#2a86b8"/>
@@ -6,7 +7,7 @@
 		</linearGradient>
 	</defs>
 	<rect width="512" height="512" rx="96" fill="url(#water)"/>
-	<path d="M0 420 Q128 396 256 420 T512 420 V416 512 H0 Z" fill="#d9c38c"/>
+	<path d="M0 420 Q128 396 256 420 T512 420 V512 H0 Z" fill="#d9c38c"/>
 	<path d="M150 270 Q70 230 40 280 Q80 320 150 300 Z" fill="#f6a8c8" stroke="#87566b" stroke-width="12"/>
 	<ellipse cx="270" cy="270" rx="140" ry="100" fill="#f6a8c8" stroke="#87566b" stroke-width="12"/>
 	<ellipse cx="285" cy="310" rx="95" ry="38" fill="#fbd3e3"/>
