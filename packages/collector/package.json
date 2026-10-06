@@ -7,7 +7,8 @@
 		"terrarium-collector": "./src/main.ts"
 	},
 	"scripts": {
-		"start": "bun src/main.ts"
+		"start": "bun src/main.ts",
+		"build": "bun build src/main.ts --target bun --outfile dist/bundle/terrarium-collector.js"
 	},
 	"dependencies": {
 		"@terrarium/protocol": "workspace:*"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -11,13 +11,21 @@ import { startHerdrSource } from "./sources/herdr";
 import { startOmpSource } from "./sources/omp";
 import { startStatsSource } from "./sources/stats";
 
+const DEFAULT_TOKEN_FILE = join(
+	process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
+	"terrarium",
+	"collector.token",
+);
+
 const USAGE = `Usage: terrarium-collector (--stdout | --hub <url>) [options]
 
   --stdout                 Print one TerrariumEvent JSON line per event
   --hub <url>              Stream events to the hub, e.g. ws://127.0.0.1:8787/ingest
+                           (env: TERRARIUM_INGEST_URL)
   --hub-token-file <path>  File holding this host's collector token
-                           (default: the TERRARIUM_HUB_TOKEN environment variable)
-  --host <name>            Host name stamped on events (default: hostname)
+                           (env: TERRARIUM_HUB_TOKEN_FILE, else the token itself in
+                           TERRARIUM_HUB_TOKEN, else ${DEFAULT_TOKEN_FILE})
+  --host <name>            Host name stamped on events (env: TERRARIUM_HOST, default: hostname)
   --herdr-socket <path>    herdr socket (default: ~/.config/herdr/herdr.sock)
   --omp-socket <path>      socket the omp extension writes to
                            (default: $XDG_RUNTIME_DIR/terrarium.sock, else /tmp/terrarium.sock)
@@ -25,6 +33,8 @@ const USAGE = `Usage: terrarium-collector (--stdout | --hub <url>) [options]
   --poll-ms <n>            stats.db poll interval (default: 5000)
   --stats-sync-ms <n>      run \`omp stats\` this often while an agent works,
                            and once when a turn ends; 0 disables (default: 30000)
+  --heartbeat-ms <n>       host.heartbeat interval while connected (default: 10000)
+  --buffer-size <n>        events kept while the hub is unreachable (default: 5000)
   --help                   Show this help
 `;
 
@@ -56,6 +66,8 @@ const OPTIONS = {
 	"stats-db": { type: "string" },
 	"poll-ms": { type: "string" },
 	"stats-sync-ms": { type: "string" },
+	"heartbeat-ms": { type: "string" },
+	"buffer-size": { type: "string" },
 	help: { type: "boolean" },
 } as const;
 
@@ -71,42 +83,69 @@ if (args.help) {
 	process.stdout.write(USAGE);
 	process.exit(0);
 }
-if (!args.stdout && args.hub === undefined) {
-	fail("one of --stdout or --hub is required");
+const env = (name: string): string | undefined =>
+	process.env[name] || undefined;
+const hubUrl = args.hub ?? env("TERRARIUM_INGEST_URL");
+if (!args.stdout && hubUrl === undefined) {
+	fail("one of --stdout or --hub (TERRARIUM_INGEST_URL) is required");
 }
 
-const host = args.host ?? hostname();
+const host = args.host ?? env("TERRARIUM_HOST") ?? hostname();
 const pollMs = Math.max(
 	nonNegativeInt("--poll-ms", args["poll-ms"], 5_000),
 	100,
 );
 const syncMs = nonNegativeInt("--stats-sync-ms", args["stats-sync-ms"], 30_000);
+const heartbeatMs = Math.max(
+	nonNegativeInt("--heartbeat-ms", args["heartbeat-ms"], 10_000),
+	100,
+);
+const bufferSize = Math.max(
+	nonNegativeInt("--buffer-size", args["buffer-size"], 5_000),
+	1,
+);
 const log = (message: string): void => {
 	process.stderr.write(`${new Date().toISOString()} ${message}\n`);
 };
 
 /** The token is read from a file or the environment so it never shows in `ps`. */
 const hubToken = (() => {
-	if (args.hub === undefined) return null;
-	let token: string | undefined;
-	try {
-		token =
-			args["hub-token-file"] === undefined
-				? process.env.TERRARIUM_HUB_TOKEN
-				: readFileSync(args["hub-token-file"], "utf8");
-	} catch (error) {
-		fail(`cannot read --hub-token-file: ${errorMessage(error)}`);
+	if (hubUrl === undefined) return null;
+	const envToken = env("TERRARIUM_HUB_TOKEN");
+	const tokenFile =
+		args["hub-token-file"] ??
+		env("TERRARIUM_HUB_TOKEN_FILE") ??
+		(envToken === undefined ? DEFAULT_TOKEN_FILE : undefined);
+	let token = envToken;
+	if (tokenFile !== undefined) {
+		try {
+			token = readFileSync(tokenFile, "utf8");
+			if ((statSync(tokenFile).mode & 0o077) !== 0) {
+				log(`collector: ${tokenFile} is readable by others; chmod 600 it`);
+			}
+		} catch (error) {
+			fail(`cannot read the hub token file: ${errorMessage(error)}`);
+		}
 	}
 	token = token?.trim();
 	if (token === undefined || token.length === 0) {
-		fail("--hub needs a token: --hub-token-file or TERRARIUM_HUB_TOKEN");
+		fail(
+			"--hub needs a token: --hub-token-file, TERRARIUM_HUB_TOKEN_FILE or TERRARIUM_HUB_TOKEN",
+		);
 	}
 	return token;
 })();
 const hub: HubSink | null =
-	args.hub === undefined || hubToken === null
+	hubUrl === undefined || hubToken === null
 		? null
-		: startHubSink({ url: args.hub, token: hubToken, log });
+		: startHubSink({
+				url: hubUrl,
+				token: hubToken,
+				host,
+				bufferSize,
+				heartbeatMs,
+				log,
+			});
 
 /**
  * Agents currently working. The stats source syncs stats.db while any exist
@@ -159,9 +198,9 @@ const omp = startOmpSource({
 	log,
 });
 
-const outputs = [args.stdout ? "stdout" : null, args.hub ?? null];
+const outputs = [args.stdout ? "stdout" : null, hubUrl ?? null];
 log(
-	`collector: host=${host} poll=${pollMs}ms stats-sync=${syncMs}ms output=${outputs.filter((output) => output !== null).join(",")}`,
+	`collector: host=${host} poll=${pollMs}ms stats-sync=${syncMs}ms heartbeat=${heartbeatMs}ms buffer=${bufferSize} output=${outputs.filter((output) => output !== null).join(",")}`,
 );
 
 const shutdown = (): void => {

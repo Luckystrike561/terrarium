@@ -21,6 +21,8 @@ export type HostRecord = {
 	host: string;
 	connections: number;
 	lastHeartbeat: number;
+	/** Connected and heard from within the heartbeat timeout. */
+	online: boolean;
 	agents: Map<string, AgentRecord>;
 };
 
@@ -80,18 +82,40 @@ export function emptyChange(): Change {
 /** Hosts -> agents -> current activity. Persistence is the caller's job. */
 export class World {
 	readonly hosts = new Map<string, HostRecord>();
+	readonly heartbeatTimeoutMs: number;
 
-	constructor(knownHosts: readonly string[]) {
+	constructor(knownHosts: readonly string[], heartbeatTimeoutMs: number) {
+		this.heartbeatTimeoutMs = heartbeatTimeoutMs;
 		for (const host of knownHosts) this.#host(host);
 	}
 
 	#host(host: string): HostRecord {
 		let record = this.hosts.get(host);
 		if (record === undefined) {
-			record = { host, connections: 0, lastHeartbeat: 0, agents: new Map() };
+			record = {
+				host,
+				connections: 0,
+				lastHeartbeat: 0,
+				online: false,
+				agents: new Map(),
+			};
 			this.hosts.set(host, record);
 		}
 		return record;
+	}
+
+	/**
+	 * A connected socket alone does not prove liveness: a laptop that sleeps
+	 * leaves its TCP connection open on the hub without sending anything.
+	 * Returns true when the online flag flipped.
+	 */
+	#refresh(record: HostRecord, now: number): boolean {
+		const online =
+			record.connections > 0 &&
+			now - record.lastHeartbeat <= this.heartbeatTimeoutMs;
+		if (online === record.online) return false;
+		record.online = online;
+		return true;
 	}
 
 	restore(
@@ -119,14 +143,23 @@ export class World {
 		const record = this.#host(host);
 		record.connections++;
 		record.lastHeartbeat = now;
-		return record.connections === 1;
+		return this.#refresh(record, now);
 	}
 
 	disconnect(host: string, now: number): boolean {
 		const record = this.#host(host);
 		record.connections = Math.max(0, record.connections - 1);
-		record.lastHeartbeat = now;
-		return record.connections === 0;
+		if (record.connections === 0) record.lastHeartbeat = now;
+		return this.#refresh(record, now);
+	}
+
+	/** Hosts whose heartbeat timed out or came back since the last call. */
+	sweep(now: number): string[] {
+		const flipped: string[] = [];
+		for (const record of this.hosts.values()) {
+			if (this.#refresh(record, now)) flipped.push(record.host);
+		}
+		return flipped;
 	}
 
 	apply(event: TerrariumEvent, now: number): Change {
@@ -134,6 +167,7 @@ export class World {
 		const host = this.#host(event.host);
 		if (event.kind === "host.heartbeat") {
 			host.lastHeartbeat = now;
+			this.#refresh(host, now);
 			change.hosts.add(host.host);
 			return change;
 		}

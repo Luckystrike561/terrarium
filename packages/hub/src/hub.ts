@@ -23,6 +23,7 @@ export class Hub {
 	#rollups: Rollups;
 	#seq = 0;
 	#rolloverTimer: Timer | undefined;
+	readonly #sweepTimer: Timer;
 
 	constructor(store: Store, world: World, publish: Publish) {
 		this.#store = store;
@@ -31,13 +32,20 @@ export class Hub {
 		this.#world.restore(store.loadHosts(), store.loadAgents());
 		this.#rollups = store.rollups(Date.now());
 		this.#scheduleRollover();
+		this.#sweepTimer = setInterval(
+			() => this.#sweep(),
+			Math.min(1_000, Math.max(50, world.heartbeatTimeoutMs / 4)),
+		);
 	}
 
 	ingest(event: TerrariumEvent): void {
 		const now = Date.now();
 		let change = emptyChange();
 		this.#store.transaction(() => {
-			this.#store.recordEvent(event, now);
+			// Heartbeats only refresh liveness; storing one every 10 s per host adds nothing.
+			if (event.kind !== "host.heartbeat") {
+				this.#store.recordEvent(event, now);
+			}
 			if (event.kind === "turn.usage") {
 				const usage = usageOf(event);
 				const fresh = this.#store.recordUsage({
@@ -82,6 +90,15 @@ export class Hub {
 
 	stop(): void {
 		clearTimeout(this.#rolloverTimer);
+		clearInterval(this.#sweepTimer);
+	}
+
+	#sweep(): void {
+		const flipped = this.#world.sweep(Date.now());
+		if (flipped.length === 0) return;
+		const change = emptyChange();
+		for (const host of flipped) change.hosts.add(host);
+		this.#broadcast(null, change);
 	}
 
 	#hostEvent(host: string, flipped: boolean): void {
@@ -113,7 +130,7 @@ export class Hub {
 		for (const [agentId, agent] of record.agents) agents[agentId] = agent.view;
 		return {
 			host: record.host,
-			online: record.connections > 0,
+			online: record.online,
 			lastHeartbeat: record.lastHeartbeat,
 			agents,
 			usage: this.#rollups.byHost.get(record.host) ?? emptyRollups(),

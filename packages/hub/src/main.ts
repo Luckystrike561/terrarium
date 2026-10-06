@@ -22,6 +22,9 @@ const USAGE = `Usage: terrarium-hub [options]
   --config <path>      Token config (default: ${DEFAULT_CONFIG})
   --db <path>          SQLite database, created if missing (default: ${DEFAULT_DB})
   --web-dist <path>    Built frontend to serve (default: packages/web/dist)
+  --heartbeat-timeout-ms <n>
+                       A connected host with no heartbeat for this long is shown
+                       offline (default: 30000, three missed 10 s heartbeats)
   --help               Show this help
 `;
 
@@ -39,6 +42,7 @@ const args = (() => {
 				config: { type: "string" },
 				db: { type: "string" },
 				"web-dist": { type: "string" },
+				"heartbeat-timeout-ms": { type: "string" },
 				help: { type: "boolean" },
 			},
 			strict: true,
@@ -57,6 +61,12 @@ const port = Number(args.port ?? "8787");
 if (!Number.isInteger(port) || port < 0 || port > 65535) {
 	fail(`--port expects an integer from 0 to 65535, got "${args.port}"`);
 }
+const heartbeatTimeoutMs = Number(args["heartbeat-timeout-ms"] ?? "30000");
+if (!Number.isInteger(heartbeatTimeoutMs) || heartbeatTimeoutMs < 100) {
+	fail(
+		`--heartbeat-timeout-ms expects an integer of at least 100, got "${args["heartbeat-timeout-ms"]}"`,
+	);
+}
 const log = (message: string): void => {
 	process.stderr.write(`${new Date().toISOString()} ${message}\n`);
 };
@@ -72,9 +82,13 @@ const dbPath = args.db ?? DEFAULT_DB;
 mkdirSync(dirname(dbPath), { recursive: true });
 const store = new Store(dbPath);
 let server: Server<SocketData> | undefined;
-const hub = new Hub(store, new World(auth.hosts), (message) => {
-	server?.publish(WORLD_TOPIC, message);
-});
+const hub = new Hub(
+	store,
+	new World(auth.hosts, heartbeatTimeoutMs),
+	(message) => {
+		server?.publish(WORLD_TOPIC, message);
+	},
+);
 server = startServer({
 	hostname: args.bind ?? "127.0.0.1",
 	port,
@@ -85,7 +99,7 @@ server = startServer({
 });
 
 log(
-	`hub: listening on http://${server.hostname}:${server.port} (hosts: ${auth.hosts.join(", ")}; db: ${dbPath})`,
+	`hub: listening on http://${server.hostname}:${server.port} (hosts: ${auth.hosts.join(", ")}; db: ${dbPath}; heartbeat timeout: ${heartbeatTimeoutMs}ms)`,
 );
 
 const shutdown = (): void => {
