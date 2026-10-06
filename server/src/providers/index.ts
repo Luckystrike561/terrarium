@@ -13,14 +13,18 @@
 
 import type { HookProvider } from '../../../core/src/provider.js';
 import { claudeProvider } from './hook/claude/claude.js';
+import { herdrProvider } from './hook/herdr/herdr.js';
 
 export { claudeProvider };
+export { herdrProvider };
 export { copyHookScript } from './hook/claude/claudeHookInstaller.js';
+export type { HerdrBridgeOptions } from './hook/herdr/herdrBridge.js';
+export { HerdrBridge } from './hook/herdr/herdrBridge.js';
 
 /** Every bundled hook provider, in registration order. The consent gate loops
  *  over this at the webviewReady handshake (one ask per provider that needs
  *  one) and `hooksConsentResponse` resolves its provider id against it. */
-export const hookProviders: readonly HookProvider[] = [claudeProvider];
+export const hookProviders: readonly HookProvider[] = [claudeProvider, herdrProvider];
 
 /** Resolve a wire-supplied provider id, or undefined for an unknown one —
  *  the caller writes nothing on undefined (fail-closed, like a junk choice). */

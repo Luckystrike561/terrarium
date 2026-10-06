@@ -27,7 +27,13 @@ import {
 } from './configPersistence.js';
 import { MAX_PORT, MIN_PORT } from './constants.js';
 import { FileStateAdapter } from './fileStateAdapter.js';
-import { claudeProvider, copyHookScript, hookProviderById } from './providers/index.js';
+import {
+  claudeProvider,
+  copyHookScript,
+  HerdrBridge,
+  herdrProvider,
+  hookProviderById,
+} from './providers/index.js';
 import { PixelAgentsServer } from './server.js';
 
 // ── Argument parsing ──────────────────────────────────────────
@@ -37,6 +43,9 @@ export interface CliArgs {
    *  can run at once without a collision. --port picks a fixed one. */
   port?: number;
   host: string;
+  /** Active agent provider id. 'claude' (default) uses Claude Code hooks;
+   *  'herdr' shows the agents a local Herdr instance manages, via HerdrBridge. */
+  provider: string;
 }
 
 /** Thrown by parseArgs on an invalid --port. Kept separate from process.exit so
@@ -45,7 +54,7 @@ export interface CliArgs {
 export class CliArgsError extends Error {}
 
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { host: '127.0.0.1' };
+  const args: CliArgs = { host: '127.0.0.1', provider: 'claude' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--port' || argv[i] === '-p') {
       const raw = argv[i + 1];
@@ -65,12 +74,16 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (argv[i] === '--host' && argv[i + 1]) {
       args.host = argv[i + 1];
       i++;
+    } else if (argv[i] === '--provider' && argv[i + 1]) {
+      args.provider = argv[i + 1];
+      i++;
     } else if (argv[i] === '--help') {
       console.log(`Usage: pixel-agents [options]
 
 Options:
   --port, -p <number>   Port to listen on (default: OS-assigned ephemeral port)
   --host <string>       Host to bind to (default: 127.0.0.1)
+  --provider <id>       Agent provider: "claude" (default) or "herdr"
   --help                Show this help message`);
       process.exit(0);
     }
@@ -143,7 +156,13 @@ async function main(): Promise<void> {
 
   try {
     // Create runtime first (before server.start, so we can pass it in)
-    const runtime = new AgentRuntime(store, claudeProvider);
+    const provider = hookProviderById(args.provider) ?? claudeProvider;
+    if (args.provider !== provider.id) {
+      console.log(
+        `[Pixel Agents] Unknown provider "${args.provider}" - falling back to "${provider.id}"`,
+      );
+    }
+    const runtime = new AgentRuntime(store, provider);
 
     // Wire hook events: HTTP POST -> runtime -> hookEventHandler -> agents
     server.onHookEvent((providerId, event) => {
@@ -240,15 +259,32 @@ async function main(): Promise<void> {
     });
     currentConfig = { port: config.port, token: config.token };
 
+    // Herdr mode: connect to the local Herdr instance and push its live agent
+    // state into the office. No Claude hooks are installed in this mode.
+    let herdrBridge: HerdrBridge | null = null;
+    if (provider.id === herdrProvider.id) {
+      herdrBridge = new HerdrBridge({ port: config.port, token: config.token });
+      const herdrReady = await herdrBridge.start();
+      console.log(
+        herdrReady
+          ? '[Pixel Agents] Herdr bridge connected - office reflects live Herdr agents'
+          : '[Pixel Agents] Herdr not reachable (is herdr running?) - retrying in the background',
+      );
+    }
+
     // Sync runtime refs with persisted settings BEFORE first scan tick. The
     // runtime's single hooksEnabled ref follows the Claude provider until the
     // scanners grow per-provider awareness alongside the Settings UI.
-    runtime.hooksEnabled.current = getHooksEnabled(claudeProvider.id);
-    runtime.watchAllSessions.current = adapter.getSetting('pixel-agents.watchAllSessions', false);
+    runtime.hooksEnabled.current = getHooksEnabled(provider.id);
+    // The herdr provider reports agents living in arbitrary worktrees, which are
+    // not 'tracked project dirs'; without this the server refuses to adopt them
+    // ('project untracked, Watch All Sessions off').
+    runtime.watchAllSessions.current =
+      provider.id === 'herdr' || adapter.getSetting('pixel-agents.watchAllSessions', false);
 
     // Install hooks on startup if the persisted setting says so — gated on the
     // one-time consent to modify ~/.claude/settings.json.
-    if (runtime.hooksEnabled.current) {
+    if (provider.id === claudeProvider.id && runtime.hooksEnabled.current) {
       let consent = getHooksConsent(claudeProvider.id) === 'granted';
       if (!consent && (await claudeProvider.areHooksInstalled())) {
         // Our hooks are already installed and already firing — a pre-consent
@@ -274,7 +310,7 @@ async function main(): Promise<void> {
           console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-    } else {
+    } else if (provider.id === claudeProvider.id) {
       // Without this line, a persisted hooks-off makes startup skip the entire
       // consent/install flow with zero output — indistinguishable from a bug.
       console.log(
@@ -284,7 +320,8 @@ async function main(): Promise<void> {
 
     // Start scanning for external sessions (Claude running in user's terminal)
     const cwd = process.cwd();
-    const dirs = claudeProvider.getSessionDirs?.(cwd);
+    const dirs =
+      provider.id === claudeProvider.id ? claudeProvider.getSessionDirs?.(cwd) : undefined;
     if (dirs && dirs[0]) {
       const projectDir = dirs[0];
       console.log(`[Pixel Agents] Scanning project dir: ${projectDir}`);
@@ -309,6 +346,7 @@ async function main(): Promise<void> {
     // ── Graceful shutdown ──
     function shutdown(): void {
       console.log('\nShutting down...');
+      herdrBridge?.stop();
       runtime.dispose();
       server.stop();
       process.exit(0);
