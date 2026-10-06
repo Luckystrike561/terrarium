@@ -6,3 +6,4 @@ dist/
 *.db-shm
 *.tsbuildinfo
 packages/hub/data/
+.scratch/
