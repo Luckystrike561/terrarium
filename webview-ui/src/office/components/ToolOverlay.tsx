@@ -203,6 +203,7 @@ export function ToolOverlay({
 
         // Team info
         const teamRoleLabel = ch.isTeamLead ? 'LEAD' : ch.agentName || null;
+        const showTask = !isSub && !!ch.task && (isHovered || isSelected);
         const hasExtraLines = !!(ch.folderName || teamRoleLabel);
 
         // Context gauge. Every agent gets one — lead, teammate, adopted,
@@ -217,7 +218,7 @@ export function ToolOverlay({
             className="absolute flex flex-col items-center -translate-x-1/2"
             style={{
               left: screenX,
-              top: screenY - (hasExtraLines ? 34 : 28),
+              top: screenY - (hasExtraLines ? 34 : 28) - (showTask ? 6 : 0),
               pointerEvents: isSelected ? 'auto' : 'none',
               opacity: alwaysShowOverlay && !isSelected && !isHovered ? (isSub ? 0.5 : 0.75) : 1,
               zIndex: isSelected ? 42 : 41,
@@ -257,6 +258,11 @@ export function ToolOverlay({
                 {ch.folderName && (
                   <span className="text-2xs leading-none overflow-hidden text-ellipsis block">
                     {ch.folderName}
+                  </span>
+                )}
+                {showTask && (
+                  <span className="text-2xs leading-none overflow-hidden text-ellipsis block italic">
+                    {ch.task}
                   </span>
                 )}
               </div>

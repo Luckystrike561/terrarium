@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "pixi.js": "^8.22.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

@@ -61,10 +61,17 @@ interface HerdrAgent {
   cwd?: string;
   foreground_cwd?: string;
   workspace_id?: string;
+  tab_id?: string;
   pane_id?: string;
   terminal_id?: string;
   terminal_title_stripped?: string;
   agent_session?: HerdrAgentSession | null;
+}
+
+interface HerdrLabeled {
+  workspace_id?: string;
+  tab_id?: string;
+  label?: string;
 }
 
 /** A tracked agent. Keyed by pane_id, which survives renames and status churn. */
@@ -72,11 +79,21 @@ interface TrackedAgent {
   paneId: string;
   sessionId: string;
   name: string;
+  task: string;
   cwd: string;
   status: string;
   jsonlPath: string | null;
   jsonlOffset: number;
   jsonlBuffer: string;
+}
+
+/** omp titles its terminal `π <spinner|>> <task>`; other agents prefix a status glyph. */
+function taskFromTerminalTitle(title: string | undefined): string {
+  return (title ?? '')
+    .trim()
+    .replace(/^π\s+/u, '')
+    .replace(/^[^\p{L}\p{N}\s]+\s+/u, '')
+    .trim();
 }
 
 export interface HerdrBridgeOptions {
@@ -274,25 +291,53 @@ export class HerdrBridge {
   }
 
   private async reconcileOnce(): Promise<void> {
-    const res = (await this.rpcOnce('agent.list', {})) as { agents?: HerdrAgent[] } | undefined;
-    const agents = res?.agents;
+    const [res, workspaces, tabs] = await Promise.all([
+      this.rpcOnce('agent.list', {}) as Promise<{ agents?: HerdrAgent[] } | undefined>,
+      this.rpcOnce('workspace.list', {}) as Promise<{ workspaces?: HerdrLabeled[] } | undefined>,
+      this.rpcOnce('tab.list', {}) as Promise<{ tabs?: HerdrLabeled[] } | undefined>,
+    ]);
+    // herdr keeps a pane's `agent` after the agent process exits, so a pane
+    // back at its shell still reads as an idle agent. The shell retitles the
+    // terminal to its prompt (`user@host:path`), which no agent does.
+    const agents = res?.agents?.filter(
+      (a) =>
+        a.pane_id &&
+        (a.agent_status ?? 'unknown') !== 'unknown' &&
+        !/^\S+@\S+:/.test((a.terminal_title_stripped ?? '').trim()),
+    );
     if (!Array.isArray(agents)) return;
+
+    const workspaceLabels = new Map(
+      (workspaces?.workspaces ?? []).map((w) => [w.workspace_id, w.label]),
+    );
+    const tabLabels = new Map((tabs?.tabs ?? []).map((t) => [t.tab_id, t.label]));
+    const agentsPerWorkspace = new Map<string | undefined, number>();
+    for (const a of agents) {
+      agentsPerWorkspace.set(a.workspace_id, (agentsPerWorkspace.get(a.workspace_id) ?? 0) + 1);
+    }
 
     const seen = new Set<string>();
     for (const a of agents) {
-      const paneId = a.pane_id;
-      const status = a.agent_status ?? 'unknown';
-      // Only panes actually running a detectable agent.
-      if (!paneId || status === 'unknown') continue;
+      const paneId = a.pane_id as string;
+      const status = a.agent_status as string;
       seen.add(paneId);
+      const cwd = a.foreground_cwd ?? a.cwd ?? '';
+      const workspaceLabel = workspaceLabels.get(a.workspace_id);
+      const tabLabel = tabLabels.get(a.tab_id);
+      const baseName = workspaceLabel ?? a.name ?? (cwd ? path.basename(cwd) : paneId);
+      const name =
+        tabLabel && (agentsPerWorkspace.get(a.workspace_id) ?? 0) > 1
+          ? `${baseName} #${tabLabel}`
+          : baseName;
+      const task = taskFromTerminalTitle(a.terminal_title_stripped);
       const previous = this.tracked.get(paneId);
 
       if (!previous) {
-        const cwd = a.foreground_cwd ?? a.cwd ?? '';
         const agent: TrackedAgent = {
           paneId,
           sessionId: `herdr-${paneId}`,
-          name: a.name ?? (cwd ? path.basename(cwd) : paneId),
+          name: '',
+          task: '',
           cwd,
           status: '',
           jsonlPath: a.agent_session?.value ?? null,
@@ -300,22 +345,23 @@ export class HerdrBridge {
           jsonlBuffer: '',
         };
         this.tracked.set(paneId, agent);
-        this.log(`agent detected: ${agent.name} (${paneId}, ${cwd || 'no cwd'})`);
-        // SessionStart -> the server adopts a hooks-only agent (folder = cwd basename).
+        this.log(`agent detected: ${name} (${paneId}, ${cwd || 'no cwd'})`);
         await this.post({ session_id: agent.sessionId, hook_event_name: 'SessionStart', cwd });
+        await this.applyInfo(agent, name, task);
         if (agent.jsonlPath) this.watchJsonl(agent);
         await this.applyStatus(agent, status);
         continue;
       }
 
       // Keep cwd/jsonl fresh (herdr can re-point a pane after a worktree move).
-      previous.cwd = a.foreground_cwd ?? a.cwd ?? previous.cwd;
+      previous.cwd = cwd || previous.cwd;
       const jsonl = a.agent_session?.value ?? null;
       if (jsonl && jsonl !== previous.jsonlPath) {
         previous.jsonlPath = jsonl;
         previous.jsonlOffset = 0;
         this.watchJsonl(previous);
       }
+      await this.applyInfo(previous, name, task);
       await this.applyStatus(previous, status);
     }
 
@@ -331,6 +377,13 @@ export class HerdrBridge {
       this.tracked.delete(paneId);
       this.log(`agent ended: ${agent.name} (${paneId})`);
     }
+  }
+
+  private async applyInfo(agent: TrackedAgent, name: string, task: string): Promise<void> {
+    if (name === agent.name && task === agent.task) return;
+    agent.name = name;
+    agent.task = task;
+    await this.post({ session_id: agent.sessionId, hook_event_name: 'SessionInfo', name, task });
   }
 
   /**
@@ -357,10 +410,7 @@ export class HerdrBridge {
     this.stopJsonl(agent.paneId);
     if (!agent.jsonlPath) return;
     try {
-      const st = fs.statSync(agent.jsonlPath);
-      // Start from the tail: historical tool calls are irrelevant, we only want
-      // activity from now on.
-      agent.jsonlOffset = Math.max(0, st.size - 8192);
+      agent.jsonlOffset = fs.statSync(agent.jsonlPath).size;
     } catch {
       agent.jsonlOffset = 0;
     }
@@ -428,6 +478,11 @@ export class HerdrBridge {
     }
     if (rec['type'] !== 'custom' || rec['customType'] !== 'tool_execution_start') return;
     const data = (rec['data'] ?? {}) as Record<string, unknown>;
+    // A tool start makes the character active. Forget the last status so the
+    // next snapshot re-emits Stop if herdr already reports the agent idle:
+    // the JSONL poll can land after the idle snapshot, and herdr's level does
+    // not change again until the next turn.
+    agent.status = 'working';
     void this.post({ session_id: agent.sessionId, hook_event_name: 'PreToolUse', data });
   }
 

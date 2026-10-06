@@ -91,14 +91,15 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
       useIntroTour.ts                Wires the reducer to React + transport (snapshot, verdict, choices)
     office/
       types.ts                       OfficeLayout, Character, etc. + re-exports constants
-      toolUtils.ts                   STATUS_TO_TOOL mapping, extractToolName (DOM-free; defaultZoom lives in useEditorActions)
+      toolUtils.ts                   STATUS_TO_TOOL mapping, extractToolName (DOM-free; fitZoom lives in useEditorActions)
       projection.ts                  World→screen math shared by renderer + DOM overlays (mapOffset, overlayProjection)
       colorize.ts                    Colorize (grayscale→HSL) + Adjust (HSL shift)
       floorTiles.ts                  Floor sprite storage + colorized cache
       wallTiles.ts                   Wall auto-tile: 16 bitmask sprites
       sprites/
         spriteData.ts                Pixel data (characters, furniture, tiles, bubbles)
-        spriteCache.ts               SpriteData → offscreen canvas, per-zoom WeakMap
+        spriteCache.ts               SpriteData → offscreen canvas, per-zoom WeakMap (2D widget previews only)
+        textureCache.ts              SpriteData → PIXI.Texture, one per sprite regardless of zoom (world renderer)
       editor/
         editorActions.ts             Pure layout ops
         editorState.ts               Imperative state (tools, ghost, selection, undo/redo, drag)
@@ -110,12 +111,12 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
       engine/
         characters.ts                Character FSM (idle/walk/type) + wander AI
         officeState.ts               Game world (layout, characters, seats, selection, subagents, consent greeter)
-        gameLoop.ts                  rAF loop with delta-time cap (0.1 s)
-        renderer.ts                  Canvas: tiles, z-sorted entities, overlays, edit UI
-        matrixEffect.ts              Spawn/despawn digital rain (drawing only)
-        matrixEffectState.ts         Effect state: startMatrixEffect/advanceMatrixEffect (DOM-free)
+        gameLoop.ts                  rAF loop with delta-time cap (0.1 s), decoupled from the render target
+        sceneRenderer.ts             PixiJS (WebGL) retained scene: tiles, z-sorted entities, overlays, edit UI
+        pixiColor.ts                 Hex/rgba string constants → Pixi's numeric color + alpha
+        matrixEffect.ts              Spawn/despawn digital rain (drawn into a Pixi Graphics, not canvas)
       components/
-        OfficeCanvas.tsx             Canvas, resize, DPR, mouse hit-testing, drag-to-move
+        OfficeCanvas.tsx             Owns the Pixi Application, resize, DPR, mouse hit-testing, drag-to-move
         ToolOverlay.tsx              Activity label above hovered/selected character
 
 e2e/                                 Playwright suite (real VS Code + mock-claude scenarios)
@@ -375,7 +376,7 @@ Every agent's context gauge. Fed from `message.usage` on assistant records by `p
 
 ## Office UI
 
-**Rendering**: Game state in imperative `OfficeState` class (not React state). Pixel-perfect: zoom = integer device-pixels-per-sprite-pixel (1x–10x). No `ctx.scale(dpr)`. Default zoom = `Math.round(2 * devicePixelRatio)`. Z-sort all entities by Y. Pan via middle-mouse drag (`panRef`). **Camera follow**: `cameraFollowId` (separate from `selectedAgentId`) smoothly centers camera on the followed agent; set on agent click, cleared on deselection or manual pan.
+**Rendering**: Game state in imperative `OfficeState` class (not React state), rendered via a PixiJS (WebGL) retained scene graph (`engine/sceneRenderer.ts`), not Canvas 2D. Pixel-perfect: zoom = integer device-pixels-per-sprite-pixel (1x–10x), `antialias: false`, `roundPixels: true`, nearest-neighbor texture sampling. No `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly, same as the old canvas path. World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container positioned/scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and are built in local, unscaled sprite-pixel coordinates. Editor chrome and area labels render in device-pixel space directly since their stroke widths and minimum font size are deliberately constant-in-device-pixels. `pixi.js/unsafe-eval` is imported before any renderer is created so the webview's CSP (no `unsafe-eval`) never blocks Pixi's uniform-buffer sync path. Default zoom = the largest integer zoom at which the whole office fits the window (`fitZoom`), re-fit on resize until the user zooms manually. Z-sort all entities by Y via Pixi `zIndex` + `sortableChildren`. Pan via middle-mouse drag (`panRef`). **Camera follow**: `cameraFollowId` (separate from `selectedAgentId`) smoothly centers camera on the followed agent; set on agent click, cleared on deselection or manual pan.
 
 **UI styling**: Pixel art aesthetic — sharp corners (`borderRadius: 0`), solid backgrounds (`#1e1e2e`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables in `index.css` `:root` (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...). Pixel font: FS Pixel Sans (`webview-ui/src/fonts/`), loaded via `@font-face`, applied globally.
 
@@ -383,13 +384,17 @@ Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-
 
 **Characters**: FSM states — active (pathfind to seat, typing/reading animation by tool type), idle (wander randomly with BFS, return to seat after `wanderLimit` moves). 4-directional sprites, left = flipped right. Tool animations: typing (Write/Edit/Bash/Task) vs reading (Read/Grep/Glob/WebFetch). Sitting offset: characters shift down 6 px in TYPE state. Z-sort uses `ch.y + TILE_SIZE/2 + 0.5` so characters render in front of same-row furniture but behind lower-row furniture. **Chair z-sorting**: non-back chairs use `zY = (row+1)*TILE_SIZE` (capped to first row); back-facing chairs use `zY = (row+1)*TILE_SIZE + 1` so the chair back renders in front of the character. Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`).
 
+**Lounge (rest seats)**: a seat facing no electronics (sofas and benches around the coffee table) is a rest seat (`restSeatUids`). Idle characters claim a free rest seat (`restSeatId`, transient, never persisted) and sit there instead of at their desk; when the lounge is full they fall back to wandering. Desk seats (`seatId`) go to whoever is working: an active character whose `seatId` is a rest seat takes a free work seat, or swaps with an idle character holding one (`claimWorkSeatForActiveAgent`). Rest seats are handed out as desks only when every work seat is taken.
+
 **Diverse palette assignment**: `pickDiversePalette()` counts palettes of current non-sub-agent characters; picks randomly from least-used palette(s). First 6 agents each get a unique skin; beyond 6, skins repeat with a random hue shift (45–315°) via `adjustSprite()`. Character stores `palette` (0-5) + `hueShift` (degrees). Sprite cache keyed by `"palette:hueShift"`.
 
 **Spawn/despawn effect**: Matrix-style digital rain animation (0.3 s). 16 vertical columns sweep top-to-bottom with staggered timing. Spawn: green rain reveals character pixels. Despawn: character pixels consumed by green rain trails. `matrixEffect` field on Character (`'spawn'`/`'despawn'`/`null`). Normal FSM is paused during effect. Restored agents (`existingAgents`) use `skipSpawnEffect: true` to appear instantly.
 
 **Sub-agents**: Negative IDs (from -1 down). Created on `agentToolStart` with "Subtask:" prefix, or lazily by `subagentToolStart` when missing (watched background spawns, post-reload recreation). Same palette + hueShift as parent. Click focuses parent terminal. Not persisted. Spawn at the closest free walkable tile to the parent (`closestFreeWalkableTile`) — around it, never in a seat. Idle (stop typing) when every tracked sub-tool row is done; overlay shows the latest non-done sub-tool status, falling back to the Subtask label.
 
-**Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2 s. Sprites in `spriteData.ts`.
+**Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2 s. Sprites in `spriteData.ts`. Every non-sub-agent character also carries a persistent **status badge** above its head (`renderStatusBadges`, sprites `sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
+
+**Agent info**: `agentInfo { id, name?, task? }` lets a provider rename a character (replaces `folderName`) and attach a one-line task, shown in the hover/selected overlay. The herdr provider sends it from herdr's workspace label (plus `#<tab>` when a workspace hosts several agents) and the pane's terminal title. herdr keeps a pane's `agent` after the agent exits, so the bridge drops panes whose title is a shell prompt (`user@host:path`).
 
 **Sound notifications**: Ascending two-note chime (E5 → E6) via Web Audio API plays when waiting bubble appears (`agentStatus: 'waiting'`). `notificationSound.ts` manages AudioContext lifecycle; `unlockAudio()` on canvas mousedown resumes the context (webviews start suspended). Toggled via Settings modal. Persisted per-namespace in `~/.pixel-agents/config.json`.
 

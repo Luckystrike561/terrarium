@@ -90,6 +90,12 @@ export function normalizeHookEvent(raw: Wire): { sessionId: string; event: Agent
     case 'Notification':
       return { sessionId, event: { kind: 'turnEnd', awaitingInput: true } };
 
+    case 'SessionInfo':
+      return {
+        sessionId,
+        event: { kind: 'sessionInfo', name: str(raw['name']), task: str(raw['task']) },
+      };
+
     case 'SessionEnd':
       return { sessionId, event: { kind: 'sessionEnd', reason: dataStr ?? 'exit' } };
 

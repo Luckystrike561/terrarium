@@ -102,6 +102,10 @@ async function main() {
   });
   if (watch) {
     await ctx.watch();
+    copyAssets();
+    buildHooks();
+    const cliCtx = await esbuild.context({ ...cliOptions, plugins: [esbuildProblemMatcherPlugin] });
+    await cliCtx.watch();
   } else {
     await ctx.rebuild();
     await ctx.dispose();
@@ -128,20 +132,22 @@ async function buildUninstall() {
   });
 }
 
+const cliOptions = {
+  entryPoints: ['server/src/cli.ts'],
+  bundle: true,
+  format: 'cjs',
+  minify: production,
+  sourcemap: !production,
+  platform: 'node',
+  outfile: 'dist/cli.js',
+  external: ['fastify', '@fastify/websocket', '@fastify/static', '@fastify/cors'],
+  define: versionDefine,
+  logLevel: 'silent',
+};
+
 /** Bundle the standalone CLI entry point. */
 async function buildCli() {
-  await esbuild.build({
-    entryPoints: ['server/src/cli.ts'],
-    bundle: true,
-    format: 'cjs',
-    minify: production,
-    sourcemap: !production,
-    platform: 'node',
-    outfile: 'dist/cli.js',
-    external: ['fastify', '@fastify/websocket', '@fastify/static', '@fastify/cors'],
-    define: versionDefine,
-    logLevel: 'silent',
-  });
+  await esbuild.build(cliOptions);
   if (!production) {
     console.log('[build] CLI bundled: dist/cli.mjs');
   }

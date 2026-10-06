@@ -359,6 +359,8 @@ export class HookEventHandler {
       case 'progress':
         // Not yet consumed by the office visualization. Silently drop.
         return;
+      case 'sessionInfo':
+        return this.handleSessionInfo(normEvent, agent, agentId);
     }
   }
 
@@ -632,6 +634,16 @@ export class HookEventHandler {
         parentToolId,
       });
     }
+  }
+
+  private handleSessionInfo(
+    event: { name?: string; task?: string },
+    agent: AgentState,
+    agentId: number,
+  ): void {
+    if (event.name !== undefined) agent.folderName = event.name;
+    if (event.task !== undefined) agent.task = event.task;
+    this.agents.broadcast({ type: 'agentInfo', id: agentId, name: event.name, task: event.task });
   }
 
   /** Handle Stop: Claude finished responding, mark agent as waiting. */

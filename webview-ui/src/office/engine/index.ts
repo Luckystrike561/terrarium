@@ -7,13 +7,14 @@ export {
 export type { GameLoopCallbacks } from './gameLoop.js';
 export { startGameLoop } from './gameLoop.js';
 export { OfficeState } from './officeState.js';
-export type { DeleteButtonBounds, EditorRenderState, SelectionRenderState } from './renderer.js';
+export type {
+  DeleteButtonBounds,
+  EditorRenderState,
+  SelectionRenderState,
+  WorldRenderState,
+} from './sceneRenderer.js';
 export {
-  renderDeleteButton,
-  renderFrame,
-  renderGhostPreview,
-  renderGridOverlay,
-  renderScene,
-  renderSelectionHighlight,
-  renderTileGrid,
-} from './renderer.js';
+  isGhostHeadlessAgentsEnabled,
+  OfficeSceneRenderer,
+  setGhostHeadlessAgents,
+} from './sceneRenderer.js';

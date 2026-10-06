@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
+  "include": ["github:Luckystrike561/runpick/tags/1.0.0"],
   "packages": [
     "nodejs@22"
   ],
@@ -9,7 +10,8 @@
     ],
     "scripts": {
       "install": [
-        "npm install"
+        "npm install",
+        "npm run package"
       ],
       "build": [
         "npm run package"
@@ -22,6 +24,9 @@
       ],
       "start": [
         "node dist/cli.js --provider herdr --host 127.0.0.1 --port 8790"
+      ],
+      "dev": [
+        "npm run dev"
       ]
     }
   }

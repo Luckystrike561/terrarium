@@ -3,13 +3,10 @@ import { MAX_DELTA_TIME_SEC } from '../../constants.js';
 /** @internal */
 export interface GameLoopCallbacks {
   update: (dt: number) => void;
-  render: (ctx: CanvasRenderingContext2D) => void;
+  render: () => void;
 }
 
-export function startGameLoop(canvas: HTMLCanvasElement, callbacks: GameLoopCallbacks): () => void {
-  const ctx = canvas.getContext('2d')!;
-  ctx.imageSmoothingEnabled = false;
-
+export function startGameLoop(callbacks: GameLoopCallbacks): () => void {
   let lastTime = 0;
   let rafId = 0;
   let stopped = false;
@@ -20,9 +17,7 @@ export function startGameLoop(canvas: HTMLCanvasElement, callbacks: GameLoopCall
     lastTime = time;
 
     callbacks.update(dt);
-
-    ctx.imageSmoothingEnabled = false;
-    callbacks.render(ctx);
+    callbacks.render();
 
     rafId = requestAnimationFrame(frame);
   };

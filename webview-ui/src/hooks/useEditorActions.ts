@@ -5,7 +5,7 @@ import {
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
   LAYOUT_SAVE_DEBOUNCE_MS,
-  ZOOM_DEFAULT_DPR_FACTOR,
+  TILE_SIZE,
   ZOOM_MAX,
   ZOOM_MIN,
 } from '../constants.js';
@@ -96,15 +96,22 @@ interface EditorActions {
   handleRemoveArea: (label: string) => void;
   handleRenameArea: (oldLabel: string, newLabel: string) => void;
   handleAreaColorChange: (label: string, color: string) => void;
+  fitZoomToViewport: () => void;
 }
 
-/** Default integer zoom (device pixels per sprite pixel) for a fresh session.
- *  Lives here, with the zoom state it seeds, rather than in the office modules:
- *  it reads `devicePixelRatio`, and a viewport concern in a state module drags
- *  the DOM into every graph that imports it (OfficeState's included). */
-function defaultZoom(): number {
+/** Largest integer zoom (device pixels per sprite pixel) at which the whole
+ *  office fits the window. Lives here, with the zoom state it seeds, rather
+ *  than in the office modules: it reads the viewport, and a viewport concern in
+ *  a state module drags the DOM into every graph that imports it. */
+function fitZoom(layout: OfficeLayout): number {
   const dpr = window.devicePixelRatio || 1;
-  return Math.max(ZOOM_MIN, Math.round(ZOOM_DEFAULT_DPR_FACTOR * dpr));
+  const fit = Math.floor(
+    Math.min(
+      (window.innerWidth * dpr) / (layout.cols * TILE_SIZE),
+      (window.innerHeight * dpr) / (layout.rows * TILE_SIZE),
+    ),
+  );
+  return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fit));
 }
 
 export function useEditorActions(
@@ -114,7 +121,8 @@ export function useEditorActions(
   const [isEditMode, setIsEditMode] = useState(false);
   const [editorTick, setEditorTick] = useState(0);
   const [isDirty, setIsDirty] = useState(false);
-  const [zoom, setZoom] = useState(defaultZoom);
+  const [zoom, setZoom] = useState(ZOOM_MIN);
+  const userZoomedRef = useRef(false);
   const [carpetVariant, setCarpetVariantState] = useState<number>(editorState.carpetVariant);
   const [carpetColor, setCarpetColorState] = useState<ColorValue>(editorState.carpetColor);
   const [carpetAccentColor, setCarpetAccentColorState] = useState<ColorValue>(
@@ -548,8 +556,15 @@ export function useEditorActions(
   }, []);
 
   const handleZoomChange = useCallback((newZoom: number) => {
+    userZoomedRef.current = true;
     setZoom(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom)));
   }, []);
+
+  const fitZoomToViewport = useCallback(() => {
+    if (userZoomedRef.current) return;
+    panRef.current = { x: 0, y: 0 };
+    setZoom(fitZoom(getOfficeState().getLayout()));
+  }, [getOfficeState]);
 
   const handleDragMove = useCallback(
     (uid: string, newCol: number, newRow: number) => {
@@ -964,5 +979,6 @@ export function useEditorActions(
     handleRemoveArea,
     handleRenameArea,
     handleAreaColorChange,
+    fitZoomToViewport,
   };
 }

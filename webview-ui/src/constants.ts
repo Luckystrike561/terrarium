@@ -54,6 +54,13 @@ export const BUTTON_LINE_WIDTH_ZOOM_FACTOR = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
 export const BUBBLE_SITTING_OFFSET_PX = 10;
 export const BUBBLE_VERTICAL_OFFSET_PX = 24;
+/** Persistent state badge (working/done/waiting/idle/permission): vertical
+ *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
+ *  so it sits at head height rather than floating above it like a bubble. */
+export const STATUS_BADGE_VERTICAL_OFFSET_PX = 20;
+/** Horizontal offset to the right of center, clear of the center-anchored
+ *  speech bubble so the two never overlap regardless of bubble state. */
+export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 11;
 export const FALLBACK_FLOOR_COLOR = '#808080';
 
 // ── Rendering - Overlay Colors (canvas, not CSS) ─────────────
@@ -83,7 +90,6 @@ export const CAMERA_FOLLOW_SNAP_THRESHOLD = 0.5;
 // ── Zoom ─────────────────────────────────────────────────────
 export const ZOOM_MIN = 1;
 export const ZOOM_MAX = 10;
-export const ZOOM_DEFAULT_DPR_FACTOR = 2;
 export const ZOOM_LEVEL_FADE_DELAY_MS = 1500;
 export const ZOOM_LEVEL_HIDE_DELAY_MS = 2000;
 export const ZOOM_LEVEL_FADE_DURATION_SEC = 0.5;

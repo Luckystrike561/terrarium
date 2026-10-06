@@ -84,5 +84,9 @@ export function resendAgentActivity(
         maxContextTokens: agent.maxContextTokens,
       });
     }
+
+    if (agent.task) {
+      send({ type: 'agentInfo', id, task: agent.task });
+    }
   }
 }

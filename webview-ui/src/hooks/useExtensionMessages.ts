@@ -5,13 +5,14 @@ import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notifica
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
 import type { OfficeState } from '../office/engine/officeState.js';
-import { setGhostHeadlessAgents as setRendererGhostHeadlessAgents } from '../office/engine/renderer.js';
+import { setGhostHeadlessAgents as setRendererGhostHeadlessAgents } from '../office/engine/sceneRenderer.js';
 import { setFloorSprites } from '../office/floorTiles.js';
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';
 import { setCarpetSprites } from '../office/sprites/carpetTiles.js';
 import { setPetTemplates } from '../office/sprites/petSpriteData.js';
 import { setCharacterTemplates } from '../office/sprites/spriteData.js';
+import { destroyAllTextures } from '../office/sprites/textureCache.js';
 import {
   extractToolName,
   isSubagentToolName,
@@ -317,6 +318,9 @@ export function useExtensionMessages(
         os.removeAllSubagents(id);
         setSubagentCharacters((prev) => prev.filter((s) => s.parentAgentId !== id));
         os.removeAgent(id);
+        // removeAgent can migrate another agent off a rest seat onto the freed desk
+        // (rebalanceRestSeatedAgents) — persist so the server copy follows.
+        saveAgentSeats(os);
       } else if (msg.type === 'existingAgents') {
         const incoming = msg.agents as number[];
         const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
@@ -484,6 +488,9 @@ export function useExtensionMessages(
           return { ...prev, [id]: status };
         });
         os.setAgentActive(id, status === 'active');
+        // Going active can steal a desk from an idle colleague (claimWorkSeatForActiveAgent) —
+        // persist so the server copy of seat ownership follows.
+        if (status === 'active') saveAgentSeats(os);
         if (status === 'waiting') {
           os.showWaitingBubble(id, msg.awaitingInput === true);
           playDoneSound();
@@ -607,6 +614,7 @@ export function useExtensionMessages(
           right: string[][][];
         }>;
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`);
+        destroyAllTextures();
         setCharacterTemplates(characters);
       } else if (msg.type === 'petSpritesLoaded') {
         const pets = msg.pets;
@@ -615,6 +623,7 @@ export function useExtensionMessages(
         }
         const petNames = Array.isArray(msg.petNames) ? (msg.petNames as string[]) : undefined;
         console.log(`[Webview] Received ${pets.length} pet sprites`);
+        destroyAllTextures();
         setPetTemplates(
           pets as Array<{
             walkDown: string[][][];
@@ -628,14 +637,17 @@ export function useExtensionMessages(
       } else if (msg.type === 'floorTilesLoaded') {
         const sprites = msg.sprites as string[][][];
         console.log(`[Webview] Received ${sprites.length} floor tile patterns`);
+        destroyAllTextures();
         setFloorSprites(sprites);
       } else if (msg.type === 'wallTilesLoaded') {
         const sets = msg.sets as string[][][][];
         console.log(`[Webview] Received ${sets.length} wall tile set(s)`);
+        destroyAllTextures();
         setWallSprites(sets);
       } else if (msg.type === 'carpetTilesLoaded') {
         const sets = msg.sets as string[][][][];
         console.log(`[Webview] Received ${sets.length} carpet variant(s)`);
+        destroyAllTextures();
         setCarpetSprites(sets);
       } else if (msg.type === 'areaMappingsLoaded') {
         const mappings = (msg.mappings ?? {}) as Record<string, string[]>;
@@ -718,6 +730,7 @@ export function useExtensionMessages(
           console.log(`📦 Webview: Loaded ${catalog.length} furniture assets`);
           // Build dynamic catalog immediately so getCatalogEntry() works when layoutLoaded arrives next
           buildDynamicCatalog({ catalog, sprites });
+          destroyAllTextures();
           setLoadedAssets({ catalog, sprites });
         } catch (err) {
           console.error(`❌ Webview: Error processing furnitureAssetsLoaded:`, err);
@@ -735,6 +748,12 @@ export function useExtensionMessages(
       } else if (msg.type === 'agentContextUsage') {
         const id = msg.id as number;
         os.setAgentContext(id, msg.contextTokens as number, msg.maxContextTokens as number);
+      } else if (msg.type === 'agentInfo') {
+        os.setAgentInfo(
+          msg.id as number,
+          msg.name as string | undefined,
+          msg.task as string | undefined,
+        );
       }
     };
     const unsubscribe = transport.onMessage(handler);

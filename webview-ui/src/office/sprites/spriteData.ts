@@ -6,6 +6,11 @@ import { Direction as Dir } from '../types.js';
 import bubblePermissionData from './bubble-permission.json';
 import bubblePetData from './bubble-pet.json';
 import bubbleWaitingData from './bubble-waiting.json';
+import statusDoneData from './status-done.json';
+import statusIdleData from './status-idle.json';
+import statusPermissionData from './status-permission.json';
+import statusWaitingInputData from './status-waiting-input.json';
+import statusWorkingData from './status-working.json';
 
 // ── Speech Bubble Sprites ───────────────────────────────────────
 
@@ -26,6 +31,23 @@ export const BUBBLE_WAITING_SPRITE: SpriteData = resolveBubbleSprite(bubbleWaiti
 
 /** Heart bubble: pet petting feedback (11x13) */
 export const BUBBLE_HEART_SPRITE: SpriteData = resolveBubbleSprite(bubblePetData);
+
+// ── Persistent Agent Status Badges ─────────────────────────────
+
+/** Status badge: actively working (blue, play-triangle glyph) (9x9) */
+export const STATUS_WORKING_SPRITE: SpriteData = resolveBubbleSprite(statusWorkingData);
+
+/** Status badge: turn finished (green, checkmark glyph) (9x9) */
+export const STATUS_DONE_SPRITE: SpriteData = resolveBubbleSprite(statusDoneData);
+
+/** Status badge: idle, waiting on the user (purple, question-mark glyph) (9x9) */
+export const STATUS_WAITING_INPUT_SPRITE: SpriteData = resolveBubbleSprite(statusWaitingInputData);
+
+/** Status badge: idle/resting, no turn in flight (gray-blue, Z glyph) (9x9) */
+export const STATUS_IDLE_SPRITE: SpriteData = resolveBubbleSprite(statusIdleData);
+
+/** Status badge: blocked on a permission request (amber, exclamation glyph) (9x9) */
+export const STATUS_PERMISSION_SPRITE: SpriteData = resolveBubbleSprite(statusPermissionData);
 
 // ════════════════════════════════════════════════════════════════
 // Loaded character sprites (from PNG assets)

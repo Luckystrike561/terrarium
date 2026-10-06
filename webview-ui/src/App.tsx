@@ -102,6 +102,14 @@ function App() {
   const [migrationNoticeDismissed, setMigrationNoticeDismissed] = useState(false);
   const showMigrationNotice = layoutWasReset && !migrationNoticeDismissed;
 
+  const { fitZoomToViewport } = editor;
+  useEffect(() => {
+    if (!layoutReady) return;
+    fitZoomToViewport();
+    window.addEventListener('resize', fitZoomToViewport);
+    return () => window.removeEventListener('resize', fitZoomToViewport);
+  }, [layoutReady, fitZoomToViewport]);
+
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHooksInfoOpen, setIsHooksInfoOpen] = useState(false);

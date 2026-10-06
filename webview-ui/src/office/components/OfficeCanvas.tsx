@@ -20,8 +20,9 @@ import type {
   EditorRenderState,
   RotateButtonBounds,
   SelectionRenderState,
-} from '../engine/renderer.js';
-import { renderFrame } from '../engine/renderer.js';
+  WorldRenderState,
+} from '../engine/sceneRenderer.js';
+import { OfficeSceneRenderer } from '../engine/sceneRenderer.js';
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js';
 import { EditTool, TILE_SIZE } from '../types.js';
 import { computeNormalModeCursor } from './officeCanvasCursor.js';
@@ -58,7 +59,6 @@ export function OfficeCanvas({
   onDeleteSelected,
   onRotateSelected,
   onDragMove,
-  editorTick: _editorTick,
   zoom,
   onZoomChange,
   panRef,
@@ -66,6 +66,7 @@ export function OfficeCanvas({
   activeAreaLabel,
 }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const officeRendererRef = useRef<OfficeSceneRenderer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 0, y: 0 });
   // Middle-mouse pan state (imperative, no re-renders)
@@ -110,12 +111,39 @@ export function OfficeCanvas({
     canvas.height = Math.round(rect.height * dpr);
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
-    // No ctx.scale(dpr) — we render directly in device pixels
+    // No ctx.scale(dpr): Pixi renders directly in device pixels (resolution: 1)
+    officeRendererRef.current?.resize(canvas.width, canvas.height);
   }, []);
+
+  // Snapshot of the props the persistent render loop reads every frame. The
+  // mount effect below creates the Pixi Application exactly once; recreating
+  // it on every zoom/editor-tool change would tear down and rebuild the
+  // WebGL context (and every retained sprite) on each scroll-wheel zoom
+  // step, so the loop reads these through a ref instead of closing over
+  // props and re-running the effect when they change.
+  const frameParamsRef = useRef({
+    officeState,
+    isEditMode,
+    editorState,
+    zoom,
+    showAreas,
+    activeAreaLabel,
+  });
+  frameParamsRef.current = {
+    officeState,
+    isEditMode,
+    editorState,
+    zoom,
+    showAreas,
+    activeAreaLabel,
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const officeRenderer = new OfficeSceneRenderer(canvas);
+    officeRendererRef.current = officeRenderer;
 
     resizeCanvas();
 
@@ -124,14 +152,22 @@ export function OfficeCanvas({
       observer.observe(containerRef.current);
     }
 
-    const stop = startGameLoop(canvas, {
+    let cancelled = false;
+    void officeRenderer.init().then(() => {
+      if (cancelled) {
+        officeRenderer.destroy();
+        return;
+      }
+      officeRenderer.resize(canvas.width, canvas.height);
+    });
+
+    const stop = startGameLoop({
       update: (dt) => {
-        officeState.update(dt);
+        frameParamsRef.current.officeState.update(dt);
       },
-      render: (ctx) => {
-        // Canvas dimensions are in device pixels
-        const w = canvas.width;
-        const h = canvas.height;
+      render: () => {
+        const { officeState, isEditMode, editorState, zoom, showAreas, activeAreaLabel } =
+          frameParamsRef.current;
 
         // Build editor render state
         let editorRender: EditorRenderState | undefined;
@@ -233,8 +269,8 @@ export function OfficeCanvas({
           }
         }
 
-        // Camera: smoothly center on the followed agent, or — while the greeter
-        // is speaking the Intro — on the character+bubble center the IntroBubble
+        // Camera: smoothly center on the followed agent, or while the greeter
+        // is speaking the Intro, on the character+bubble center the IntroBubble
         // overlay feeds via greeterCameraTarget. An explicit follow (clicking an
         // agent) outranks the greeter target; a manual pan cancels both.
         const followCh =
@@ -273,28 +309,27 @@ export function OfficeCanvas({
         };
 
         const layout = officeState.getLayout();
-        const { offsetX, offsetY } = renderFrame(
-          ctx,
-          w,
-          h,
-          officeState.tileMap,
-          officeState.furniture,
-          officeState.getCharacters(),
+        const worldState: WorldRenderState = {
+          layout,
+          tileMap: officeState.tileMap,
+          furniture: officeState.furniture,
+          characters: officeState.getCharacters(),
           zoom,
-          panRef.current.x,
-          panRef.current.y,
-          selectionRender,
-          editorRender,
-          layout.tileColors,
-          layout.cols,
-          layout.rows,
-          layout.carpetTiles,
-          layout.areas,
-          layout.areaTiles,
+          panX: panRef.current.x,
+          panY: panRef.current.y,
+          selection: selectionRender,
+          editor: editorRender,
+          tileColors: layout.tileColors,
+          layoutCols: layout.cols,
+          layoutRows: layout.rows,
+          carpetTiles: layout.carpetTiles,
+          areas: layout.areas,
+          areaTiles: layout.areaTiles,
           showAreas,
           activeAreaLabel,
-          officeState.pets,
-        );
+          pets: officeState.pets,
+        };
+        const { offsetX, offsetY } = officeRenderer.renderFrame(worldState);
         offsetRef.current = { x: offsetX, y: offsetY };
 
         // Store delete/rotate button bounds for hit-testing
@@ -304,20 +339,13 @@ export function OfficeCanvas({
     });
 
     return () => {
+      cancelled = true;
       stop();
       observer.disconnect();
+      officeRendererRef.current = null;
+      officeRenderer.destroy();
     };
-  }, [
-    officeState,
-    resizeCanvas,
-    isEditMode,
-    editorState,
-    _editorTick,
-    zoom,
-    panRef,
-    showAreas,
-    activeAreaLabel,
-  ]);
+  }, [resizeCanvas, panRef]);
 
   // Convert CSS mouse coords to world (sprite pixel) coords
   const screenToWorld = useCallback(

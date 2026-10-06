@@ -1,6 +1,6 @@
 import type { ColorValue } from './components/ui/types.js';
 import { OfficeState } from './office/engine/officeState.js';
-import { isGhostHeadlessAgentsEnabled } from './office/engine/renderer.js';
+import { isGhostHeadlessAgentsEnabled } from './office/engine/sceneRenderer.js';
 import { carpetJunctionCase } from './office/sprites/carpetTiles.js';
 
 declare global {

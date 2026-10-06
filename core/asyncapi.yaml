@@ -100,6 +100,7 @@ components:
         - $ref: '#/components/schemas/AgentTeamInfo'
         # Context window
         - $ref: '#/components/schemas/AgentContextUsage'
+        - $ref: '#/components/schemas/AgentInfo'
         # Layout
         - $ref: '#/components/schemas/LayoutLoaded'
         # Assets
@@ -441,6 +442,24 @@ components:
           type: integer
         maxContextTokens:
           type: integer
+
+    AgentInfo:
+      description: |
+        Provider-supplied identity for an agent: `name` replaces the folder
+        label under the character, `task` is a one-line summary of what it is
+        working on. Either field may be absent; an absent field is unchanged.
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type:
+          const: agentInfo
+        id:
+          type: integer
+        name:
+          type: string
+        task:
+          type: string
 
     LayoutLoaded:
       description: |

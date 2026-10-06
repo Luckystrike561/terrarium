@@ -38,7 +38,7 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, PetState, TILE_SIZE } from '../types.js';
-import { createCharacter, updateCharacter } from './characters.js';
+import { createCharacter, releaseRestSeat, updateCharacter } from './characters.js';
 import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
@@ -56,6 +56,12 @@ export class OfficeState {
   tileMap: TileTypeVal[][];
   seats: Map<string, Seat>;
   blockedTiles: Set<string>;
+  /** Seats that face no electronics — lounge/sofa seating idle agents can rest in,
+   *  as opposed to the PC-facing seats that are someone's desk. Recomputed with `seats`. */
+  restSeatUids: Set<string> = new Set();
+  /** Lounge seat uid → claiming character id. Mirrors `seat.assigned` for desk seats but
+   *  stays unpersisted: it is pure FSM bookkeeping for mutual exclusion, not desk ownership. */
+  restSeatClaims: Map<string, number> = new Map();
   furniture: FurnitureInstance[];
   walkableTiles: Array<{ col: number; row: number }>;
   characters: Map<number, Character> = new Map();
@@ -109,6 +115,7 @@ export class OfficeState {
     this.layout = layout || createDefaultLayout();
     this.tileMap = layoutToTileMap(this.layout);
     this.seats = layoutToSeats(this.layout.furniture);
+    this.restSeatUids = this.computeRestSeats();
     this.blockedTiles = getBlockedTiles(this.layout.furniture);
     this.furniture = layoutToFurnitureInstances(this.layout.furniture);
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
@@ -123,6 +130,16 @@ export class OfficeState {
     this.tileMap = layoutToTileMap(layout);
     this.seats = layoutToSeats(layout.furniture);
     this.blockedTiles = getBlockedTiles(layout.furniture);
+    this.restSeatUids = this.computeRestSeats();
+    // Drop claims (and the claiming character's pointer to them) for rest seats the
+    // layout edit removed or turned into a desk — stale ids would otherwise wedge the
+    // claimant in CharacterState.TYPE forever since nothing else clears restSeatId.
+    for (const [uid, charId] of this.restSeatClaims) {
+      if (this.restSeatUids.has(uid)) continue;
+      this.restSeatClaims.delete(uid);
+      const ch = this.characters.get(charId);
+      if (ch && ch.restSeatId === uid) ch.restSeatId = null;
+    }
     this.rebuildFurnitureInstances();
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
 
@@ -191,6 +208,10 @@ export class OfficeState {
         ch.dir = seat.facingDir;
       }
     }
+
+    // A layout edit can turn a desk into a lounge seat or add new desks — move
+    // any active agent still parked on a rest seat onto a freshly free desk.
+    this.rebalanceRestSeatedAgents();
 
     // Relocate any characters that ended up outside bounds or on non-walkable tiles
     for (const ch of this.characters.values()) {
@@ -267,6 +288,30 @@ export class OfficeState {
     return result;
   }
 
+  /** Temporarily unblock every seat tile a character's FSM tick might legitimately path
+   *  onto: its own desk, its already-claimed rest seat, and every rest seat still free to
+   *  claim. Chairs are otherwise impassable to everyone but their own sitter (mirrors
+   *  `withOwnSeatUnblocked`), so a candidate lounge seat has to be unblocked before
+   *  `headToRestSeat` can even pathfind to it, let alone claim it. */
+  private withPathableSeatsUnblocked<T>(ch: Character, fn: () => T): T {
+    const keys = new Set<string>();
+    const own = this.ownSeatKey(ch);
+    if (own) keys.add(own);
+    if (ch.restSeatId) {
+      const seat = this.seats.get(ch.restSeatId);
+      if (seat) keys.add(`${seat.seatCol},${seat.seatRow}`);
+    }
+    for (const uid of this.restSeatUids) {
+      const seat = this.seats.get(uid);
+      if (!seat || seat.assigned || this.restSeatClaims.has(uid)) continue;
+      keys.add(`${seat.seatCol},${seat.seatRow}`);
+    }
+    for (const key of keys) this.blockedTiles.delete(key);
+    const result = fn();
+    for (const key of keys) this.blockedTiles.add(key);
+    return result;
+  }
+
   /** Collect every tile occupied by electronics furniture (PCs, monitors, etc.). */
   private buildElectronicsTileSet(): Set<string> {
     const out = new Set<string>();
@@ -321,70 +366,178 @@ export class OfficeState {
     return false;
   }
 
-  /**
-   * Random-pick a seat from a candidate list, biased toward seats that face an
-   * electronics tile. Returns null when the candidate list is empty.
-   */
-  private pickFromSeats(seatUids: string[], electronicsTiles: Set<string>): string | null {
-    if (seatUids.length === 0) return null;
-    const pcSeats: string[] = [];
-    const otherSeats: string[] = [];
-    for (const uid of seatUids) {
-      const seat = this.seats.get(uid);
-      if (!seat) continue;
-      if (this.isSeatFacingElectronics(seat, electronicsTiles)) {
-        pcSeats.push(uid);
-      } else {
-        otherSeats.push(uid);
-      }
+  /** Seats that face no electronics: the lounge/sofa seating idle agents rest in, as
+   *  opposed to the PC-facing seats that are someone's desk. A coffee table is
+   *  `isDesk` for placement purposes but hosts no PC, so this (not desk-adjacency)
+   *  is what actually separates a lounge chair from a workstation. */
+  private computeRestSeats(): Set<string> {
+    const electronicsTiles = this.buildElectronicsTileSet();
+    const rest = new Set<string>();
+    for (const [uid, seat] of this.seats) {
+      if (!this.isSeatFacingElectronics(seat, electronicsTiles)) rest.add(uid);
     }
-    if (pcSeats.length > 0) return pcSeats[Math.floor(Math.random() * pcSeats.length)];
-    if (otherSeats.length > 0) return otherSeats[Math.floor(Math.random() * otherSeats.length)];
-    return null;
+    return rest;
+  }
+
+  /** Random-pick a seat from a candidate list, or null when it's empty. */
+  private pickRandomSeat(seatUids: string[]): string | null {
+    if (seatUids.length === 0) return null;
+    return seatUids[Math.floor(Math.random() * seatUids.length)];
   }
 
   /**
-   * 3-stage seat picker for top-level agents.
+   * Area-aware picker run once against a pre-filtered candidate pool.
    *
    *   Stage 1: If `folderName` is given and `areaMappings[folderName]` lists
    *            Area labels, prefer free seats whose tile is labeled with one
    *            of those areas.
    *   Stage 2: Prefer free seats whose tile has NO area label (unzoned).
-   *   Stage 3: Any free seat.
+   *   Stage 3: Any free seat in the pool.
    *
-   * Each stage routes through `pickFromSeats` for the PC-bias rule. Returns
-   * null only when every seat is already occupied. Passing `undefined`
+   * Returns null only when the pool is empty. Passing `undefined` folderName
    * preserves pre-Areas single-stage behavior (skips Stage 1; Stage 2 picks
    * unzoned seats from a layout without `areaTiles`, which is every seat).
    */
-  private findFreeSeat(folderName?: string): string | null {
-    const electronicsTiles = this.buildElectronicsTileSet();
-    const freeSeats: string[] = [];
-    for (const [uid, seat] of this.seats) {
-      if (!seat.assigned) freeSeats.push(uid);
-    }
+  private pickSeatByArea(freeSeats: string[], folderName: string | undefined): string | null {
     if (freeSeats.length === 0) return null;
-
     const areaLabels = folderName ? this.areaMappings[folderName] : undefined;
 
-    // Stage 1 — in-area seats for the folder's mapped Area labels.
     if (areaLabels && areaLabels.length > 0) {
       const wanted = new Set(areaLabels);
       const inArea = freeSeats.filter((uid) => {
         const label = this.seatZone(uid);
         return label !== null && wanted.has(label);
       });
-      const pick = this.pickFromSeats(inArea, electronicsTiles);
+      const pick = this.pickRandomSeat(inArea);
       if (pick) return pick;
     }
 
-    // Stage 2 — unzoned seats (no area label, or layout has no areas at all).
     const unzoned = freeSeats.filter((uid) => this.seatZone(uid) === null);
-    const pick2 = this.pickFromSeats(unzoned, electronicsTiles);
+    const pick2 = this.pickRandomSeat(unzoned);
     if (pick2) return pick2;
 
-    // Stage 3 — any free seat.
-    return this.pickFromSeats(freeSeats, electronicsTiles);
+    return this.pickRandomSeat(freeSeats);
+  }
+
+  /**
+   * Desk-seat picker for top-level agents. Work (PC-facing) seats are always
+   * exhausted — across every Area stage — before a rest/lounge seat is ever
+   * handed out as someone's desk: the Area stages used to run their
+   * preference PER POOL, so a folder routed into an area with only sofas free
+   * would seat an agent on a sofa even while desks sat empty in another area.
+   * A rest seat is now only a fallback for when no desk is free anywhere.
+   */
+  private findFreeSeat(folderName?: string): string | null {
+    const freeWorkSeats: string[] = [];
+    const freeRestSeats: string[] = [];
+    for (const [uid, seat] of this.seats) {
+      if (seat.assigned) continue;
+      (this.restSeatUids.has(uid) ? freeRestSeats : freeWorkSeats).push(uid);
+    }
+    return (
+      this.pickSeatByArea(freeWorkSeats, folderName) ??
+      this.pickSeatByArea(freeRestSeats, folderName)
+    );
+  }
+
+  /** First free desk/work (non-rest) seat uid, or null if every one is taken. */
+  private findFreeWorkSeatUid(): string | null {
+    for (const [uid, seat] of this.seats) {
+      if (!seat.assigned && !this.restSeatUids.has(uid)) return uid;
+    }
+    return null;
+  }
+
+  /**
+   * Hand `ch` a work seat it already owns the claim to (via `claimWorkSeatForActiveAgent`)
+   * and physically walk it there. When `previousOwner` is given, the work seat was taken
+   * from an idle agent's desk, which in turn inherits `ch`'s old rest seat — correct since
+   * an idle agent rests in the lounge regardless of what its desk `seatId` says, so losing
+   * that desk costs it nothing right now and it needs no physical move. Without a
+   * `previousOwner` the work seat was genuinely free, so `ch`'s old rest seat (if any) is
+   * vacated instead.
+   */
+  private assignWorkSeat(
+    ch: Character,
+    workSeatUid: string,
+    previousOwner: Character | null,
+  ): void {
+    const workSeat = this.seats.get(workSeatUid);
+    if (!workSeat) return;
+    const oldSeatId = ch.seatId;
+    if (previousOwner) {
+      previousOwner.seatId = oldSeatId;
+    } else if (oldSeatId) {
+      const old = this.seats.get(oldSeatId);
+      if (old) old.assigned = false;
+    }
+    workSeat.assigned = true;
+    ch.seatId = workSeatUid;
+    const path = this.withOwnSeatUnblocked(ch, () =>
+      findPath(
+        ch.tileCol,
+        ch.tileRow,
+        workSeat.seatCol,
+        workSeat.seatRow,
+        this.tileMap,
+        this.blockedTiles,
+      ),
+    );
+    if (path.length > 0) {
+      ch.path = path;
+      ch.moveProgress = 0;
+      ch.state = CharacterState.WALK;
+      ch.frame = 0;
+      ch.frameTimer = 0;
+    } else {
+      ch.state = CharacterState.TYPE;
+      ch.dir = workSeat.facingDir;
+      ch.frame = 0;
+      ch.frameTimer = 0;
+    }
+  }
+
+  /**
+   * Desks belong to whoever is working them. If `ch` is active and its desk (`seatId`) is
+   * a rest seat, upgrade it to a work seat: a free one first, else steal one from an idle
+   * agent (never from another active agent — a desk genuinely in use stays in use). An idle
+   * agent rests in the lounge regardless of its desk `seatId`, so handing that desk to an
+   * active colleague costs the idle agent nothing visible right now. No-op when `ch` has no
+   * seat, already has a work seat, or every work seat is legitimately in active use.
+   * Cheap to call unconditionally (e.g. on every `agentStatus: active`): the common case is
+   * a single Map lookup confirming `seatId` is already a work seat.
+   */
+  private claimWorkSeatForActiveAgent(ch: Character): void {
+    if (!ch.isActive || !ch.seatId || !this.restSeatUids.has(ch.seatId)) return;
+    const freeSeatId = this.findFreeWorkSeatUid();
+    if (freeSeatId) {
+      this.assignWorkSeat(ch, freeSeatId, null);
+      return;
+    }
+    for (const other of this.characters.values()) {
+      if (other.id === ch.id || other.isActive) continue;
+      if (!other.seatId || this.restSeatUids.has(other.seatId)) continue;
+      this.assignWorkSeat(ch, other.seatId, other);
+      return;
+    }
+  }
+
+  /**
+   * Re-run `claimWorkSeatForActiveAgent` for every active agent. Desk assignment
+   * (`findFreeSeat`, restore via `preferredSeatId`, `setAgentActive`) already claims a work
+   * seat the moment it's possible, but that alone only stops NEW misassignment — an agent
+   * already parked on a sofa as its desk (from before this fix, or because every desk was
+   * briefly full or in active use) stays there until something changes. `excludeId` skips a
+   * character mid-removal — its old seat was just freed but it's still in `characters` until
+   * the despawn animation finishes, so without the guard it could claim a seat nobody will
+   * ever free. Call whenever a seat could have freed or an owner could have gone idle: agent
+   * removal, layout rebuild.
+   */
+  private rebalanceRestSeatedAgents(excludeId?: number): void {
+    for (const ch of this.characters.values()) {
+      if (ch.id === excludeId) continue;
+      this.claimWorkSeatForActiveAgent(ch);
+    }
   }
 
   /** Closest walkable tile to (col,row) not occupied by another character, or null. */
@@ -453,7 +606,11 @@ export class OfficeState {
     let seatId: string | null = null;
     if (preferredSeatId && this.seats.has(preferredSeatId)) {
       const seat = this.seats.get(preferredSeatId)!;
-      if (!seat.assigned) {
+      // A persisted desk that is now a rest seat (e.g. from before this fix) is only
+      // honored when no real desk is free — otherwise restore would keep repeating
+      // the original misassignment forever.
+      const demoted = this.restSeatUids.has(preferredSeatId) && this.findFreeWorkSeatUid() !== null;
+      if (!seat.assigned && !demoted) {
         seatId = preferredSeatId;
       }
     }
@@ -492,6 +649,10 @@ export class OfficeState {
       startMatrixEffect(ch, 'spawn');
     }
     this.characters.set(id, ch);
+    // Covers both a persisted desk already demoted above and a fresh findFreeSeat()
+    // fallback to the lounge — either way, steal a work seat from an idle agent if no
+    // free one exists, same as a live active-transition would.
+    this.claimWorkSeatForActiveAgent(ch);
   }
 
   // ── Greeter ───────────────────────────────────────────────────
@@ -558,7 +719,9 @@ export class OfficeState {
     if (ch.seatId) {
       const seat = this.seats.get(ch.seatId);
       if (seat) seat.assigned = false;
+      this.rebalanceRestSeatedAgents(id);
     }
+    releaseRestSeat(ch, this.restSeatClaims);
     if (this.selectedAgentId === id) this.selectedAgentId = null;
     if (this.cameraFollowId === id) this.cameraFollowId = null;
     // Start despawn animation instead of immediate delete
@@ -578,6 +741,7 @@ export class OfficeState {
   reassignSeat(agentId: number, seatId: string): void {
     const ch = this.characters.get(agentId);
     if (!ch) return;
+    releaseRestSeat(ch, this.restSeatClaims);
     // Unassign old seat
     if (ch.seatId) {
       const old = this.seats.get(ch.seatId);
@@ -642,6 +806,7 @@ export class OfficeState {
   sendToSeat(agentId: number): void {
     const ch = this.characters.get(agentId);
     if (!ch || !ch.seatId) return;
+    releaseRestSeat(ch, this.restSeatClaims);
     const seat = this.seats.get(ch.seatId);
     if (!seat) return;
     const path = this.withOwnSeatUnblocked(ch, () =>
@@ -669,6 +834,7 @@ export class OfficeState {
   walkToTile(agentId: number, col: number, row: number): boolean {
     const ch = this.characters.get(agentId);
     if (!ch || ch.isSubagent) return false;
+    releaseRestSeat(ch, this.restSeatClaims);
     if (!isWalkable(col, row, this.tileMap, this.blockedTiles)) {
       // Also allow walking to own seat tile (blocked for others but not self)
       const key = this.ownSeatKey(ch);
@@ -798,6 +964,8 @@ export class OfficeState {
         ch.seatTimer = -1;
         ch.path = [];
         ch.moveProgress = 0;
+      } else {
+        this.claimWorkSeatForActiveAgent(ch);
       }
       this.rebuildFurnitureInstances();
     }
@@ -1086,6 +1254,13 @@ export class OfficeState {
     ch.maxContextTokens = maxContextTokens;
   }
 
+  setAgentInfo(id: number, name: string | undefined, task: string | undefined): void {
+    const ch = this.characters.get(id);
+    if (!ch) return;
+    if (name !== undefined) ch.folderName = name || undefined;
+    if (task !== undefined) ch.task = task || undefined;
+  }
+
   update(dt: number): void {
     // Furniture animation cycling
     const prevFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
@@ -1109,9 +1284,18 @@ export class OfficeState {
         continue; // skip normal FSM while the effect is (or just was) active
       }
 
-      // Temporarily unblock own seat so character can pathfind to it
-      this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles),
+      // Temporarily unblock own seat + reachable rest seats so the FSM can pathfind
+      this.withPathableSeatsUnblocked(ch, () =>
+        updateCharacter(
+          ch,
+          dt,
+          this.walkableTiles,
+          this.seats,
+          this.tileMap,
+          this.blockedTiles,
+          this.restSeatUids,
+          this.restSeatClaims,
+        ),
       );
 
       // Tick bubble timer for waiting bubbles

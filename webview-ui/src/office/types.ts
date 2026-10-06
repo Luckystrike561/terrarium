@@ -66,6 +66,9 @@ export interface FurnitureInstance {
   zY: number;
   /** Render-time horizontal flip flag (for mirrored side variants) */
   mirrored?: boolean;
+  /** Placed-furniture uid, for keying retained render-side sprite pools.
+   *  Absent on synthetic instances (e.g. wall auto-tile instances). */
+  uid?: string;
 }
 
 export interface ToolActivity {
@@ -200,6 +203,10 @@ export interface Character {
   isActive: boolean;
   /** Assigned seat uid, or null if no seat */
   seatId: string | null;
+  /** Lounge/sofa seat uid claimed while idle, or null. Separate from `seatId`
+   *  (the agent's permanent desk) so going idle never disturbs desk ownership;
+   *  released the instant the agent goes active again. Not persisted. */
+  restSeatId: string | null;
   /** Active speech bubble type, or null if none showing */
   bubbleType: 'permission' | 'waiting' | null;
   /** Only meaningful while bubbleType === 'waiting': true when the agent went
@@ -223,6 +230,8 @@ export interface Character {
   matrixEffectSeeds: number[];
   /** Workspace folder name (only set for multi-root workspaces) */
   folderName?: string;
+  /** Provider-reported one-line summary of what the agent is working on */
+  task?: string;
   /** Headless agent: adopted from outside the office, so there is no terminal to
    *  focus. Rendered translucent. Teammates and sub-agents are never headless —
    *  clicking them reaches their lead's / parent's terminal. */

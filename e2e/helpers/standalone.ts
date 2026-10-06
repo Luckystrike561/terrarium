@@ -46,6 +46,10 @@ export interface LaunchStandaloneOptions {
    *  they are the only ones that want the dialog. Never overwrites a
    *  config.json that already exists (a shared HOME was seeded by its owner). */
   seedHooksConsent?: boolean;
+  /** Agent provider id forwarded as `--provider <id>` (default: the CLI's own
+   *  default, 'claude'). Herdr specs pass 'herdr' so the standalone host
+   *  connects to a local Herdr socket instead of installing Claude hooks. */
+  provider?: string;
 }
 
 function delay(ms: number): Promise<void> {
@@ -101,25 +105,26 @@ function spawnStandaloneHost(args: {
   homeDir: string;
   hostPort: number;
   workspaceDir: string;
+  provider?: string;
 }): ChildProcessWithoutNullStreams {
   if (!fs.existsSync(STANDALONE_CLI)) {
     throw new Error(
       `Standalone CLI not built at ${STANDALONE_CLI}. Run 'npm run compile' before standalone e2e tests.`,
     );
   }
-  return spawn(
-    process.execPath,
-    [STANDALONE_CLI, '--port', args.hostPort.toString(), '--host', '127.0.0.1'],
-    {
-      cwd: args.workspaceDir,
-      env: {
-        ...process.env,
-        HOME: args.homeDir,
-        USERPROFILE: args.homeDir,
-      },
-      stdio: 'pipe',
+  const cliArgs = [STANDALONE_CLI, '--port', args.hostPort.toString(), '--host', '127.0.0.1'];
+  if (args.provider) {
+    cliArgs.push('--provider', args.provider);
+  }
+  return spawn(process.execPath, cliArgs, {
+    cwd: args.workspaceDir,
+    env: {
+      ...process.env,
+      HOME: args.homeDir,
+      USERPROFILE: args.homeDir,
     },
-  );
+    stdio: 'pipe',
+  });
 }
 
 async function stopProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
@@ -248,7 +253,12 @@ export async function launchStandalone(
   let hostStdout = '';
   let hostStderr = '';
   function spawnAndAttach(): ChildProcessWithoutNullStreams {
-    const proc = spawnStandaloneHost({ homeDir: tmpHome, hostPort, workspaceDir });
+    const proc = spawnStandaloneHost({
+      homeDir: tmpHome,
+      hostPort,
+      workspaceDir,
+      provider: options.provider,
+    });
     proc.stdout.on('data', (chunk) => {
       hostStdout += chunk.toString();
     });

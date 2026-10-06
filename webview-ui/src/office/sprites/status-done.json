@@ -1,0 +1,23 @@
+{
+  "name": "status-done",
+  "description": "Persistent status badge: agent finished its turn (green, checkmark glyph) (9x9)",
+  "width": 9,
+  "height": 9,
+  "palette": {
+    "_": "",
+    "B": "#555566",
+    "C": "#44BB66",
+    "W": "#EEEEFF"
+  },
+  "pixels": [
+    ["_","B","B","B","B","B","B","B","_"],
+    ["B","C","C","C","C","C","C","C","B"],
+    ["B","C","C","C","C","C","C","W","B"],
+    ["B","C","C","C","C","C","W","C","B"],
+    ["B","W","C","C","C","C","W","C","B"],
+    ["B","C","W","C","C","W","C","C","B"],
+    ["B","C","C","W","W","C","C","C","B"],
+    ["B","C","C","C","C","C","C","C","B"],
+    ["_","B","B","B","B","B","B","B","_"]
+  ]
+}

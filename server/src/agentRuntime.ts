@@ -77,6 +77,10 @@ export class AgentRuntime {
   // Configuration refs (mutable, shared with scanners)
   readonly watchAllSessions = { current: false };
   readonly hooksEnabled = { current: true };
+  /** Adopt every external session regardless of Watch All Sessions. Set for
+   *  providers whose agents live in arbitrary directories (herdr), where the
+   *  per-client watchAllSessions setting would hide all of them. */
+  adoptAllExternalSessions = false;
 
   // Dependencies
   readonly dismissalTracker = new DismissalTracker();
@@ -192,7 +196,11 @@ export class AgentRuntime {
             }
           }
         }
-        if (!isTrackedProjectDir(projectDir) && !this.watchAllSessions.current) {
+        if (
+          !isTrackedProjectDir(projectDir) &&
+          !this.watchAllSessions.current &&
+          !this.adoptAllExternalSessions
+        ) {
           console.log(
             `[Pixel Agents] Hook: external session ${sessionId.slice(0, 8)}... not adopted ` +
               `(project untracked, Watch All Sessions off)`,

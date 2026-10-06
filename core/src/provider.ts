@@ -60,7 +60,14 @@ export type AgentEvent =
        *  external sessions against known workspace folders. */
       cwd?: string;
     }
-  | { kind: 'sessionEnd'; reason?: string };
+  | { kind: 'sessionEnd'; reason?: string }
+  | {
+      kind: 'sessionInfo';
+      /** Human label for the character, replacing the cwd-derived folder name. */
+      name?: string;
+      /** One-line description of what the agent is working on. */
+      task?: string;
+    };
 
 // ── Hook-based Provider (CLIs with hooks APIs) ────────────────
 

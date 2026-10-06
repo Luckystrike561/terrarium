@@ -22,6 +22,8 @@ export interface AgentState {
   hadToolsInTurn: boolean;
   /** Workspace folder name (only set for multi-root workspaces) */
   folderName?: string;
+  /** Provider-reported one-line summary of the agent's current task */
+  task?: string;
   /** Timestamp of last JSONL data received (ms since epoch) */
   lastDataAt: number;
   /** Total JSONL lines processed for this agent */

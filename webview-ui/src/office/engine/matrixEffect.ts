@@ -1,3 +1,5 @@
+import type { Graphics } from 'pixi.js';
+
 import {
   MATRIX_COLUMN_STAGGER_RANGE,
   MATRIX_FLICKER_FPS,
@@ -16,6 +18,7 @@ import {
 } from '../../constants.js';
 import type { Character, SpriteData } from '../types.js';
 import { MATRIX_EFFECT_DURATION } from '../types.js';
+import { hexToPixiColor, rgbaToPixiColor } from './pixiColor.js';
 
 /** Hash-based flicker: ~70% visible for shimmer effect */
 function flickerVisible(col: number, row: number, time: number): boolean {
@@ -24,12 +27,23 @@ function flickerVisible(col: number, row: number, time: number): boolean {
   return hash < MATRIX_FLICKER_VISIBILITY_THRESHOLD;
 }
 
+const HEAD_COLOR = hexToPixiColor(MATRIX_HEAD_COLOR);
+
+function trailColor(trailPos: number, alpha: number): { color: number; alpha: number } {
+  if (trailPos < MATRIX_TRAIL_MID_THRESHOLD) return rgbaToPixiColor(matrixGreenBright(alpha));
+  if (trailPos < MATRIX_TRAIL_DIM_THRESHOLD) return rgbaToPixiColor(matrixGreenMid(alpha));
+  return rgbaToPixiColor(matrixGreenDim(alpha));
+}
+
 /**
- * Render a character with a Matrix-style digital rain spawn/despawn effect.
- * Per-pixel rendering: each column sweeps top-to-bottom with a bright head and fading green trail.
+ * Draw a character's Matrix-style digital rain spawn/despawn effect into a
+ * (pre-cleared) Graphics object. Per-pixel: each column sweeps top-to-bottom
+ * with a bright head and a fading green trail, drawn as individual filled
+ * rects so the per-pixel color math (trail fade, flicker, head/trail/base
+ * zones) stays identical regardless of render target.
  */
-export function renderMatrixEffect(
-  ctx: CanvasRenderingContext2D,
+export function drawMatrixEffect(
+  gfx: Graphics,
   ch: Character,
   spriteData: SpriteData,
   drawX: number,
@@ -42,7 +56,6 @@ export function renderMatrixEffect(
   const totalSweep = MATRIX_SPRITE_ROWS + MATRIX_TRAIL_LENGTH;
 
   for (let col = 0; col < MATRIX_SPRITE_COLS; col++) {
-    // Stagger: each column starts at a slightly different time
     const stagger = (ch.matrixEffectSeeds[col] ?? 0) * MATRIX_COLUMN_STAGGER_RANGE;
     const colProgress = Math.max(
       0,
@@ -58,74 +71,37 @@ export function renderMatrixEffect(
       const py = drawY + row * zoom;
 
       if (isSpawn) {
-        // Spawn: head sweeps down revealing character pixels
         if (distFromHead < 0) {
-          // Above head: invisible
           continue;
         } else if (distFromHead < 1) {
-          // Head pixel: bright white-green
-          ctx.fillStyle = MATRIX_HEAD_COLOR;
-          ctx.fillRect(px, py, zoom, zoom);
+          gfx.rect(px, py, zoom, zoom).fill(HEAD_COLOR);
         } else if (distFromHead < MATRIX_TRAIL_LENGTH) {
-          // Trail zone: show character pixel with green overlay, or just green if no pixel
           const trailPos = distFromHead / MATRIX_TRAIL_LENGTH;
           if (hasPixel) {
-            // Draw original pixel
-            ctx.fillStyle = pixel;
-            ctx.fillRect(px, py, zoom, zoom);
-            // Green overlay that fades as trail progresses
+            gfx.rect(px, py, zoom, zoom).fill(hexToPixiColor(pixel));
             const greenAlpha = (1 - trailPos) * MATRIX_TRAIL_OVERLAY_ALPHA;
             if (flickerVisible(col, row, time)) {
-              ctx.fillStyle = matrixGreenBright(greenAlpha);
-              ctx.fillRect(px, py, zoom, zoom);
+              gfx.rect(px, py, zoom, zoom).fill(rgbaToPixiColor(matrixGreenBright(greenAlpha)));
             }
-          } else {
-            // No character pixel: fading green trail
-            if (flickerVisible(col, row, time)) {
-              const alpha = (1 - trailPos) * MATRIX_TRAIL_EMPTY_ALPHA;
-              ctx.fillStyle =
-                trailPos < MATRIX_TRAIL_MID_THRESHOLD
-                  ? matrixGreenBright(alpha)
-                  : trailPos < MATRIX_TRAIL_DIM_THRESHOLD
-                    ? matrixGreenMid(alpha)
-                    : matrixGreenDim(alpha);
-              ctx.fillRect(px, py, zoom, zoom);
-            }
+          } else if (flickerVisible(col, row, time)) {
+            const alpha = (1 - trailPos) * MATRIX_TRAIL_EMPTY_ALPHA;
+            gfx.rect(px, py, zoom, zoom).fill(trailColor(trailPos, alpha));
           }
-        } else {
-          // Below trail: normal character pixel
-          if (hasPixel) {
-            ctx.fillStyle = pixel;
-            ctx.fillRect(px, py, zoom, zoom);
-          }
+        } else if (hasPixel) {
+          gfx.rect(px, py, zoom, zoom).fill(hexToPixiColor(pixel));
         }
       } else {
-        // Despawn: head sweeps down consuming character pixels
         if (distFromHead < 0) {
-          // Above head: normal character pixel (not yet consumed)
           if (hasPixel) {
-            ctx.fillStyle = pixel;
-            ctx.fillRect(px, py, zoom, zoom);
+            gfx.rect(px, py, zoom, zoom).fill(hexToPixiColor(pixel));
           }
         } else if (distFromHead < 1) {
-          // Head pixel: bright white-green
-          ctx.fillStyle = MATRIX_HEAD_COLOR;
-          ctx.fillRect(px, py, zoom, zoom);
-        } else if (distFromHead < MATRIX_TRAIL_LENGTH) {
-          // Trail zone: fading green
-          if (flickerVisible(col, row, time)) {
-            const trailPos = distFromHead / MATRIX_TRAIL_LENGTH;
-            const alpha = (1 - trailPos) * MATRIX_TRAIL_EMPTY_ALPHA;
-            ctx.fillStyle =
-              trailPos < MATRIX_TRAIL_MID_THRESHOLD
-                ? matrixGreenBright(alpha)
-                : trailPos < MATRIX_TRAIL_DIM_THRESHOLD
-                  ? matrixGreenMid(alpha)
-                  : matrixGreenDim(alpha);
-            ctx.fillRect(px, py, zoom, zoom);
-          }
+          gfx.rect(px, py, zoom, zoom).fill(HEAD_COLOR);
+        } else if (distFromHead < MATRIX_TRAIL_LENGTH && flickerVisible(col, row, time)) {
+          const trailPos = distFromHead / MATRIX_TRAIL_LENGTH;
+          const alpha = (1 - trailPos) * MATRIX_TRAIL_EMPTY_ALPHA;
+          gfx.rect(px, py, zoom, zoom).fill(trailColor(trailPos, alpha));
         }
-        // Below trail: nothing (consumed)
       }
     }
   }

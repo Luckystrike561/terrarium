@@ -276,11 +276,11 @@ async function main(): Promise<void> {
     // runtime's single hooksEnabled ref follows the Claude provider until the
     // scanners grow per-provider awareness alongside the Settings UI.
     runtime.hooksEnabled.current = getHooksEnabled(provider.id);
-    // The herdr provider reports agents living in arbitrary worktrees, which are
-    // not 'tracked project dirs'; without this the server refuses to adopt them
-    // ('project untracked, Watch All Sessions off').
-    runtime.watchAllSessions.current =
-      provider.id === 'herdr' || adapter.getSetting('pixel-agents.watchAllSessions', false);
+    runtime.watchAllSessions.current = adapter.getSetting('pixel-agents.watchAllSessions', false);
+    // herdr agents live in arbitrary worktrees, never 'tracked project dirs'.
+    // A runtime flag rather than forcing watchAllSessions: every webviewReady
+    // re-syncs that ref from the persisted setting.
+    runtime.adoptAllExternalSessions = provider.id === herdrProvider.id;
 
     // Install hooks on startup if the persisted setting says so — gated on the
     // one-time consent to modify ~/.claude/settings.json.
