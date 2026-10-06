@@ -1,3 +1,6 @@
+# devbox (generated env symlink; devbox.lock is committed)
+.devbox
+
 # Compiled output
 out
 dist
