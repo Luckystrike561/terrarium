@@ -2,27 +2,41 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-		<meta name="theme-color" content="#0d1117" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+		<meta name="theme-color" content="#06121f" />
 		<meta name="color-scheme" content="dark" />
 		<meta name="referrer" content="no-referrer" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Terrarium" />
 		<title>Terrarium</title>
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+		<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 		<link rel="stylesheet" href="/src/style.css" />
 	</head>
 	<body>
-		<header class="topbar">
-			<h1>Terrarium</h1>
+		<div id="tank" class="tank" aria-label="Agent tank"></div>
+		<header class="hud">
 			<div id="status" class="status" data-state="connecting" role="status" aria-live="polite">
 				<span class="status-dot" aria-hidden="true"></span>
 				<span id="status-text">Connecting</span>
 			</div>
+			<span id="wake" class="wake" data-state="released" aria-hidden="true"></span>
+			<button id="details-button" class="hud-button" type="button" aria-pressed="false" aria-controls="details" title="Agents and usage">
+				List
+			</button>
+			<button id="fullscreen-button" class="hud-button" type="button" aria-pressed="false" title="Fullscreen">
+				Fullscreen
+			</button>
 		</header>
 		<form id="token-form" class="token-form" hidden>
 			<label for="token-input">View token</label>
 			<input id="token-input" type="password" autocomplete="off" spellcheck="false" required />
 			<button type="submit">Connect</button>
 		</form>
-		<main>
+		<aside id="details" class="details" hidden>
 			<section aria-labelledby="usage-title">
 				<h2 id="usage-title">Usage</h2>
 				<div class="table-wrap">
@@ -35,7 +49,7 @@
 					<table id="agents" class="agents"></table>
 				</div>
 			</section>
-		</main>
+		</aside>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
 </html>

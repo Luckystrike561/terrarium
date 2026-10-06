@@ -1,5 +1,7 @@
 import type { WorldMessage } from "@terrarium/protocol";
 import { renderAgents, renderUsage } from "./render";
+import { keepAwake, setupFullscreen } from "./screen";
+import { Tank } from "./tank/scene";
 import { applyMessage, type WorldState } from "./world";
 
 const TOKEN_KEY = "terrarium.viewToken";
@@ -15,12 +17,19 @@ function byId<T extends HTMLElement>(id: string): T {
 	return node as T;
 }
 
+const tankBox = byId<HTMLDivElement>("tank");
 const statusBox = byId<HTMLDivElement>("status");
 const statusText = byId<HTMLSpanElement>("status-text");
+const wakeBadge = byId<HTMLSpanElement>("wake");
+const detailsButton = byId<HTMLButtonElement>("details-button");
+const fullscreenButton = byId<HTMLButtonElement>("fullscreen-button");
+const details = byId<HTMLElement>("details");
 const tokenForm = byId<HTMLFormElement>("token-form");
 const tokenInput = byId<HTMLInputElement>("token-input");
 const usageTable = byId<HTMLTableElement>("usage");
 const agentsTable = byId<HTMLTableElement>("agents");
+
+const tank = await Tank.create(tankBox);
 
 let world: WorldState | null = null;
 let socket: WebSocket | null = null;
@@ -45,17 +54,17 @@ function readToken(): string | null {
 	return localStorage.getItem(TOKEN_KEY);
 }
 
-function render(): void {
+function renderDetails(): void {
 	renderQueued = false;
-	if (world === null) return;
+	if (world === null || details.hidden) return;
 	renderUsage(usageTable, world.usage);
 	renderAgents(agentsTable, world, Date.now());
 }
 
-function queueRender(): void {
-	if (renderQueued) return;
+function queueDetails(): void {
+	if (renderQueued || details.hidden) return;
 	renderQueued = true;
-	requestAnimationFrame(render);
+	requestAnimationFrame(renderDetails);
 }
 
 function askForToken(): void {
@@ -79,7 +88,12 @@ function connect(token: string): void {
 			setStatus("live", "Live");
 		}
 		world = applyMessage(world, message);
-		queueRender();
+		if (world === null) return;
+		tank.sync(world);
+		if (message.type === "delta" && message.event !== null) {
+			tank.notify(message.event);
+		}
+		queueDetails();
 	});
 	ws.addEventListener("close", (event) => {
 		if (socket !== ws) return;
@@ -109,7 +123,24 @@ tokenForm.addEventListener("submit", (event) => {
 	connect(token);
 });
 
-window.setInterval(queueRender, 1_000);
+detailsButton.addEventListener("click", () => {
+	details.hidden = !details.hidden;
+	detailsButton.setAttribute("aria-pressed", String(!details.hidden));
+	queueDetails();
+});
+
+setupFullscreen(fullscreenButton, document.documentElement);
+keepAwake((state) => {
+	wakeBadge.dataset.state = state;
+	wakeBadge.title =
+		state === "held"
+			? "Screen stays on"
+			: state === "released"
+				? "Screen may sleep; tap to keep it on"
+				: "Screen wake lock needs HTTPS or localhost";
+});
+
+window.setInterval(queueDetails, 1_000);
 
 const token = readToken();
 if (token === null) {
