@@ -120,6 +120,7 @@
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:debug": "node scripts/run-e2e.mjs --debug",
     "e2e:inventory": "node scripts/generate-e2e-inventory.mjs",
+    "demo:record": "node scripts/record-demo.mjs",
     "test:report": "node scripts/build-allure-report.mjs",
     "test:report:open": "allure open allure-report/allure",
     "e2e:report": "npm run test:report",
