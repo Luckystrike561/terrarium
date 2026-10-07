@@ -1,0 +1,53 @@
+{
+  "id": "DESK",
+  "name": "Desk",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "4-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "DESK_FRONT",
+      "file": "DESK_FRONT.png",
+      "width": 48,
+      "height": 38,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "DESK_RIGHT",
+      "file": "DESK_RIGHT.png",
+      "width": 48,
+      "height": 38,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    },
+    {
+      "type": "asset",
+      "id": "DESK_BACK",
+      "file": "DESK_BACK.png",
+      "width": 48,
+      "height": 38,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "back"
+    },
+    {
+      "type": "asset",
+      "id": "DESK_LEFT",
+      "file": "DESK_LEFT.png",
+      "width": 48,
+      "height": 38,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "left"
+    }
+  ]
+}

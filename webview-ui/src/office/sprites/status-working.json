@@ -1,0 +1,23 @@
+{
+  "name": "status-working",
+  "description": "Persistent status badge: agent actively working (blue, play-triangle glyph) (9x9)",
+  "width": 9,
+  "height": 9,
+  "palette": {
+    "_": "",
+    "B": "#555566",
+    "C": "#3794FF",
+    "W": "#EEEEFF"
+  },
+  "pixels": [
+    ["_","B","B","B","B","B","B","B","_"],
+    ["B","C","C","W","C","C","C","C","B"],
+    ["B","C","C","W","W","C","C","C","B"],
+    ["B","C","C","W","W","W","C","C","B"],
+    ["B","C","C","W","W","W","W","C","B"],
+    ["B","C","C","W","W","W","C","C","B"],
+    ["B","C","C","W","W","C","C","C","B"],
+    ["B","C","C","W","C","C","C","C","B"],
+    ["_","B","B","B","B","B","B","B","_"]
+  ]
+}

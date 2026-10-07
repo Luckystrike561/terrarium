@@ -1,0 +1,53 @@
+{
+  "id": "EXEC_DESK",
+  "name": "Executive Desk",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "4-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "EXEC_DESK_FRONT",
+      "file": "EXEC_DESK_FRONT.png",
+      "width": 80,
+      "height": 58,
+      "footprintW": 3,
+      "footprintH": 2,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "EXEC_DESK_RIGHT",
+      "file": "EXEC_DESK_RIGHT.png",
+      "width": 80,
+      "height": 58,
+      "footprintW": 2,
+      "footprintH": 3,
+      "orientation": "right"
+    },
+    {
+      "type": "asset",
+      "id": "EXEC_DESK_BACK",
+      "file": "EXEC_DESK_BACK.png",
+      "width": 80,
+      "height": 58,
+      "footprintW": 3,
+      "footprintH": 2,
+      "orientation": "back"
+    },
+    {
+      "type": "asset",
+      "id": "EXEC_DESK_LEFT",
+      "file": "EXEC_DESK_LEFT.png",
+      "width": 80,
+      "height": 58,
+      "footprintW": 2,
+      "footprintH": 3,
+      "orientation": "left"
+    }
+  ]
+}

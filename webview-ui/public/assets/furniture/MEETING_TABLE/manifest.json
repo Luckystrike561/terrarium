@@ -1,0 +1,33 @@
+{
+  "id": "MEETING_TABLE",
+  "name": "Meeting Table",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "MEETING_TABLE_FRONT",
+      "file": "MEETING_TABLE_FRONT.png",
+      "width": 80,
+      "height": 54,
+      "footprintW": 3,
+      "footprintH": 2,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "MEETING_TABLE_RIGHT",
+      "file": "MEETING_TABLE_RIGHT.png",
+      "width": 80,
+      "height": 54,
+      "footprintW": 2,
+      "footprintH": 3,
+      "orientation": "right"
+    }
+  ]
+}

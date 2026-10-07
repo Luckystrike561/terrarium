@@ -1,0 +1,33 @@
+{
+  "id": "RUG_PLANT",
+  "name": "Planter Box",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "RUG_PLANT_FRONT",
+      "file": "RUG_PLANT_FRONT.png",
+      "width": 48,
+      "height": 50,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "RUG_PLANT_RIGHT",
+      "file": "RUG_PLANT_RIGHT.png",
+      "width": 48,
+      "height": 50,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

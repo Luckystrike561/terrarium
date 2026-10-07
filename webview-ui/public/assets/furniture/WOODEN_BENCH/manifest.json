@@ -1,0 +1,33 @@
+{
+  "id": "WOODEN_BENCH",
+  "name": "Wooden Bench",
+  "category": "chairs",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "WOODEN_BENCH_FRONT",
+      "file": "WOODEN_BENCH_FRONT.png",
+      "width": 48,
+      "height": 32,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "WOODEN_BENCH_RIGHT",
+      "file": "WOODEN_BENCH_RIGHT.png",
+      "width": 48,
+      "height": 32,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

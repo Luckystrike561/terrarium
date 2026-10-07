@@ -1,0 +1,14 @@
+{
+  "id": "FLOOR_LAMP",
+  "name": "Floor Lamp",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "FLOOR_LAMP.png",
+  "width": 32,
+  "height": 52,
+  "footprintW": 1,
+  "footprintH": 1
+}

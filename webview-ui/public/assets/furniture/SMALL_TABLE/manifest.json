@@ -1,0 +1,14 @@
+{
+  "id": "SMALL_TABLE",
+  "name": "Small Table",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "SMALL_TABLE.png",
+  "width": 32,
+  "height": 30,
+  "footprintW": 1,
+  "footprintH": 1
+}

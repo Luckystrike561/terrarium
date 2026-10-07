@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
+  "include": ["github:Luckystrike561/runpick/tags/1.0.0"],
+  "packages": [
+    "nodejs@22",
+    "gitleaks@8.30.1"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo \"terrarium devbox -> node $(node --version)\""
+    ],
+    "scripts": {
+      "install": [
+        "npm install",
+        "npm run package"
+      ],
+      "build": [
+        "npm run package"
+      ],
+      "typecheck": [
+        "npm run check-types"
+      ],
+      "test": [
+        "npm test"
+      ],
+      "start": [
+        "node dist/cli.js --provider herdr --host 127.0.0.1 --port 8790"
+      ],
+      "dev": [
+        "npm run dev"
+      ],
+      "gitleaks": [
+        "gitleaks git --config .gitleaks.toml --redact --verbose ."
+      ],
+      "gitleaks:staged": [
+        "gitleaks git --config .gitleaks.toml --redact --verbose --staged ."
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "PLANT",
+  "name": "Plant",
+  "category": "decor",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "PLANT.png",
+  "width": 32,
+  "height": 44,
+  "footprintW": 1,
+  "footprintH": 1
+}

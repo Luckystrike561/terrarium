@@ -1,0 +1,33 @@
+{
+  "id": "WHITEBOARD",
+  "name": "Sprint Board",
+  "category": "wall",
+  "canPlaceOnWalls": true,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "WHITEBOARD_FRONT",
+      "file": "WHITEBOARD_FRONT.png",
+      "width": 48,
+      "height": 70,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "WHITEBOARD_RIGHT",
+      "file": "WHITEBOARD_RIGHT.png",
+      "width": 48,
+      "height": 70,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "BIN",
+  "name": "Bin",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "BIN.png",
+  "width": 32,
+  "height": 40,
+  "footprintW": 1,
+  "footprintH": 1
+}

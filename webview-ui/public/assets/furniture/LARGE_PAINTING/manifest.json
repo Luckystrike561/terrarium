@@ -1,0 +1,33 @@
+{
+  "id": "LARGE_PAINTING",
+  "name": "Large Painting",
+  "category": "wall",
+  "canPlaceOnWalls": true,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "LARGE_PAINTING_FRONT",
+      "file": "LARGE_PAINTING_FRONT.png",
+      "width": 48,
+      "height": 70,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "LARGE_PAINTING_RIGHT",
+      "file": "LARGE_PAINTING_RIGHT.png",
+      "width": 48,
+      "height": 70,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

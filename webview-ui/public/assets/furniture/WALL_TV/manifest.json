@@ -1,0 +1,121 @@
+{
+  "id": "WALL_TV",
+  "name": "Wall Screen",
+  "category": "electronics",
+  "canPlaceOnWalls": true,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "front",
+      "members": [
+        {
+          "type": "asset",
+          "id": "WALL_TV_FRONT_OFF",
+          "file": "WALL_TV_FRONT_OFF.png",
+          "width": 48,
+          "height": 70,
+          "footprintW": 2,
+          "footprintH": 1,
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "WALL_TV_FRONT_ON_1",
+              "file": "WALL_TV_FRONT_ON_1.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 2,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "WALL_TV_FRONT_ON_2",
+              "file": "WALL_TV_FRONT_ON_2.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 2,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "WALL_TV_FRONT_ON_3",
+              "file": "WALL_TV_FRONT_ON_3.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 2,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "right",
+      "members": [
+        {
+          "type": "asset",
+          "id": "WALL_TV_RIGHT_OFF",
+          "file": "WALL_TV_RIGHT_OFF.png",
+          "width": 48,
+          "height": 70,
+          "footprintW": 1,
+          "footprintH": 2,
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "WALL_TV_RIGHT_ON_1",
+              "file": "WALL_TV_RIGHT_ON_1.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "WALL_TV_RIGHT_ON_2",
+              "file": "WALL_TV_RIGHT_ON_2.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "WALL_TV_RIGHT_ON_3",
+              "file": "WALL_TV_RIGHT_ON_3.png",
+              "width": 48,
+              "height": 70,
+              "footprintW": 1,
+              "footprintH": 2,
+              "frame": 2
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

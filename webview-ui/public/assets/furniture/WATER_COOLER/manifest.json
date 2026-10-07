@@ -1,0 +1,14 @@
+{
+  "id": "WATER_COOLER",
+  "name": "Water Cooler",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "WATER_COOLER.png",
+  "width": 32,
+  "height": 48,
+  "footprintW": 1,
+  "footprintH": 1
+}

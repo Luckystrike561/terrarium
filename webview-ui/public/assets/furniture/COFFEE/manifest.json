@@ -1,0 +1,14 @@
+{
+  "id": "COFFEE",
+  "name": "Coffee",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": true,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "COFFEE.png",
+  "width": 32,
+  "height": 36,
+  "footprintW": 1,
+  "footprintH": 1
+}

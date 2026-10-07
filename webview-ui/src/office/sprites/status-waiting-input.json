@@ -1,0 +1,23 @@
+{
+  "name": "status-waiting-input",
+  "description": "Persistent status badge: agent idle, waiting on the user (purple, question-mark glyph) (9x9)",
+  "width": 9,
+  "height": 9,
+  "palette": {
+    "_": "",
+    "B": "#555566",
+    "C": "#7C5CFF",
+    "W": "#EEEEFF"
+  },
+  "pixels": [
+    ["_","B","B","B","B","B","B","B","_"],
+    ["B","C","W","W","W","C","C","C","B"],
+    ["B","W","C","C","C","W","C","C","B"],
+    ["B","C","C","C","C","W","C","C","B"],
+    ["B","C","C","C","W","C","C","C","B"],
+    ["B","C","C","W","C","C","C","C","B"],
+    ["B","C","C","C","C","C","C","C","B"],
+    ["B","C","C","W","C","C","C","C","B"],
+    ["_","B","B","B","B","B","B","B","_"]
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "id": "CUSHIONED_CHAIR",
+  "name": "Office Chair",
+  "category": "chairs",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "4-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "CUSHIONED_CHAIR_FRONT",
+      "file": "CUSHIONED_CHAIR_FRONT.png",
+      "width": 32,
+      "height": 40,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "CUSHIONED_CHAIR_RIGHT",
+      "file": "CUSHIONED_CHAIR_RIGHT.png",
+      "width": 32,
+      "height": 40,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    },
+    {
+      "type": "asset",
+      "id": "CUSHIONED_CHAIR_BACK",
+      "file": "CUSHIONED_CHAIR_BACK.png",
+      "width": 32,
+      "height": 40,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "back"
+    },
+    {
+      "type": "asset",
+      "id": "CUSHIONED_CHAIR_LEFT",
+      "file": "CUSHIONED_CHAIR_LEFT.png",
+      "width": 32,
+      "height": 40,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "left"
+    }
+  ]
+}

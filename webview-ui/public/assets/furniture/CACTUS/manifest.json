@@ -1,0 +1,14 @@
+{
+  "id": "CACTUS",
+  "name": "Cactus",
+  "category": "decor",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "CACTUS.png",
+  "width": 32,
+  "height": 40,
+  "footprintW": 1,
+  "footprintH": 1
+}
