@@ -5,8 +5,8 @@ import { isBrowserRuntime } from '../runtime.js';
 import { transport } from '../transport/index.js';
 import { Button } from './ui/Button.js';
 import { Checkbox } from './ui/Checkbox.js';
+import { Clipboard } from './ui/Clipboard.js';
 import { MenuItem } from './ui/MenuItem.js';
-import { Modal } from './ui/Modal.js';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -63,7 +63,7 @@ export function SettingsModal({
   const [assetDirDraft, setAssetDirDraft] = useState('');
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Settings">
+    <Clipboard isOpen={isOpen} onClose={onClose} title="Settings">
       {/* Open Sessions Folder opens an OS file manager — impossible in the browser. */}
       {!isBrowserRuntime && (
         <MenuItem
@@ -207,6 +207,6 @@ export function SettingsModal({
         <Checkbox label="Show Areas" checked={showAreas} onChange={onToggleShowAreas} />
       )}
       <Checkbox label="Debug View" checked={isDebugMode} onChange={onToggleDebugMode} />
-    </Modal>
+    </Clipboard>
   );
 }

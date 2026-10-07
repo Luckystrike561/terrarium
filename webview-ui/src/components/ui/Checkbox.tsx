@@ -13,7 +13,7 @@ export function Checkbox({ checked, onChange, label, className = '' }: CheckboxP
     >
       <span>{label}</span>
       <span
-        className={`w-14 h-14 border-2 border-white/50 rounded-none shrink-0 flex items-center justify-center text-2xs pl-1.5 pb-4 leading-none text-white ${checked ? 'bg-accent' : 'bg-transparent'}`}
+        className={`w-14 h-14 border-2 border-text-muted rounded-none shrink-0 flex items-center justify-center text-2xs pl-1.5 pb-4 leading-none text-white ${checked ? 'bg-accent' : 'bg-transparent'}`}
       >
         {checked ? 'x' : ''}
       </span>

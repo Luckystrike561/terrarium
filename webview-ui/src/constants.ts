@@ -89,12 +89,6 @@ export const CAMERA_FOLLOW_SNAP_THRESHOLD = 0.5;
 
 // ── Zoom ─────────────────────────────────────────────────────
 export const ZOOM_MIN = 1;
-export const ZOOM_MAX = 10;
-export const ZOOM_LEVEL_FADE_DELAY_MS = 1500;
-export const ZOOM_LEVEL_HIDE_DELAY_MS = 2000;
-export const ZOOM_LEVEL_FADE_DURATION_SEC = 0.5;
-export const ZOOM_SCROLL_THRESHOLD = 50;
-export const PAN_MARGIN_FRACTION = 0.25;
 
 // ── Editor ───────────────────────────────────────────────────
 export const UNDO_STACK_MAX_SIZE = 50;

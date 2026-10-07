@@ -12,7 +12,6 @@ import { SettingsModal } from './components/SettingsModal.js';
 import { Tooltip } from './components/Tooltip.js';
 import { Modal } from './components/ui/Modal.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
-import { ZoomControls } from './components/ZoomControls.js';
 import { useEditorActions } from './hooks/useEditorActions.js';
 import { useEditorKeyboard } from './hooks/useEditorKeyboard.js';
 import { useExtensionMessages } from './hooks/useExtensionMessages.js';
@@ -101,14 +100,6 @@ function App() {
   // Show migration notice once layout reset is detected
   const [migrationNoticeDismissed, setMigrationNoticeDismissed] = useState(false);
   const showMigrationNotice = layoutWasReset && !migrationNoticeDismissed;
-
-  const { fitZoomToViewport } = editor;
-  useEffect(() => {
-    if (!layoutReady) return;
-    fitZoomToViewport();
-    window.addEventListener('resize', fitZoomToViewport);
-    return () => window.removeEventListener('resize', fitZoomToViewport);
-  }, [layoutReady, fitZoomToViewport]);
 
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -353,7 +344,6 @@ function App() {
         onRotateSelected={editor.handleRotateSelected}
         onDragMove={editor.handleDragMove}
         editorTick={editor.editorTick}
-        zoom={editor.zoom}
         onZoomChange={editor.handleZoomChange}
         panRef={editor.panRef}
         showAreas={effectiveShowAreas}
@@ -362,8 +352,6 @@ function App() {
 
       {!isDebugMode ? (
         <>
-          <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />
-
           {/* Vignette overlay */}
           <div
             className="absolute inset-0 pointer-events-none"

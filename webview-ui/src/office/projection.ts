@@ -14,7 +14,117 @@
  * graph that imports it.
  */
 
-import { TILE_SIZE } from './types.js';
+import { ZOOM_MIN } from '../constants.js';
+import { TILE_SIZE, TileType } from './types.js';
+
+/** Tile-space rectangle the camera fits to the viewport.
+ *  `max*` bounds are exclusive. */
+export interface ViewBounds {
+  readonly minCol: number;
+  readonly minRow: number;
+  readonly maxCol: number;
+  readonly maxRow: number;
+}
+
+interface LayoutGrid {
+  readonly cols: number;
+  readonly rows: number;
+  readonly tiles: readonly number[];
+}
+
+const contentBoundsCache = new WeakMap<LayoutGrid, ViewBounds>();
+
+/** Bounding box of the non-VOID tiles: the part of the office worth showing.
+ *  Grows one row upward because wall sprites rise a full tile above their own
+ *  row, so the top wall's face lives in the row above the first solid tile.
+ *  Falls back to the whole grid when every tile is VOID. */
+export function contentBounds(layout: LayoutGrid): ViewBounds {
+  const cached = contentBoundsCache.get(layout);
+  if (cached) return cached;
+  let minCol = layout.cols;
+  let minRow = layout.rows;
+  let maxCol = 0;
+  let maxRow = 0;
+  for (let row = 0; row < layout.rows; row++) {
+    for (let col = 0; col < layout.cols; col++) {
+      if (layout.tiles[row * layout.cols + col] === TileType.VOID) continue;
+      minCol = Math.min(minCol, col);
+      minRow = Math.min(minRow, row);
+      maxCol = Math.max(maxCol, col + 1);
+      maxRow = Math.max(maxRow, row + 1);
+    }
+  }
+  const bounds =
+    maxCol === 0
+      ? { minCol: 0, minRow: 0, maxCol: layout.cols, maxRow: layout.rows }
+      : { minCol, minRow: Math.max(0, minRow - 1), maxCol, maxRow };
+  contentBoundsCache.set(layout, bounds);
+  return bounds;
+}
+
+/** The whole grid plus the one-tile ghost border the editor expands into. */
+export function editBounds(layout: { cols: number; rows: number }): ViewBounds {
+  return { minCol: -1, minRow: -1, maxCol: layout.cols + 1, maxRow: layout.rows + 1 };
+}
+
+/** Zoom at which `bounds` fits the canvas exactly on its tighter axis, so the
+ *  whole office is visible without scrolling. Deliberately NOT an integer:
+ *  an integer zoom on a mismatched aspect ratio either crops or leaves wide
+ *  margins, and filling the screen is worth uneven sprite pixels. Floored at
+ *  ZOOM_MIN so a narrow panel scrolls rather than shrinking sprites below 1x. */
+export function fitZoom(bounds: ViewBounds, canvasWidth: number, canvasHeight: number): number {
+  const worldW = (bounds.maxCol - bounds.minCol) * TILE_SIZE;
+  const worldH = (bounds.maxRow - bounds.minRow) * TILE_SIZE;
+  return Math.max(ZOOM_MIN, Math.min(canvasWidth / worldW, canvasHeight / worldH));
+}
+
+function clampAxis(
+  pan: number,
+  canvasSize: number,
+  mapTiles: number,
+  minTile: number,
+  maxTile: number,
+  zoom: number,
+): number {
+  const tilePx = TILE_SIZE * zoom;
+  const base = Math.floor((canvasSize - mapTiles * tilePx) / 2);
+  const lowest = canvasSize - maxTile * tilePx - base;
+  const highest = -minTile * tilePx - base;
+  if (lowest > highest) return (lowest + highest) / 2;
+  return Math.max(lowest, Math.min(highest, pan));
+}
+
+/** Pan that keeps the view inside `bounds`: an axis larger than the canvas
+ *  scrolls but never past the office edge, a smaller one is centered. */
+export function clampPan(
+  pan: { x: number; y: number },
+  layout: { cols: number; rows: number },
+  bounds: ViewBounds,
+  zoom: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number } {
+  return {
+    x: clampAxis(pan.x, canvasWidth, layout.cols, bounds.minCol, bounds.maxCol, zoom),
+    y: clampAxis(pan.y, canvasHeight, layout.rows, bounds.minRow, bounds.maxRow, zoom),
+  };
+}
+
+/** Pan that centers `bounds` in the canvas, clamped like {@link clampPan}. */
+export function centeredPan(
+  layout: { cols: number; rows: number },
+  bounds: ViewBounds,
+  zoom: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number } {
+  const tilePx = TILE_SIZE * zoom;
+  const center = {
+    x: ((layout.cols - bounds.minCol - bounds.maxCol) * tilePx) / 2,
+    y: ((layout.rows - bounds.minRow - bounds.maxRow) * tilePx) / 2,
+  };
+  return clampPan(center, layout, bounds, zoom, canvasWidth, canvasHeight);
+}
 
 /** Device-pixel offset of the map's top-left corner inside the canvas.
  *  This is the renderer's own frame of reference — overlays go through
