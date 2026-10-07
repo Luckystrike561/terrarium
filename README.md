@@ -1,237 +1,156 @@
-<h1 align="center">
-  <a href="https://github.com/pixel-agents-hq/pixel-agents/discussions">
-    <img src="webview-ui/public/banner.png" alt="Pixel Agents">
-  </a>
-</h1>
+<h1 align="center">Terrarium</h1>
 
-<h2 align="center">The most playful way to orchestrate your agents</h2>
+<p align="center">Every AI coding agent on your machine, as a pixel-art character in an isometric office.</p>
 
-<div align="center">
+<p align="center">
+  <img src="docs/media/demo.gif" alt="Terrarium: omp agents from herdr working, queueing at the CTO's office for approval, and resting in the lounge" width="960">
+</p>
 
-[![version](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fpablodelucca%2F3cd28398fa4a2c0a636e1d51d41aee39%2Fraw%2Fversion.json)](https://github.com/pixel-agents-hq/pixel-agents/releases)
-[![marketplaces](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fpablodelucca%2F3cd28398fa4a2c0a636e1d51d41aee39%2Fraw%2Finstalls.json)](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents)
-[![npm downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fpablodelucca%2F3cd28398fa4a2c0a636e1d51d41aee39%2Fraw%2Fnpm-downloads.json)](https://www.npmjs.com/package/pixel-agents)
-[![stars](https://img.shields.io/github/stars/pixel-agents-hq/pixel-agents?logo=github&color=0183ff&style=flat)](https://github.com/pixel-agents-hq/pixel-agents/stargazers)
-[![license](https://img.shields.io/github/license/pixel-agents-hq/pixel-agents?color=0183ff&style=flat)](https://github.com/pixel-agents-hq/pixel-agents/blob/main/LICENSE)
-[![discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=flat)](https://discord.gg/Yk7jXebv9H)
+Terrarium watches the agents running on your machine and turns each one into a character. A character sits at a desk and types while its agent edits files or runs commands, and reads while it searches. When the agent needs you, the character walks to the CTO's office and waits in line. When it finishes, it goes to the lounge.
 
-</div>
+Terrarium is a fork of [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) v1.4.1. It keeps the Pixel Agents server, protocol and VS Code adapter, and changes three things:
 
-<div align="center">
-<a href="https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents">🛒 VS Code Marketplace</a> • <a href="https://open-vsx.org/extension/pablodelucca/pixel-agents">🛒 Open VSX</a> • <a href="https://www.npmjs.com/package/pixel-agents">📦 npm</a> • <a href="https://discord.gg/Yk7jXebv9H">👾 Discord</a> • <a href="https://github.com/pixel-agents-hq/pixel-agents/discussions">💬 Discussions</a> • <a href="CONTRIBUTING.md">🤝 Contributing</a> • <a href="CHANGELOG.md">📋 Changelog</a>
-</div>
+- **herdr support.** A provider for the [herdr](https://github.com/herdrdev/herdr) terminal multiplexer shows every agent herdr manages, with tool activity for omp agents.
+- **A new office.** The renderer is now PixiJS, drawing 2:1 isometric pixel art with glass-walled rooms, a CTO who works through an approval queue, a lounge and a kitchen.
+- **Status badges.** Every character carries a badge for its state: working, needs approval, waiting for input, done, or idle.
 
-<br/>
-
-Pixel Agents turns the AI coding agents running in your terminals into animated pixel-art characters working in a tiny office. They walk to their desks, sit down, type when they're editing files, read when they're searching, and flag you visually when they're stuck waiting for input.
-
-It ships in two forms from the same codebase:
-
-- **VS Code extension** — [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents) and [Open VSX](https://open-vsx.org/extension/pablodelucca/pixel-agents). Agents launch into VS Code terminals; characters render in the panel area.
-- **Standalone CLI** — `npx pixel-agents` starts a local server and serves the same office as a browser app, useful for tmux, remote, and non-VS Code workflows.
-
-The architecture is fully agent-agnostic and editor-agnostic: a typed `HookProvider` interface defines the integration boundary so adding a new AI tool is a single subdirectory of code. Claude Code is the reference implementation today; Codex, Gemini, Cursor, and others are on the roadmap.
-
-![Pixel Agents screenshot](webview-ui/public/office.png)
+The code and the CLI are still named `pixel-agents`, and nothing from this fork is published to npm or the VS Code Marketplace. `npx pixel-agents` and the Marketplace extension install upstream Pixel Agents, which has no herdr support. Run Terrarium from source (see [Getting started](#getting-started)).
 
 ## Features
 
-- **One agent, one character** — every Claude Code terminal gets its own animated character
-- **Live activity tracking** — characters animate based on what the agent is actually doing (writing, reading, running commands)
-- **Office layout editor** — design your office with floors, walls, and furniture using a built-in editor
-- **Speech bubbles** — visual indicators when an agent is waiting for input or awaiting permission
-- **Sound notifications** — optional chimes when an agent finishes its turn or requests permission
-- **Sub-agents and Agent Teams** — see ephemeral sub-agents and persistent Claude teammates as separate characters, including team roles and lifecycle changes
-- **Persistent layouts** — your office design is saved and shared across VS Code windows
-- **Shared layout and assets** — import/export layouts and load external character, pet, and furniture packs
-- **Areas** — paint named areas onto the office, map workspace folders to them, and new agents sit inside the areas mapped to their folder
-- **Diverse characters** — 6 diverse characters. These are based on the amazing work of [JIK-A-4, Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack).
+- **One agent, one character.** Each agent gets its own character with a stable color, named after its herdr workspace (and tab, when a workspace hosts several agents).
+- **Live activity.** Characters type for edits and commands, read for searches and fetches, and show the agent's own one-line intent ("Reading core/src/provider.ts") above their head.
+- **CTO approval queue.** An agent that is blocked on a permission prompt, or waiting for your input, joins the queue at the CTO's office. The first few sit in the visitor chairs and the rest line up at the door. While anyone waits at the door, the line rotates, so the agent that has sat longest gives up its chair.
+- **Lounge.** Idle agents leave their desks and sit on the sofas around the coffee table.
+- **Status badges and context gauge.** A badge above every character shows its state. For Claude Code agents, a gauge shows how full the context window is.
+- **Sub-agents and Agent Teams** (Claude Code). Sub-agents and teammates appear as their own characters next to the agent that spawned them.
+- **Office editor.** Paint floors, walls and carpets, place and recolor furniture, add pets, and paint named areas that new agents sit in.
+- **Sound notifications.** An optional chime when an agent finishes its turn or asks for permission.
 
-<p align="center">
-  <img src="webview-ui/public/characters.png" alt="Pixel Agents characters" width="320" height="72" style="image-rendering: pixelated;">
-</p>
+## Providers
 
-## Where This Is Going
+The standalone server runs one provider per process, picked with `--provider`:
 
-The vision is: play a game, build a product. Two goals follow from it: to build a familiar, intuitive interface for running and orchestrating a lot of agents; and to make the hours you spend doing it feel less like administration and more like play.
+| Provider           | What you see                                                                                                                           | How it works                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `herdr`            | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task. omp agents also show tool activity. | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock` and tails each omp agent's session file. Writes nothing outside `~/.pixel-agents/`. |
+| `claude` (default) | Claude Code sessions in the current workspace, or every session with **Watch All Sessions**.                                           | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.              |
 
-Roughly three stages get there:
+Agents in herdr panes other than omp show status only for now. A modular provider system, where multiplexers and agents are separate modules that can run together, is tracked in [#7](https://github.com/Luckystrike561/terrarium/issues/7).
 
-1. **Everywhere, with everything.** Today it's Claude Code in VS Code or the browser. It should be whatever agent you run, wherever you work. A new CLI is a subdirectory, not a rewrite — this is where help is most useful right now.
-2. **Actually a game.** Health bars for rate limits and token budgets. Scores for whatever you care about. Furniture that _does_ things. Offices you open like save files, one per project.
-3. **Expand the orchestration frontier.** Orchestrator characters. Form a team by dragging a box around them. Hand work between agents. Point them at a board and let them pick up tasks themselves.
+## Getting started
 
-Most of this is still ahead. See [Issues](https://github.com/pixel-agents-hq/pixel-agents/issues) and [Discussions](https://github.com/pixel-agents-hq/pixel-agents/discussions) for what's open, and [CONTRIBUTING.md](CONTRIBUTING.md) to jump in.
-
-## Requirements
-
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured
-- **VS Code extension:** VS Code 1.105.0 or later
-- **Standalone CLI:** Node.js 20 or later
-- Windows, Linux, or macOS
-
-## Getting Started
-
-### VS Code extension
-
-1. Install Pixel Agents from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=pablodelucca.pixel-agents) or [Open VSX](https://open-vsx.org/extension/pablodelucca/pixel-agents).
-2. Open the **Pixel Agents** panel beside the terminal.
-3. Click **+ Agent** to launch Claude Code. In a multi-root workspace, select the folder first.
-
-To use Claude with `--dangerously-skip-permissions`, hover over **+ Agent** to find the **Skip permissions mode** button. Only use this when you accept the security implications.
-
-Pixel Agents also detects Claude sessions started outside the extension. Turn on **Settings → Watch All Sessions** to include sessions from other workspaces.
-
-### Standalone CLI
-
-Run Pixel Agents from the workspace whose Claude sessions you want to see:
+Requirements: Node.js 20 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 ```bash
-cd /path/to/your/project
-npx pixel-agents
-```
-
-The CLI chooses a free local port and prints the URL. Standalone does not launch Claude for you; start Claude Code in a terminal for the same workspace. To install the command globally instead:
-
-```bash
-npm install --global pixel-agents
-pixel-agents
-```
-
-Use a fixed address or port when needed:
-
-```bash
-pixel-agents --port 3100
-pixel-agents --host 127.0.0.1 --port 3100
-pixel-agents --help
-```
-
-The default bind address is `127.0.0.1`. Binding to `0.0.0.0` exposes the UI and WebSocket to the local network; do this only on a trusted network.
-
-Open the URL the CLI prints - it carries a `?token=` for this session. Any browser can watch the office without it, but installing or removing hooks (which edits your agent tool's own settings file, like the `~/.claude/settings.json`) is only offered to a session that has the token, so an untokened client on the network cannot approve it. Open the bare address instead and the hooks toggle in Settings is refused, and reports the actual install state rather than appearing to work.
-
-Treat that URL as a secret: the token is a bearer capability, not proof of being local. Whoever holds it can approve the hook install from anywhere the server is reachable — so don't paste the URL into a shared channel, and note that it also lands in your browser history and (unredacted) in the server's own request log.
-
-Pass `--no-terminal` to disable the embedded terminal — watch agents without launching or attaching to them from the browser.
-
-### Running the extension and standalone together
-
-The extension and standalone CLI can run at the same time. Each server registers under `~/.pixel-agents/servers/`; the hook script sends events to all active registrations. VS Code and standalone keep separate agents, seats, and settings while using the shared office layout.
-
-Stop a standalone server with **Ctrl+C**. It removes only its own registration.
-
-## Customizing the Office
-
-Click **Layout** to edit the office:
-
-- Paint floor patterns and walls, with color and contrast controls.
-- Place, rotate, recolor, select, and remove furniture.
-- Paint auto-tiling carpets and customize their main and accent colors.
-- Add animated pets; click a pet in the office to interact with it.
-- Create named **Areas**, paint their tiles, and assign workspace folders to them.
-- Undo/redo changes, then import or export the complete layout as JSON.
-
-Layouts can grow to 64×64 tiles by clicking the ghost border outside the current grid.
-
-### Office assets
-
-Bundled furniture, floors, walls, carpets, characters, and pets live under `webview-ui/public/assets/`. Furniture manifests describe sprites, rotation groups, state groups, and animation frames.
-
-Use **Settings → Add Asset Directory** to load external characters, pets, and furniture. See [docs/external-assets.md](docs/external-assets.md) for furniture directory structure and manifest details. The visual asset manager at `scripts/asset-manager.html` helps create furniture manifests.
-
-## How It Works
-
-Pixel Agents uses two Claude Code detection paths:
-
-- **Hooks mode** (default) — a hook script receives Claude events such as `SessionStart`, `PreToolUse`, `PermissionRequest`, and `Stop`. It discovers active Pixel Agents servers and sends authenticated events to each one.
-- **Heuristic mode** (fallback) — when hooks are unavailable, the runtime infers agent status by scanning Claude's JSONL session transcripts under `~/.claude/projects/`. Transcripts are also read in hooks mode for details not present in an event.
-
-The Claude provider normalizes both sources into a shared `AgentEvent` model. `AgentRuntime` updates the central state store, and the active transport sends typed messages to the React webview. The office renders through Canvas 2D with pathfinding and character state machines.
-
-Pixel Agents does not modify Claude Code. Its hook configuration and persistent data live under `~/.claude/` and `~/.pixel-agents/` respectively.
-
-### Architecture
-
-- **`core/`** — provider, adapter, transport, schema, and AsyncAPI message contracts with no runtime side effects.
-- **`server/`** — shared Fastify server, agent runtime, persistence, Claude provider, transcript scanning, and standalone CLI.
-- **`adapters/vscode/`** — the VS Code adapter: terminal, persistence, and webview bridge.
-- **`webview-ui/`** — React 19, Vite, Canvas 2D, and adapter-specific transports for VS Code and browser WebSocket clients.
-
-The extension and CLI are bundled with esbuild; the webview is built with Vite. Unit tests use Vitest and Node's test runner, and end-to-end coverage uses Playwright against VS Code and standalone.
-
-## Development
-
-```bash
-git clone https://github.com/pixel-agents-hq/pixel-agents.git
-cd pixel-agents
+git clone https://github.com/Luckystrike561/terrarium.git
+cd terrarium
 npm install
 npm run build
 ```
 
-Press **F5** in VS Code to launch the Extension Development Host. To run the standalone bundle built from source:
+With herdr:
 
 ```bash
-node dist/cli.js
+node dist/cli.js --provider herdr
 ```
 
-Common checks:
+With Claude Code, run it from the workspace whose sessions you want to see:
 
 ```bash
+cd /path/to/your/project
+node /path/to/terrarium/dist/cli.js
+```
+
+The server picks a free port and prints a URL like `http://127.0.0.1:43123/?token=…`. Open it in a browser. If herdr is not running yet, the server keeps retrying in the background and the office fills in once herdr is up.
+
+With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr provider on `127.0.0.1:8790`.
+
+### Options
+
+```bash
+node dist/cli.js --provider herdr      # or claude (the default)
+node dist/cli.js --port 3100           # fixed port instead of a free one
+node dist/cli.js --host 127.0.0.1      # bind address (default 127.0.0.1)
+node dist/cli.js --help
+```
+
+Binding to `0.0.0.0` exposes the office and its WebSocket to your network. Do it only on a trusted network.
+
+### The token in the URL
+
+Anyone who can reach the server can watch the office. Changing hook installation (which edits your agent's own settings file, such as `~/.claude/settings.json`) is only allowed for a browser that opened the URL with its `?token=`. Treat that URL as a secret: the token works from anywhere the server is reachable, and it also lands in your browser history and the server's request log.
+
+### VS Code extension
+
+The VS Code extension from Pixel Agents still builds from this tree (press **F5** to launch an Extension Development Host) and renders the same office. It supports Claude Code only: the herdr provider runs in the standalone server.
+
+## Customizing the office
+
+Click **Layout** to edit the office:
+
+- Paint floors, walls and carpets, with color controls.
+- Place, rotate, recolor and remove furniture. Desks with an agent at them switch their electronics on.
+- Add pets and click them to interact.
+- Paint named **Areas** and map workspace folders to them, so new agents sit in their area.
+- Undo and redo, then save, or import and export the layout as JSON.
+
+Layouts grow up to 64×64 tiles by clicking the ghost border around the grid. The layout is saved to `~/.pixel-agents/layout.json`.
+
+Use **Settings → Add Asset Directory** to load external characters, pets and furniture. See [docs/external-assets.md](docs/external-assets.md) for the furniture manifest format.
+
+The bundled furniture, characters and default office are generated from code: `npx tsx scripts/iso-art/generate.ts` rewrites the sprites, and `npx tsx scripts/iso-art/layout.ts` rebuilds the default layout.
+
+## How it works
+
+```mermaid
+flowchart LR
+  herdr[herdr socket] --> bridge[HerdrBridge]
+  omp[omp session files] --> bridge
+  hooks[Claude hooks] --> api["POST /api/hooks/:provider"]
+  bridge --> api
+  jsonl[Claude transcripts] --> runtime
+  api --> runtime[AgentRuntime]
+  runtime --> store[AgentStateStore]
+  store --> ws[WebSocket]
+  ws --> office[PixiJS office in the browser]
+```
+
+Each provider turns its source into a shared `AgentEvent` model (tool started, permission requested, turn ended, …). `AgentRuntime` updates the state store, and the server pushes typed messages over a WebSocket to the React and PixiJS front end. The wire protocol is defined in [`core/asyncapi.yaml`](core/asyncapi.yaml).
+
+Terrarium never modifies your agents. Its own data lives in `~/.pixel-agents/`, and the only file it writes elsewhere is `~/.claude/settings.json`, when you approve Claude hooks.
+
+### Repository layout
+
+- **`core/`**: provider, transport and schema interfaces, plus the AsyncAPI message contract. No runtime side effects.
+- **`server/`**: Fastify server, agent runtime, persistence, the Claude and herdr providers, and the standalone CLI.
+- **`webview-ui/`**: React 19 and PixiJS front end, served by the standalone server or embedded in VS Code.
+- **`adapters/vscode/`**: the VS Code extension.
+
+[CLAUDE.md](CLAUDE.md) is the detailed architecture reference and [CONTEXT.md](CONTEXT.md) the glossary.
+
+## Development
+
+```bash
+npm install
+npm run build          # generate protocol types, type-check, lint, bundle
 npm run check-types
 npm run lint
-npm test
-npm run e2e
+npm test               # server and webview unit tests
+npm run e2e            # Playwright, against VS Code and the standalone server
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [e2e/README.md](e2e/README.md) for the end-to-end suite.
+`npm run demo:record` re-records the GIF at the top of this page. It plays a scripted herdr session through the real standalone server (needs `npm run build` and `ffmpeg`) and writes `docs/media/demo.gif`.
 
-### Hosted Test Reports
-
-Build the combined Allure report locally and stage it for Vercel:
-
-```bash
-npm run test
-npm run e2e
-npm run e2e -- --attach-videos-on-success
-npm run vercel:prepare
-```
-
-Use `npm run test:report` to build the combined report without preparing the Vercel output, then `npm run test:report:open` to serve it locally.
-
-The staged output serves the combined `e2e`, `server`, and `webview` Allure report at `/reports/allure/`; it does not include a standalone webview preview. GitHub Actions creates a Vercel Preview deployment only for same-repository pull requests targeting `main`. The deploy job expects `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets and skips fork pull requests.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/README.md) for the end-to-end suite.
 
 ## Troubleshooting
 
-- **Standalone will not start:** verify Node.js 20+, omit `--port` to choose a free port, or select another fixed port.
-- **An agent is missing:** confirm **Settings → Instant Detection (Hooks)** is on and that the session belongs to the current workspace. Enable **Watch All Sessions** if needed.
-- **The UI looks disconnected:** open **Settings → Debug View** to inspect the server connection, transcript path, and latest agent data.
-- **Extension and standalone are both running:** this is supported. Current versions create separate files under `~/.pixel-agents/servers/`; stopping one does not remove the other.
+- **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. The server logs `Herdr not reachable` until it can connect.
+- **An omp agent shows a status but never a tool.** herdr has not reported a session file for that pane yet. Tool activity starts with the next tool call after it does.
+- **A Claude session is missing.** Check that **Settings → Instant Detection (Hooks)** is on and that the session belongs to the current workspace, or turn on **Watch All Sessions**.
+- **The office looks disconnected.** **Settings → Debug View** shows the server connection and the latest data for each agent.
 
-## Community & Contributing
+## License and credits
 
-Join the [Discord](https://discord.gg/Yk7jXebv9H) to chat with other users and follow development. Use [Issues](https://github.com/pixel-agents-hq/pixel-agents/issues) to report bugs or request features, and [Discussions](https://github.com/pixel-agents-hq/pixel-agents/discussions) for questions and ideas.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request and read our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
-
-## Supporting the Project
-
-<a href="https://github.com/sponsors/pablodelucca">
-  <img src="https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github" alt="GitHub Sponsors">
-</a>
-<a href="https://ko-fi.com/pablodelucca">
-  <img src="https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi" alt="Ko-fi">
-</a>
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=pixel-agents-hq%2Fpixel-agents&type=date&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=pixel-agents-hq/pixel-agents&type=date&theme=dark&legend=bottom-right&sealed_token=Vn3YGMuZ_HFZAf56zIUQGCBJDYtDq38sOReKlcxWklxR_ilwVLynb7CPraf5uPhnAU7fwHXXoO88tzLkq9tpEYIExl4N8tcXOmu0ehAXPu5DdXNwjixYsxb00LSfeJ25f_jLkcZcTpRKLKYOb9p4_dR1jjAyrWDs7aicdbqejaDtLcVyj-oSoKkBfrS5" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=pixel-agents-hq/pixel-agents&type=date&legend=bottom-right&sealed_token=Vn3YGMuZ_HFZAf56zIUQGCBJDYtDq38sOReKlcxWklxR_ilwVLynb7CPraf5uPhnAU7fwHXXoO88tzLkq9tpEYIExl4N8tcXOmu0ehAXPu5DdXNwjixYsxb00LSfeJ25f_jLkcZcTpRKLKYOb9p4_dR1jjAyrWDs7aicdbqejaDtLcVyj-oSoKkBfrS5" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=pixel-agents-hq/pixel-agents&type=date&legend=bottom-right&sealed_token=Vn3YGMuZ_HFZAf56zIUQGCBJDYtDq38sOReKlcxWklxR_ilwVLynb7CPraf5uPhnAU7fwHXXoO88tzLkq9tpEYIExl4N8tcXOmu0ehAXPu5DdXNwjixYsxb00LSfeJ25f_jLkcZcTpRKLKYOb9p4_dR1jjAyrWDs7aicdbqejaDtLcVyj-oSoKkBfrS5" />
- </picture>
-</a>
-
-## License
-
-Pixel Agents is available under the [MIT License](LICENSE).
+MIT, see [LICENSE](LICENSE). Terrarium is built on [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) by Pablo De Lucca and its contributors.
