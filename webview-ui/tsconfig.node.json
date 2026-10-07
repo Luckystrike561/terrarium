@@ -4,7 +4,6 @@
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",
-    "baseUrl": ".",
     "paths": {
       "pngjs": ["./node_modules/@types/pngjs/index.d.ts"]
     },

@@ -17,6 +17,13 @@ updates:
         update-types:
           - minor
           - patch
+    # typescript-eslint's peer range is `typescript <6.1.0`: a TS 7 bump breaks
+    # `npm install` and lint. Bump the TypeScript major by hand once
+    # typescript-eslint supports it, not via Dependabot.
+    ignore:
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
