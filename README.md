@@ -1,4 +1,6 @@
-<h1 align="center">Terrarium</h1>
+<h1 align="center">
+  <img src="docs/media/logo.png" alt="Terrarium" width="680">
+</h1>
 
 <p align="center">Every AI coding agent on your machine, as a pixel-art character in an isometric office.</p>
 
