@@ -1,0 +1,33 @@
+{
+  "id": "FRIDGE",
+  "name": "Fridge",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "FRIDGE_FRONT",
+      "file": "FRIDGE_FRONT.png",
+      "width": 32,
+      "height": 54,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "FRIDGE_RIGHT",
+      "file": "FRIDGE_RIGHT.png",
+      "width": 32,
+      "height": 54,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    }
+  ]
+}

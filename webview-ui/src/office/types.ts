@@ -243,6 +243,13 @@ export interface Character {
    *  per-consumer guard reads this flag. It exists for the render/e2e snapshot
    *  (testHooks.getCharacters) to tell the greeter from agents. */
   isGreeter?: boolean;
+  /** The fixed CTO character working in the CTO office. A marker like
+   *  isGreeter: the CTO lives in OfficeState.cto, outside the agent map. */
+  isCto?: boolean;
+  /** Spot in the CTO queue this agent walks to and waits at while it needs
+   *  the human (permission / input): a visitor chair in the office (seated)
+   *  or a standing spot outside the door. */
+  ctoQueueSlot?: { col: number; row: number; facing: Direction; seated?: boolean } | null;
 
   // -- Agent Teams --
   /** Team name this agent belongs to */

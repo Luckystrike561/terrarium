@@ -5,6 +5,12 @@ import {
   CHARACTER_HIT_HALF_WIDTH,
   CHARACTER_HIT_HEIGHT,
   CHARACTER_SITTING_OFFSET_PX,
+  CTO_COUCH_SEC,
+  CTO_DESK_SEC,
+  CTO_ID,
+  CTO_PALETTE,
+  CTO_QUEUE_MAX_SLOTS,
+  CTO_VISIT_SEC,
   DISMISS_BUBBLE_FAST_FADE_SEC,
   FURNITURE_ANIM_INTERVAL_SEC,
   GREETER_ID,
@@ -14,6 +20,7 @@ import {
   MAX_PET_ID_LENGTH,
   PET_HIT_HALF_WIDTH,
   PET_HIT_HEIGHT,
+  TYPE_FRAME_DURATION_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
 import { worldToIso } from '../iso.js';
@@ -39,7 +46,14 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, PetState, TILE_SIZE } from '../types.js';
-import { createCharacter, releaseRestSeat, updateCharacter } from './characters.js';
+import {
+  advanceAlongPath,
+  createCharacter,
+  releaseRestSeat,
+  updateCharacter,
+} from './characters.js';
+import type { QueueSlot } from './ctoOffice.js';
+import { computeDoorQueue, computeOfficeTiles, findCtoSeatId } from './ctoOffice.js';
 import { isoDrawOrder } from './isoSort.js';
 import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
@@ -109,6 +123,21 @@ export class OfficeState {
    *  overlay's per-frame updates stop re-centering. Reset on spawn/despawn. */
   private greeterCameraCancelled = false;
 
+  /** The fixed CTO character, seated at the layout's executive chair. Like the
+   *  greeter it is not an agent and lives outside `characters`, so seat
+   *  assignment, palettes, hit-testing and persistence never see it. Null when
+   *  the layout has no executive chair. */
+  cto: Character | null = null;
+
+  /** Agents that need the human, in arrival order, with the reason. They walk
+   *  to the queue outside the CTO office door and wait there until it clears. */
+  private ctoQueue = new Map<number, 'permission' | 'input'>();
+  private ctoCouchSeatId: string | null = null;
+  private ctoVisitorSeatIds: string[] = [];
+  private ctoOnCouch = false;
+  private ctoPhaseTimer = CTO_DESK_SEC;
+  private ctoVisitTimer = CTO_VISIT_SEC;
+
   setAreaMappings(mappings: Record<string, string[]>): void {
     this.areaMappings = mappings;
   }
@@ -119,8 +148,10 @@ export class OfficeState {
     this.seats = layoutToSeats(this.layout.furniture);
     this.restSeatUids = this.computeRestSeats();
     this.blockedTiles = getBlockedTiles(this.layout.furniture);
-    this.furniture = layoutToFurnitureInstances(this.layout.furniture);
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
+    this.placeCto();
+    this.furniture = [];
+    this.rebuildFurnitureInstances();
     // Pets are built last because they need walkableTiles populated for spawn.
     this.rebuildPetsFromLayout(this.layout);
   }
@@ -174,6 +205,7 @@ export class OfficeState {
     for (const seat of this.seats.values()) {
       seat.assigned = false;
     }
+    this.placeCto();
 
     // First pass: try to keep characters at their existing seats
     for (const ch of this.characters.values()) {
@@ -214,6 +246,7 @@ export class OfficeState {
     // A layout edit can turn a desk into a lounge seat or add new desks — move
     // any active agent still parked on a rest seat onto a freshly free desk.
     this.rebalanceRestSeatedAgents();
+    this.refreshCtoQueue();
 
     // Relocate any characters that ended up outside bounds or on non-walkable tiles
     for (const ch of this.characters.values()) {
@@ -255,6 +288,180 @@ export class OfficeState {
 
     // Reconcile pets against the layout roster (handles editor add/remove)
     this.rebuildPetsFromLayout(layout);
+  }
+
+  /** Seat the CTO at the layout's executive chair, or drop it when the layout
+   *  has none. The whole office is the CTO's: every seat in it is claimed so
+   *  no agent is given one as a desk or rests there, and agents never wander
+   *  in. Its lounge seats are the CTO's couch; its other seats are visitor
+   *  chairs for the queue. */
+  private placeCto(): void {
+    const types = new Map(this.layout.furniture.map((f) => [f.uid, f.type]));
+    const seatId = findCtoSeatId(this.seats, types);
+    const seat = seatId ? this.seats.get(seatId) : undefined;
+    this.ctoCouchSeatId = null;
+    this.ctoVisitorSeatIds = [];
+    if (!seatId || !seat) {
+      this.cto = null;
+      return;
+    }
+    const office = computeOfficeTiles(this.tileMap, seat);
+    for (const [uid, s] of this.seats) {
+      if (!office.has(`${s.seatCol},${s.seatRow}`)) continue;
+      s.assigned = true;
+      if (uid === seatId) continue;
+      if (!this.restSeatUids.has(uid)) this.ctoVisitorSeatIds.push(uid);
+      else this.ctoCouchSeatId ??= uid;
+    }
+    this.walkableTiles = this.walkableTiles.filter((t) => !office.has(`${t.col},${t.row}`));
+    const cto = this.cto ?? createCharacter(CTO_ID, CTO_PALETTE, seatId, seat);
+    cto.isCto = true;
+    cto.isActive = true;
+    cto.state = CharacterState.TYPE;
+    cto.seatId = seatId;
+    cto.path = [];
+    cto.moveProgress = 0;
+    cto.tileCol = seat.seatCol;
+    cto.tileRow = seat.seatRow;
+    cto.x = seat.seatCol * TILE_SIZE + TILE_SIZE / 2;
+    cto.y = seat.seatRow * TILE_SIZE + TILE_SIZE / 2;
+    cto.dir = seat.facingDir;
+    this.cto = cto;
+    this.ctoOnCouch = false;
+    this.ctoPhaseTimer = CTO_DESK_SEC;
+  }
+
+  /** The CTO's loop: work at the desk for CTO_DESK_SEC, then walk to the
+   *  office couch for CTO_COUCH_SEC, and back. Only types at the desk, which
+   *  is also the only place its monitor is on. */
+  private updateCto(dt: number): void {
+    const cto = this.cto;
+    if (!cto) return;
+    this.ctoPhaseTimer -= dt;
+    if (this.ctoPhaseTimer <= 0 && this.ctoCouchSeatId && cto.seatId) {
+      this.ctoOnCouch = !this.ctoOnCouch;
+      this.ctoPhaseTimer = this.ctoOnCouch ? CTO_COUCH_SEC : CTO_DESK_SEC;
+      const target = this.seats.get(this.ctoOnCouch ? this.ctoCouchSeatId : cto.seatId);
+      if (target) {
+        const key = `${target.seatCol},${target.seatRow}`;
+        const wasBlocked = this.blockedTiles.delete(key);
+        cto.path = findPath(
+          cto.tileCol,
+          cto.tileRow,
+          target.seatCol,
+          target.seatRow,
+          this.tileMap,
+          this.blockedTiles,
+        );
+        if (wasBlocked) this.blockedTiles.add(key);
+        cto.moveProgress = 0;
+        cto.state = CharacterState.WALK;
+        cto.frame = 0;
+        cto.frameTimer = 0;
+        if (cto.isActive) {
+          cto.isActive = false;
+          this.rebuildFurnitureInstances();
+        }
+      }
+    }
+    cto.frameTimer += dt;
+    if (cto.state === CharacterState.WALK) {
+      advanceAlongPath(cto, dt);
+      if (cto.path.length > 0 || cto.moveProgress > 0) return;
+      const seat = this.seats.get(
+        this.ctoOnCouch && this.ctoCouchSeatId ? this.ctoCouchSeatId : cto.seatId!,
+      );
+      if (seat) {
+        cto.tileCol = seat.seatCol;
+        cto.tileRow = seat.seatRow;
+        cto.x = seat.seatCol * TILE_SIZE + TILE_SIZE / 2;
+        cto.y = seat.seatRow * TILE_SIZE + TILE_SIZE / 2;
+        cto.dir = seat.facingDir;
+      }
+      cto.state = CharacterState.TYPE;
+      cto.frame = 0;
+      cto.frameTimer = 0;
+      if (!this.ctoOnCouch) {
+        cto.isActive = true;
+        this.rebuildFurnitureInstances();
+      }
+      return;
+    }
+    // Typing at the desk animates; on the couch the CTO just sits.
+    if (!this.ctoOnCouch && cto.frameTimer >= TYPE_FRAME_DURATION_SEC) {
+      cto.frameTimer -= TYPE_FRAME_DURATION_SEC;
+      cto.frame = (cto.frame + 1) % 2;
+    }
+  }
+
+  /** Hand out CTO queue spots in queue order: the visitor chairs in front of
+   *  the CTO's desk first, then standing spots outside the door. Agents beyond
+   *  every spot carry on as usual. An agent whose spot is taken away drops to
+   *  IDLE so the normal FSM walks it back to its desk. */
+  private refreshCtoQueue(): void {
+    const ctoSeat = this.cto?.seatId ? this.seats.get(this.cto.seatId) : undefined;
+    const slots: QueueSlot[] = [];
+    for (const uid of this.ctoVisitorSeatIds) {
+      const seat = this.seats.get(uid);
+      if (seat) {
+        slots.push({ col: seat.seatCol, row: seat.seatRow, facing: seat.facingDir, seated: true });
+      }
+    }
+    if (ctoSeat) {
+      slots.push(
+        ...computeDoorQueue(this.tileMap, this.blockedTiles, ctoSeat, CTO_QUEUE_MAX_SLOTS),
+      );
+    }
+    const assigned = new Map<number, QueueSlot>();
+    let i = 0;
+    for (const id of this.ctoQueue.keys()) {
+      if (this.characters.has(id) && i < slots.length) assigned.set(id, slots[i++]);
+    }
+    for (const ch of this.characters.values()) {
+      const slot = assigned.get(ch.id) ?? null;
+      if (ch.ctoQueueSlot && !slot && ch.state !== CharacterState.WALK) {
+        ch.state = CharacterState.IDLE;
+        ch.frame = 0;
+        ch.frameTimer = 0;
+        ch.wanderTimer = 0;
+      }
+      ch.ctoQueueSlot = slot;
+    }
+  }
+
+  /** Rotate the queue every CTO_VISIT_SEC while agents wait at the door: the
+   *  longest-seated visitor goes to the back of the line and the next agent at
+   *  the door takes its chair. */
+  private rotateCtoQueue(dt: number): void {
+    if (
+      this.ctoQueue.size <= this.ctoVisitorSeatIds.length ||
+      this.ctoVisitorSeatIds.length === 0
+    ) {
+      this.ctoVisitTimer = CTO_VISIT_SEC;
+      return;
+    }
+    this.ctoVisitTimer -= dt;
+    if (this.ctoVisitTimer > 0) return;
+    this.ctoVisitTimer = CTO_VISIT_SEC;
+    const [[firstId, reason]] = this.ctoQueue;
+    this.ctoQueue.delete(firstId);
+    this.ctoQueue.set(firstId, reason);
+    this.refreshCtoQueue();
+  }
+
+  private joinCtoQueue(id: number, reason: 'permission' | 'input'): void {
+    const ch = this.characters.get(id);
+    if (!ch || ch.isSubagent) return;
+    if (this.ctoQueue.get(id) === 'permission') return;
+    this.ctoQueue.set(id, reason);
+    this.refreshCtoQueue();
+  }
+
+  private leaveCtoQueue(id: number, reason?: 'permission' | 'input'): void {
+    const current = this.ctoQueue.get(id);
+    if (!current || (reason && current !== reason)) return;
+    this.ctoQueue.delete(id);
+    this.refreshCtoQueue();
   }
 
   /** Move a character to a random walkable tile */
@@ -726,6 +933,7 @@ export class OfficeState {
     releaseRestSeat(ch, this.restSeatClaims);
     if (this.selectedAgentId === id) this.selectedAgentId = null;
     if (this.cameraFollowId === id) this.cameraFollowId = null;
+    this.leaveCtoQueue(id);
     // Start despawn animation instead of immediate delete
     startMatrixEffect(ch, 'despawn');
     ch.bubbleType = null;
@@ -967,6 +1175,7 @@ export class OfficeState {
         ch.path = [];
         ch.moveProgress = 0;
       } else {
+        this.leaveCtoQueue(id, 'input');
         this.claimWorkSeatForActiveAgent(ch);
       }
       this.rebuildFurnitureInstances();
@@ -977,7 +1186,7 @@ export class OfficeState {
   private rebuildFurnitureInstances(): void {
     // Collect tiles where active agents face desks
     const autoOnTiles = new Set<string>();
-    for (const ch of this.characters.values()) {
+    for (const ch of [...this.characters.values(), ...(this.cto ? [this.cto] : [])]) {
       if (!ch.isActive || !ch.seatId) continue;
       const seat = this.seats.get(ch.seatId);
       if (!seat) continue;
@@ -1007,31 +1216,24 @@ export class OfficeState {
       }
     }
 
-    if (autoOnTiles.size === 0) {
-      this.furniture = layoutToFurnitureInstances(this.layout.furniture);
-      return;
-    }
-
-    // Build modified furniture list with auto-state and animation applied
+    // Build modified furniture list with auto-state and animation applied.
+    // Items placed directly in an animated on state (an espresso machine
+    // that is always running) animate regardless of who is nearby.
     const animFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
+    const animate = (type: string): string => {
+      const frames = getAnimationFrames(type);
+      return frames && frames.length > 1 ? frames[animFrame % frames.length] : type;
+    };
     const modifiedFurniture: PlacedFurniture[] = this.layout.furniture.map((item) => {
       const entry = getCatalogEntry(item.type);
       if (!entry) return item;
-      // Check if any tile of this furniture overlaps an auto-on tile
+      const placedAnimated = animate(item.type);
+      if (placedAnimated !== item.type) return { ...item, type: placedAnimated };
       for (let dr = 0; dr < entry.footprintH; dr++) {
         for (let dc = 0; dc < entry.footprintW; dc++) {
           if (autoOnTiles.has(`${item.col + dc},${item.row + dr}`)) {
-            let onType = getOnStateType(item.type);
-            if (onType !== item.type) {
-              // Check if the on-state type has animation frames
-              const frames = getAnimationFrames(onType);
-              if (frames && frames.length > 1) {
-                const frameIdx = animFrame % frames.length;
-                onType = frames[frameIdx];
-              }
-              return { ...item, type: onType };
-            }
-            return item;
+            const onType = getOnStateType(item.type);
+            return onType === item.type ? item : { ...item, type: animate(onType) };
           }
         }
       }
@@ -1053,6 +1255,7 @@ export class OfficeState {
     if (ch) {
       ch.bubbleType = 'permission';
       ch.bubbleTimer = 0;
+      this.joinCtoQueue(id, 'permission');
     }
   }
 
@@ -1062,6 +1265,7 @@ export class OfficeState {
       ch.bubbleType = null;
       ch.bubbleTimer = 0;
     }
+    this.leaveCtoQueue(id, 'permission');
   }
 
   showWaitingBubble(id: number, awaitingInput = false): void {
@@ -1070,6 +1274,8 @@ export class OfficeState {
       ch.bubbleType = 'waiting';
       ch.waitingAwaitingInput = awaitingInput;
       ch.bubbleTimer = WAITING_BUBBLE_DURATION_SEC;
+      if (awaitingInput) this.joinCtoQueue(id, 'input');
+      else this.leaveCtoQueue(id, 'input');
     }
   }
 
@@ -1279,6 +1485,9 @@ export class OfficeState {
       this.greeter = null;
     }
 
+    this.updateCto(dt);
+    this.rotateCtoQueue(dt);
+
     const toDelete: number[] = [];
     for (const ch of this.characters.values()) {
       const effect = advanceMatrixEffect(ch, dt);
@@ -1301,8 +1510,9 @@ export class OfficeState {
         ),
       );
 
-      // Tick bubble timer for waiting bubbles
-      if (ch.bubbleType === 'waiting') {
+      // Tick bubble timer for waiting bubbles. An agent queued at the CTO door
+      // for input keeps its "waiting for input" badge until the queue clears.
+      if (ch.bubbleType === 'waiting' && !(ch.ctoQueueSlot && ch.waitingAwaitingInput)) {
         ch.bubbleTimer -= dt;
         if (ch.bubbleTimer <= 0) {
           ch.bubbleType = null;
@@ -1352,6 +1562,7 @@ export class OfficeState {
   getCharacters(): Character[] {
     const chars = Array.from(this.characters.values());
     if (this.greeter) chars.push(this.greeter);
+    if (this.cto) chars.push(this.cto);
     return chars;
   }
 

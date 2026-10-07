@@ -1,35 +1,31 @@
 import type { FurnitureSpec } from '../lib/furniture.js';
 import type { RGBA } from '../lib/image.js';
-import { mix, shade } from '../lib/image.js';
+import { hex, mix, shade } from '../lib/image.js';
 import { DESK_SURFACE_Z } from '../lib/iso.js';
 import { PAL } from '../lib/palette.js';
 import type { Paint } from '../lib/scene.js';
 import { hash3, IsoScene, lit, solid } from '../lib/scene.js';
 
+const MATTE_BLACK = hex('#26262c');
+const GRAPHITE = hex('#3a3c43');
+const DESK_TOP = hex('#dcbd91');
+const DESK_EDGE = hex('#2c2d33');
+const WHITE_TOP = hex('#f1efe7');
+const WALNUT = hex('#4d3626');
+const WALNUT_DARK = hex('#33231a');
+const GOLD_ACCENT = PAL.gold;
+const SCREEN_TEAL = hex('#4fd6c0');
+const SCREEN_CORAL = hex('#f2765c');
+const KEY_LIGHT = hex('#d9dbdf');
+
 function deskTopPaint(top: RGBA, edge: RGBA): Paint {
   return (hit) => {
     if (hit.face === 'top') {
       const n = hash3(Math.floor(hit.a / 2), Math.floor(hit.b / 3), 7);
-      const c = n > 0.84 ? mix(top, PAL.woodGrain, 0.4) : top;
+      const c = n > 0.88 ? mix(top, PAL.woodGrain, 0.3) : top;
       return lit(c, hit.light);
     }
     return lit(edge, hit.light);
-  };
-}
-
-function pedestalPaint(base: RGBA, width: number, height: number, drawers: number): Paint {
-  return (hit) => {
-    if (hit.face === 'top') return lit(shade(base, 0.9), hit.light);
-    const bandH = height / drawers;
-    const bandIdx = Math.min(drawers - 1, Math.floor(hit.b / bandH));
-    const localB = hit.b - bandIdx * bandH;
-    let c = base;
-    if (localB < 0.8) c = shade(base, 0.6);
-    const hw = width / 2;
-    if (hit.a > hw - 2.2 && hit.a < hw + 2.2 && localB > bandH - 2.6 && localB < bandH - 1.2) {
-      c = PAL.metalDark;
-    }
-    return lit(c, hit.light);
   };
 }
 
@@ -41,24 +37,27 @@ function buildDesk(alongX: boolean, mirror: boolean) {
   const H = fh * 16;
   const z1 = DESK_SURFACE_Z;
   const z0 = z1 - 2;
-  scene.box([0, 0, z0], [W, H, z1], deskTopPaint(PAL.woodLight, PAL.wood));
+  scene.box([0, 0, z0], [W, H, z1], deskTopPaint(DESK_TOP, DESK_EDGE));
 
   const span = alongX ? W : H;
   const cross = alongX ? H : W;
-  const pedA0 = mirror ? 2 : span / 2 + 1;
-  const pedA1 = mirror ? span / 2 - 1 : span - 2;
-  const legA = mirror ? span - 8 : 7;
-  const pedestal = pedestalPaint(PAL.woodDark, pedA1 - pedA0, z0, 2);
-  const leg = solid(PAL.woodDark);
+  const panelA0 = mirror ? 2 : span - 6;
+  const panelA1 = mirror ? 6 : span - 2;
+  const legA = mirror ? span - 7 : 7;
+  const panel = solid(MATTE_BLACK);
+  const leg = solid(MATTE_BLACK);
+  const tray = solid(shade(MATTE_BLACK, 0.85));
 
   if (alongX) {
-    scene.box([pedA0, 1, 0], [pedA1, cross - 1, z0], pedestal);
+    scene.box([panelA0, 2, 0], [panelA1, cross - 2, z0], panel);
     scene.box([legA - 1, 2, 0], [legA + 1, 4, z0], leg);
     scene.box([legA - 1, cross - 4, 0], [legA + 1, cross - 2, z0], leg);
+    scene.box([legA - 4, 3, 1], [legA + 4, cross - 3, 2], tray);
   } else {
-    scene.box([1, pedA0, 0], [cross - 1, pedA1, z0], pedestal);
+    scene.box([2, panelA0, 0], [cross - 2, panelA1, z0], panel);
     scene.box([2, legA - 1, 0], [4, legA + 1, z0], leg);
     scene.box([cross - 4, legA - 1, 0], [cross - 2, legA + 1, z0], leg);
+    scene.box([3, legA - 4, 1], [cross - 3, legA + 4, 2], tray);
   }
   return scene.render();
 }
@@ -80,9 +79,9 @@ function buildSmallTable() {
   const scene = new IsoScene(1, 1, 14);
   const z1 = DESK_SURFACE_Z;
   const z0 = z1 - 2;
-  scene.box([1, 1, z0], [15, 15, z1], deskTopPaint(PAL.woodLight, PAL.wood));
-  scene.cylinder(8, 8, 3, 0, z0, solid(PAL.woodDark));
-  scene.box([5, 5, 0], [11, 11, 2], solid(shade(PAL.woodDark, 0.85)));
+  scene.cylinder(8, 8, 7, z0, z1, solid(WHITE_TOP));
+  scene.cylinder(8, 8, 1.3, 1, z0, solid(MATTE_BLACK));
+  scene.cylinder(8, 8, 4, 0, 1, solid(MATTE_BLACK));
   return scene.render();
 }
 
@@ -96,11 +95,11 @@ const SMALL_TABLE: FurnitureSpec = {
 
 function meetingTopPaint(stripeOnB: boolean): Paint {
   return (hit) => {
-    if (hit.face !== 'top') return lit(shade(PAL.wood, 0.9), hit.light);
+    if (hit.face !== 'top') return lit(shade(DESK_EDGE, 1.1), hit.light);
     const v = stripeOnB ? hit.b : hit.a;
     const n = hash3(Math.floor(hit.a / 3), Math.floor(hit.b / 3), 3);
-    let c = n > 0.85 ? mix(PAL.woodLight, PAL.woodGrain, 0.35) : PAL.woodLight;
-    if (v > 15 && v < 17) c = mix(c, PAL.gold, 0.3);
+    let c = n > 0.88 ? mix(DESK_TOP, PAL.woodGrain, 0.25) : DESK_TOP;
+    if (v > 15 && v < 17) c = mix(c, MATTE_BLACK, 0.6);
     return lit(c, hit.light);
   };
 }
@@ -112,9 +111,9 @@ function buildMeetingTable(fw: number, fh: number, stripeOnB: boolean) {
   const z1 = DESK_SURFACE_Z;
   const z0 = z1 - 2;
   scene.box([0, 0, z0], [W, H, z1], meetingTopPaint(stripeOnB));
-  const leg = solid(PAL.woodDark);
-  const legInset = 4;
-  const legThick = 8;
+  const leg = solid(MATTE_BLACK);
+  const legInset = 5;
+  const legThick = 5;
   if (stripeOnB) {
     scene.box([legInset, 4, 0], [legInset + legThick, H - 4, z0], leg);
     scene.box([W - legInset - legThick, 4, 0], [W - legInset, H - 4, z0], leg);
@@ -149,14 +148,14 @@ function buildCoffeeTable(alongX: boolean) {
   const H = fh * 16;
   const z1 = 7;
   const z0 = 5;
-  scene.box([1, 1, z0], [W - 1, H - 1, z1], deskTopPaint(PAL.woodLight, PAL.wood));
-  const leg = solid(PAL.metal);
+  scene.box([1, 1, z0], [W - 1, H - 1, z1], deskTopPaint(DESK_TOP, DESK_EDGE));
+  const leg = solid(MATTE_BLACK);
   const insetX = 3;
   const insetY = 3;
-  scene.box([insetX, insetY, 0], [insetX + 2, insetY + 2, z0], leg);
-  scene.box([insetX, H - insetY - 2, 0], [insetX + 2, H - insetY, z0], leg);
-  scene.box([W - insetX - 2, insetY, 0], [W - insetX, insetY + 2, z0], leg);
-  scene.box([W - insetX - 2, H - insetY - 2, 0], [W - insetX, H - insetY, z0], leg);
+  scene.cylinder(insetX + 1, insetY + 1, 1, 0, z0, leg);
+  scene.cylinder(insetX + 1, H - insetY - 1, 1, 0, z0, leg);
+  scene.cylinder(W - insetX - 1, insetY + 1, 1, 0, z0, leg);
+  scene.cylinder(W - insetX - 1, H - insetY - 1, 1, 0, z0, leg);
   return scene.render();
 }
 
@@ -168,6 +167,58 @@ const COFFEE_TABLE: FurnitureSpec = {
   variants: [
     { orientation: 'front', footprintW: 2, footprintH: 1, images: [buildCoffeeTable(true)] },
     { orientation: 'right', footprintW: 1, footprintH: 2, images: [buildCoffeeTable(false)] },
+  ],
+};
+
+function execTopPaint(stripeOnB: boolean): Paint {
+  return (hit) => {
+    if (hit.face !== 'top') return lit(WALNUT_DARK, hit.light);
+    const v = stripeOnB ? hit.b : hit.a;
+    const n = hash3(Math.floor(hit.a / 2), Math.floor(hit.b / 3), 11);
+    let c = n > 0.84 ? mix(WALNUT, WALNUT_DARK, 0.45) : WALNUT;
+    if (v > 1 && v < 2.2) c = mix(c, GOLD_ACCENT, 0.55);
+    return lit(c, hit.light);
+  };
+}
+
+function buildExecDesk(alongX: boolean) {
+  const fw = alongX ? 3 : 2;
+  const fh = alongX ? 2 : 3;
+  const scene = new IsoScene(fw, fh, 18);
+  const W = fw * 16;
+  const H = fh * 16;
+  const z1 = DESK_SURFACE_Z;
+  const z0 = z1 - 3;
+  scene.box([0, 0, z0], [W, H, z1], execTopPaint(alongX));
+  const span = alongX ? W : H;
+  const cross = alongX ? H : W;
+  const panelW = 7;
+  const panel = solid(MATTE_BLACK);
+  if (alongX) {
+    scene.box([2, 2, 0], [2 + panelW, cross - 2, z0], panel);
+    scene.box([span - 2 - panelW, 2, 0], [span - 2, cross - 2, z0], panel);
+    scene.box([2, cross - 3, z0 - 2], [span - 2, cross - 1, z0], solid(shade(MATTE_BLACK, 1.1)));
+  } else {
+    scene.box([2, 2, 0], [cross - 2, 2 + panelW, z0], panel);
+    scene.box([2, span - 2 - panelW, 0], [cross - 2, span - 2, z0], panel);
+    scene.box([cross - 3, 2, z0 - 2], [cross - 1, span - 2, z0], solid(shade(MATTE_BLACK, 1.1)));
+  }
+  return scene.render();
+}
+
+const EXEC_DESK_FRONT = buildExecDesk(true);
+const EXEC_DESK_RIGHT = buildExecDesk(false);
+
+const EXEC_DESK: FurnitureSpec = {
+  id: 'EXEC_DESK',
+  name: 'Executive Desk',
+  category: 'desks',
+  canPlaceOnWalls: false,
+  variants: [
+    { orientation: 'front', footprintW: 3, footprintH: 2, images: [EXEC_DESK_FRONT] },
+    { orientation: 'right', footprintW: 2, footprintH: 3, images: [EXEC_DESK_RIGHT] },
+    { orientation: 'back', footprintW: 3, footprintH: 2, images: [EXEC_DESK_FRONT] },
+    { orientation: 'left', footprintW: 2, footprintH: 3, images: [EXEC_DESK_RIGHT] },
   ],
 };
 
@@ -183,10 +234,10 @@ function screenPaint(
   const h = 13;
   const margin = 1;
   return (hit) => {
-    if (hit.face === 'top') return lit(shade(bezel, 1.05), hit.light);
+    if (hit.face === 'top') return lit(shade(bezel, 1.25), hit.light);
     if (hit.face !== bigFace) return lit(shade(bezel, 0.8), hit.light);
     if (hit.a < margin || hit.a > w - margin || hit.b < margin || hit.b > h - margin) {
-      return lit(shade(bezel, 0.85), hit.light);
+      return lit(shade(bezel, 0.9), hit.light);
     }
     if (state === 'off') {
       const refl = hit.a > w * 0.6 && hit.b < h * 0.4;
@@ -198,7 +249,9 @@ function screenPaint(
     const litPixel = hit.a - margin < 1 + lenHash * (w - margin * 2 - 1);
     const cursorBlink =
       frame % 3 !== 2 && Math.floor(hit.b) === Math.floor(h * 0.5) && hit.a - margin < 1.2;
-    const c = litPixel || cursorBlink ? PAL.screenGlow : PAL.screenOff;
+    const accentRow = row % 4 === 1;
+    const colour = accentRow ? SCREEN_CORAL : SCREEN_TEAL;
+    const c = litPixel || cursorBlink ? colour : PAL.screenOff;
     return [c[0], c[1], c[2], 255];
   };
 }
@@ -211,17 +264,13 @@ function monitorBackPaint(
 ): Paint {
   const w = 10;
   return (hit) => {
-    if (hit.face === 'top') return lit(shade(bezel, 1.05), hit.light);
+    if (hit.face === 'top') return lit(shade(bezel, 1.25), hit.light);
     if (hit.face !== bigFace) return lit(shade(bezel, 0.8), hit.light);
     const vent =
       hit.a > 1.5 && hit.a < w - 1.5 && hit.b > 3 && hit.b < 9 && Math.floor(hit.a) % 2 === 0;
     let c = vent ? shade(bezel, 0.7) : bezel;
     const ledLit =
-      state === 'on'
-        ? frame % 2 === 0
-          ? PAL.screenGlow
-          : shade(PAL.screenGlow, 0.55)
-        : PAL.plasticDark;
+      state === 'on' ? (frame % 2 === 0 ? SCREEN_TEAL : shade(SCREEN_TEAL, 0.55)) : PAL.plasticDark;
     if (Math.abs(hit.a - w / 2) < 0.8 && Math.abs(hit.b - 1.2) < 0.8) c = ledLit;
     return lit(c, hit.light);
   };
@@ -233,16 +282,16 @@ function keyboardPaint(): Paint {
       const kx = Math.floor(hit.a / 1.6);
       const ky = Math.floor(hit.b / 1.6);
       const key = (kx + ky) % 2 === 0;
-      return lit(key ? PAL.plastic : shade(PAL.plastic, 0.9), hit.light);
+      return lit(key ? KEY_LIGHT : shade(KEY_LIGHT, 0.88), hit.light);
     }
-    return lit(PAL.plasticDark, hit.light);
+    return lit(MATTE_BLACK, hit.light);
   };
 }
 
 function buildMonitor(orientation: PCOrientation, state: 'on' | 'off', frame: number) {
   const scene = new IsoScene(1, 1, 30);
-  const bezel = PAL.plastic;
-  const foot = solid(PAL.plasticDark);
+  const bezel = MATTE_BLACK;
+  const foot = solid(GRAPHITE);
   if (orientation === 'front') {
     scene.box([5, 2, 12], [11, 6, 13], foot);
     scene.box([7, 3, 13], [9, 6, 14], foot);
@@ -288,4 +337,11 @@ const PC: FurnitureSpec = {
   variants: (['front', 'right', 'back', 'left'] as PCOrientation[]).flatMap(buildPCVariants),
 };
 
-export const ITEMS: FurnitureSpec[] = [DESK, SMALL_TABLE, MEETING_TABLE, COFFEE_TABLE, PC];
+export const ITEMS: FurnitureSpec[] = [
+  DESK,
+  SMALL_TABLE,
+  MEETING_TABLE,
+  COFFEE_TABLE,
+  EXEC_DESK,
+  PC,
+];

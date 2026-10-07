@@ -1,497 +1,606 @@
 /**
- * Isometric office workers, hand-placed pixel templates.
+ * Isometric office workers, hand-placed pixel templates in a chunky
+ * RPG style: bold dark outline, big heads with spiky volume, 3/4 view.
  *
- * Sheet format (consumed by core/src/assets/pngDecoder.ts): 112×96, 7 frames
- * of 16×32 per row. Row 0 faces DOWN (+row, screen lower-left: 3/4 front),
- * row 1 faces UP (-row, screen upper-right: 3/4 back), row 2 faces RIGHT
- * (+col, screen lower-right) and is row 0 mirrored frame by frame. Frames:
- * walk1, walk2 (neutral), walk3, type1, type2, read1, read2. The feet touch
- * the bottom-center of the frame; seated frames sit on a chair seat 6 px up.
+ * Sheet format (consumed by core/src/assets/pngDecoder.ts): 7 frames of
+ * CHAR_FRAME_W × CHAR_FRAME_H per row, 3 rows. Row 0 faces DOWN (+row,
+ * screen lower-left: 3/4 front), row 1 faces UP (-row, screen upper-right:
+ * 3/4 back), row 2 faces RIGHT (+col, screen lower-right) and is row 0
+ * mirrored frame by frame. Frames: walk1, walk2 (neutral), walk3, type1,
+ * type2, read1, read2. The feet touch the bottom-center of the frame; seated
+ * frames sit on a chair seat 6 px up.
  *
- * A frame is layered from parts: legs, torso (arm pose), head, hair. Each
- * part is a template whose letters index the worker's palette, so six
- * workers share the poses and differ in hair style, skin and outfit.
+ * A frame is layered from parts: legs, torso (arm pose), face, hair. Each part
+ * is a template whose letters index the worker's palette, so six workers share
+ * the poses and differ in hair style, skin and outfit.
  */
 
+import {
+  CHAR_FRAME_H,
+  CHAR_FRAME_W,
+  CHAR_FRAMES_PER_ROW,
+} from '../../core/src/assets/constants.js';
 import type { RGBA } from './lib/image.js';
 import { hex, PixelImage } from './lib/image.js';
 
-const FRAME_W = 16;
-const FRAME_H = 32;
-const FRAMES = 7;
 /** Seated figures sit this many rows lower than standing ones. */
-const SEAT_DROP = 5;
-const HEAD_Y = 3;
-const TORSO_Y = 15;
-const LEGS_Y = 23;
+const SEAT_DROP = 7;
+const TORSO_Y = 17;
+const LEGS_Y = 29;
 
-// Template letters: o outline, s/S skin/shade, e eye, b blush, C/c/k top
-// light/base/shade, a collar accent, t centre strip (tie, zip, buttons),
-// p/P trousers/shade, f shoe, w/l paper/ink, h/H/d hair base/light/dark.
+// Template letters: o outline, s/S/r skin light/shade/deep, w eye white,
+// e pupil, C/c/k top light/base/shade, W collar, t centre detail (tie, zip),
+// p/P trousers light/shade, f/F shoe light/shade, h/H/d hair base/light/dark,
+// n paper, l paper ink, x ground shadow.
 
-const HEAD_FRONT = [
-  '..oooooo..',
-  '.osssssso.',
-  'osssssssso',
-  'osssssssso',
-  'osssssssso',
-  'osessessSo',
-  'osessessSo',
-  'obssssssSo',
-  '.osssssSo.',
-  '..oooooo..',
-  '...oSSo...',
+const FACE_FRONT = [
+  '........................',
+  '........................',
+  '........................',
+  '........................',
+  '.......oooooooo.........',
+  '.....oossssssssoo.......',
+  '....ossssssssssssoo.....',
+  '...ossssssssssssssSo....',
+  '...osssssssssssssSSo....',
+  '...ossssssssssssssSSo...',
+  '...osssssssssssssSSSo...',
+  '...osssssssssssssSSSo...',
+  '....oswesssweSssssSro...',
+  '....osweSssweSsssSSro...',
+  '....osssssssssssSSSo....',
+  '....osssssrrssssSSSo....',
+  '.....ossssssssSSSo......',
+  '......ooossssSSoo.......',
 ];
 
-const HEAD_BACK = [
-  '..oooooo..',
-  '.osssssso.',
-  'osssssssso',
-  'osssssssso',
-  'osssssssso',
-  'osssssssso',
-  'osssssssso',
-  'osssssssSo',
-  '.osssssSo.',
-  '..oooooo..',
-  '...oSSo...',
+const FACE_BACK = [
+  '........................',
+  '........................',
+  '........................',
+  '........................',
+  '.........oooooooo.......',
+  '.......oossssssssoo.....',
+  '.....oossssssssssssoo...',
+  '....osssssssssssssssSo..',
+  '....osssssssssssssssSo..',
+  '....ossssssssssssssSSo..',
+  '....ossssssssssssssSSo..',
+  '....ossssssssssssssSSo..',
+  '....ossssssssssssssSSo..',
+  '.....osssssssssssssSo...',
+  '.....ossssssssssssSSo...',
+  '......osssssssssssSo....',
+  '.......ossssssssSSo.....',
+  '........oooossSSoo......',
 ];
 
-const TORSO_FRONT_IDLE = [
-  '....oCCaakko....',
-  '...oCCCatckko...',
-  '..osoCCctckoSo..',
-  '..osoCcctckoSo..',
-  '..osoCcctckoSo..',
-  '..ossoccckkoSo..',
-  '...oooccckkooo..',
-  '....occcckkko...',
-];
+type HairStyle = 'spiky' | 'bob' | 'buzz' | 'ponytail' | 'bun' | 'curly';
 
-const TORSO_FRONT_TYPE_1 = [
-  '....oCCaakko....',
-  '...oCCCatckko...',
-  '..oCoCCctckoko..',
-  '.oCCoCcctckoko..',
-  'osssoCcctckoSso.',
-  '.ooooccckkkooo..',
-  '....occcckkko...',
-];
-
-const TORSO_FRONT_TYPE_2 = [
-  '....oCCaakko....',
-  '...oCCCatckko...',
-  '..oCoCCctckoko..',
-  '..oCoCcctckokko.',
-  '.osssoccckkoSso.',
-  '..oooocccckkoo..',
-  '....occcckkko...',
-];
-
-const TORSO_FRONT_READ_1 = [
-  '....oCCaakko....',
-  '...oCCCatckko...',
-  '..osoowwwwwoSo..',
-  '..osowllllwoSo..',
-  '..ossowllllwso..',
-  '...ooowwwwwoo...',
-  '....occcckkko...',
-];
-
-const TORSO_FRONT_READ_2 = [
-  '....oCCaakko....',
-  '...oCCCatckko...',
-  '..osoCowwwwwoo..',
-  '..osoowlllwwSo..',
-  '..ossowwllllso..',
-  '...ooooowwwwo...',
-  '....occcckkko...',
-];
-
-const TORSO_BACK_IDLE = [
-  '....oCCcckko....',
-  '...oCCCcckkko...',
-  '..oSoCCcckkoso..',
-  '..oSoCcccckoso..',
-  '..oSoCcccckoso..',
-  '..oSSoccckkoso..',
-  '..ooooccckkooo..',
-  '....occcckkko...',
-];
-
-const TORSO_BACK_WORK_1 = [
-  '....oCCcckko....',
-  '...oCCCcckkko...',
-  '..ooCCCcckkkoo..',
-  '..oCoCcccckoko..',
-  '..oCoCcccckoko..',
-  '...ooccccckoo...',
-  '....occcckkko...',
-];
-
-const TORSO_BACK_WORK_2 = [
-  '....oCCcckko....',
-  '...oCCCcckkko...',
-  '..ooCCCcckkkoo..',
-  '..oCoCcccckkoo..',
-  '...oCoccccckoko.',
-  '...ooccccckkoo..',
-  '....occcckkko...',
-];
-
-const LEGS_STAND = [
-  '....oppppPPPo...',
-  '....opppoPPPo...',
-  '....opppoPPPo...',
-  '....opppoPPPo...',
-  '....opppoPPPo...',
-  '....opppoPPPo...',
-  '...offfo.offfo..',
-  '...offfo.offfo..',
-  '....ooo...ooo...',
-];
-
-const LEGS_WALK_A = [
-  '....oppppPPPo...',
-  '....opppoPPPo...',
-  '...opppo.oPPPo..',
-  '...oppo..oPPPo..',
-  '..opppo...oPPo..',
-  '..oppo....oPPo..',
-  '.offfo....offfo.',
-  '.offfo....offfo.',
-  '..ooo......ooo..',
-];
-
-const LEGS_WALK_B = [
-  '....oppppPPPo...',
-  '....opppoPPPo...',
-  '....opppooPPPo..',
-  '.....oppo.oPPPo.',
-  '.....oppo..oPPo.',
-  '....opppo..oPPo.',
-  '...offfo...offfo',
-  '...offfo...offfo',
-  '....ooo.....ooo.',
-];
-
-/** Seated, facing lower-left: thighs run toward the viewer, shins hang. */
-const LEGS_SIT_FRONT = [
-  '...opppppPPPo...',
-  '..oppppppPPPPo..',
-  '.oppppooooooo...',
-  '.opppo..........',
-  'offfo...........',
-];
-
-/** Seated, facing away: only the seat of the trousers shows. */
-const LEGS_SIT_BACK = ['....oPPPPPPPo...', '....oPPPPPPPPo..', '.....ooooooooo..'];
-
-type HairStyle = 'short' | 'bob' | 'ponytail' | 'buzz' | 'curly' | 'bun';
-
-/** Hair overlays over the head part, in head-local coordinates shifted so
- *  column 0 is frame column 1 (hair is 12 wide, the head 10). Rows start two
- *  above the head so tall styles have room. */
 const HAIR: Record<HairStyle, { front: readonly string[]; back: readonly string[] }> = {
-  short: {
+  spiky: {
     front: [
-      '............',
-      '............',
-      '...oooooo...',
-      '..oHHHhhho..',
-      '.oHHhhhhhhoo',
-      'ohhhhhhhhhdo',
-      'ohhohhhhhhdo',
-      'oo..ohhohhdo',
-      '........ohdo',
-      '........odo.',
-      '.........o..',
+      '..........o.............',
+      '.......o.oho.oo.........',
+      '......ohoohhohho........',
+      '.....ohHHhhhhhhhoo......',
+      '....ohHHHHhhhhhhhdo.....',
+      '...ohhHHhhhhhhhhhhdo....',
+      '..oohhhhhhhhhhhhhhddo...',
+      '...ohhhhhhhhhhhhhhhddo..',
+      '..ohhhhohhhhohhhhhhddo..',
+      '..oohho..oh..hhhhhdddo..',
+      '...oho.........hh.ddo...',
+      '...oh.............do....',
     ],
     back: [
-      '............',
-      '............',
-      '...oooooo...',
-      '..oHHHhhho..',
-      '.oHHhhhhhhoo',
-      'ohHhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhdso',
-      '.ohhhhhhddo.',
-      '..ohhhhddo..',
-      '...oooooo...',
+      '............o...........',
+      '.........o.oho.oo.......',
+      '........ohoohhohho......',
+      '.......ohHHhhhhhhhoo....',
+      '......ohHHhhhhhhhhhdo...',
+      '.....ohHHhhhhhhhhhhhdo..',
+      '....oohhhhhhhhhhhhhhddo.',
+      '....ohhhhhhhhhhhhhhhhdo.',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhddo.',
+      '....ohhhhhhhhhhhhhhhddo.',
+      '....ohhhhhhhhhhhhhhdddo.',
+      '....ohhhhhhhhhhhhhhddo..',
+      '.....ohhhhohhhhhohddo...',
+      '.....oho..o.hho.oddo....',
     ],
   },
   bob: {
     front: [
-      '............',
-      '............',
-      '..oooooooo..',
-      '.oHHHHhhhho.',
-      'oHHhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohoooohhohdo',
-      'oh.......hdo',
-      'oh.......hdo',
-      'oh.......odo',
-      '.o........o.',
+      '........................',
+      '........................',
+      '.........oooooo.........',
+      '......oooHHHhhhoo.......',
+      '.....oHHHHHhhhhhhoo.....',
+      '....oHHHhhhhhhhhhhdo....',
+      '...ohhhhhhhhhhhhhhhdo...',
+      '...ohhhhhhhhhhhhhhhddo..',
+      '..ohhhhhhhhhhhhhhhhddo..',
+      '..ohhhoooooohhhhhhdddo..',
+      '..ohho......ohhhhhdddo..',
+      '..ohho........hhh.dddo..',
+      '..ohho............dddo..',
+      '..ohho............dddo..',
+      '..ohdo............dddo..',
+      '..oddo............oddo..',
+      '...oo..............oo...',
     ],
     back: [
-      '............',
-      '............',
-      '..oooooooo..',
-      '.oHHHHhhhho.',
-      'oHHhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhddo',
-      '.oooooooooo.',
-    ],
-  },
-  ponytail: {
-    front: [
-      '............',
-      '............',
-      '...oooooo...',
-      '..oHHHhhho..',
-      '.oHHhhhhhhoo',
-      'ohhhhhhhhhdo',
-      'ohhohhhhhhddo',
-      'oo..ohhohhdhdo',
-      '........ohdhdo',
-      '........ododdo',
-      '.........o.odo',
-      '...........oo.',
-    ],
-    back: [
-      '............',
-      '............',
-      '...oooooo...',
-      '..oHHHhhho..',
-      '.oHHhhhhhhoo',
-      'ohHhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhdhhhdso',
-      '.ohhhdhhddo.',
-      '..ohhdhddo..',
-      '...oodhdoo..',
-      '.....odo....',
-      '.....odo....',
-      '......o.....',
+      '........................',
+      '........................',
+      '...........oooooo.......',
+      '........oooHHHhhhoo.....',
+      '.......oHHHHHhhhhhhoo...',
+      '......oHHHhhhhhhhhhhdo..',
+      '.....ohhhhhhhhhhhhhhhdo.',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhdddo',
+      '....ohhhhhhhhhhhhhhhdddo',
+      '....ohhhhhhhhhhhhhhhdddo',
+      '....ohddhhhhhhhhhhhddddo',
+      '....oddddddddddddddddddo',
+      '.....oooooooooooooooooo.',
     ],
   },
   buzz: {
     front: [
-      '............',
-      '............',
-      '............',
-      '...oooooo...',
-      '..odddddo...',
-      '.odhhhhhhdo.',
-      '.odhhhhhhdo.',
-      '.o.......do.',
+      '........................',
+      '........................',
+      '........................',
+      '........................',
+      '.......oooooooo.........',
+      '.....oohhhhhhhhoo.......',
+      '....ohhHhhhhhhhhhoo.....',
+      '...ohhhhhhhhhhhhhhdo....',
+      '...ohhhhhhhhhhhhhhddo...',
+      '...ohoooooooohhhhhddo...',
+      '...oo.........hh.ddo....',
     ],
     back: [
-      '............',
-      '............',
-      '............',
-      '...oooooo...',
-      '..odddddo...',
-      '.odhhhhhhdo.',
-      '.odhhhhhhdo.',
-      '.odhhhhhhdo.',
-      '.odhhhhhhso.',
-      '..odhhhhdo..',
+      '........................',
+      '........................',
+      '........................',
+      '........................',
+      '.........oooooooo.......',
+      '.......oohhhhhhhhoo.....',
+      '.....oohhHhhhhhhhhhoo...',
+      '....ohhhhhhhhhhhhhhhdo..',
+      '....ohhhhhhhhhhhhhhhdo..',
+      '....ohhhhhhhhhhhhhhddo..',
+      '....ohhhhhhhhhhhhhhddo..',
+      '....ohhhhhhhhhhhhhhddo..',
+      '....oohhhhhhhhhhhhhddo..',
+      '.....oohhhhhhhhhhhddo...',
     ],
   },
-  curly: {
+  ponytail: {
     front: [
-      '...oooooo...',
-      '..oHhHhhho..',
-      '.oHhHhhhhhoo',
-      'ohHhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhohhhhohhdo',
-      'oo..oohho.ddo',
-      '.........oddo',
-      '.........ooo.',
+      '........................',
+      '........................',
+      '.........oooooo.........',
+      '......oooHHHhhhoo.......',
+      '.....oHHHHHhhhhhhoo.....',
+      '....oHHHhhhhhhhhhhdo....',
+      '...ohhhhhhhhhhhhhhhdoo..',
+      '...ohhhhhhhhhhhhhhhddhdo',
+      '..ohhhhhhhhhhhhhhhhddhdo',
+      '..ohhhooohhhoohhhhdddhdo',
+      '...oo....oo....hhhddohdo',
+      '...............hh.do.ohdo',
+      '...................o.ohdo',
+      '......................odo',
+      '......................oo.',
     ],
     back: [
-      '...oooooo...',
-      '..oHhHhhho..',
-      '.oHhHhhhhhoo',
-      'ohHhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhhhhhhhhhdo',
-      'ohhhhhhhhhdso',
-      '.ohhhhhhhddo.',
-      '..ooooooooo..',
+      '........................',
+      '........................',
+      '...........oooooo.......',
+      '........oooHHHhhhoo.....',
+      '.......oHHHHHhhhhhhoo...',
+      '......oHHHhhhhhhhhhhdo..',
+      '.....ohhhhhhhhhhhhhhhdo.',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhdddo',
+      '.....ohhhhhhhhhhhhhhddo.',
+      '......ohhhhhddhhhhhddo..',
+      '.......oohhdoodhhhdoo...',
+      '.........oodhhdooo......',
+      '..........ohhhdo........',
+      '..........ohhddo........',
+      '...........ohdo.........',
+      '...........ooo..........',
     ],
   },
   bun: {
     front: [
-      '....oooo....',
-      '...oHhhdo...',
-      '...ohhhdo...',
-      '..oooooooo..',
-      '.oHHhhhhhhoo',
-      'ohhhhhhhhhdo',
-      'ohhohhhhhhdo',
-      'oo..ohhhhhdo',
-      '........ohdo',
-      '.........oo.',
+      '..........oooo..........',
+      '.........oHhhdo.........',
+      '.........ohhhdo.........',
+      '......oooooooooo........',
+      '.....oHHHHHhhhhhoo......',
+      '....oHHHhhhhhhhhhhdo....',
+      '...ohhhhhhhhhhhhhhhdo...',
+      '...ohhhhhhhhhhhhhhhddo..',
+      '..ohhhhhhhhhhhhhhhhddo..',
+      '..ohhooohhhhoohhhhhdddo.',
+      '...oo...ooo....hhhhddo..',
+      '...............hh..do...',
     ],
     back: [
-      '....oooo....',
-      '...oHhhdo...',
-      '...ohhhdo...',
-      '..oooooooo..',
-      '.oHHhhhhhhoo',
-      'ohHhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhhdo',
-      'ohhhhhhhhdso',
-      '.ohhhhhhddo.',
-      '..oooooooo..',
+      '............oooo........',
+      '...........oHhhdo.......',
+      '...........ohhhdo.......',
+      '........oooooooooo......',
+      '.......oHHHHHhhhhhoo....',
+      '......oHHHhhhhhhhhhhdo..',
+      '.....ohhhhhhhhhhhhhhhdo.',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhhddo',
+      '....ohhhhhhhhhhhhhhhdddo',
+      '.....ohhhhhhhhhhhhhhddo.',
+      '.....ohhhhhhhhhhhhhhddo.',
+      '......oohhhhhhhhhhhdoo..',
+      '........oooooooooooo....',
+    ],
+  },
+  curly: {
+    front: [
+      '......oo.ooo.oo.........',
+      '....oohhohhhohhoo.......',
+      '...ohHHhhHHhhHhhhoo.....',
+      '..ohHHhhHHhhhhhhhhhdo...',
+      '..ohhhhhhhhhhhhhhhhhdo..',
+      '.ohhhhhhhhhhhhhhhhhhddo.',
+      '.ohhhhhhhhhhhhhhhhhhddo.',
+      '.ohhhhhhhhhhhhhhhhhhddo.',
+      '.ohhhohhhohhhohhhhhdddo.',
+      '..ohho.oo.ooo.ohhhhddo..',
+      '..oho..........hhh.ddo..',
+      '...o...............do...',
+    ],
+    back: [
+      '........oo.ooo.oo.......',
+      '......oohhohhhohhoo.....',
+      '.....ohHHhhHHhhHhhhoo...',
+      '....ohHHhhHHhhhhhhhhhdo.',
+      '....ohhhhhhhhhhhhhhhhhdo',
+      '...ohhhhhhhhhhhhhhhhhhdo',
+      '...ohhhhhhhhhhhhhhhhhhdo',
+      '...ohhhhhhhhhhhhhhhhhddo',
+      '...ohhhhhhhhhhhhhhhhhddo',
+      '...ohhhhhhhhhhhhhhhhhddo',
+      '...ohhhhhhhhhhhhhhhhdddo',
+      '....ohhhhhhhhhhhhhhhddo.',
+      '....ohhhohhhhohhhhohddo.',
+      '.....oho.ohho.oohho.oo..',
+      '......o...oo....oo......',
     ],
   },
 };
+
+const TORSO_FRONT_IDLE = [
+  '.........osssSo.........',
+  '.......ooWWsSWWoo.......',
+  '.....ooCCCWWtWckkoo.....',
+  '....osoCCCCcctcckkoo....',
+  '...ossoCCCCcctccckoso...',
+  '...ossoCCCcccctcckoSso..',
+  '...ossoCCCcccctcckoSSo..',
+  '...osooCCccccctcckoSSo..',
+  '...ossoCCcccccccckoSSo..',
+  '...osssoCccccccckkoSSo..',
+  '...osssoooooooooooosSso.',
+  '....ooo.oppppppPPPoooo..',
+];
+
+const TORSO_FRONT_TYPE_1 = [
+  '.........osssSo.........',
+  '.......ooWWsSWWoo.......',
+  '.....ooCCCWWtWckkoo.....',
+  '....oCoCCCCcctcckkoo....',
+  '...oCCoCCCCcctccckoko...',
+  '..oCCoCCCcccctccckokko..',
+  '.oCCooCCCcccctcckokkko..',
+  'ossooCCCccccctcckoSSso..',
+  'osssooCCcccccccckoSsso..',
+  '.ooooCCcccccccckkooooo..',
+  '....oooooooooooooo......',
+  '....ooo.oppppppPPPo.....',
+];
+
+const TORSO_FRONT_TYPE_2 = [
+  '.........osssSo.........',
+  '.......ooWWsSWWoo.......',
+  '.....ooCCCWWtWckkoo.....',
+  '....oCoCCCCcctcckkoo....',
+  '...oCCoCCCCcctccckoko...',
+  '...oCCoCCcccctccckokko..',
+  '..oCCooCCcccctcckokkko..',
+  '.osssoCCCccccctcoSSso...',
+  '.ossssoCCcccccckoSsso...',
+  '..ooooCCcccccckkoooo....',
+  '....oooooooooooooo......',
+  '....ooo.oppppppPPPo.....',
+];
+
+const TORSO_FRONT_READ_1 = [
+  '.........osssSo.........',
+  '.......ooWWsSWWoo.......',
+  '.....ooCCCWWtWckkoo.....',
+  '....osoCCCCcctcckkoo....',
+  '...ossoCCoooooooooko....',
+  '...ossoCConnnnnnnnoko...',
+  '...ossoCConlllllnnokko..',
+  '...osooooonnnnnnnnoSSo..',
+  '...osssssonlllllnnosso..',
+  '...oossssonnnnnnnnossso.',
+  '....ooooooooooooooooo...',
+  '....ooo.oppppppPPPo.....',
+];
+
+const TORSO_FRONT_READ_2 = [
+  '.........osssSo.........',
+  '.......ooWWsSWWoo.......',
+  '.....ooCCCWWtWckkoo.....',
+  '....osoCCCCcctcckkoo....',
+  '...ossoCCCoooooooooo....',
+  '...ossoCCConnnnnnnnoko..',
+  '...ossoCCConllllnnnokko.',
+  '...osooooooonnnnnnnoSSo.',
+  '...osssssssonllllnnosso.',
+  '...oosssssssonnnnnnnosso',
+  '....oooooooooooooooooo..',
+  '....ooo.oppppppPPPo.....',
+];
+
+const TORSO_BACK_IDLE = [
+  '...........osSSo........',
+  '.........ooCCcckoo......',
+  '.......ooCCCcccckkoo....',
+  '.....oosoCCCcccccckkoo..',
+  '....ossoCCCcccccccckkso.',
+  '....ossoCCCcccccccckoSso',
+  '....ossoCCcccccccccckoSo',
+  '....osooCCcccccccccckoSo',
+  '....ossoCCcccccccccckoSo',
+  '....ossoCcccccccccckkoSo',
+  '....osssoooooooooooooSso',
+  '.....oooooppppppPPPPoo..',
+];
+
+const TORSO_BACK_WORK_1 = [
+  '...........osSSo........',
+  '.........ooCCcckoo......',
+  '.......ooCCCcccckkoo....',
+  '.....oooCCCCcccccckkoo..',
+  '....oCCoCCCcccccccckkoo.',
+  '....oCCoCCCccccccccckkko',
+  '....oCCoCCcccccccccckkko',
+  '....oCooCCccccccccccokko',
+  '.....ooCCCcccccccccckoo.',
+  '......oCCccccccccckkko..',
+  '......ooooooooooooooo...',
+  '.......ooppppppPPPPo....',
+];
+
+const TORSO_BACK_WORK_2 = [
+  '...........osSSo........',
+  '.........ooCCcckoo......',
+  '.......ooCCCcccckkoo....',
+  '.....oooCCCCcccccckkoo..',
+  '....oCCoCCCcccccccckkoo.',
+  '....oCCoCCCccccccccckkko',
+  '.....oCoCCcccccccccckkko',
+  '.....oooCCccccccccccokko',
+  '......oCCCcccccccccckoo.',
+  '......oCCccccccccckkko..',
+  '......ooooooooooooooo...',
+  '.......ooppppppPPPPo....',
+];
+
+const LEGS_STAND = [
+  '........opppppoPPPo.....',
+  '........opppppoPPPo.....',
+  '........oppppo.oPPPo....',
+  '........oppppo.oPPPo....',
+  '........oppppo.oPPPo....',
+  '........oppppo.oPPPo....',
+  '.......offffo..offFo....',
+  '......offfffo..ofFFFo...',
+  '......oFFFFo...oFFFFo...',
+  '.......oooo.....oooo....',
+  '.......xxxxxxxxxxxx.....',
+];
+
+const LEGS_WALK_A = [
+  '........opppppoPPPo.....',
+  '.......opppppo.oPPPo....',
+  '.......oppppo...oPPPo...',
+  '......oppppo....oPPPo...',
+  '......opppo.....oPPPo...',
+  '.....opppo......oPPPo...',
+  '....offffo......offFo...',
+  '...offfffo......ofFFFo..',
+  '...oFFFFo.......oFFFFo..',
+  '....oooo.........oooo...',
+  '.....xxxxxxxxxxxxxxx....',
+];
+
+const LEGS_WALK_B = [
+  '........opppppoPPPo.....',
+  '........oppppo.oPPPPo...',
+  '.........opppo..oPPPo...',
+  '.........opppo..oPPPPo..',
+  '.........oppppo..oPPPo..',
+  '.........oppppo..oPPPo..',
+  '........offffo...offFFo.',
+  '.......offfffo...ofFFFo.',
+  '.......oFFFFo....oFFFFo.',
+  '........oooo......oooo..',
+  '........xxxxxxxxxxxxx...',
+];
+
+/** Seated, facing lower-left: thighs run toward the viewer, shins hang. */
+const LEGS_SIT_FRONT = [
+  '......opppppppPPPPo.....',
+  '....opppppppppPPPPo.....',
+  '...oppppppooooooooo.....',
+  '..opppppo...............',
+  '..oppppo................',
+  '.offffo.................',
+  'offfffo.................',
+  'oFFFFo..................',
+  '.oooo...................',
+];
+
+/** Seated, facing away: the seat of the trousers and the heels show. */
+const LEGS_SIT_BACK = [
+  '.......opppppppPPPPPo...',
+  '.......oppppppppPPPPPo..',
+  '........ooooooooooooo...',
+];
 
 interface Worker {
   hair: HairStyle;
   colors: Record<string, string>;
 }
 
-const OUTLINE = '#1a1426';
-const EYE = '#2a1e2e';
-const PAPER = { w: '#f6f1e2', l: '#8a8496' };
+const OUTLINE = '#14101c';
+const EYE_WHITE = '#f4f0ea';
+const PUPIL = '#2a1e1a';
+const PAPER = { n: '#f6f1e2', l: '#8a8496' };
+const SHADOW = '#00000040';
 
 const WORKERS: Worker[] = [
   {
-    // Lab coat, teal collar.
-    hair: 'short',
+    hair: 'spiky',
     colors: {
-      s: '#f2c29b',
-      S: '#d39773',
-      b: '#e7a184',
+      s: '#f7c79c',
+      S: '#d9946b',
+      r: '#b8714f',
       C: '#ffffff',
-      c: '#eeeaf0',
-      k: '#c4bfd0',
-      a: '#3fb59f',
-      t: '#eeeaf0',
+      c: '#e9e6ee',
+      k: '#bdb8c8',
+      W: '#ffffff',
+      t: '#3fb59f',
       p: '#4a5a78',
       P: '#36405a',
-      f: '#2e2630',
-      h: '#8a5a36',
-      H: '#b07a4a',
-      d: '#5e3b24',
+      f: '#7a4a2c',
+      F: '#55311c',
+      h: '#8a5532',
+      H: '#b07444',
+      d: '#5e361f',
     },
   },
   {
-    // Blue shirt and red tie.
     hair: 'buzz',
     colors: {
       s: '#c98f62',
       S: '#a46e48',
-      b: '#b97a55',
-      C: '#7fa6e0',
+      r: '#87553a',
+      C: '#86aee6',
       c: '#5b84c6',
       k: '#41639e',
-      a: '#e9eef7',
+      W: '#eef2fa',
       t: '#c43d3d',
       p: '#2f3650',
       P: '#232839',
-      f: '#1e1a22',
+      f: '#2a2226',
+      F: '#17121a',
       h: '#2b2328',
       H: '#4a3e45',
       d: '#17121a',
     },
   },
   {
-    // Red hoodie with drawstrings.
     hair: 'bob',
     colors: {
-      s: '#f6d2b8',
-      S: '#dca88a',
-      b: '#eeaf98',
-      C: '#e66a5c',
-      c: '#c9463d',
-      k: '#97302d',
-      a: '#f2e3c8',
-      t: '#97302d',
+      s: '#fbd9c0',
+      S: '#e0aa8a',
+      r: '#c4876a',
+      C: '#ef7466',
+      c: '#cf4a40',
+      k: '#99302c',
+      W: '#f6e8d0',
+      t: '#99302c',
       p: '#3b3030',
       P: '#2a2222',
       f: '#3a2b26',
-      h: '#e3893c',
-      H: '#f4ad5c',
+      F: '#241a16',
+      h: '#e88a38',
+      H: '#f8b260',
       d: '#b25f22',
     },
   },
   {
-    // Green sweater.
     hair: 'curly',
     colors: {
       s: '#8a5a3c',
       S: '#6b432c',
-      b: '#7a4c33',
-      C: '#7cc08a',
+      r: '#55331f',
+      C: '#82c690',
       c: '#559a66',
       k: '#3b7149',
-      a: '#d8e8c6',
-      t: '#559a66',
+      W: '#d8e8c6',
+      t: '#3b7149',
       p: '#6d6560',
       P: '#544d49',
-      f: '#2a2226',
-      h: '#24191c',
-      H: '#3c2b2f',
-      d: '#120c0e',
+      f: '#4a3a30',
+      F: '#2e241e',
+      h: '#2a1c1f',
+      H: '#4a3438',
+      d: '#140c0e',
     },
   },
   {
-    // Grey cardigan over a red top.
     hair: 'bun',
     colors: {
-      s: '#e9b892',
-      S: '#c98f6c',
-      b: '#de9a7c',
-      C: '#b3aebd',
+      s: '#efbd96',
+      S: '#cf926c',
+      r: '#b07352',
+      C: '#bcb7c6',
       c: '#8d889a',
       k: '#6b6679',
-      a: '#cf4b4b',
-      t: '#cf4b4b',
+      W: '#e05656',
+      t: '#e05656',
       p: '#3c3a48',
       P: '#2c2a36',
-      f: '#2a2228',
-      h: '#93432a',
-      H: '#b8603f',
+      f: '#5a2e2e',
+      F: '#3a1c1c',
+      h: '#9a4428',
+      H: '#c46a44',
       d: '#682b1a',
     },
   },
   {
-    // Mustard vest over a white shirt.
     hair: 'ponytail',
     colors: {
-      s: '#dca47a',
-      S: '#b97f58',
-      b: '#cf8e69',
-      C: '#f0c55a',
-      c: '#d4a33c',
+      s: '#e0a87c',
+      S: '#bd8058',
+      r: '#9e6545',
+      C: '#f5cc60',
+      c: '#d9a63c',
       k: '#a87b26',
-      a: '#f7f3ea',
-      t: '#f7f3ea',
+      W: '#fbf7ee',
+      t: '#fbf7ee',
       p: '#4d4560',
       P: '#3a3449',
-      f: '#2b2330',
-      h: '#5a3826',
-      H: '#7d5238',
+      f: '#5a3826',
+      F: '#3c2417',
+      h: '#5e3a26',
+      H: '#86563a',
       d: '#3c2417',
     },
   },
@@ -500,9 +609,11 @@ const WORKERS: Worker[] = [
 function paletteOf(worker: Worker): Record<string, RGBA> {
   const pal: Record<string, RGBA> = {
     o: hex(OUTLINE),
-    e: hex(EYE),
-    w: hex(PAPER.w),
+    w: hex(EYE_WHITE),
+    e: hex(PUPIL),
+    n: hex(PAPER.n),
     l: hex(PAPER.l),
+    x: hex(SHADOW),
   };
   for (const [key, value] of Object.entries(worker.colors)) pal[key] = hex(value);
   return pal;
@@ -511,6 +622,7 @@ function paletteOf(worker: Worker): Record<string, RGBA> {
 type Facing = 'front' | 'back';
 type Pose = 'walkA' | 'stand' | 'walkB' | 'type1' | 'type2' | 'read1' | 'read2';
 const POSES: readonly Pose[] = ['walkA', 'stand', 'walkB', 'type1', 'type2', 'read1', 'read2'];
+const STANDING: ReadonlySet<Pose> = new Set(['walkA', 'stand', 'walkB']);
 
 function torsoFor(facing: Facing, pose: Pose): readonly string[] {
   if (facing === 'back') {
@@ -545,29 +657,27 @@ function drawFrame(
   facing: Facing,
   pose: Pose,
 ): PixelImage {
-  const img = new PixelImage(FRAME_W, FRAME_H);
-  const seated = !POSES.slice(0, 3).includes(pose);
+  const img = new PixelImage(CHAR_FRAME_W, CHAR_FRAME_H);
+  const seated = !STANDING.has(pose);
   const drop = seated ? SEAT_DROP : 0;
-  // A small bob: walking frames lift the upper body one pixel.
+  // Walking frames lift the upper body one pixel.
   const bob = pose === 'walkA' || pose === 'walkB' ? -1 : 0;
-  const legs = legsFor(facing, pose);
-  const legsY = seated ? LEGS_Y + SEAT_DROP + (torsoFor(facing, pose).length - 8) : LEGS_Y;
-  img.stamp(legs, pal, 0, legsY);
+  img.stamp(legsFor(facing, pose), pal, 0, LEGS_Y + drop + (seated ? -2 : 0));
   img.stamp(torsoFor(facing, pose), pal, 0, TORSO_Y + drop + bob);
-  img.stamp(facing === 'front' ? HEAD_FRONT : HEAD_BACK, pal, 3, HEAD_Y + 1 + drop + bob);
-  img.stamp(HAIR[worker.hair][facing], pal, 2, HEAD_Y - 2 + drop + bob);
+  img.stamp(facing === 'front' ? FACE_FRONT : FACE_BACK, pal, 0, drop + bob);
+  img.stamp(HAIR[worker.hair][facing], pal, 0, drop + bob);
   return img;
 }
 
 export function renderCharacterSheets(): PixelImage[] {
   return WORKERS.map((worker) => {
     const pal = paletteOf(worker);
-    const sheet = new PixelImage(FRAME_W * FRAMES, FRAME_H * 3);
+    const sheet = new PixelImage(CHAR_FRAME_W * CHAR_FRAMES_PER_ROW, CHAR_FRAME_H * 3);
     POSES.forEach((pose, i) => {
       const front = drawFrame(worker, pal, 'front', pose);
-      sheet.blit(front, i * FRAME_W, 0);
-      sheet.blit(drawFrame(worker, pal, 'back', pose), i * FRAME_W, FRAME_H);
-      sheet.blit(front.mirrored(), i * FRAME_W, FRAME_H * 2);
+      sheet.blit(front, i * CHAR_FRAME_W, 0);
+      sheet.blit(drawFrame(worker, pal, 'back', pose), i * CHAR_FRAME_W, CHAR_FRAME_H);
+      sheet.blit(front.mirrored(), i * CHAR_FRAME_W, CHAR_FRAME_H * 2);
     });
     return sheet;
   });

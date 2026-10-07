@@ -52,15 +52,15 @@ export const BUTTON_ICON_SIZE_FACTOR = 0.45;
 export const BUTTON_LINE_WIDTH_MIN = 1.5;
 export const BUTTON_LINE_WIDTH_ZOOM_FACTOR = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
-export const BUBBLE_SITTING_OFFSET_PX = 10;
-export const BUBBLE_VERTICAL_OFFSET_PX = 24;
+export const BUBBLE_SITTING_OFFSET_PX = 7;
+export const BUBBLE_VERTICAL_OFFSET_PX = 36;
 /** Persistent state badge (working/done/waiting/idle/permission): vertical
  *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
  *  so it sits at head height rather than floating above it like a bubble. */
-export const STATUS_BADGE_VERTICAL_OFFSET_PX = 20;
+export const STATUS_BADGE_VERTICAL_OFFSET_PX = 32;
 /** Horizontal offset to the right of center, clear of the center-anchored
  *  speech bubble so the two never overlap regardless of bubble state. */
-export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 11;
+export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 13;
 export const FALLBACK_FLOOR_COLOR = '#808080';
 
 // ── Rendering - Overlay Colors (canvas, not CSS) ─────────────
@@ -86,6 +86,11 @@ export const WALL_COLOR = '#d9c4a0';
 export const FLOOR_SLAB_PX = 5;
 export const FLOOR_SLAB_LEFT_COLOR = '#4a3f5c';
 export const FLOOR_SLAB_RIGHT_COLOR = '#362d45';
+/** Interior glass partitions: height (sprite px), frame, pane and sheen. */
+export const WALL_GLASS_HEIGHT_PX = 30;
+export const GLASS_FRAME_COLOR = '#2c2d36';
+export const GLASS_PANE_COLOR = '#bfe3f04d';
+export const GLASS_SHEEN_COLOR = '#ffffff8c';
 
 // ── Camera ───────────────────────────────────────────────────
 export const CAMERA_FOLLOW_LERP = 0.1;
@@ -206,14 +211,25 @@ export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
 export const PALETTE_COUNT = 6;
 export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
-export const CHARACTER_HIT_HALF_WIDTH = 8;
-export const CHARACTER_HIT_HEIGHT = 24;
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 32;
+export const CHARACTER_HIT_HALF_WIDTH = 10;
+export const CHARACTER_HIT_HEIGHT = 36;
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 44;
 
 // ── Greeter + Intro bubble ──────────────────────────────────
 /** Reserved character id for the Intro's greeter. Far outside both real agent
  *  ids (positive) and sub-agent ids (small negatives from -1 down). */
 export const GREETER_ID = -1_000_000_000;
+/** The fixed CTO character (not an agent): its id, its skin (palette index)
+ *  and how many agents can queue outside the CTO office door at once. */
+export const CTO_ID = -1_000_000_001;
+export const CTO_PALETTE = 1;
+export const CTO_QUEUE_MAX_SLOTS = 8;
+/** The CTO's loop: seconds working at the desk, then on the office couch. */
+export const CTO_DESK_SEC = 30;
+export const CTO_COUCH_SEC = 15;
+/** Seconds a queued agent keeps a visitor chair before the next agent waiting
+ *  at the door takes its turn. */
+export const CTO_VISIT_SEC = 20;
 /** Stacking order for the Intro's bubble. Deliberately BELOW the modal stack
  *  (ui/Modal defaults to 50, ChangelogModal 51, the migration notice z-100): the
  *  Intro is diegetic furniture over the office, not a modal, so a modal opened
@@ -225,7 +241,7 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_PX = 44;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 54;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
 export const INTRO_BUBBLE_OFFSET_X_PX = 10;
@@ -247,7 +263,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_PX = 26;
+export const INTRO_TAIL_TARGET_RISE_PX = 34;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the

@@ -1,0 +1,33 @@
+{
+  "id": "CTO_SIGN",
+  "name": "Office Sign",
+  "category": "wall",
+  "canPlaceOnWalls": true,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "CTO_SIGN_FRONT",
+      "file": "CTO_SIGN_FRONT.png",
+      "width": 32,
+      "height": 62,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "CTO_SIGN_RIGHT",
+      "file": "CTO_SIGN_RIGHT.png",
+      "width": 32,
+      "height": 62,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    }
+  ]
+}

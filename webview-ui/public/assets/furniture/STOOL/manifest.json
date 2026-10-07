@@ -1,0 +1,14 @@
+{
+  "id": "STOOL",
+  "name": "Bar Stool",
+  "category": "chairs",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "STOOL.png",
+  "width": 32,
+  "height": 34,
+  "footprintW": 1,
+  "footprintH": 1
+}

@@ -91,7 +91,7 @@ import {
   tileCorner,
   worldToIso,
 } from '../iso.js';
-import { getWallBoxSprite, wallHeight } from '../isoWalls.js';
+import { getWallSprite } from '../isoWalls.js';
 import { gridRect, mapOffset } from '../projection.js';
 import {
   getCarpetJunctionSprite,
@@ -772,11 +772,14 @@ export class OfficeSceneRenderer {
         const key = `${r}:${c}`;
         liveWalls.add(key);
         const color = state.tileColors?.[r * layoutCols + c];
-        const height = wallHeight(tileMap, c, r);
-        const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
-        sprite.texture = getTexture(
-          getWallBoxSprite(color ? wallColorToHex(color) : WALL_COLOR, height),
+        const { sprite: wallSprite, height } = getWallSprite(
+          tileMap,
+          c,
+          r,
+          color ? wallColorToHex(color) : WALL_COLOR,
         );
+        const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
+        sprite.texture = getTexture(wallSprite);
         const top = tileCorner(c, r);
         sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
         sprite.scale.set(1, 1);
@@ -911,7 +914,7 @@ export class OfficeSceneRenderer {
         sprite.visible = true;
       }
 
-      if (!ch.isSubagent && !ch.isGreeter) {
+      if (!ch.isSubagent && !ch.isGreeter && !ch.isCto) {
         liveBadges.add(ch.id);
         const texture = getTexture(statusBadgeSprite(ch));
         const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;

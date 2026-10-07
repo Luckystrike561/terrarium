@@ -14,7 +14,7 @@
       "id": "SOFA_FRONT",
       "file": "SOFA_FRONT.png",
       "width": 48,
-      "height": 46,
+      "height": 42,
       "footprintW": 2,
       "footprintH": 1,
       "orientation": "front"
@@ -24,7 +24,7 @@
       "id": "SOFA_RIGHT",
       "file": "SOFA_RIGHT.png",
       "width": 48,
-      "height": 46,
+      "height": 42,
       "footprintW": 1,
       "footprintH": 2,
       "orientation": "right"
@@ -34,7 +34,7 @@
       "id": "SOFA_BACK",
       "file": "SOFA_BACK.png",
       "width": 48,
-      "height": 46,
+      "height": 42,
       "footprintW": 2,
       "footprintH": 1,
       "orientation": "back"
@@ -44,7 +44,7 @@
       "id": "SOFA_LEFT",
       "file": "SOFA_LEFT.png",
       "width": 48,
-      "height": 46,
+      "height": 42,
       "footprintW": 1,
       "footprintH": 2,
       "orientation": "left"

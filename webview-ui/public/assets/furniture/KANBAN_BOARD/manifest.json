@@ -1,0 +1,33 @@
+{
+  "id": "KANBAN_BOARD",
+  "name": "Kanban Board",
+  "category": "wall",
+  "canPlaceOnWalls": true,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "KANBAN_BOARD_FRONT",
+      "file": "KANBAN_BOARD_FRONT.png",
+      "width": 64,
+      "height": 78,
+      "footprintW": 3,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "KANBAN_BOARD_RIGHT",
+      "file": "KANBAN_BOARD_RIGHT.png",
+      "width": 64,
+      "height": 78,
+      "footprintW": 1,
+      "footprintH": 3,
+      "orientation": "right"
+    }
+  ]
+}

@@ -481,8 +481,8 @@ export function mergeCharacterSprites(
 }
 
 /**
- * Load pre-colored character sprites from assets/characters/ (6 PNGs, each 112×96).
- * Each PNG has 3 direction rows (down, up, right) × 7 frames (16×32 each).
+ * Load pre-colored character sprites from assets/characters/ (6 PNGs, each 168×120).
+ * Each PNG has 3 direction rows (down, up, right) × 7 frames (CHAR_FRAME_W × CHAR_FRAME_H, 24×40).
  */
 export async function loadCharacterSprites(
   assetsRoot: string,

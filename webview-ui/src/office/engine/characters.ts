@@ -193,6 +193,80 @@ function headToOwnSeat(
   }
 }
 
+/** Walk animation + one step of movement along `ch.path`. The caller adds
+ *  `dt` to `ch.frameTimer` first. */
+export function advanceAlongPath(ch: Character, dt: number): void {
+  if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
+    ch.frameTimer -= WALK_FRAME_DURATION_SEC;
+    ch.frame = (ch.frame + 1) % 4;
+  }
+  const nextTile = ch.path[0];
+  if (!nextTile) return;
+  ch.dir = directionBetween(ch.tileCol, ch.tileRow, nextTile.col, nextTile.row);
+  ch.moveProgress += (WALK_SPEED_PX_PER_SEC / TILE_SIZE) * dt;
+  const fromCenter = tileCenter(ch.tileCol, ch.tileRow);
+  const toCenter = tileCenter(nextTile.col, nextTile.row);
+  const t = Math.min(ch.moveProgress, 1);
+  ch.x = fromCenter.x + (toCenter.x - fromCenter.x) * t;
+  ch.y = fromCenter.y + (toCenter.y - fromCenter.y) * t;
+  if (ch.moveProgress >= 1) {
+    ch.tileCol = nextTile.col;
+    ch.tileRow = nextTile.row;
+    ch.x = toCenter.x;
+    ch.y = toCenter.y;
+    ch.path.shift();
+    ch.moveProgress = 0;
+  }
+}
+
+/** Walk to the assigned CTO queue spot and wait there: seated in a visitor
+ *  chair, or standing outside the door facing it. Overrides the desk/lounge/
+ *  wander FSM until the slot is cleared, when the agent drops to IDLE and the
+ *  normal FSM sends it back to its desk. */
+function waitAtCtoDoor(
+  ch: Character,
+  dt: number,
+  tileMap: TileTypeVal[][],
+  blockedTiles: Set<string>,
+  restSeatClaims: Map<string, number>,
+): void {
+  const slot = ch.ctoQueueSlot;
+  if (!slot) return;
+  releaseRestSeat(ch, restSeatClaims);
+  const atSlot = ch.tileCol === slot.col && ch.tileRow === slot.row && ch.moveProgress === 0;
+  if (atSlot && ch.path.length === 0) {
+    const center = tileCenter(ch.tileCol, ch.tileRow);
+    ch.x = center.x;
+    ch.y = center.y;
+    const pose = slot.seated ? CharacterState.TYPE : CharacterState.IDLE;
+    if (ch.state !== pose) {
+      ch.state = pose;
+      ch.frame = 0;
+      ch.frameTimer = 0;
+    }
+    ch.dir = slot.facing;
+    return;
+  }
+  const last = ch.path[ch.path.length - 1];
+  if (!last || last.col !== slot.col || last.row !== slot.row) {
+    // A visitor chair is a seat tile, blocked for everyone but its sitter.
+    const slotKey = `${slot.col},${slot.row}`;
+    const wasBlocked = blockedTiles.delete(slotKey);
+    const path = findPath(ch.tileCol, ch.tileRow, slot.col, slot.row, tileMap, blockedTiles);
+    if (wasBlocked) blockedTiles.add(slotKey);
+    if (path.length === 0) return;
+    ch.path = path;
+    ch.moveProgress = 0;
+  }
+  if (ch.state !== CharacterState.WALK) {
+    ch.state = CharacterState.WALK;
+    ch.frame = 0;
+    ch.frameTimer = 0;
+  }
+  ch.frameTimer += dt;
+  advanceAlongPath(ch, dt);
+}
+
 export function updateCharacter(
   ch: Character,
   dt: number,
@@ -203,6 +277,10 @@ export function updateCharacter(
   restSeatUids: ReadonlySet<string>,
   restSeatClaims: Map<string, number>,
 ): void {
+  if (ch.ctoQueueSlot) {
+    waitAtCtoDoor(ch, dt, tileMap, blockedTiles, restSeatClaims);
+    return;
+  }
   ch.frameTimer += dt;
 
   // Release a lounge claim the instant work resumes, whether the agent is mid-walk there
@@ -316,12 +394,6 @@ export function updateCharacter(
     }
 
     case CharacterState.WALK: {
-      // Walk animation
-      if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
-        ch.frameTimer -= WALK_FRAME_DURATION_SEC;
-        ch.frame = (ch.frame + 1) % 4;
-      }
-
       if (ch.path.length === 0) {
         // Path complete — snap to tile center and transition
         const center = tileCenter(ch.tileCol, ch.tileRow);
@@ -386,27 +458,7 @@ export function updateCharacter(
         break;
       }
 
-      // Move toward next tile in path
-      const nextTile = ch.path[0];
-      ch.dir = directionBetween(ch.tileCol, ch.tileRow, nextTile.col, nextTile.row);
-
-      ch.moveProgress += (WALK_SPEED_PX_PER_SEC / TILE_SIZE) * dt;
-
-      const fromCenter = tileCenter(ch.tileCol, ch.tileRow);
-      const toCenter = tileCenter(nextTile.col, nextTile.row);
-      const t = Math.min(ch.moveProgress, 1);
-      ch.x = fromCenter.x + (toCenter.x - fromCenter.x) * t;
-      ch.y = fromCenter.y + (toCenter.y - fromCenter.y) * t;
-
-      if (ch.moveProgress >= 1) {
-        // Arrived at next tile
-        ch.tileCol = nextTile.col;
-        ch.tileRow = nextTile.row;
-        ch.x = toCenter.x;
-        ch.y = toCenter.y;
-        ch.path.shift();
-        ch.moveProgress = 0;
-      }
+      advanceAlongPath(ch, dt);
 
       // If became active while wandering, repath to seat
       if (ch.isActive && ch.seatId) {

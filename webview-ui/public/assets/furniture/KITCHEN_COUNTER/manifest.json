@@ -1,0 +1,33 @@
+{
+  "id": "KITCHEN_COUNTER",
+  "name": "Kitchen Counter",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "KITCHEN_COUNTER_FRONT",
+      "file": "KITCHEN_COUNTER_FRONT.png",
+      "width": 48,
+      "height": 40,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "KITCHEN_COUNTER_RIGHT",
+      "file": "KITCHEN_COUNTER_RIGHT.png",
+      "width": 48,
+      "height": 40,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

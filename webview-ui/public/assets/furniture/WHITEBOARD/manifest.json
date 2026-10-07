@@ -1,6 +1,6 @@
 {
   "id": "WHITEBOARD",
-  "name": "Whiteboard",
+  "name": "Sprint Board",
   "category": "wall",
   "canPlaceOnWalls": true,
   "canPlaceOnSurfaces": false,

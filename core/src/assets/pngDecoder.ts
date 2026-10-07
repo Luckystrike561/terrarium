@@ -161,8 +161,8 @@ export function parseCarpetPng(pngBuffer: Buffer): string[][][] {
 }
 
 /**
- * Decode a single character PNG (112×96) into direction-keyed frame arrays.
- * Each PNG has 3 direction rows (down, up, right) × 7 frames (16×32 each).
+ * Decode a single character PNG (168×120) into direction-keyed frame arrays.
+ * Each PNG has 3 direction rows (down, up, right) × 7 frames (CHAR_FRAME_W × CHAR_FRAME_H, 24×40).
  */
 export function decodeCharacterPng(pngBuffer: Buffer): CharacterDirectionSprites {
   const png = PNG.sync.read(sanitizePngBuffer(pngBuffer));
