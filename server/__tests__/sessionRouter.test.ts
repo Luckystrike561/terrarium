@@ -43,7 +43,12 @@ describe('SessionRouter', () => {
   // ── Pending external sessions ──────────────────────────────────────
 
   describe('pending external sessions', () => {
-    const pending = { sessionId: 'sess-ext', transcriptPath: '/a/b.jsonl', cwd: '/a' };
+    const pending = {
+      sessionId: 'sess-ext',
+      transcriptPath: '/a/b.jsonl',
+      cwd: '/a',
+      sourceIds: ['claude'],
+    };
 
     it('storePending + confirmPending returns the info and removes it', () => {
       router.storePending('sess-ext', pending);
@@ -63,32 +68,61 @@ describe('SessionRouter', () => {
       router.discardPending('sess-ext');
       expect(router.hasPending('sess-ext')).toBe(false);
     });
+
+    it('a second announcement of the same session keeps both sources and fills missing fields', () => {
+      router.storePending('sess-ext', {
+        sessionId: 'sess-ext',
+        transcriptPath: undefined,
+        sessionFile: '/s/one.jsonl',
+        cwd: '/work',
+        sourceIds: ['herdr'],
+      });
+      router.storePending('sess-ext', {
+        sessionId: 'sess-ext',
+        transcriptPath: undefined,
+        cwd: '',
+        sourceIds: ['omp'],
+      });
+
+      expect(router.confirmPending('sess-ext')).toEqual({
+        sessionId: 'sess-ext',
+        transcriptPath: undefined,
+        sessionFile: '/s/one.jsonl',
+        cwd: '/work',
+        sourceIds: ['herdr', 'omp'],
+      });
+    });
   });
 
   // ── Event buffering ────────────────────────────────────────────────
 
   describe('event buffering', () => {
+    const routed = (sessionId: string, kind: 'turnEnd' | 'permissionRequest' = 'turnEnd') => ({
+      sourceId: 'claude',
+      sessionId,
+      event: { kind },
+      raw: { session_id: sessionId, hook_event_name: kind },
+    });
+
     it('bufferEvent stores events for later', () => {
-      router.bufferEvent('claude', { session_id: 'sess-1', hook_event_name: 'Stop' });
+      router.bufferEvent(routed('sess-1'));
       expect(router.hasBuffered('sess-1')).toBe(true);
       expect(router.hasBuffered('sess-2')).toBe(false);
     });
 
     it('register flushes buffered events for that session', () => {
-      router.bufferEvent('claude', { session_id: 'sess-1', hook_event_name: 'Stop' });
-      router.bufferEvent('claude', { session_id: 'sess-1', hook_event_name: 'PermissionRequest' });
+      router.bufferEvent(routed('sess-1', 'turnEnd'));
+      router.bufferEvent(routed('sess-1', 'permissionRequest'));
 
       const flushed = router.register('sess-1', 1);
 
-      expect(flushed).toHaveLength(2);
-      expect(flushed[0].event.hook_event_name).toBe('Stop');
-      expect(flushed[1].event.hook_event_name).toBe('PermissionRequest');
+      expect(flushed.map((r) => r.event.kind)).toEqual(['turnEnd', 'permissionRequest']);
       expect(router.hasBuffered('sess-1')).toBe(false);
     });
 
     it('register does not flush events for other sessions', () => {
-      router.bufferEvent('claude', { session_id: 'sess-1', hook_event_name: 'Stop' });
-      router.bufferEvent('claude', { session_id: 'sess-2', hook_event_name: 'Stop' });
+      router.bufferEvent(routed('sess-1'));
+      router.bufferEvent(routed('sess-2'));
 
       const flushed = router.register('sess-1', 1);
 
@@ -97,14 +131,14 @@ describe('SessionRouter', () => {
     });
 
     it('pruneExpired removes old events', () => {
-      router.bufferEvent('claude', { session_id: 'sess-old', hook_event_name: 'Stop' });
+      router.bufferEvent(routed('sess-old'));
       vi.advanceTimersByTime(6_000); // > HOOK_EVENT_BUFFER_MS (5s)
       router.pruneExpired();
       expect(router.hasBuffered('sess-old')).toBe(false);
     });
 
     it('preserves recent events during prune', () => {
-      router.bufferEvent('claude', { session_id: 'sess-new', hook_event_name: 'Stop' });
+      router.bufferEvent(routed('sess-new'));
       vi.advanceTimersByTime(1_000); // < HOOK_EVENT_BUFFER_MS
       router.pruneExpired();
       expect(router.hasBuffered('sess-new')).toBe(true);
@@ -120,8 +154,14 @@ describe('SessionRouter', () => {
         sessionId: 'sess-ext',
         transcriptPath: undefined,
         cwd: '/',
+        sourceIds: ['claude'],
       });
-      router.bufferEvent('claude', { session_id: 'sess-2', hook_event_name: 'Stop' });
+      router.bufferEvent({
+        sourceId: 'claude',
+        sessionId: 'sess-2',
+        event: { kind: 'turnEnd' },
+        raw: { session_id: 'sess-2', hook_event_name: 'Stop' },
+      });
 
       router.dispose();
 

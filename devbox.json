@@ -24,7 +24,7 @@
         "npm test"
       ],
       "start": [
-        "node dist/cli.js --provider herdr --host 127.0.0.1 --port 8790"
+        "node dist/cli.js --provider herdr,omp --host 127.0.0.1 --port 8790"
       ],
       "dev": [
         "npm run dev"

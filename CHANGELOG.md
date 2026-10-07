@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Modular providers: multiplexer and agent modules, alone or together** ([#7](https://github.com/Luckystrike561/terrarium/issues/7)) — `--provider` now takes a comma-separated list of modules (`claude`, `omp`, `herdr`), saved in `~/.pixel-agents/config.json` for later runs; an unknown id is an error instead of a silent fall back to Claude. herdr is a multiplexer module (every hosted agent with its status, name and task) and omp an agent module (tool activity and turn lifecycle from its own session store, with or without herdr). With `herdr,omp`, an omp session in a herdr pane is one character with omp's tool activity and herdr's name, task and pending approvals. Claude Code runs behind the same agent-module interface with no behaviour change, and adopting sessions outside the workspace is now scoped to the module that announced them.
+
+### Breaking
+
+- `--provider herdr` alone no longer tails omp transcripts: run `--provider herdr,omp` for omp tool activity in herdr panes. The `providerCapabilities` message now carries one tool taxonomy per enabled agent module (`providers: [...]`).
+
 ## v1.4.1
 
 ### Features

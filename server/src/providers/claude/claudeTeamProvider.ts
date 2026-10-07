@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import type { TeamProvider } from '../../../../../core/src/teamProvider.js';
+import type { TeamProvider } from '../../../../core/src/teamProvider.js';
 
 /**
  * Claude Code implementation of the TeamProvider interface.

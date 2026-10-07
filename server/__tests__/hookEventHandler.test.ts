@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentStateStore } from '../src/agentStateStore.js';
 import { HookEventHandler } from '../src/hookEventHandler.js';
-import { claudeProvider } from '../src/providers/hook/claude/claude.js';
+import { claudeModule } from '../src/providers/claude/claude.js';
 import { SessionRouter } from '../src/sessionRouter.js';
 import type { AgentState } from '../src/types.js';
 
@@ -65,7 +65,7 @@ describe('HookEventHandler', () => {
       agents,
       waitingTimers,
       permissionTimers,
-      claudeProvider,
+      { agents: [claudeModule], multiplexers: [] },
       new SessionRouter(),
     );
   });
@@ -556,7 +556,7 @@ describe('HookEventHandler', () => {
     expect(onExternalSessionDetected).not.toHaveBeenCalled();
 
     // Simulate the provider creating the agent (callback side effect)
-    onExternalSessionDetected.mockImplementation((sessionId: string) => {
+    onExternalSessionDetected.mockImplementation(({ sessionId }: { sessionId: string }) => {
       const agent = createTestAgent({
         id: 2,
         sessionId,
@@ -573,9 +573,12 @@ describe('HookEventHandler', () => {
     });
 
     expect(onExternalSessionDetected).toHaveBeenCalledWith(
-      'ext-sess',
-      '/projects/test/ext-sess.jsonl',
-      '/projects/test',
+      expect.objectContaining({
+        sessionId: 'ext-sess',
+        transcriptPath: '/projects/test/ext-sess.jsonl',
+        cwd: '/projects/test',
+        sourceIds: ['claude'],
+      }),
     );
     // Stop was re-processed after agent creation
     const agent = agents.get(2);
@@ -701,7 +704,7 @@ describe('HookEventHandler', () => {
     expect(onExternalSessionDetected).not.toHaveBeenCalled();
 
     // Simulate agent creation on confirmation
-    onExternalSessionDetected.mockImplementation((sessionId: string) => {
+    onExternalSessionDetected.mockImplementation(({ sessionId }: { sessionId: string }) => {
       const agent = createTestAgent({
         id: 2,
         sessionId,
@@ -718,9 +721,11 @@ describe('HookEventHandler', () => {
     });
 
     expect(onExternalSessionDetected).toHaveBeenCalledWith(
-      'no-transcript-sess',
-      undefined,
-      '/projects/test',
+      expect.objectContaining({
+        sessionId: 'no-transcript-sess',
+        transcriptPath: undefined,
+        cwd: '/projects/test',
+      }),
     );
   });
 

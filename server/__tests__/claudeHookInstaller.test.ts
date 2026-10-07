@@ -47,9 +47,9 @@ vi.mock('fs', async () => {
 });
 
 const { areHooksInstalled, installHooks, uninstallHooks, copyHookScript } =
-  await import('../src/providers/hook/claude/claudeHookInstaller.js');
+  await import('../src/providers/claude/claudeHookInstaller.js');
 const { CLAUDE_HOOK_EVENTS, SETTINGS_BACKUP_SUFFIX, SETTINGS_TMP_SUFFIX } =
-  await import('../src/providers/hook/claude/constants.js');
+  await import('../src/providers/claude/constants.js');
 
 function settingsPathFor(): string {
   return path.join(tmpBase, '.claude', 'settings.json');

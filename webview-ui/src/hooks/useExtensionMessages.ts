@@ -209,10 +209,7 @@ export function useExtensionMessages(
       }
 
       if (msg.type === 'providerCapabilities') {
-        setProviderCapabilities({
-          readingTools: msg.readingTools,
-          subagentToolNames: msg.subagentToolNames,
-        });
+        setProviderCapabilities(msg.providers);
         return;
       }
 

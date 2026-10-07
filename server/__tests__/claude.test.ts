@@ -1,47 +1,47 @@
 import { describe, expect, it } from 'vitest';
 
-import { claudeProvider } from '../src/providers/hook/claude/claude.js';
+import { claudeModule, normalizeHookEvent } from '../src/providers/claude/claude.js';
 
-describe('claudeProvider', () => {
+describe('claudeModule', () => {
   describe('identity', () => {
-    it('has kind "hook"', () => {
-      expect(claudeProvider.kind).toBe('hook');
+    it('is an agent module', () => {
+      expect(claudeModule.kind).toBe('agent');
     });
     it('has id "claude"', () => {
-      expect(claudeProvider.id).toBe('claude');
+      expect(claudeModule.id).toBe('claude');
     });
     it('has a displayName', () => {
-      expect(claudeProvider.displayName).toBe('Claude Code');
+      expect(claudeModule.displayName).toBe('Claude Code');
     });
     it('has Task and Agent in subagentToolNames', () => {
-      expect(claudeProvider.subagentToolNames.has('Task')).toBe(true);
-      expect(claudeProvider.subagentToolNames.has('Agent')).toBe(true);
+      expect(claudeModule.subagentToolNames.has('Task')).toBe(true);
+      expect(claudeModule.subagentToolNames.has('Agent')).toBe(true);
     });
     it('has reading tools Read/Grep/Glob/WebFetch/WebSearch', () => {
       for (const tool of ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']) {
-        expect(claudeProvider.readingTools.has(tool)).toBe(true);
+        expect(claudeModule.readingTools.has(tool)).toBe(true);
       }
-      expect(claudeProvider.readingTools.has('Edit')).toBe(false);
+      expect(claudeModule.readingTools.has('Edit')).toBe(false);
     });
     it('has protocolVersion 1', () => {
-      expect(claudeProvider.protocolVersion).toBe(1);
+      expect(claudeModule.protocolVersion).toBe(1);
     });
     it('has a linked TeamProvider', () => {
-      expect(claudeProvider.team).toBeDefined();
-      expect(claudeProvider.team?.providerId).toBe('claude');
+      expect(claudeModule.team).toBeDefined();
+      expect(claudeModule.team?.providerId).toBe('claude');
     });
   });
 
   describe('normalizeHookEvent', () => {
     it('returns null when hook_event_name is missing', () => {
-      expect(claudeProvider.normalizeHookEvent({ session_id: 'x' })).toBeNull();
+      expect(normalizeHookEvent({ session_id: 'x' })).toBeNull();
     });
     it('returns null when session_id is missing', () => {
-      expect(claudeProvider.normalizeHookEvent({ hook_event_name: 'Stop' })).toBeNull();
+      expect(normalizeHookEvent({ hook_event_name: 'Stop' })).toBeNull();
     });
     it('returns null for unknown hook event names', () => {
       expect(
-        claudeProvider.normalizeHookEvent({
+        normalizeHookEvent({
           hook_event_name: 'SomethingWeird',
           session_id: 'x',
         }),
@@ -49,7 +49,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes PreToolUse with tool_name + tool_input', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'PreToolUse',
         session_id: 'sess-1',
         tool_name: 'Read',
@@ -66,7 +66,7 @@ describe('claudeProvider', () => {
     });
 
     it('PreToolUse sets runInBackground when tool_input.run_in_background=true', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'PreToolUse',
         session_id: 'sess-1',
         tool_name: 'Agent',
@@ -80,7 +80,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes PostToolUse to toolEnd with sentinel toolId', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'PostToolUse',
         session_id: 'sess-1',
       });
@@ -88,7 +88,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes PostToolUseFailure to toolEnd (same as PostToolUse)', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'PostToolUseFailure',
         session_id: 'sess-1',
       });
@@ -96,7 +96,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes Stop to turnEnd without awaitingInput (Done, not waiting)', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'Stop',
         session_id: 'sess-1',
       });
@@ -107,7 +107,7 @@ describe('claudeProvider', () => {
     });
 
     it('ignores UserPromptSubmit (no normalized kind yet)', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'UserPromptSubmit',
         session_id: 'sess-1',
       });
@@ -115,7 +115,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes SubagentStart with agent_type as toolName', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'SubagentStart',
         session_id: 'sess-1',
         agent_type: 'web-researcher',
@@ -128,7 +128,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes SubagentStop to subagentEnd', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'SubagentStop',
         session_id: 'sess-1',
       });
@@ -136,7 +136,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes PermissionRequest to permissionRequest', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'PermissionRequest',
         session_id: 'sess-1',
       });
@@ -144,7 +144,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes Notification(permission_prompt) to permissionRequest', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'Notification',
         session_id: 'sess-1',
         notification_type: 'permission_prompt',
@@ -153,7 +153,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes Notification(idle_prompt) to turnEnd with awaitingInput=true', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'Notification',
         session_id: 'sess-1',
         notification_type: 'idle_prompt',
@@ -166,7 +166,7 @@ describe('claudeProvider', () => {
 
     it('returns null for Notification with unknown type', () => {
       expect(
-        claudeProvider.normalizeHookEvent({
+        normalizeHookEvent({
           hook_event_name: 'Notification',
           session_id: 'sess-1',
           notification_type: 'other',
@@ -175,7 +175,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes SessionStart with source + transcript_path + cwd', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'SessionStart',
         session_id: 'sess-1',
         source: 'startup',
@@ -191,7 +191,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes SessionEnd with reason', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'SessionEnd',
         session_id: 'sess-1',
         reason: 'clear',
@@ -203,7 +203,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes TeammateIdle to subagentTurnEnd with reason=idle', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'TeammateIdle',
         session_id: 'sess-1',
         agent_type: 'web-researcher',
@@ -215,7 +215,7 @@ describe('claudeProvider', () => {
     });
 
     it('normalizes TaskCompleted to subagentTurnEnd with reason=completed', () => {
-      const result = claudeProvider.normalizeHookEvent({
+      const result = normalizeHookEvent({
         hook_event_name: 'TaskCompleted',
         session_id: 'sess-1',
         subject: 'Code review',
@@ -228,7 +228,7 @@ describe('claudeProvider', () => {
 
     it('returns null for TaskCreated (informational only)', () => {
       expect(
-        claudeProvider.normalizeHookEvent({
+        normalizeHookEvent({
           hook_event_name: 'TaskCreated',
           session_id: 'sess-1',
           subject: 'Code review',
@@ -239,23 +239,21 @@ describe('claudeProvider', () => {
 
   describe('formatToolStatus', () => {
     it('formats Read', () => {
-      expect(claudeProvider.formatToolStatus('Read', { file_path: '/a/b.ts' })).toBe(
-        'Reading b.ts',
-      );
+      expect(claudeModule.formatToolStatus('Read', { file_path: '/a/b.ts' })).toBe('Reading b.ts');
     });
     it('formats Task/Agent with description', () => {
-      expect(claudeProvider.formatToolStatus('Task', { description: 'Code review' })).toBe(
+      expect(claudeModule.formatToolStatus('Task', { description: 'Code review' })).toBe(
         'Subtask: Code review',
       );
-      expect(claudeProvider.formatToolStatus('Agent', { description: 'Research' })).toBe(
+      expect(claudeModule.formatToolStatus('Agent', { description: 'Research' })).toBe(
         'Subtask: Research',
       );
     });
     it('falls back to "Using X" for unknown tools', () => {
-      expect(claudeProvider.formatToolStatus('FancyTool', {})).toBe('Using FancyTool');
+      expect(claudeModule.formatToolStatus('FancyTool', {})).toBe('Using FancyTool');
     });
     it('handles undefined input', () => {
-      expect(claudeProvider.formatToolStatus('Read', undefined)).toBe('Reading ');
+      expect(claudeModule.formatToolStatus('Read', undefined)).toBe('Reading ');
     });
   });
 });

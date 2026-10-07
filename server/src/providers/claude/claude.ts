@@ -2,14 +2,15 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import { normalizeProjectPath } from '../../../../../core/src/normalizeProjectPath.js';
-import type { AgentEvent, HookProvider } from '../../../../../core/src/provider.js';
+import { normalizeProjectPath } from '../../../../core/src/normalizeProjectPath.js';
+import type { AgentEvent, AgentModule, HookInstaller } from '../../../../core/src/provider.js';
 import {
   BASH_COMMAND_DISPLAY_MAX_LENGTH,
   TASK_DESCRIPTION_DISPLAY_MAX_LENGTH,
-} from '../../../constants.js';
+} from '../../constants.js';
 import {
   areHooksInstalled as installerAreHooksInstalled,
+  copyHookScript,
   installHooks as installerInstallHooks,
   uninstallHooks as installerUninstallHooks,
 } from './claudeHookInstaller.js';
@@ -126,7 +127,7 @@ function getAllSessionRoots(): string[] {
 // currentHookToolId state. Synthetic hook-* ids are returned for PreToolUse because
 // the real tool id arrives later via JSONL polling.
 
-function normalizeHookEvent(
+export function normalizeHookEvent(
   raw: Record<string, unknown>,
 ): { sessionId: string; event: AgentEvent } | null {
   const eventName = raw.hook_event_name;
@@ -247,28 +248,25 @@ function normalizeHookEvent(
   }
 }
 
-// ── Installer wrappers: adapt sync signatures to async interface ──
+// ── Hooks: Claude Code's settings.json, consent-gated ──
 
-/** Async so an installer throw (e.g. unparseable settings.json) always reaches
- *  callers as a rejection they can surface, never a sync throw. */
-async function installHooks(_serverUrl: string, _authToken: string): Promise<void> {
-  await installerInstallHooks();
-}
-
-async function uninstallHooks(): Promise<void> {
-  await installerUninstallHooks();
-}
-
-function areHooksInstalled(): Promise<boolean> {
-  return Promise.resolve(installerAreHooksInstalled());
-}
-
-/** This provider's first-run consent terms. The strings live in
- *  consentCopy.ts (Claude-specific facts: the event count, the settings
- *  path); the shared consent gate ships them verbatim to the Intro. */
-function consentDisclosure(): { headline: string; disclosure: string } {
-  return { headline: CONSENT_INSTALL_HEADLINE, disclosure: CONSENT_DISCLOSURE };
-}
+const claudeHooks: HookInstaller = {
+  /** Async so an installer throw (e.g. unparseable settings.json) always reaches
+   *  callers as a rejection they can surface, never a sync throw. */
+  async installHooks(): Promise<void> {
+    await installerInstallHooks();
+  },
+  async uninstallHooks(): Promise<void> {
+    await installerUninstallHooks();
+  },
+  areHooksInstalled: () => Promise.resolve(installerAreHooksInstalled()),
+  /** The strings live in consentCopy.ts (Claude-specific facts: the event
+   *  count, the settings path); the shared consent gate ships them verbatim. */
+  consentDisclosure: () => ({ headline: CONSENT_INSTALL_HEADLINE, disclosure: CONSENT_DISCLOSURE }),
+  /** Every entry runs the bundled claude-hook.js, so it is copied into
+   *  ~/.pixel-agents/hooks/ before any entry points at it. */
+  stageHookFiles: copyHookScript,
+};
 
 // ── Context windows ──
 
@@ -288,20 +286,16 @@ export function contextWindowForModel(model: string | undefined): number | undef
     : CLAUDE_LARGE_CONTEXT_WINDOW;
 }
 
-// ── The provider ──
+// ── The module ──
 
-export const claudeProvider: HookProvider = {
-  kind: 'hook',
+export const claudeModule = {
+  kind: 'agent',
   id: 'claude',
   displayName: 'Claude Code',
   protocolVersion: 1,
 
   normalizeHookEvent,
-
-  installHooks,
-  uninstallHooks,
-  areHooksInstalled,
-  consentDisclosure,
+  hooks: claudeHooks,
 
   formatToolStatus,
   permissionExemptTools: new Set(['Task', 'Agent', 'AskUserQuestion']),
@@ -316,4 +310,4 @@ export const claudeProvider: HookProvider = {
   buildLaunchCommand,
 
   team: claudeTeamProvider,
-};
+} satisfies AgentModule;

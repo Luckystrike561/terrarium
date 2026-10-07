@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { claudeTeamProvider } from '../src/providers/hook/claude/claudeTeamProvider.js';
+import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
 
 describe('claudeTeamProvider', () => {
   describe('identity', () => {

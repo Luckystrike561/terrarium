@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { claudeModule } from '../src/providers/claude/claude.js';
 import {
   CONSENT_DISCLOSURE,
   CONSENT_INSTALL_HEADLINE,
-} from '../src/providers/hook/claude/consentCopy.js';
-import { consentActionFor, hooksConsentRequest } from '../src/providers/hook/consentGate.js';
-import { claudeProvider } from '../src/providers/index.js';
+} from '../src/providers/claude/consentCopy.js';
+import { consentActionFor, hooksConsentRequest } from '../src/providers/consentGate.js';
 
 /**
  * consentGate is the ONE place both surfaces decide whether to ask for hooks consent and what an answer means, per
@@ -22,7 +22,7 @@ describe('hooksConsentRequest — when to ask', () => {
   };
 
   it('asks the one population with nothing of ours installed', () => {
-    expect(hooksConsentRequest(askable, claudeProvider)).toEqual({
+    expect(hooksConsentRequest(askable, claudeModule)).toEqual({
       type: 'hooksConsentRequest',
       providerId: 'claude',
       headline: CONSENT_INSTALL_HEADLINE,
@@ -33,7 +33,7 @@ describe('hooksConsentRequest — when to ask', () => {
   // The payload carries the provider's copy so the webview renders the exact
   // terms being approved. A client-side duplicate is the failure this guards.
   it("ships the provider's disclosure, not a summary of it", () => {
-    const request = hooksConsentRequest(askable, claudeProvider);
+    const request = hooksConsentRequest(askable, claudeModule);
     expect(request?.disclosure).toBe(CONSENT_DISCLOSURE);
     expect(request?.disclosure).toContain('~/.claude/settings.json');
   });
@@ -45,14 +45,14 @@ describe('hooksConsentRequest — when to ask', () => {
     ['the user turned hooks off', { hooksEnabled: false }],
     ['the client could not act on an answer', { privileged: false }],
   ])('does not ask when %s', (_why, override) => {
-    expect(hooksConsentRequest({ ...askable, ...override }, claudeProvider)).toBeNull();
+    expect(hooksConsentRequest({ ...askable, ...override }, claudeModule)).toBeNull();
   });
 
   // An untokened standalone spectator's hooksConsentResponse is dropped by the
   // handler, so showing it the dialog would be asking a question whose answer
   // is discarded. The privilege check gates the ASK, not just the response.
   it('never asks an unprivileged client, even when everything else lines up', () => {
-    expect(hooksConsentRequest({ ...askable, privileged: false }, claudeProvider)).toBeNull();
+    expect(hooksConsentRequest({ ...askable, privileged: false }, claudeModule)).toBeNull();
   });
 });
 

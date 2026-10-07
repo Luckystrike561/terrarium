@@ -3,7 +3,7 @@
  * future single-provider `server/` build doesn't accidentally depend on Claude
  * unless Claude is the active provider.
  *
- * Adding another provider? Create its own `providers/<kind>/<name>/constants.ts`.
+ * Adding another module? Create its own `providers/<id>/constants.ts`.
  */
 
 /** Output filename after esbuild compiles claude-hook.ts to CJS (source is .ts, output is .js) */

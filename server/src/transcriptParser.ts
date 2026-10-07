@@ -1,6 +1,6 @@
 const debug = process.env.PIXEL_AGENTS_DEBUG !== '0';
 
-import type { HookProvider } from '../../core/src/provider.js';
+import type { AgentModule } from '../../core/src/provider.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import { TEXT_IDLE_DELAY_MS, TOOL_DONE_DELAY_MS } from './constants.js';
 import { updateContextUsage } from './contextUsage.js';
@@ -14,33 +14,33 @@ import {
 } from './timerManager.js';
 import type { AgentState } from './types.js';
 
-/** Empty set used as safe fallback when no HookProvider is registered. */
+/** Empty set used as safe fallback when no transcript module is registered. */
 const EMPTY_EXEMPT_TOOLS: ReadonlySet<string> = new Set();
 
-/** Hook provider: supplies formatToolStatus + team.extractTeamMetadataFromRecord.
- *  Registered once at startup via setHookProvider(). Functions below assume it's set. */
-let hookProvider: HookProvider | null = null;
+/** The agent module whose transcripts this parser reads: supplies formatToolStatus + team.extractTeamMetadataFromRecord.
+ *  Registered once at startup via setTranscriptModule(); null when no enabled module has transcripts this parser reads. */
+let transcriptModule: AgentModule | null = null;
 
 /** Permission-exempt tools come from the active provider. Fail-open if unset. */
 function exemptTools(): ReadonlySet<string> {
-  return hookProvider?.permissionExemptTools ?? EMPTY_EXEMPT_TOOLS;
+  return transcriptModule?.permissionExemptTools ?? EMPTY_EXEMPT_TOOLS;
 }
 
 /** Whether the given tool name spawns a sub-agent according to the active provider. */
 function isSubagentTool(toolName: string | null | undefined): boolean {
-  if (!toolName || !hookProvider) return false;
-  return hookProvider.subagentToolNames.has(toolName);
+  if (!toolName || !transcriptModule) return false;
+  return transcriptModule.subagentToolNames.has(toolName);
 }
 
-/** Register the HookProvider that owns CLI-specific formatting and team metadata extraction. */
-export function setHookProvider(provider: HookProvider): void {
-  hookProvider = provider;
+/** Register the module that owns CLI-specific formatting and team metadata extraction. */
+export function setTranscriptModule(module: AgentModule | null): void {
+  transcriptModule = module;
 }
 
 /** The registered provider, for modules that need it outside line parsing
  *  (fileWatcher seeds context gauges before any line has been read). */
-export function getHookProvider(): HookProvider | null {
-  return hookProvider;
+export function getTranscriptModule(): AgentModule | null {
+  return transcriptModule;
 }
 
 /** Called when a lead's tool_result reports an async agent launch. The host
@@ -84,10 +84,10 @@ export function setTeamSwitchCallback(
   teamSwitchCallback = cb;
 }
 
-/** Format a tool status line. Delegates to the active HookProvider's formatToolStatus.
+/** Format a tool status line. Delegates to the active AgentModule's formatToolStatus.
  *  Invariant: a provider is registered before any transcript lines are parsed. */
 export function formatToolStatus(toolName: string, input: Record<string, unknown>): string {
-  return hookProvider?.formatToolStatus(toolName, input) ?? `Using ${toolName}`;
+  return transcriptModule?.formatToolStatus(toolName, input) ?? `Using ${toolName}`;
 }
 
 export function processTranscriptLine(
@@ -107,7 +107,7 @@ export function processTranscriptLine(
     // -- Agent Teams: extract team metadata via the active provider --
     // The provider reads its CLI's own field names (Claude: record.teamName + record.agentName).
     // Other CLIs would implement this differently or not at all.
-    const teamMeta = hookProvider?.team?.extractTeamMetadataFromRecord(record);
+    const teamMeta = transcriptModule?.team?.extractTeamMetadataFromRecord(record);
     if (teamMeta?.teamName && teamMeta.teamName !== agent.teamName) {
       agent.teamName = teamMeta.teamName;
       agent.teamNameFromTags = true;
@@ -133,7 +133,7 @@ export function processTranscriptLine(
     }
 
     // -- Context window usage (drives every agent's context gauge) --
-    updateContextUsage(agentId, agent, agents, record, hookProvider);
+    updateContextUsage(agentId, agent, agents, record, transcriptModule);
 
     // Resilient content extraction: support both record.message.content and record.content
     // Claude Code may change the JSONL structure across versions
@@ -170,7 +170,7 @@ export function processTranscriptLine(
             // Detect tmux vs inline team mode from the team provider's spawn predicate.
             if (
               agent.teamName &&
-              hookProvider?.team?.isTeammateSpawnCall(toolName, block.input ?? {}) &&
+              transcriptModule?.team?.isTeammateSpawnCall(toolName, block.input ?? {}) &&
               !agent.teamUsesTmux
             ) {
               agent.teamUsesTmux = true;
@@ -277,7 +277,7 @@ export function processTranscriptLine(
               // then falls through to normal tool-done handling -- the teammate
               // character replaces the transient Subtask one.
               const teammateSpawn = completedToolName
-                ? hookProvider?.team?.extractTeammateSpawnFromToolResult?.(
+                ? transcriptModule?.team?.extractTeammateSpawnFromToolResult?.(
                     completedToolName,
                     block.content,
                   )

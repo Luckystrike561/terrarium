@@ -101,7 +101,7 @@ Pixel Agents uses a layered codebase. `core/` depends on nothing; `server/` and 
 
 | Directory                   | Description                                                                                                                                                                                                                                           |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`                     | Protocol + interface definitions (AsyncAPI 3.0 contract, HookProvider, MessageTransport, StateAdapter). Zero runtime side effects.                                                                                                                    |
+| `core/`                     | Protocol + interface definitions (AsyncAPI 3.0 contract, AgentModule + MultiplexerModule, MessageTransport, StateAdapter). Zero runtime side effects.                                                                                                 |
 | `server/`                   | Lifecycle runtime: `AgentRuntime`, `AgentStateStore`, `SessionRouter`, `DismissalTracker`, Fastify HTTP/WS server, file watching, transcript parsing, hook installer, providers, Vitest test suite. Also ships the `npx pixel-agents` standalone CLI. |
 | `adapters/vscode/`          | VS Code surface — `extension.ts`, `WebviewViewProvider`, terminal lifecycle, one-time state migration. Composes `core/` and `server/`.                                                                                                                |
 | `webview-ui/`               | React 19 + Canvas UI. Transport abstraction (`PostMessageTransport` + `WebSocketTransport`). Depends only on `core/`.                                                                                                                                 |
@@ -170,6 +170,8 @@ npm run test:webview
 ```
 
 Server tests cover `AgentStateStore` (typed mutations + events), `HookEventHandler` (routing, buffering, team gating), `SessionRouter` and `DismissalTracker`, `FileStateAdapter` (namespaced persistence), `migrateVsCodeState` (verify-before-clear), `teamUtils`, the Claude provider and its team extension, the hook installer, the HTTP server (lifecycle, auth, `/ws`, broadcast), and the hook script via a spawned-process integration test.
+
+Adding an agent CLI or a terminal multiplexer is one provider module: see "Adding a provider module" in [CLAUDE.md](CLAUDE.md#adding-a-provider-module) for the files to create, the interface to implement, the registry entry, and how hooks consent applies.
 
 `claude-hook.test.ts` requires the bundled hook at `dist/hooks/claude-hook.js`, so build before running it (or use `npm test` which builds first).
 

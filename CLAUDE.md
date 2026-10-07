@@ -14,7 +14,7 @@ core/                                Protocol + interface definitions (zero runt
   src/
     messages.ts                      AUTO-GENERATED discriminated unions (do not edit)
     schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry
-    provider.ts                      HookProvider, AgentEvent (the integration boundary)
+    provider.ts                      AgentModule, MultiplexerModule, AgentEvent (the integration boundary)
     teamProvider.ts                  Optional TeamProvider (semantic queries for Lead + Teammates)
     transport.ts                     MessageTransport interface, TransportState
     adapter.ts                       StateAdapter, AssetCache, PersistedAgent, AgentSeat
@@ -24,16 +24,24 @@ core/                                Protocol + interface definitions (zero runt
 
 server/                              Lifecycle runtime + Fastify HTTP/WS server
   src/
-    providers/hook/claude/           Reference HookProvider — only place that knows Claude specifics
+    providers/claude/                Claude Code agent module — only place that knows Claude specifics
       claude.ts                      normalizeHookEvent for 11 Claude events, formatToolStatus, file fallback
       claudeTeamProvider.ts          TeamProvider: reads ~/.claude/teams/<name>/config.json
       claudeHookInstaller.ts         Consent-gated install/uninstall in ~/.claude/settings.json (abort on unparseable file or non-array hooks.<Event>; one-time .pixel-agents.backup, exclusive-create, no backup ⇒ no write — but skipped when the replaced content is entirely our own install's output, since backing up our own file masquerades as the user's original (`settingsHoldOnlyOurHooks`, compared against makeHookEntry — the WRITER — so a field added to what we write can't silently revive the bug; only `command`/`timeout` may differ, they vary across installs); every write failure THROWS; mode preserved, 0600 on create; re-read verify immediately before rename + retry; hook identity = `/.pixel-agents/hooks/claude-hook.js` suffix anchored at both ends of the command's first token, case-insensitive; `areHooksInstalled` = ANY of our commands on ANY event)
       consentCopy.ts                 Claude's first-run consent disclosure text (scope/data/undo), served through consentDisclosure()
       constants.ts                   Claude hook event names, script path
       hooks/claude-hook.ts           Hook script (CJS+shebang, bundled to dist/hooks/claude-hook.js)
-    providers/hook/consentGate.ts    Provider-agnostic consent POLICY: when to ask (hooksConsentRequest per provider) and what an answer means (consentActionFor(choice, {installed, consent}) — see docs/adr/0001)
-    providers/hook/consentExecutor.ts Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order for both surfaces, and SERIALIZES answers per process across ALL providers
-    providers/index.ts               Provider registry (claudeProvider + the hookProviders list the consent gate loops over)
+    providers/omp/                   omp agent module: tails omp's session store (discovery) and sessions a multiplexer hands over
+      omp.ts                         The module: formatToolStatus, tool taxonomy, start() → OmpSessionTracker
+      ompSessions.ts                 OmpSessionTracker: discovery scan + refcounted transcript tails (discovery, followSession holders)
+      ompTranscript.ts               omp record → AgentEvent; start state (working/idle/exited) read from the transcript tail
+    providers/herdr/                 herdr multiplexer module
+      herdr.ts                       The module: connect() → HerdrBridge
+      herdrBridge.ts                 herdr socket client: agent.list snapshots → MultiplexedAgent[] (never reads a transcript)
+    providers/consentGate.ts         Provider-agnostic consent POLICY: when to ask (hooksConsentRequest per module) and what an answer means (consentActionFor(choice, {installed, consent}) — see docs/adr/0001)
+    providers/consentExecutor.ts     Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order for both surfaces, and SERIALIZES answers per process across ALL providers
+    providers/index.ts               Module registry: agentModules + multiplexerModules, loadEnabledModules (config.json `modules`), hook-module lookups, providerCapabilitiesMessage
+    multiplexerFeed.ts               MultiplexerFeed: diffs a multiplexer's snapshots into AgentEvents, hands panes to the running agent module for their kind
     agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
     sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending external sessions
@@ -44,7 +52,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     server.ts                        Top-level composition
     cli.ts                           npx pixel-agents entry (npm bin)
     fileStateAdapter.ts              Namespaced ~/.pixel-agents/ persistence
-    configPersistence.ts             { vscode, standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean} }
+    configPersistence.ts             { vscode, standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[] }
     layoutPersistence.ts             ~/.pixel-agents/layout.json with atomic tmp+rename
     fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
     transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
@@ -53,7 +61,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     teamUtils.ts                     isInlineTeammateOf, getInlineTeammates, hasInlineTeammates
     types.ts                         ServerAgentState
     constants.ts                     All timing/scanning constants
-  __tests__/                         28 Vitest files
+  __tests__/                         30 Vitest files (providerModules.test.ts: the three module configurations end to end)
   manual-hook-events.http            Manual hook testing helper (REST-Client format)
 
 adapters/vscode/                     VS Code surface — composes core + server
@@ -177,25 +185,26 @@ Two artifacts from one source tree:
 Hub-and-spoke. The server is the single aggregation point for all agent activity, regardless of source.
 
 ```
-Hook scripts ─POST /api/hooks/:providerId─┐
-                                          ├─→ HookProvider.normalizeHookEvent()
-JSONL transcripts ─FileWatcher─→ TranscriptParser ┤
-                                                   ↓
-                                              AgentEvent (canonical)
-                                                   ↓
-                                              AgentRuntime (dispatch on .kind)
-                                                   ↓
-                                           AgentStateStore (mutate)
-                                                   ↓
-                                              StoreEvents → broadcast
-                                                   ↓
-                          PostMessageTransport ──┤├── WebSocketTransport
-                                 (VS Code)      (standalone browser)
+Hook scripts ─POST /api/hooks/:providerId─→ that module's normalizeHookEvent() ─┐
+Agent modules (omp session store) ─ModuleHost.emit─────────────────────────────┤
+Multiplexer snapshots ─MultiplexerFeed─ModuleHost.emit─────────────────────────┤
+JSONL transcripts ─FileWatcher─→ TranscriptParser (transcript module) ─────────┤
+                                                                              ↓
+                                                                    AgentEvent (canonical)
+                                                                              ↓
+                                                        AgentRuntime (dispatch on source module + .kind)
+                                                                              ↓
+                                                                    AgentStateStore (mutate)
+                                                                              ↓
+                                                                     StoreEvents → broadcast
+                                                                              ↓
+                                                          PostMessageTransport ──┤├── WebSocketTransport
+                                                                 (VS Code)      (standalone browser)
 ```
 
 The VS Code adapter wires `PostMessageTransport` against `acquireVsCodeApi()`. The standalone CLI exposes the same protocol over WebSocket at `/ws` with the webview SPA served from the same Fastify instance. **The protocol shape is identical; only the wire differs.**
 
-Adding a new CLI integration is one subdirectory under `server/src/providers/hook/<id>/`: provider, optional `TeamProvider`, installer, hook scripts. Zero changes to the runtime, the UI, or any existing provider.
+Adding an agent CLI or a multiplexer is one subdirectory under `server/src/providers/<id>/` plus one registry entry — see [Adding a provider module](#adding-a-provider-module). Zero changes to the runtime, the UI, either surface, or any existing module.
 
 ## AsyncAPI Protocol Contract
 
@@ -228,13 +237,35 @@ export type TransportState = 'connecting' | 'connected' | 'reconnecting' | 'disc
 
 ## Provider Abstraction
 
-`HookProvider` (`core/src/provider.ts`) is the integration boundary. Today only Claude Code is implemented; the Claude provider supports every transcript/hook format up to **Claude Code v2.1.220** (current as of 2026-07-30 — Task-era `agent_progress` records, explicit and implicit teams, background-by-default Agent spawns, sidecar-backed background agents). Newer CLI releases may add formats that need provider updates. The interface:
+`core/src/provider.ts` is the integration boundary. Two kinds of module, each usable alone or together in one process:
 
-- **Required**: `normalizeHookEvent(raw)` → `{ sessionId, event: AgentEvent } | null`; `installHooks` / `uninstallHooks` / `areHooksInstalled`; `formatToolStatus`; `permissionExemptTools`, `subagentToolNames`, `readingTools` sets.
-- **Optional file fallback**: `getSessionDirs(workspace)`, `getAllSessionRoots()`, `sessionFilePattern`, `parseTranscriptLine(line)`, `buildLaunchCommand(sessionId, cwd, opts)`. Used when hooks aren't installed.
-- **Optional team extension**: `team?: TeamProvider` for Lead + Teammates support.
+- **`AgentModule`** (`kind: 'agent'`), one per agent CLI: Claude Code, omp. Owns that CLI's vocabulary — `formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel`, optional `team` — and how to read it: `normalizeHookEvent` for payloads POSTed to `/api/hooks/<id>` (absent = no hook API), `hooks: HookInstaller` when it writes hooks into the CLI's settings (consent-gated), `start(host)` when it discovers sessions on its own (returns a `RunningAgentModule` whose `followSession(file)` takes over a session a multiplexer found), and the file fallback (`getSessionDirs`, `getAllSessionRoots`, `sessionFilePattern`, `buildLaunchCommand`) for transcripts in the runtime's own JSONL parser format. `adoptsSessionsOutsideWorkspace` scopes "adopt regardless of Watch All Sessions" to that module's sessions.
+- **`MultiplexerModule`** (`kind: 'multiplexer'`), one per multiplexer: herdr. `connect(onSnapshot, log)` reports every live agent as a `MultiplexedAgent` (pane id, agent kind = an agent module id, status level working/blocked/idle, cwd, name, task, session file). It never parses a transcript.
 
-`AgentEvent.kind` values: `toolStart`, `toolEnd`, `turnEnd`, `subagentStart`, `subagentEnd`, `subagentTurnEnd`, `progress`, `permissionRequest`, `sessionStart`, `sessionEnd`. The runtime dispatches on `kind`, never on CLI-specific tool names.
+The Claude module supports every transcript/hook format up to **Claude Code v2.1.220** (current as of 2026-07-30 — Task-era `agent_progress` records, explicit and implicit teams, background-by-default Agent spawns, sidecar-backed background agents). Newer CLI releases may add formats that need module updates.
+
+**Enabled modules** come from `~/.pixel-agents/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. Both surfaces build their runtime from `loadEnabledModules()`; an unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file. `AgentRuntime.transcriptModule` is the enabled module declaring `getSessionDirs` — the one the runtime's own scanners, `TranscriptParser` and `hooksEnabled` ref serve; `runtime.setHooksEnabled(moduleId, …)` only moves that ref for that module.
+
+**Routing.** `POST /api/hooks/:providerId` is normalized by that module and no other; in-process modules emit already-normalized events through their `ModuleHost`. An agent's `providerId` is its agent module (set by the first event from one), so per-agent behaviour — status text, sub-agent tools, team routing — comes from the right CLI. Multiplexer events never set `hookDelivered`: they must not silence the heuristics of an agent whose own module watches it.
+
+**One agent, one character.** Every module announces a session with `sessionStart.sessionFile`, the file the session writes. A session whose file an existing agent already reports joins that agent (`claimBySessionFile`) instead of creating a second character; a bare Claude `transcriptPath` only matches module-announced agents, so Claude-vs-Claude routing is unchanged. `MultiplexerFeed` announces each pane as `<multiplexer>-<pane>`; when the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`). With no such module, the pane's status level is all there is and is reported in full (`working` → the `working` event, `blocked` → `permissionRequest`, `idle` → `turnEnd`).
+
+`AgentEvent.kind` values: `toolStart`, `toolEnd`, `turnEnd`, `working`, `subagentStart`, `subagentEnd`, `subagentTurnEnd`, `progress`, `permissionRequest`, `sessionStart`, `sessionEnd`, `sessionInfo`. The runtime dispatches on `kind`, never on CLI-specific tool names.
+
+### Adding a provider module
+
+**Agent module** (a new CLI):
+
+1. Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: AgentModule` (use `satisfies AgentModule` when it always has `hooks`, so callers see them), plus `constants.ts` for its magic numbers. Implement the vocabulary members. Then pick how it learns about sessions:
+   - **Hooks**: `normalizeHookEvent(raw)` for what the CLI POSTs to `/api/hooks/<id>`, and `hooks: HookInstaller` (`installHooks` / `uninstallHooks` / `areHooksInstalled` / `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run).
+   - **Its own discovery** (transcripts, a socket): `start(host)` returning a `RunningAgentModule`. Emit `sessionStart` with `sessionFile` (and `cwd`), then at least one more event — the first event after `sessionStart` is what creates the character — and `sessionEnd` when the session goes. Never replay history: start at the end of a transcript and only read its tail to decide the starting state. `followSession(file)` must share state with discovery (one tail per file, refcounted), so a session both report stays one.
+   - Set `adoptsSessionsOutsideWorkspace` when the CLI's sessions live wherever the user started them.
+2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
+3. Tests go in `server/__tests__/`; `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
+
+**Multiplexer module**: create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule` whose `connect` reports full snapshots of live agents (an agent missing from a snapshot has ended; an unanswered poll must not report an empty list), then add it to `multiplexerModules`. `MultiplexerFeed` does the diffing, naming, hand-over and status mapping.
+
+**Consent**: a module that writes into any file outside `~/.pixel-agents/` must do it through `hooks: HookInstaller`. The consent gate then asks once per such module with its own `consentDisclosure()`, and both surfaces install, migrate and uninstall it through the same generic paths (no module id appears in `cli.ts`, `clientMessageHandler.ts` or `PixelAgentsViewProvider.ts`). A module that only reads (omp, herdr) has no `hooks` and is never part of a consent ask.
 
 ### TeamProvider (Lead + Teammates)
 
@@ -328,7 +359,7 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 
 ```
 ~/.pixel-agents/
-  config.json              { vscode, standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider) }
+  config.json              { vscode, standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider), modules (enabled module ids) }
   vscode-state.json        { agents, seats }
   standalone-state.json    { agents, seats }
   layout.json              OfficeLayout (shared across surfaces)
@@ -400,7 +431,7 @@ Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-
 
 **Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2 s. Sprites in `spriteData.ts`. Every non-sub-agent character also carries a persistent **status badge** above its head (`renderStatusBadges`, sprites `sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
 
-**Agent info**: `agentInfo { id, name?, task? }` lets a provider rename a character (replaces `folderName`) and attach a one-line task, shown in the hover/selected overlay. The herdr provider sends it from herdr's workspace label (plus `#<tab>` when a workspace hosts several agents) and the pane's terminal title. herdr keeps a pane's `agent` after the agent exits, so the bridge drops panes whose title is a shell prompt (`user@host:path`).
+**Agent info**: `agentInfo { id, name?, task? }` lets a module rename a character (replaces `folderName`) and attach a one-line task, shown in the hover/selected overlay. The herdr module sends it from herdr's workspace label (plus `#<tab>` when a workspace hosts several agents) and the pane's terminal title. herdr keeps a pane's `agent` after the agent exits, so the bridge drops panes whose title is a shell prompt (`user@host:path`).
 
 **Sound notifications**: Ascending two-note chime (E5 → E6) via Web Audio API plays when waiting bubble appears (`agentStatus: 'waiting'`). `notificationSound.ts` manages AudioContext lifecycle; `unlockAudio()` on canvas mousedown resumes the context (webviews start suspended). Toggled via Settings modal. Persisted per-namespace in `~/.pixel-agents/config.json`.
 
@@ -536,7 +567,7 @@ npm run e2e                # Playwright
 
 1. **Extension** (`dist/extension.js`) from `adapters/vscode/extension.ts`. External: `vscode`.
 2. **CLI** (`dist/cli.js`) from `server/src/cli.ts`. Externals pulled at install time (`fastify`, `@fastify/*`).
-3. **Hook scripts** (`dist/hooks/claude-hook.js`) from `server/src/providers/hook/claude/hooks/claude-hook.ts`. CJS, shebang.
+3. **Hook scripts** (`dist/hooks/claude-hook.js`) from `server/src/providers/claude/hooks/claude-hook.ts`. CJS, shebang.
 
 `define: { 'process.env.PIXEL_AGENTS_VERSION': JSON.stringify(version) }` stamps the package version into all bundles.
 
@@ -638,7 +669,7 @@ Supporting: `wall-tile-editor.html` (wall sprite editing), `jsonl-viewer.html` (
 - **AgentRuntime** shared lifecycle core, composed by both surfaces.
 - **AgentStateStore** as single source of truth with typed mutations and typed events. No transport calls outside the broadcast layer.
 - **Transport abstraction**: `MessageTransport` interface, `PostMessageTransport` + `WebSocketTransport`. One branching point in the entire UI.
-- **HookProvider** as the integration boundary, with optional file fallback. New CLIs are a single subdirectory under `server/src/providers/hook/<id>/`.
+- **Provider modules** as the integration boundary: agent modules (one per CLI) and multiplexer modules (one per multiplexer), any combination per process, routed by source. New ones are a single subdirectory under `server/src/providers/<id>/` plus a registry entry.
 - **TeamProvider** as optional extension. Claude Agent Teams is the only implementation.
 - **Per-adapter namespaced persistence** under `~/.pixel-agents/`. VS Code and standalone never clobber each other.
 - **Verify-before-clear migration** for legacy VS Code state.

@@ -44,7 +44,6 @@ function buildHooks() {
     'server',
     'src',
     'providers',
-    'hook',
     'claude',
     'hooks',
     'claude-hook.ts',

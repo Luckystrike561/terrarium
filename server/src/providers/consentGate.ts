@@ -5,8 +5,8 @@
  * side of it. The full rule, with its rejected alternatives, is docs/adr/0001.
  */
 
-import type { HooksConsentRequest } from '../../../../core/src/messages.js';
-import type { HookProvider } from '../../../../core/src/provider.js';
+import type { HooksConsentRequest } from '../../../core/src/messages.js';
+import type { HookModule } from './index.js';
 
 /** Inputs to the ask-or-not decision, as each surface already knows them. */
 export interface ConsentGateState {
@@ -34,13 +34,13 @@ export interface ConsentGateState {
  */
 export function hooksConsentRequest(
   state: ConsentGateState,
-  provider: Pick<HookProvider, 'id' | 'consentDisclosure'>,
+  module: Pick<HookModule, 'id' | 'hooks'>,
 ): HooksConsentRequest | null {
   if (state.installed || state.consentAnswered || !state.hooksEnabled || !state.privileged) {
     return null;
   }
-  const { headline, disclosure } = provider.consentDisclosure();
-  return { type: 'hooksConsentRequest', providerId: provider.id, headline, disclosure };
+  const { headline, disclosure } = module.hooks.consentDisclosure();
+  return { type: 'hooksConsentRequest', providerId: module.id, headline, disclosure };
 }
 
 /** What the server should DO about an answer. The Intro lets the user walk BACK from the closing step and re-answer,

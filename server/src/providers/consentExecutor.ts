@@ -10,7 +10,7 @@ import {
   clearHooksConsent,
   getHooksConsent,
   recordHooksDecline,
-} from '../../configPersistence.js';
+} from '../configPersistence.js';
 import { consentActionFor } from './consentGate.js';
 
 /** The per-surface half of carrying out an answer, bound to ONE provider. Each method is the surface's EXISTING path,

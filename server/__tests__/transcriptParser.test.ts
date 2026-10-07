@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AgentStateStore } from '../src/agentStateStore.js';
-import { claudeProvider } from '../src/providers/hook/claude/claude.js';
+import { claudeModule } from '../src/providers/claude/claude.js';
 import {
   processTranscriptLine,
-  setHookProvider,
   setTeamSwitchCallback,
+  setTranscriptModule,
 } from '../src/transcriptParser.js';
 import type { AgentState } from '../src/types.js';
 
@@ -63,7 +63,7 @@ describe('transcriptParser: teammate spawn results (new-harness implicit teams)'
   const permissionTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   beforeEach(() => {
-    setHookProvider(claudeProvider);
+    setTranscriptModule(claudeModule);
     agents = new AgentStateStore();
     agent = createTestAgent();
     agents.set(1, agent);

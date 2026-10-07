@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { isDeepStrictEqual } from 'util';
 
-import { HOOK_SCRIPTS_DIR } from '../../../constants.js';
+import { HOOK_SCRIPTS_DIR } from '../../constants.js';
 import {
   CLAUDE_HOOK_EVENTS,
   CLAUDE_HOOK_SCRIPT_NAME,

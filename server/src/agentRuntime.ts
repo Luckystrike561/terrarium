@@ -12,7 +12,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { HookProvider } from '../../core/src/provider.js';
+import type {
+  AgentModule,
+  ModuleHandle,
+  ModuleHost,
+  ProviderModule,
+  RunningAgentModule,
+} from '../../core/src/provider.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import { DEFAULT_MAX_CONTEXT_TOKENS } from './constants.js';
 import { DismissalTracker } from './dismissalTracker.js';
@@ -25,27 +31,30 @@ import {
   scanForTeammateFiles,
   setAgentRemovalCallback,
   setDismissalTracker,
-  setHookProvider as setFileWatcherHookProvider,
   setSubagentWatch,
   setTeammateRegisterCallback,
   setTeammateRemovalCallback,
   setTeamProvider,
+  setTranscriptModule as setFileWatcherTranscriptModule,
   startExternalSessionScanning,
   startFileWatching,
   startStaleExternalAgentCheck,
 } from './fileWatcher.js';
 import type { HookEvent } from './hookEventHandler.js';
 import { HookEventHandler } from './hookEventHandler.js';
+import { MultiplexerFeed } from './multiplexerFeed.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import { PathSet, pathsMatch } from './pathKey.js';
+import type { ModuleSet } from './providers/index.js';
+import type { PendingExternalSession } from './sessionRouter.js';
 import { SessionRouter } from './sessionRouter.js';
 import { SubagentWatch } from './subagentWatch.js';
 import { cancelPermissionTimer, cancelWaitingTimer } from './timerManager.js';
 import {
   setBackgroundAgentCompletedCallback,
   setBackgroundAgentDetectedCallback,
-  setHookProvider,
   setTeamSwitchCallback,
+  setTranscriptModule,
 } from './transcriptParser.js';
 import type { AgentState } from './types.js';
 
@@ -76,11 +85,9 @@ export class AgentRuntime {
 
   // Configuration refs (mutable, shared with scanners)
   readonly watchAllSessions = { current: false };
+  /** Whether hooks are delivering for the transcript module, which turns its heuristic scanners down. Set through
+   *  setHooksEnabled, never from another module's preference. */
   readonly hooksEnabled = { current: true };
-  /** Adopt every external session regardless of Watch All Sessions. Set for
-   *  providers whose agents live in arbitrary directories (herdr), where the
-   *  per-client watchAllSessions setting would hide all of them. */
-  adoptAllExternalSessions = false;
 
   // Dependencies
   readonly dismissalTracker = new DismissalTracker();
@@ -88,19 +95,26 @@ export class AgentRuntime {
   readonly subagentWatch: SubagentWatch;
   private hookEventHandler: HookEventHandler;
   private lifecycleCallbacks: RuntimeLifecycleCallbacks = {};
+  /** The agent module whose transcripts the runtime's own scanners and parser read (the one declaring
+   *  getSessionDirs), if it is enabled. */
+  readonly transcriptModule: AgentModule | undefined;
+  /** Modules started by startModules, stopped on dispose. */
+  private readonly runningModules: ModuleHandle[] = [];
 
   constructor(
     private readonly store: AgentStateStore,
-    provider: HookProvider,
+    /** The provider modules this process runs. */
+    readonly modules: ModuleSet,
   ) {
+    this.transcriptModule = modules.agents.find((m) => m.getSessionDirs !== undefined);
     // Wire module-level dependencies
     setDismissalTracker(this.dismissalTracker);
-    setHookProvider(provider);
-    setFileWatcherHookProvider(provider);
+    setTranscriptModule(this.transcriptModule ?? null);
+    setFileWatcherTranscriptModule(this.transcriptModule ?? null);
     this.subagentWatch = new SubagentWatch(store);
     setSubagentWatch(this.subagentWatch);
-    if (provider.team) {
-      setTeamProvider(provider.team);
+    if (this.transcriptModule?.team) {
+      setTeamProvider(this.transcriptModule.team);
     }
     setAgentRemovalCallback((id) => this.removeAgent(id));
     setTeammateRemovalCallback((id) => this.removeTeammate(id, 'team-config'));
@@ -150,78 +164,14 @@ export class AgentRuntime {
       store,
       this.waitingTimers,
       this.permissionTimers,
-      provider,
+      modules,
       new SessionRouter(),
       this.watchAllSessions,
     );
 
     // Wire hook lifecycle callbacks to shared agent operations
     this.hookEventHandler.setLifecycleCallbacks({
-      onExternalSessionDetected: (sessionId, transcriptPath, cwd) => {
-        const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
-        // Teammate session of a tracked lead? Attach it as a teammate character
-        // instead of adopting a generic external agent -- and regardless of the
-        // Watch All Sessions setting: tracking the lead is the opt-in for its
-        // team. (Newer harnesses run every spawned agent as an independent
-        // top-level session that fires its own hooks.)
-        if (transcriptPath) {
-          const teamMeta = provider.team?.getTeamMetadataForSession(transcriptPath);
-          if (teamMeta?.teamName && teamMeta.agentName) {
-            for (const [leadId, lead] of this.store) {
-              if (lead.teamName !== teamMeta.teamName || lead.leadAgentId !== undefined) continue;
-              console.log(
-                `[Pixel Agents] Hook: session ${sessionId.slice(0, 8)}... is teammate "${teamMeta.agentName}" of Agent ${leadId}, attaching`,
-              );
-              scanForTeammateFiles(
-                lead.projectDir,
-                lead.sessionId,
-                leadId,
-                this.store.nextAgentId,
-                this.store,
-                this.fileWatchers,
-                this.pollingTimers,
-                this.waitingTimers,
-                this.permissionTimers,
-                () => this.store.persist(),
-                undefined,
-              );
-              break;
-            }
-            // Done only if discovery actually adopted this transcript. Old-style
-            // tmux teammates (non-UUID transcript names outside discovery's scan)
-            // fall through to normal external adoption and self-identify from
-            // their record tags.
-            for (const a of this.store.values()) {
-              if (pathsMatch(a.jsonlFile, transcriptPath)) return;
-            }
-          }
-        }
-        if (
-          !isTrackedProjectDir(projectDir) &&
-          !this.watchAllSessions.current &&
-          !this.adoptAllExternalSessions
-        ) {
-          console.log(
-            `[Pixel Agents] Hook: external session ${sessionId.slice(0, 8)}... not adopted ` +
-              `(project untracked, Watch All Sessions off)`,
-          );
-          return;
-        }
-        adoptExternalSessionFromHook(
-          sessionId,
-          transcriptPath,
-          cwd,
-          this.knownJsonlFiles,
-          this.store.nextAgentId,
-          this.store,
-          this.fileWatchers,
-          this.pollingTimers,
-          this.waitingTimers,
-          this.permissionTimers,
-          () => this.store.persist(),
-          (agent) => this.registerAgent(agent.sessionId, agent.id),
-        );
-      },
+      onExternalSessionDetected: (pending) => this.adoptConfirmedSession(pending),
       onSessionClear: (agentId, newSessionId, newTranscriptPath) => {
         if (newTranscriptPath) {
           this.knownJsonlFiles.add(newTranscriptPath);
@@ -286,6 +236,132 @@ export class AgentRuntime {
         }
       },
     });
+  }
+
+  /** The enabled module named `id`. */
+  private findModule(id: string): ProviderModule | undefined {
+    return [...this.modules.agents, ...this.modules.multiplexers].find((m) => m.id === id);
+  }
+
+  /** Whether the module announcing a session wants it on screen wherever it runs: every multiplexer pane is an
+   *  agent the user started, and an agent module can declare its sessions live outside the workspace. */
+  private adoptsSessionsOutsideWorkspace(moduleId: string): boolean {
+    const module = this.findModule(moduleId);
+    return module?.kind === 'multiplexer' || module?.adoptsSessionsOutsideWorkspace === true;
+  }
+
+  /** Adopt a session whose first event after SessionStart arrived and that no agent reports yet. */
+  private adoptConfirmedSession(pending: PendingExternalSession): void {
+    const { sessionId, transcriptPath, cwd } = pending;
+    const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
+    // Teammate session of a tracked lead? Attach it as a teammate character
+    // instead of adopting a generic external agent -- and regardless of the
+    // Watch All Sessions setting: tracking the lead is the opt-in for its
+    // team. (Newer harnesses run every spawned agent as an independent
+    // top-level session that fires its own hooks.)
+    if (transcriptPath) {
+      const teamMeta = this.transcriptModule?.team?.getTeamMetadataForSession(transcriptPath);
+      if (teamMeta?.teamName && teamMeta.agentName) {
+        for (const [leadId, lead] of this.store) {
+          if (lead.teamName !== teamMeta.teamName || lead.leadAgentId !== undefined) continue;
+          console.log(
+            `[Pixel Agents] Hook: session ${sessionId.slice(0, 8)}... is teammate "${teamMeta.agentName}" of Agent ${leadId}, attaching`,
+          );
+          scanForTeammateFiles(
+            lead.projectDir,
+            lead.sessionId,
+            leadId,
+            this.store.nextAgentId,
+            this.store,
+            this.fileWatchers,
+            this.pollingTimers,
+            this.waitingTimers,
+            this.permissionTimers,
+            () => this.store.persist(),
+            undefined,
+          );
+          break;
+        }
+        // Done only if discovery actually adopted this transcript. Old-style
+        // tmux teammates (non-UUID transcript names outside discovery's scan)
+        // fall through to normal external adoption and self-identify from
+        // their record tags.
+        for (const a of this.store.values()) {
+          if (pathsMatch(a.jsonlFile, transcriptPath)) return;
+        }
+      }
+    }
+    // The outside-the-workspace rule belongs to the module that announced the session: enabling herdr or omp never
+    // makes Claude adopt a session from an untracked project.
+    if (
+      !isTrackedProjectDir(projectDir) &&
+      !this.watchAllSessions.current &&
+      !pending.sourceIds.some((id) => this.adoptsSessionsOutsideWorkspace(id))
+    ) {
+      console.log(
+        `[Pixel Agents] Hook: external session ${sessionId.slice(0, 8)}... not adopted ` +
+          `(project untracked, Watch All Sessions off)`,
+      );
+      return;
+    }
+    const owner =
+      pending.sourceIds.find((id) => this.findModule(id)?.kind === 'agent') ?? pending.sourceIds[0];
+    adoptExternalSessionFromHook(
+      sessionId,
+      transcriptPath,
+      cwd,
+      this.knownJsonlFiles,
+      this.store.nextAgentId,
+      this.store,
+      this.fileWatchers,
+      this.pollingTimers,
+      this.waitingTimers,
+      this.permissionTimers,
+      () => this.store.persist(),
+      (agent) => {
+        // Agents the transcript module adopts keep the runtime's default; everyone else names its module.
+        if (owner !== this.transcriptModule?.id) agent.providerId = owner;
+        agent.sessionFile = pending.sessionFile;
+        this.registerAgent(agent.sessionId, agent.id);
+      },
+    );
+  }
+
+  /** Record a module's hooks preference. Only the transcript module's matters here: it decides whether the
+   *  heuristic scanners stand down for hook delivery. */
+  setHooksEnabled(moduleId: string, enabled: boolean): void {
+    if (moduleId === this.transcriptModule?.id) this.hooksEnabled.current = enabled;
+  }
+
+  /** Start every enabled module that runs on its own: agent modules' session discovery, and one feed per
+   *  multiplexer handing each pane to the running agent module for its kind. */
+  startModules(): void {
+    const running = new Map<string, RunningAgentModule>();
+    for (const module of this.modules.agents) {
+      if (!module.start) continue;
+      const started = module.start(this.hostFor(module));
+      running.set(module.id, started);
+      this.runningModules.push(started);
+    }
+    for (const multiplexer of this.modules.multiplexers) {
+      const feed = new MultiplexerFeed(multiplexer, this.hostFor(multiplexer), running);
+      this.runningModules.push(feed);
+      void feed.start().then((connected) => {
+        console.log(
+          connected
+            ? `[Pixel Agents] ${multiplexer.displayName} connected - office reflects its live agents`
+            : `[Pixel Agents] ${multiplexer.displayName} not reachable (is it running?) - retrying in the background`,
+        );
+      });
+    }
+  }
+
+  private hostFor(module: ProviderModule): ModuleHost {
+    return {
+      emit: (sessionId, event) =>
+        this.hookEventHandler.handleAgentEvent(module.id, sessionId, event),
+      log: (message) => console.log(`[${module.displayName}] ${message}`),
+    };
   }
 
   /** Register adapter-specific lifecycle callbacks. */
@@ -566,6 +642,7 @@ export class AgentRuntime {
 
   /** Clean up all scanners, timers, and agents. Called on shutdown. */
   dispose(): void {
+    for (const module of this.runningModules.splice(0)) module.stop();
     this.hookEventHandler.dispose();
     this.subagentWatch.dispose();
 

@@ -8,9 +8,9 @@ import {
   SERVER_JSON_DIR,
   SERVER_JSON_NAME,
   SERVERS_DIR,
-} from '../../../../constants.js';
-import type { ServerConfig, ServerTarget } from '../../../../serverConfig.js';
-import { isServerConfig, isServerTarget } from '../../../../serverConfig.js';
+} from '../../../constants.js';
+import type { ServerConfig, ServerTarget } from '../../../serverConfig.js';
+import { isServerConfig, isServerTarget } from '../../../serverConfig.js';
 
 const SERVER_JSON = path.join(os.homedir(), SERVER_JSON_DIR, SERVER_JSON_NAME);
 const SERVERS_REGISTRY_DIR = path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DIR);

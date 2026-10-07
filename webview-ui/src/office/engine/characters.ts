@@ -17,7 +17,7 @@ import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../ty
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
 
 /** Whether a tool should show the reading animation (vs typing). Taxonomy comes
- *  from the active HookProvider via the `providerCapabilities` message. */
+ *  from the enabled agent modules via the `providerCapabilities` message. */
 export function isReadingTool(tool: string | null): boolean {
   if (!tool) return false;
   return isReadingToolName(tool);
