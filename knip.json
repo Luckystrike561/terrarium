@@ -10,6 +10,7 @@
     "@fastify/static",
     "@fastify/websocket"
   ],
+  "ignoreBinaries": ["ffmpeg"],
   "ignoreExportsUsedInFile": true,
   "ignore": [
     "core/src/index.ts",
