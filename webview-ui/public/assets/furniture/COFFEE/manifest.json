@@ -2,12 +2,13 @@
   "id": "COFFEE",
   "name": "Coffee",
   "category": "misc",
-  "type": "asset",
   "canPlaceOnWalls": false,
   "canPlaceOnSurfaces": true,
   "backgroundTiles": 0,
-  "width": 16,
-  "height": 16,
+  "type": "asset",
+  "file": "COFFEE.png",
+  "width": 32,
+  "height": 36,
   "footprintW": 1,
   "footprintH": 1
 }

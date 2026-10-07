@@ -1,19 +1,29 @@
 {
   "id": "PC",
-  "name": "PC",
+  "name": "Computer",
   "category": "electronics",
-  "type": "group",
-  "groupType": "rotation",
-  "rotationScheme": "3-way-mirror",
   "canPlaceOnWalls": false,
   "canPlaceOnSurfaces": true,
-  "backgroundTiles": 1,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "4-way",
   "members": [
     {
       "type": "group",
       "groupType": "state",
       "orientation": "front",
       "members": [
+        {
+          "type": "asset",
+          "id": "PC_FRONT_OFF",
+          "file": "PC_FRONT_OFF.png",
+          "width": 32,
+          "height": 46,
+          "footprintW": 1,
+          "footprintH": 1,
+          "state": "off"
+        },
         {
           "type": "group",
           "groupType": "animation",
@@ -23,66 +33,197 @@
               "type": "asset",
               "id": "PC_FRONT_ON_1",
               "file": "PC_FRONT_ON_1.png",
-              "width": 16,
-              "height": 32,
+              "width": 32,
+              "height": 46,
               "footprintW": 1,
-              "footprintH": 2,
+              "footprintH": 1,
               "frame": 0
             },
             {
               "type": "asset",
               "id": "PC_FRONT_ON_2",
               "file": "PC_FRONT_ON_2.png",
-              "width": 16,
-              "height": 32,
+              "width": 32,
+              "height": 46,
               "footprintW": 1,
-              "footprintH": 2,
+              "footprintH": 1,
               "frame": 1
             },
             {
               "type": "asset",
               "id": "PC_FRONT_ON_3",
               "file": "PC_FRONT_ON_3.png",
-              "width": 16,
-              "height": 32,
+              "width": 32,
+              "height": 46,
               "footprintW": 1,
-              "footprintH": 2,
+              "footprintH": 1,
               "frame": 2
             }
           ]
-        },
-        {
-          "type": "asset",
-          "id": "PC_FRONT_OFF",
-          "file": "PC_FRONT_OFF.png",
-          "width": 16,
-          "height": 32,
-          "footprintW": 1,
-          "footprintH": 2,
-          "state": "off"
         }
       ]
     },
     {
-      "type": "asset",
-      "id": "PC_BACK",
-      "file": "PC_BACK.png",
-      "width": 16,
-      "height": 32,
-      "footprintW": 1,
-      "footprintH": 2,
-      "orientation": "back"
+      "type": "group",
+      "groupType": "state",
+      "orientation": "right",
+      "members": [
+        {
+          "type": "asset",
+          "id": "PC_RIGHT_OFF",
+          "file": "PC_RIGHT_OFF.png",
+          "width": 32,
+          "height": 46,
+          "footprintW": 1,
+          "footprintH": 1,
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "PC_RIGHT_ON_1",
+              "file": "PC_RIGHT_ON_1.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "PC_RIGHT_ON_2",
+              "file": "PC_RIGHT_ON_2.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "PC_RIGHT_ON_3",
+              "file": "PC_RIGHT_ON_3.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
+        }
+      ]
     },
     {
-      "type": "asset",
-      "id": "PC_SIDE",
-      "file": "PC_SIDE.png",
-      "width": 16,
-      "height": 32,
-      "footprintW": 1,
-      "footprintH": 2,
-      "orientation": "side",
-      "mirrorSide": true
+      "type": "group",
+      "groupType": "state",
+      "orientation": "back",
+      "members": [
+        {
+          "type": "asset",
+          "id": "PC_BACK_OFF",
+          "file": "PC_BACK_OFF.png",
+          "width": 32,
+          "height": 46,
+          "footprintW": 1,
+          "footprintH": 1,
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "PC_BACK_ON_1",
+              "file": "PC_BACK_ON_1.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "PC_BACK_ON_2",
+              "file": "PC_BACK_ON_2.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "PC_BACK_ON_3",
+              "file": "PC_BACK_ON_3.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "left",
+      "members": [
+        {
+          "type": "asset",
+          "id": "PC_LEFT_OFF",
+          "file": "PC_LEFT_OFF.png",
+          "width": 32,
+          "height": 46,
+          "footprintW": 1,
+          "footprintH": 1,
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "PC_LEFT_ON_1",
+              "file": "PC_LEFT_ON_1.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "PC_LEFT_ON_2",
+              "file": "PC_LEFT_ON_2.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "PC_LEFT_ON_3",
+              "file": "PC_LEFT_ON_3.png",
+              "width": 32,
+              "height": 46,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
+        }
+      ]
     }
   ]
 }

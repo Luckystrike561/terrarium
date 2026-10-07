@@ -1,3 +1,5 @@
+import type { SortBox } from './engine/isoSort.js';
+
 export {
   DEFAULT_COLS,
   DEFAULT_ROWS,
@@ -58,17 +60,16 @@ export interface Seat {
 
 export interface FurnitureInstance {
   sprite: SpriteData;
-  /** Pixel x (top-left) */
+  /** Iso local x of the sprite's top-left */
   x: number;
-  /** Pixel y (top-left) */
+  /** Iso local y of the sprite's top-left */
   y: number;
-  /** Y value used for depth sorting (typically bottom edge) */
-  zY: number;
+  /** Footprint box + overlap layer for iso draw ordering */
+  sort: SortBox;
   /** Render-time horizontal flip flag (for mirrored side variants) */
   mirrored?: boolean;
-  /** Placed-furniture uid, for keying retained render-side sprite pools.
-   *  Absent on synthetic instances (e.g. wall auto-tile instances). */
-  uid?: string;
+  /** Placed-furniture uid, for keying retained render-side sprite pools. */
+  uid: string;
 }
 
 export interface ToolActivity {

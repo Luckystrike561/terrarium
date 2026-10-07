@@ -4,7 +4,7 @@
  * writes them under the isolated HOME BEFORE VS Code launches (see
  * e2e/helpers/launch.ts), so the server reads them on startup.
  *
- * A seeded layout MUST carry a layoutRevision above the bundled default's (1),
+ * A seeded layout MUST carry a layoutRevision above the bundled default's (2),
  * or `loadLayout` resets it to the bundled default
  * (server/src/layoutPersistence.ts). SEED_LAYOUT_REVISION sits far above that.
  */

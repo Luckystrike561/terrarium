@@ -2,12 +2,32 @@
   "id": "HANGING_PLANT",
   "name": "Hanging Plant",
   "category": "wall",
-  "type": "asset",
   "canPlaceOnWalls": true,
   "canPlaceOnSurfaces": true,
   "backgroundTiles": 0,
-  "width": 16,
-  "height": 32,
-  "footprintW": 1,
-  "footprintH": 2
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "HANGING_PLANT_FRONT",
+      "file": "HANGING_PLANT_FRONT.png",
+      "width": 32,
+      "height": 62,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "HANGING_PLANT_RIGHT",
+      "file": "HANGING_PLANT_RIGHT.png",
+      "width": 32,
+      "height": 62,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    }
+  ]
 }

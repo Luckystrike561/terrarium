@@ -2,12 +2,13 @@
   "id": "PLANT",
   "name": "Plant",
   "category": "decor",
-  "type": "asset",
   "canPlaceOnWalls": false,
   "canPlaceOnSurfaces": false,
-  "backgroundTiles": 1,
-  "width": 16,
-  "height": 32,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "PLANT.png",
+  "width": 32,
+  "height": 44,
   "footprintW": 1,
-  "footprintH": 2
+  "footprintH": 1
 }

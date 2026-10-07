@@ -1,12 +1,12 @@
 /**
  * World coordinates → screen coordinates, in one place.
  *
- * The office is drawn by centering the map in the canvas and then applying the
- * pan, both snapped to whole device pixels so sprites stay on the pixel grid.
- * That formula was reproduced in the renderer and in each DOM overlay that
- * floats something above a character; a copy that rounds differently puts the
- * overlay a pixel off the sprite it is labelling, which is invisible in review
- * and obvious on screen.
+ * The office is drawn in isometric local space (see iso.ts), centered on the
+ * grid's bounding box in the canvas and then panned, both snapped to whole
+ * device pixels. That formula was reproduced in the renderer and in each DOM
+ * overlay that floats something above a character; a copy that rounds
+ * differently puts the overlay a pixel off the sprite it is labelling, which
+ * is invisible in review and obvious on screen.
  *
  * Deliberately free of DOM access — `dpr` is passed in, not read from
  * `window`. Reading the environment belongs at the component boundary; a state
@@ -15,7 +15,9 @@
  */
 
 import { ZOOM_MIN } from '../constants.js';
-import { TILE_SIZE, TileType } from './types.js';
+import type { Point } from './iso.js';
+import { tileCorner, WALL_HEIGHT_PX, worldToIso } from './iso.js';
+import { TileType } from './types.js';
 
 /** Tile-space rectangle the camera fits to the viewport.
  *  `max*` bounds are exclusive. */
@@ -24,6 +26,14 @@ export interface ViewBounds {
   readonly minRow: number;
   readonly maxCol: number;
   readonly maxRow: number;
+}
+
+/** Rectangle in iso local (unscaled sprite) pixels. */
+export interface LocalRect {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
 }
 
 interface LayoutGrid {
@@ -35,8 +45,6 @@ interface LayoutGrid {
 const contentBoundsCache = new WeakMap<LayoutGrid, ViewBounds>();
 
 /** Bounding box of the non-VOID tiles: the part of the office worth showing.
- *  Grows one row upward because wall sprites rise a full tile above their own
- *  row, so the top wall's face lives in the row above the first solid tile.
  *  Falls back to the whole grid when every tile is VOID. */
 export function contentBounds(layout: LayoutGrid): ViewBounds {
   const cached = contentBoundsCache.get(layout);
@@ -57,7 +65,7 @@ export function contentBounds(layout: LayoutGrid): ViewBounds {
   const bounds =
     maxCol === 0
       ? { minCol: 0, minRow: 0, maxCol: layout.cols, maxRow: layout.rows }
-      : { minCol, minRow: Math.max(0, minRow - 1), maxCol, maxRow };
+      : { minCol, minRow, maxCol, maxRow };
   contentBoundsCache.set(layout, bounds);
   return bounds;
 }
@@ -67,121 +75,163 @@ export function editBounds(layout: { cols: number; rows: number }): ViewBounds {
   return { minCol: -1, minRow: -1, maxCol: layout.cols + 1, maxRow: layout.rows + 1 };
 }
 
-/** Zoom at which `bounds` fits the canvas exactly on its tighter axis, so the
+/** Screen-space box of a tile rectangle: its iso diamond, raised by a back
+ *  wall's height so the walls along the far edges fit. */
+export function boundsRect(bounds: ViewBounds): LocalRect {
+  const top = tileCorner(bounds.minCol, bounds.minRow);
+  const right = tileCorner(bounds.maxCol, bounds.minRow);
+  const bottom = tileCorner(bounds.maxCol, bounds.maxRow);
+  const left = tileCorner(bounds.minCol, bounds.maxRow);
+  return { minX: left.x, minY: top.y - WALL_HEIGHT_PX, maxX: right.x, maxY: bottom.y };
+}
+
+/** The rectangle `mapOffset` centers at zero pan. */
+export function gridRect(layout: { cols: number; rows: number }): LocalRect {
+  return boundsRect({ minCol: 0, minRow: 0, maxCol: layout.cols, maxRow: layout.rows });
+}
+
+/** Zoom at which `view` fits the canvas exactly on its tighter axis, so the
  *  whole office is visible without scrolling. Deliberately NOT an integer:
  *  an integer zoom on a mismatched aspect ratio either crops or leaves wide
  *  margins, and filling the screen is worth uneven sprite pixels. Floored at
  *  ZOOM_MIN so a narrow panel scrolls rather than shrinking sprites below 1x. */
-export function fitZoom(bounds: ViewBounds, canvasWidth: number, canvasHeight: number): number {
-  const worldW = (bounds.maxCol - bounds.minCol) * TILE_SIZE;
-  const worldH = (bounds.maxRow - bounds.minRow) * TILE_SIZE;
-  return Math.max(ZOOM_MIN, Math.min(canvasWidth / worldW, canvasHeight / worldH));
+export function fitZoom(view: LocalRect, canvasWidth: number, canvasHeight: number): number {
+  return Math.max(
+    ZOOM_MIN,
+    Math.min(canvasWidth / (view.maxX - view.minX), canvasHeight / (view.maxY - view.minY)),
+  );
+}
+
+function axisBase(canvasSize: number, gridMin: number, gridMax: number, zoom: number): number {
+  return Math.floor(canvasSize / 2 - ((gridMin + gridMax) / 2) * zoom);
+}
+
+/** Device-pixel position of iso local (0, 0) inside the canvas. This is the
+ *  renderer's own frame of reference — overlays go through
+ *  {@link overlayProjection} instead of calling this directly. */
+export function mapOffset(
+  canvasWidth: number,
+  canvasHeight: number,
+  grid: LocalRect,
+  zoom: number,
+  panX: number,
+  panY: number,
+): { offsetX: number; offsetY: number } {
+  return {
+    offsetX: axisBase(canvasWidth, grid.minX, grid.maxX, zoom) + Math.round(panX),
+    offsetY: axisBase(canvasHeight, grid.minY, grid.maxY, zoom) + Math.round(panY),
+  };
 }
 
 function clampAxis(
   pan: number,
   canvasSize: number,
-  mapTiles: number,
-  minTile: number,
-  maxTile: number,
+  base: number,
+  viewMin: number,
+  viewMax: number,
   zoom: number,
 ): number {
-  const tilePx = TILE_SIZE * zoom;
-  const base = Math.floor((canvasSize - mapTiles * tilePx) / 2);
-  const lowest = canvasSize - maxTile * tilePx - base;
-  const highest = -minTile * tilePx - base;
+  const lowest = canvasSize - viewMax * zoom - base;
+  const highest = -viewMin * zoom - base;
   if (lowest > highest) return (lowest + highest) / 2;
   return Math.max(lowest, Math.min(highest, pan));
 }
 
-/** Pan that keeps the view inside `bounds`: an axis larger than the canvas
+/** Pan that keeps the view inside `view`: an axis larger than the canvas
  *  scrolls but never past the office edge, a smaller one is centered. */
 export function clampPan(
-  pan: { x: number; y: number },
-  layout: { cols: number; rows: number },
-  bounds: ViewBounds,
+  pan: Point,
+  grid: LocalRect,
+  view: LocalRect,
   zoom: number,
   canvasWidth: number,
   canvasHeight: number,
-): { x: number; y: number } {
+): Point {
   return {
-    x: clampAxis(pan.x, canvasWidth, layout.cols, bounds.minCol, bounds.maxCol, zoom),
-    y: clampAxis(pan.y, canvasHeight, layout.rows, bounds.minRow, bounds.maxRow, zoom),
+    x: clampAxis(
+      pan.x,
+      canvasWidth,
+      axisBase(canvasWidth, grid.minX, grid.maxX, zoom),
+      view.minX,
+      view.maxX,
+      zoom,
+    ),
+    y: clampAxis(
+      pan.y,
+      canvasHeight,
+      axisBase(canvasHeight, grid.minY, grid.maxY, zoom),
+      view.minY,
+      view.maxY,
+      zoom,
+    ),
   };
 }
 
-/** Pan that centers `bounds` in the canvas, clamped like {@link clampPan}. */
+/** Unclamped pan that puts the iso local point at the canvas center. */
+export function panToCenter(
+  point: Point,
+  grid: LocalRect,
+  zoom: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): Point {
+  return {
+    x: canvasWidth / 2 - point.x * zoom - axisBase(canvasWidth, grid.minX, grid.maxX, zoom),
+    y: canvasHeight / 2 - point.y * zoom - axisBase(canvasHeight, grid.minY, grid.maxY, zoom),
+  };
+}
+
+/** Pan that centers `view` in the canvas, clamped like {@link clampPan}. */
 export function centeredPan(
-  layout: { cols: number; rows: number },
-  bounds: ViewBounds,
+  grid: LocalRect,
+  view: LocalRect,
   zoom: number,
   canvasWidth: number,
   canvasHeight: number,
-): { x: number; y: number } {
-  const tilePx = TILE_SIZE * zoom;
-  const center = {
-    x: ((layout.cols - bounds.minCol - bounds.maxCol) * tilePx) / 2,
-    y: ((layout.rows - bounds.minRow - bounds.maxRow) * tilePx) / 2,
-  };
-  return clampPan(center, layout, bounds, zoom, canvasWidth, canvasHeight);
-}
-
-/** Device-pixel offset of the map's top-left corner inside the canvas.
- *  This is the renderer's own frame of reference — overlays go through
- *  {@link overlayProjection} instead of calling this directly. */
-export function mapOffset(
-  canvasWidth: number,
-  canvasHeight: number,
-  cols: number,
-  rows: number,
-  zoom: number,
-  panX: number,
-  panY: number,
-): { offsetX: number; offsetY: number } {
-  const mapW = cols * TILE_SIZE * zoom;
-  const mapH = rows * TILE_SIZE * zoom;
-  return {
-    offsetX: Math.floor((canvasWidth - mapW) / 2) + Math.round(panX),
-    offsetY: Math.floor((canvasHeight - mapH) / 2) + Math.round(panY),
-  };
+): Point {
+  const center = { x: (view.minX + view.maxX) / 2, y: (view.minY + view.maxY) / 2 };
+  return clampPan(
+    panToCenter(center, grid, zoom, canvasWidth, canvasHeight),
+    grid,
+    view,
+    zoom,
+    canvasWidth,
+    canvasHeight,
+  );
 }
 
 /** Projects world points into CSS pixels within the overlay container that
  *  sits on top of the canvas. */
 export interface OverlayProjection {
-  toScreenX(worldX: number): number;
-  toScreenY(worldY: number): number;
-  /** Container size in world units — what the viewport currently covers.
-   *  Used to cap overlay offsets against the visible area. */
-  readonly viewportWorldWidth: number;
-  readonly viewportWorldHeight: number;
-  /** CSS px → world units, for sizing overlay geometry in world terms. */
-  toWorldLength(cssPx: number): number;
+  /** World point (top-down px), raised `rise` sprite px off the floor. */
+  project(worldX: number, worldY: number, rise?: number): Point;
+  /** Container size in sprite px — what the viewport currently covers. */
+  readonly viewportSpriteWidth: number;
+  readonly viewportSpriteHeight: number;
+  /** CSS px → sprite px, for sizing overlay geometry against the art. */
+  toSpriteLength(cssPx: number): number;
+  /** Sprite px → CSS px. */
+  toCssLength(spritePx: number): number;
 }
 
 export function overlayProjection(
   layout: { cols: number; rows: number },
   containerRect: { width: number; height: number },
   zoom: number,
-  pan: { x: number; y: number },
+  pan: Point,
   dpr: number,
 ): OverlayProjection {
   const canvasW = Math.round(containerRect.width * dpr);
   const canvasH = Math.round(containerRect.height * dpr);
-  const { offsetX, offsetY } = mapOffset(
-    canvasW,
-    canvasH,
-    layout.cols,
-    layout.rows,
-    zoom,
-    pan.x,
-    pan.y,
-  );
+  const { offsetX, offsetY } = mapOffset(canvasW, canvasH, gridRect(layout), zoom, pan.x, pan.y);
   return {
-    toScreenX: (worldX) => (offsetX + worldX * zoom) / dpr,
-    toScreenY: (worldY) => (offsetY + worldY * zoom) / dpr,
-    viewportWorldWidth: canvasW / zoom,
-    viewportWorldHeight: canvasH / zoom,
-    toWorldLength: (cssPx) => (cssPx * dpr) / zoom,
+    project: (worldX, worldY, rise = 0) => {
+      const p = worldToIso(worldX, worldY, rise);
+      return { x: (offsetX + p.x * zoom) / dpr, y: (offsetY + p.y * zoom) / dpr };
+    },
+    viewportSpriteWidth: canvasW / zoom,
+    viewportSpriteHeight: canvasH / zoom,
+    toSpriteLength: (cssPx) => (cssPx * dpr) / zoom,
+    toCssLength: (spritePx) => (spritePx * zoom) / dpr,
   };
 }

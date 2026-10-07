@@ -36,9 +36,9 @@ export const MATRIX_TRAIL_MID_THRESHOLD = 0.33;
 export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
 
 // ── Rendering ────────────────────────────────────────────────
-export const CHARACTER_SITTING_OFFSET_PX = 6;
-export const CHARACTER_Z_SORT_OFFSET = 0.5;
-export const OUTLINE_Z_SORT_OFFSET = 0.001;
+/** Screen-px shift of a seated character's sprite. The iso seated frames are
+ *  drawn at chair height already. */
+export const CHARACTER_SITTING_OFFSET_PX = 0;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 /** Headless agents (adopted, no terminal to focus) render slightly translucent. */
@@ -67,8 +67,8 @@ export const FALLBACK_FLOOR_COLOR = '#808080';
 export const SEAT_OWN_COLOR = 'rgba(0, 127, 212, 0.35)';
 export const SEAT_AVAILABLE_COLOR = 'rgba(0, 200, 80, 0.35)';
 export const SEAT_BUSY_COLOR = 'rgba(220, 50, 50, 0.35)';
-export const GRID_LINE_COLOR = 'rgba(255,255,255,0.12)';
-export const VOID_TILE_OUTLINE_COLOR = 'rgba(255,255,255,0.08)';
+export const GRID_LINE_COLOR = 'rgba(26,20,38,0.28)';
+export const VOID_TILE_OUTLINE_COLOR = 'rgba(255,255,255,0.14)';
 export const VOID_TILE_DASH_PATTERN: [number, number] = [2, 2];
 export const GHOST_BORDER_HOVER_FILL = 'rgba(60, 130, 220, 0.25)';
 export const GHOST_BORDER_HOVER_STROKE = 'rgba(60, 130, 220, 0.5)';
@@ -81,7 +81,11 @@ export const ROTATE_BUTTON_BG = 'rgba(50, 120, 200, 0.85)';
 export const BUTTON_ICON_COLOR = '#fff';
 export const CANVAS_FALLBACK_TILE_COLOR = '#444';
 export const CANVAS_ERROR_TILE_COLOR = '#FF00FF';
-export const WALL_COLOR = '#3A3A5C';
+export const WALL_COLOR = '#d9c4a0';
+/** Exposed floor edge thickness and colours (left = +row face, right = +col). */
+export const FLOOR_SLAB_PX = 5;
+export const FLOOR_SLAB_LEFT_COLOR = '#4a3f5c';
+export const FLOOR_SLAB_RIGHT_COLOR = '#362d45';
 
 // ── Camera ───────────────────────────────────────────────────
 export const CAMERA_FOLLOW_LERP = 0.1;
@@ -221,10 +225,10 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_WORLD = 44;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 44;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
-export const INTRO_BUBBLE_OFFSET_X_WORLD = 10;
+export const INTRO_BUBBLE_OFFSET_X_PX = 10;
 /** Bubble width cap (CSS px) and the margin kept from the container edges.
  *  Wide on purpose: the disclosure reads as three short paragraphs instead of
  *  a tall column (still clamped to the container on narrow panels). */
@@ -243,7 +247,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_WORLD = 26;
+export const INTRO_TAIL_TARGET_RISE_PX = 26;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the
@@ -251,7 +255,7 @@ export const INTRO_TAIL_TARGET_RISE_WORLD = 26;
  *  of the viewport; vertical offset always keeps this many world px of the
  *  character visible above the bottom edge. */
 export const INTRO_CAMERA_MAX_X_OFFSET_VIEWPORT_FRACTION = 0.25;
-export const INTRO_CAMERA_MIN_CHAR_VISIBLE_WORLD = 48;
+export const INTRO_CAMERA_MIN_CHAR_VISIBLE_PX = 48;
 /** Extra downward camera shift (CSS px) so the character+bubble composition
  *  sits a bit above the vertical center instead of dead-centered. */
 export const INTRO_CAMERA_DOWN_SHIFT_PX = 50;

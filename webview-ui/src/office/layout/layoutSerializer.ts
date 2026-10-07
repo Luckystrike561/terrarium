@@ -1,5 +1,7 @@
 import type { ColorValue } from '../../components/ui/types.js';
 import { getColorizedSprite } from '../colorize.js';
+import { SortLayer } from '../engine/isoSort.js';
+import { footprintSpriteOrigin } from '../iso.js';
 import type {
   FurnitureInstance,
   OfficeLayout,
@@ -7,7 +9,7 @@ import type {
   Seat,
   TileType as TileTypeVal,
 } from '../types.js';
-import { DEFAULT_COLS, DEFAULT_ROWS, Direction, TILE_SIZE, TileType } from '../types.js';
+import { DEFAULT_COLS, DEFAULT_ROWS, Direction, TileType } from '../types.js';
 import { getCatalogEntry, getOrientationInGroup } from './furnitureCatalog.js';
 
 /** Convert flat tile array from layout into 2D grid */
@@ -23,58 +25,19 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
   return map;
 }
 
+/** Overlap layers for furniture sharing tiles with something else. A chair
+ *  whose backrest faces the viewer (sitter faces away) covers its sitter;
+ *  other chairs draw under them. */
+const CHAIR_BEHIND_LAYER = SortLayer.FLOOR;
+const CHAIR_IN_FRONT_LAYER = SortLayer.ATTACHED;
+
 /** Convert placed furniture into renderable FurnitureInstance[] */
 export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): FurnitureInstance[] {
-  // Pre-compute desk zY per tile so surface items can sort in front of desks
-  const deskZByTile = new Map<string, number>();
-  for (const item of furniture) {
-    const entry = getCatalogEntry(item.type);
-    if (!entry || !entry.isDesk) continue;
-    const deskZY = item.row * TILE_SIZE + entry.sprite.length;
-    for (let dr = 0; dr < entry.footprintH; dr++) {
-      for (let dc = 0; dc < entry.footprintW; dc++) {
-        const key = `${item.col + dc},${item.row + dr}`;
-        const prev = deskZByTile.get(key);
-        if (prev === undefined || deskZY > prev) deskZByTile.set(key, deskZY);
-      }
-    }
-  }
-
   const instances: FurnitureInstance[] = [];
   for (const item of furniture) {
     const entry = getCatalogEntry(item.type);
     if (!entry) continue;
-    const x = item.col * TILE_SIZE;
-    const y = item.row * TILE_SIZE;
-    const spriteH = entry.sprite.length;
-    let zY = y + spriteH;
 
-    // Chair z-sorting: ensure characters sitting on chairs render correctly
-    if (entry.category === 'chairs') {
-      if (entry.orientation === 'back') {
-        // Back-facing chairs render IN FRONT of the seated character
-        // (the chair back visually occludes the character behind it).
-        // Use the bottom footprint row so it sorts after the character
-        // even when the chair has background tiles that push seats down.
-        zY = (item.row + entry.footprintH) * TILE_SIZE + 1;
-      } else {
-        // All other chairs: cap zY to first row bottom so characters
-        // at any seat tile render in front of the chair
-        zY = (item.row + 1) * TILE_SIZE;
-      }
-    }
-
-    // Surface items render in front of the desk they sit on
-    if (entry.canPlaceOnSurfaces) {
-      for (let dr = 0; dr < entry.footprintH; dr++) {
-        for (let dc = 0; dc < entry.footprintW; dc++) {
-          const deskZ = deskZByTile.get(`${item.col + dc},${item.row + dr}`);
-          if (deskZ !== undefined && deskZ + 0.5 > zY) zY = deskZ + 0.5;
-        }
-      }
-    }
-
-    // Colorize sprite if this furniture has a color override
     let sprite = entry.sprite;
     if (item.color) {
       const { h, s, b: bv, c: cv } = item.color;
@@ -85,16 +48,38 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       );
     }
 
-    // Determine if this instance should be mirrored (side asset used in "left" orientation)
-    let mirrored = false;
-    if (entry.mirrorSide) {
-      const orientInGroup = getOrientationInGroup(item.type);
-      if (orientInGroup === 'left') {
-        mirrored = true;
-      }
+    // Legacy flat art: a "left" variant is the mirrored "side" sprite.
+    const mirrored = !!entry.mirrorSide && getOrientationInGroup(item.type) === 'left';
+
+    let layer: number = SortLayer.FLOOR;
+    if (entry.canPlaceOnSurfaces || entry.canPlaceOnWalls) layer = SortLayer.ATTACHED;
+    if (entry.category === 'chairs') {
+      const facesAway = entry.orientation === 'back' || entry.orientation === 'left';
+      layer = facesAway ? CHAIR_IN_FRONT_LAYER : CHAIR_BEHIND_LAYER;
     }
 
-    instances.push({ sprite, x, y, zY, uid: item.uid, ...(mirrored ? { mirrored: true } : {}) });
+    const origin = footprintSpriteOrigin(
+      item.col,
+      item.row,
+      entry.footprintW,
+      entry.footprintH,
+      sprite[0]?.length ?? 0,
+      sprite.length,
+    );
+    instances.push({
+      sprite,
+      x: origin.x,
+      y: origin.y,
+      sort: {
+        minCol: item.col,
+        minRow: item.row,
+        maxCol: item.col + entry.footprintW,
+        maxRow: item.row + entry.footprintH,
+        layer,
+      },
+      uid: item.uid,
+      ...(mirrored ? { mirrored: true } : {}),
+    });
   }
   return instances;
 }

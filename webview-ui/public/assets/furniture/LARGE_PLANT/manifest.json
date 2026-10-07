@@ -2,12 +2,13 @@
   "id": "LARGE_PLANT",
   "name": "Large Plant",
   "category": "decor",
-  "type": "asset",
   "canPlaceOnWalls": false,
   "canPlaceOnSurfaces": false,
-  "backgroundTiles": 2,
+  "backgroundTiles": 0,
+  "type": "asset",
+  "file": "LARGE_PLANT.png",
   "width": 32,
-  "height": 48,
-  "footprintW": 2,
-  "footprintH": 3
+  "height": 60,
+  "footprintW": 1,
+  "footprintH": 1
 }

@@ -16,6 +16,7 @@ import {
   PET_HIT_HEIGHT,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
+import { worldToIso } from '../iso.js';
 import { getAnimationFrames, getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog.js';
 import {
   createDefaultLayout,
@@ -39,6 +40,7 @@ import type {
 } from '../types.js';
 import { CharacterState, Direction, PetState, TILE_SIZE } from '../types.js';
 import { createCharacter, releaseRestSeat, updateCharacter } from './characters.js';
+import { isoDrawOrder } from './isoSort.js';
 import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
@@ -1139,18 +1141,19 @@ export class OfficeState {
   }
 
   /**
-   * Hit-test pets at a pixel world position. Sorts back-to-front (largest y wins on tie)
-   * so the visually-frontmost pet receives the click.
+   * Hit-test pets at an iso screen point (unscaled sprite px). Front-most
+   * (largest x + y) first so the visually-frontmost pet receives the click.
    * Returns the pet id or null.
    */
-  getPetAt(worldX: number, worldY: number): string | null {
-    const ordered = this.pets.slice().sort((a, b) => b.y - a.y);
+  getPetAt(isoX: number, isoY: number): string | null {
+    const ordered = this.pets.slice().sort((a, b) => b.x + b.y - (a.x + a.y));
     for (const pet of ordered) {
-      const left = pet.x - PET_HIT_HALF_WIDTH;
-      const right = pet.x + PET_HIT_HALF_WIDTH;
-      const top = pet.y - PET_HIT_HEIGHT;
-      const bottom = pet.y;
-      if (worldX >= left && worldX <= right && worldY >= top && worldY <= bottom) {
+      const anchor = worldToIso(pet.x, pet.y);
+      if (
+        Math.abs(isoX - anchor.x) <= PET_HIT_HALF_WIDTH &&
+        isoY >= anchor.y - PET_HIT_HEIGHT &&
+        isoY <= anchor.y
+      ) {
         return pet.id;
       }
     }
@@ -1352,25 +1355,41 @@ export class OfficeState {
     return chars;
   }
 
-  /** Get character at pixel position (for hit testing). Returns id or null.
-   *  Agents only: clicks pass straight through the consent greeter, which is
-   *  a prop, not something to select or follow. */
-  getCharacterAt(worldX: number, worldY: number): number | null {
-    const chars = Array.from(this.characters.values()).sort((a, b) => b.y - a.y);
+  /** Get the character drawn at an iso screen point (unscaled sprite px).
+   *  Returns id or null. Agents only: clicks pass straight through the consent
+   *  greeter, which is a prop, not something to select or follow. */
+  getCharacterAt(isoX: number, isoY: number): number | null {
+    const chars = Array.from(this.characters.values()).sort((a, b) => b.x + b.y - (a.x + a.y));
     for (const ch of chars) {
-      // Skip characters that are despawning
       if (ch.matrixEffect === 'despawn') continue;
-      // Character sprite is 16x24, anchored bottom-center
-      // Apply sitting offset to match visual position
       const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
-      const anchorY = ch.y + sittingOffset;
-      const left = ch.x - CHARACTER_HIT_HALF_WIDTH;
-      const right = ch.x + CHARACTER_HIT_HALF_WIDTH;
-      const top = anchorY - CHARACTER_HIT_HEIGHT;
-      const bottom = anchorY;
-      if (worldX >= left && worldX <= right && worldY >= top && worldY <= bottom) {
+      const anchor = worldToIso(ch.x, ch.y);
+      const bottom = anchor.y + sittingOffset;
+      if (
+        Math.abs(isoX - anchor.x) <= CHARACTER_HIT_HALF_WIDTH &&
+        isoY >= bottom - CHARACTER_HIT_HEIGHT &&
+        isoY <= bottom
+      ) {
         return ch.id;
       }
+    }
+    return null;
+  }
+
+  /** Uid of the front-most furniture whose sprite has an opaque pixel at an
+   *  iso screen point (unscaled sprite px), or null. Tall pieces cover tiles
+   *  behind their own footprint, so a tile lookup alone misses clicks on a
+   *  desk top or a wall shelf. */
+  getFurnitureAt(isoX: number, isoY: number): string | null {
+    const order = isoDrawOrder(this.furniture.map((f) => f.sort));
+    for (let k = order.length - 1; k >= 0; k--) {
+      const f = this.furniture[order[k]];
+      const width = f.sprite[0]?.length ?? 0;
+      let px = Math.floor(isoX - f.x);
+      const py = Math.floor(isoY - f.y);
+      if (px < 0 || py < 0 || px >= width || py >= f.sprite.length) continue;
+      if (f.mirrored) px = width - 1 - px;
+      if (f.sprite[py][px] !== '') return f.uid;
     }
     return null;
   }

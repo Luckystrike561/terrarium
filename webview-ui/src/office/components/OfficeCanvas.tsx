@@ -4,7 +4,7 @@ import { CAMERA_FOLLOW_LERP, CAMERA_FOLLOW_SNAP_THRESHOLD, ZOOM_MIN } from '../.
 import { unlockAudio } from '../../notificationSound.js';
 import { transport } from '../../transport/index.js';
 import { getColorizedSprite } from '../colorize.js';
-import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js';
+import { canPlaceFurniture } from '../editor/editorActions.js';
 import type { EditorState } from '../editor/editorState.js';
 import { startGameLoop } from '../engine/gameLoop.js';
 import type { OfficeState } from '../engine/officeState.js';
@@ -16,8 +16,18 @@ import type {
   WorldRenderState,
 } from '../engine/sceneRenderer.js';
 import { OfficeSceneRenderer } from '../engine/sceneRenderer.js';
+import { isoToWorld, worldToIso } from '../iso.js';
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js';
-import { centeredPan, clampPan, contentBounds, editBounds, fitZoom } from '../projection.js';
+import {
+  boundsRect,
+  centeredPan,
+  clampPan,
+  contentBounds,
+  editBounds,
+  fitZoom,
+  gridRect,
+  panToCenter,
+} from '../projection.js';
 import { EditTool, TILE_SIZE } from '../types.js';
 import { computeNormalModeCursor } from './officeCanvasCursor.js';
 
@@ -118,8 +128,8 @@ export function OfficeCanvas({
     if (!canvas) return pan;
     const { officeState, isEditMode } = frameParamsRef.current;
     const layout = officeState.getLayout();
-    const bounds = isEditMode ? editBounds(layout) : contentBounds(layout);
-    return clampPan(pan, layout, bounds, viewZoomRef.current, canvas.width, canvas.height);
+    const view = boundsRect(isEditMode ? editBounds(layout) : contentBounds(layout));
+    return clampPan(pan, gridRect(layout), view, viewZoomRef.current, canvas.width, canvas.height);
   }, []);
 
   useEffect(() => {
@@ -157,12 +167,18 @@ export function OfficeCanvas({
         // The editor keeps the zoom it entered with: re-fitting as tiles are
         // painted or erased would rescale the grid under the cursor mid-stroke.
         if (!isEditMode && canvas.width > 0 && canvas.height > 0) {
-          const bounds = contentBounds(layout);
-          const target = fitZoom(bounds, canvas.width, canvas.height);
+          const view = boundsRect(contentBounds(layout));
+          const target = fitZoom(view, canvas.width, canvas.height);
           if (!hasViewRef.current) {
             hasViewRef.current = true;
             viewZoomRef.current = target;
-            panRef.current = centeredPan(layout, bounds, target, canvas.width, canvas.height);
+            panRef.current = centeredPan(
+              gridRect(layout),
+              view,
+              target,
+              canvas.width,
+              canvas.height,
+            );
             onZoomChangeRef.current(target);
           } else if (target !== viewZoomRef.current) {
             // Scale the pan with the zoom so the world point under the canvas
@@ -185,6 +201,8 @@ export function OfficeCanvas({
           editorRender = {
             showGrid: true,
             ghostSprite: null,
+            ghostFootprintW: 1,
+            ghostFootprintH: 1,
             ghostMirrored: false,
             ghostCol: editorState.ghostCol,
             ghostRow: editorState.ghostRow,
@@ -206,10 +224,6 @@ export function OfficeCanvas({
           if (editorState.activeTool === EditTool.FURNITURE_PLACE && editorState.ghostCol >= 0) {
             const entry = getCatalogEntry(editorState.selectedFurnitureType);
             if (entry) {
-              const placementRow = getWallPlacementRow(
-                editorState.selectedFurnitureType,
-                editorState.ghostRow,
-              );
               const pickedColor = editorState.pickedFurnitureColor;
               editorRender.ghostSprite = pickedColor
                 ? getColorizedSprite(
@@ -218,14 +232,15 @@ export function OfficeCanvas({
                     pickedColor,
                   )
                 : entry.sprite;
-              editorRender.ghostRow = placementRow;
+              editorRender.ghostFootprintW = entry.footprintW;
+              editorRender.ghostFootprintH = entry.footprintH;
               editorRender.ghostMirrored =
                 !!entry.mirrorSide && editorState.selectedFurnitureType.endsWith(':left');
               editorRender.ghostValid = canPlaceFurniture(
                 officeState.getLayout(),
                 editorState.selectedFurnitureType,
                 editorState.ghostCol,
-                placementRow,
+                editorState.ghostRow,
               );
             }
           }
@@ -241,6 +256,8 @@ export function OfficeCanvas({
                 const ghostCol = editorState.ghostCol - editorState.dragOffsetCol;
                 const ghostRow = editorState.ghostRow - editorState.dragOffsetRow;
                 editorRender.ghostSprite = entry.sprite;
+                editorRender.ghostFootprintW = entry.footprintW;
+                editorRender.ghostFootprintH = entry.footprintH;
                 editorRender.ghostCol = ghostCol;
                 editorRender.ghostRow = ghostRow;
                 editorRender.ghostMirrored =
@@ -285,12 +302,15 @@ export function OfficeCanvas({
             : undefined;
         const cameraFocus = followCh ?? officeState.greeterCameraTarget;
         if (cameraFocus) {
-          const mapW = layout.cols * TILE_SIZE * zoom;
-          const mapH = layout.rows * TILE_SIZE * zoom;
-          const target = clampToView({
-            x: mapW / 2 - cameraFocus.x * zoom,
-            y: mapH / 2 - cameraFocus.y * zoom,
-          });
+          const target = clampToView(
+            panToCenter(
+              worldToIso(cameraFocus.x, cameraFocus.y),
+              gridRect(layout),
+              zoom,
+              canvas.width,
+              canvas.height,
+            ),
+          );
           const targetX = target.x;
           const targetY = target.y;
           const dx = targetX - panRef.current.x;
@@ -368,11 +388,21 @@ export function OfficeCanvas({
     // Convert to device pixels
     const deviceX = cssX * dpr;
     const deviceY = cssY * dpr;
-    // Convert to world (sprite pixel) coords
+    // Device px → iso local (unscaled sprite px) → top-down world px
     const zoom = viewZoomRef.current;
-    const worldX = (deviceX - offsetRef.current.x) / zoom;
-    const worldY = (deviceY - offsetRef.current.y) / zoom;
-    return { worldX, worldY, screenX: cssX, screenY: cssY, deviceX, deviceY };
+    const isoX = (deviceX - offsetRef.current.x) / zoom;
+    const isoY = (deviceY - offsetRef.current.y) / zoom;
+    const world = isoToWorld(isoX, isoY);
+    return {
+      worldX: world.x,
+      worldY: world.y,
+      isoX,
+      isoY,
+      screenX: cssX,
+      screenY: cssY,
+      deviceX,
+      deviceY,
+    };
   }, []);
 
   const screenToTile = useCallback(
@@ -511,24 +541,12 @@ export function OfficeCanvas({
               });
               canvas.style.cursor = hitFurniture ? 'pointer' : 'crosshair';
             } else if (
-              (editorState.activeTool === EditTool.SELECT ||
-                (editorState.activeTool === EditTool.FURNITURE_PLACE &&
-                  editorState.selectedFurnitureType === '')) &&
-              tile
+              editorState.activeTool === EditTool.SELECT ||
+              (editorState.activeTool === EditTool.FURNITURE_PLACE &&
+                editorState.selectedFurnitureType === '')
             ) {
-              // Check if hovering over furniture
-              const layout = officeState.getLayout();
-              const hitFurniture = layout.furniture.find((f) => {
-                const entry = getCatalogEntry(f.type);
-                if (!entry) return false;
-                return (
-                  tile.col >= f.col &&
-                  tile.col < f.col + entry.footprintW &&
-                  tile.row >= f.row &&
-                  tile.row < f.row + entry.footprintH
-                );
-              });
-              canvas.style.cursor = hitFurniture ? 'grab' : 'crosshair';
+              const overFurniture = pos !== null && officeState.getFurnitureAt(pos.isoX, pos.isoY);
+              canvas.style.cursor = overFurniture ? 'grab' : 'crosshair';
             } else {
               canvas.style.cursor = 'crosshair';
             }
@@ -539,9 +557,9 @@ export function OfficeCanvas({
 
       const pos = screenToWorld(e.clientX, e.clientY);
       if (!pos) return;
-      const hitId = officeState.getCharacterAt(pos.worldX, pos.worldY);
+      const hitId = officeState.getCharacterAt(pos.isoX, pos.isoY);
       // Only run pet hit-test if no character was hit (avoids redundant work).
-      const petId = hitId === null ? officeState.getPetAt(pos.worldX, pos.worldY) : null;
+      const petId = hitId === null ? officeState.getPetAt(pos.isoX, pos.isoY) : null;
       const tile = screenToTile(e.clientX, e.clientY);
       officeState.hoveredTile = tile;
       const canvas = canvasRef.current;
@@ -636,9 +654,13 @@ export function OfficeCanvas({
           editorState.selectedFurnitureType === '');
       if (actAsSelect && tile) {
         const layout = officeState.getLayout();
-        // Find all furniture at clicked tile, prefer surface items (on top of desks)
-        let hitFurniture = null as (typeof layout.furniture)[0] | null;
-        for (const f of layout.furniture) {
+        // Prefer the sprite under the cursor (tall pieces cover tiles behind
+        // their footprint), then any footprint on the tile, surface items first.
+        const spriteUid = pos ? officeState.getFurnitureAt(pos.isoX, pos.isoY) : null;
+        let hitFurniture = spriteUid
+          ? (layout.furniture.find((f) => f.uid === spriteUid) ?? null)
+          : null;
+        for (const f of hitFurniture ? [] : layout.furniture) {
           const entry = getCatalogEntry(f.type);
           if (!entry) continue;
           if (
@@ -761,7 +783,7 @@ export function OfficeCanvas({
       const pos = screenToWorld(e.clientX, e.clientY);
       if (!pos) return;
 
-      const hitId = officeState.getCharacterAt(pos.worldX, pos.worldY);
+      const hitId = officeState.getCharacterAt(pos.isoX, pos.isoY);
       if (hitId !== null) {
         // Dismiss any active bubble on click
         officeState.dismissBubble(hitId);
@@ -778,7 +800,7 @@ export function OfficeCanvas({
       }
 
       // Pet hit: toggle the heart bubble.
-      const petId = officeState.getPetAt(pos.worldX, pos.worldY);
+      const petId = officeState.getPetAt(pos.isoX, pos.isoY);
       if (petId !== null) {
         const pet = officeState.pets.find((p) => p.id === petId);
         if (pet?.bubbleType) {

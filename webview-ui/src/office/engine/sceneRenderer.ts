@@ -1,25 +1,21 @@
 /**
- * Office world renderer: PixiJS (WebGL) retained scene graph.
- *
- * Replaces the old per-frame Canvas 2D redraw (engine/renderer.ts). Design:
+ * Office world renderer: PixiJS (WebGL) retained scene graph, isometric.
  *
  * - One `worldLayer` container is positioned/scaled once per frame
  *   (`position = (offsetX, offsetY)` device px, `scale = zoom`). Every
  *   world-space child (tiles, carpets, walls, furniture, characters, pets,
- *   bubbles, badges) is built in LOCAL, unscaled sprite-pixel coordinates,
- *   the same units as `Character.x`/`FurnitureInstance.x`/tile col*TILE_SIZE.
- *   `roundPixels: true` on every child snaps the final device-pixel position
- *   at render time, so this reproduces the old `Math.round(offsetX + x*zoom)`
- *   arithmetic without paying for it on every sprite every frame.
+ *   bubbles, badges) is built in LOCAL, unscaled iso pixel coordinates (see
+ *   iso.ts: a tile is a 32×16 diamond). The simulation stays on the top-down
+ *   grid; positions are projected here.
  * - Area labels and all editor-mode chrome (grid, ghost border, selection
  *   highlight, delete/rotate buttons) stay in DEVICE-PIXEL space as direct
  *   children of the stage instead: their stroke widths and the area label's
  *   minimum font size are deliberately constant-in-device-pixels, not
  *   proportional to zoom, so they can't live inside the scaled worldLayer.
- * - Furniture/walls/characters/pets/bubbles/badges are retained Sprite pools
- *   keyed by a stable id (furniture uid, `row:col` for wall tiles, character
- *   id, pet id) and diffed every frame: existing pool entries are repositioned
- *   in place, entries no longer present are pruned. This runs every frame
+ * - Walls/furniture/characters/pets are retained Sprite pools keyed by a
+ *   stable id (furniture uid, `row:col` for wall tiles, character id, pet id)
+ *   and diffed every frame, then ordered with isoDrawOrder: a single depth
+ *   key cannot order iso boxes of different sizes. This runs every frame
  *   because `OfficeState.furniture` gets a fresh array identity whenever
  *   auto-on electronics toggle, so the array reference alone isn't a valid
  *   "did anything change" signal. That's unlike the tile grid, whose
@@ -59,8 +55,10 @@ import {
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
   CHARACTER_SITTING_OFFSET_PX,
-  CHARACTER_Z_SORT_OFFSET,
   DELETE_BUTTON_BG,
+  FLOOR_SLAB_LEFT_COLOR,
+  FLOOR_SLAB_PX,
+  FLOOR_SLAB_RIGHT_COLOR,
   GHOST_BORDER_HOVER_FILL,
   GHOST_BORDER_HOVER_STROKE,
   GHOST_BORDER_STROKE,
@@ -71,7 +69,6 @@ import {
   GRID_LINE_COLOR,
   HEADLESS_CHARACTER_ALPHA,
   HOVERED_OUTLINE_ALPHA,
-  OUTLINE_Z_SORT_OFFSET,
   ROTATE_BUTTON_BG,
   SEAT_AVAILABLE_COLOR,
   SEAT_BUSY_COLOR,
@@ -84,8 +81,18 @@ import {
   VOID_TILE_DASH_PATTERN,
   VOID_TILE_OUTLINE_COLOR,
 } from '../../constants.js';
-import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js';
-import { mapOffset } from '../projection.js';
+import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
+import type { Point } from '../iso.js';
+import {
+  footprintSpriteOrigin,
+  ISO_TILE_H,
+  ISO_TILE_W,
+  projectToDiamond,
+  tileCorner,
+  worldToIso,
+} from '../iso.js';
+import { getWallBoxSprite, wallHeight } from '../isoWalls.js';
+import { gridRect, mapOffset } from '../projection.js';
 import {
   getCarpetJunctionSprite,
   getCarpetPaletteKey,
@@ -116,14 +123,18 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, TILE_SIZE, TileType } from '../types.js';
-import { getWallInstances, hasWallSprites, wallColorToHex } from '../wallTiles.js';
+import { wallColorToHex } from '../wallTiles.js';
 import { getCharacterSprite } from './characters.js';
+import type { SortBox } from './isoSort.js';
+import { isoDrawOrder, SortLayer } from './isoSort.js';
 import { drawMatrixEffect } from './matrixEffect.js';
 import { getPetSpriteData } from './petEntity.js';
-import { hexToNumber, hexToPixiColor, rgbaToPixiColor } from './pixiColor.js';
+import { hexToNumber, rgbaToPixiColor } from './pixiColor.js';
 
 TextureStyle.defaultOptions.scaleMode = 'nearest';
 
+/** Half-extent (tiles) of a character's or pet's sort box around its feet. */
+const ACTOR_SORT_HALF = 0.01;
 // ── Settings ────────────────────────────────────────────────────
 
 /**
@@ -157,6 +168,8 @@ export type RotateButtonBounds = ButtonBounds;
 export interface EditorRenderState {
   showGrid: boolean;
   ghostSprite: SpriteData | null;
+  ghostFootprintW: number;
+  ghostFootprintH: number;
   ghostMirrored: boolean;
   ghostCol: number;
   ghostRow: number;
@@ -275,19 +288,39 @@ function dashLine(
   }
 }
 
-function dashRect(
-  gfx: Graphics,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  dash: readonly [number, number],
-): void {
+function dashPoly(gfx: Graphics, points: readonly Point[], dash: readonly [number, number]): void {
   const [len, gap] = dash;
-  dashLine(gfx, x, y, x + w, y, len, gap);
-  dashLine(gfx, x + w, y, x + w, y + h, len, gap);
-  dashLine(gfx, x + w, y + h, x, y + h, len, gap);
-  dashLine(gfx, x, y + h, x, y, len, gap);
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    dashLine(gfx, a.x, a.y, b.x, b.y, len, gap);
+  }
+}
+
+/** Iso corners of a tile rectangle, clockwise from the top vertex. */
+function footprintDiamond(col: number, row: number, w = 1, h = 1): Point[] {
+  return [
+    tileCorner(col, row),
+    tileCorner(col + w, row),
+    tileCorner(col + w, row + h),
+    tileCorner(col, row + h),
+  ];
+}
+
+function polyCoords(points: readonly Point[]): number[] {
+  return points.flatMap((p) => [p.x, p.y]);
+}
+
+function actorBox(x: number, y: number): SortBox {
+  const col = x / TILE_SIZE;
+  const row = y / TILE_SIZE;
+  return {
+    minCol: col - ACTOR_SORT_HALF,
+    minRow: row - ACTOR_SORT_HALF,
+    maxCol: col + ACTOR_SORT_HALF,
+    maxRow: row + ACTOR_SORT_HALF,
+    layer: SortLayer.ACTOR,
+  };
 }
 
 // ── Status badge sprite selection ──────────────────────────────
@@ -412,8 +445,7 @@ export class OfficeSceneRenderer {
     const { offsetX, offsetY } = mapOffset(
       canvasWidth,
       canvasHeight,
-      cols,
-      rows,
+      gridRect({ cols, rows }),
       state.zoom,
       state.panX,
       state.panY,
@@ -422,7 +454,7 @@ export class OfficeSceneRenderer {
     this.worldLayer.scale.set(state.zoom, state.zoom);
 
     if (state.layout !== this.lastLayout) {
-      this.rebuildFloor(state, cols);
+      this.rebuildFloor(state);
       this.rebuildCarpet(state, cols, rows);
       this.rebuildAreaLabels(state);
       this.lastAreaOverlayKey = '';
@@ -450,37 +482,70 @@ export class OfficeSceneRenderer {
 
   // ── Floor + wall base color (layout-gated) ─────────────────────
 
-  private rebuildFloor(state: WorldRenderState, cols: number): void {
+  private rebuildFloor(state: WorldRenderState): void {
     this.floorContainer.removeChildren();
-    const tmRows = state.tileMap.length;
-    const tmCols = tmRows > 0 ? state.tileMap[0].length : 0;
+    const tileMap = state.tileMap;
+    const rows = tileMap.length;
+    const cols = rows > 0 ? tileMap[0].length : 0;
     const layoutCols = state.layoutCols ?? cols;
-    const useSpriteFloors = hasFloorSprites();
+    const isOpen = (c: number, r: number) =>
+      r < 0 || c < 0 || r >= rows || c >= cols || tileMap[r][c] === TileType.VOID;
 
-    for (let r = 0; r < tmRows; r++) {
-      for (let c = 0; c < tmCols; c++) {
-        const tile = state.tileMap[r][c];
-        if (tile === TileType.VOID) continue;
-
-        if (tile === TileType.WALL || !useSpriteFloors) {
-          const gfx = new Graphics();
-          gfx.roundPixels = true;
-          if (tile === TileType.WALL) {
-            const colorIdx = r * layoutCols + c;
-            const wallColor = state.tileColors?.[colorIdx];
-            const fill = hexToNumber(wallColor ? wallColorToHex(wallColor) : WALL_COLOR);
-            gfx.rect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE).fill(fill);
-          }
-          this.floorContainer.addChild(gfx);
-          continue;
+    // Slab edges where the office floor ends, so the room reads as a block.
+    const slab = new Graphics();
+    slab.roundPixels = true;
+    const leftSlab = hexToNumber(FLOOR_SLAB_LEFT_COLOR);
+    const rightSlab = hexToNumber(FLOOR_SLAB_RIGHT_COLOR);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (tileMap[r][c] === TileType.VOID) continue;
+        const left = tileCorner(c, r + 1);
+        const bottom = tileCorner(c + 1, r + 1);
+        const right = tileCorner(c + 1, r);
+        if (isOpen(c, r + 1)) {
+          slab
+            .poly([
+              left.x,
+              left.y,
+              bottom.x,
+              bottom.y,
+              bottom.x,
+              bottom.y + FLOOR_SLAB_PX,
+              left.x,
+              left.y + FLOOR_SLAB_PX,
+            ])
+            .fill(leftSlab);
         }
+        if (isOpen(c + 1, r)) {
+          slab
+            .poly([
+              bottom.x,
+              bottom.y,
+              right.x,
+              right.y,
+              right.x,
+              right.y + FLOOR_SLAB_PX,
+              bottom.x,
+              bottom.y + FLOOR_SLAB_PX,
+            ])
+            .fill(rightSlab);
+        }
+      }
+    }
+    this.floorContainer.addChild(slab);
 
-        const colorIdx = r * layoutCols + c;
-        const color = state.tileColors?.[colorIdx] ?? { h: 0, s: 0, b: 0, c: 0 };
-        const spriteData = getColorizedFloorSprite(tile, color);
-        const sprite = new Sprite(getTexture(spriteData));
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tile = tileMap[r][c];
+        // Walls are boxes drawn with the entities.
+        if (tile === TileType.VOID || tile === TileType.WALL) continue;
+        const color = state.tileColors?.[r * layoutCols + c] ?? { h: 0, s: 0, b: 0, c: 0 };
+        const sprite = new Sprite(
+          getTexture(projectToDiamond(getColorizedFloorSprite(tile, color))),
+        );
         sprite.roundPixels = true;
-        sprite.position.set(c * TILE_SIZE, r * TILE_SIZE);
+        const top = tileCorner(c, r);
+        sprite.position.set(top.x - ISO_TILE_W / 2, top.y);
         this.floorContainer.addChild(sprite);
       }
     }
@@ -543,11 +608,10 @@ export class OfficeSceneRenderer {
             paletteKey,
           );
           if (!spriteData) continue;
-          const sprite = new Sprite(getTexture(spriteData));
+          const sprite = new Sprite(getTexture(projectToDiamond(spriteData)));
           sprite.roundPixels = true;
-          const halfW = spriteData[0].length / 2;
-          const halfH = spriteData.length / 2;
-          sprite.position.set(jx * TILE_SIZE - halfW, jy * TILE_SIZE - halfH);
+          const center = tileCorner(jx, jy);
+          sprite.position.set(center.x - ISO_TILE_W / 2, center.y - ISO_TILE_H / 2);
           this.carpetContainer.addChild(sprite);
         }
       }
@@ -575,7 +639,7 @@ export class OfficeSceneRenderer {
             ? AREA_OVERLAY_ALPHA * AREA_ACTIVE_ALPHA_MULTIPLIER
             : AREA_OVERLAY_ALPHA;
         this.areaOverlayGfx
-          .rect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+          .poly(polyCoords(footprintDiamond(c, r)))
           .fill({ color: hexToNumber(hex), alpha });
       }
     }
@@ -614,8 +678,12 @@ export class OfficeSceneRenderer {
     }
 
     for (const [label, acc] of centroids) {
-      const localCx = (acc.sumX / acc.count + 0.5) * TILE_SIZE;
-      const localCy = (acc.sumY / acc.count + 0.5) * TILE_SIZE;
+      const center = worldToIso(
+        (acc.sumX / acc.count + 0.5) * TILE_SIZE,
+        (acc.sumY / acc.count + 0.5) * TILE_SIZE,
+      );
+      const localCx = center.x;
+      const localCy = center.y;
       const shadow = new Text({
         text: label,
         style: {
@@ -672,15 +740,15 @@ export class OfficeSceneRenderer {
       if (seat.seatCol !== selection.hoveredTile.col || seat.seatRow !== selection.hoveredTile.row)
         continue;
 
-      const x = seat.seatCol * TILE_SIZE;
-      const y = seat.seatRow * TILE_SIZE;
       const fill =
         selectedChar.seatId === uid
           ? rgbaToPixiColor(SEAT_OWN_COLOR)
           : !seat.assigned
             ? rgbaToPixiColor(SEAT_AVAILABLE_COLOR)
             : rgbaToPixiColor(SEAT_BUSY_COLOR);
-      this.seatIndicatorGfx.rect(x, y, TILE_SIZE, TILE_SIZE).fill(fill);
+      this.seatIndicatorGfx
+        .poly(polyCoords(footprintDiamond(seat.seatCol, seat.seatRow)))
+        .fill(fill);
       break;
     }
   }
@@ -694,30 +762,37 @@ export class OfficeSceneRenderer {
     const liveOutlines = new Set<number>();
     const liveMatrix = new Set<number>();
     const livePets = new Set<string>();
+    const drawables: Array<{ box: SortBox; nodes: Container[] }> = [];
 
-    if (hasWallSprites()) {
-      const wallInstances = getWallInstances(state.tileMap, state.tileColors, state.layoutCols);
-      for (const inst of wallInstances) {
-        const row = Math.round(inst.zY / TILE_SIZE) - 1;
-        const col = Math.round(inst.x / TILE_SIZE);
-        const key = `${row}:${col}`;
+    const tileMap = state.tileMap;
+    const layoutCols = state.layoutCols ?? tileMap[0]?.length ?? 0;
+    for (let r = 0; r < tileMap.length; r++) {
+      for (let c = 0; c < tileMap[r].length; c++) {
+        if (tileMap[r][c] !== TileType.WALL) continue;
+        const key = `${r}:${c}`;
         liveWalls.add(key);
+        const color = state.tileColors?.[r * layoutCols + c];
+        const height = wallHeight(tileMap, c, r);
         const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
-        sprite.texture = getTexture(inst.sprite);
-        sprite.position.set(inst.x, inst.y);
+        sprite.texture = getTexture(
+          getWallBoxSprite(color ? wallColorToHex(color) : WALL_COLOR, height),
+        );
+        const top = tileCorner(c, r);
+        sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
         sprite.scale.set(1, 1);
-        sprite.zIndex = inst.zY;
         sprite.visible = true;
+        drawables.push({
+          box: { minCol: c, minRow: r, maxCol: c + 1, maxRow: r + 1, layer: SortLayer.FLOOR },
+          nodes: [sprite],
+        });
       }
     }
 
     for (const f of state.furniture) {
-      if (!f.uid) continue;
       liveFurniture.add(f.uid);
       const sprite = getOrCreateSprite(this.furniturePool, f.uid, this.entityContainer);
       const texture = getTexture(f.sprite);
       sprite.texture = texture;
-      sprite.zIndex = f.zY;
       sprite.visible = true;
       if (f.mirrored) {
         sprite.scale.set(-1, 1);
@@ -726,6 +801,7 @@ export class OfficeSceneRenderer {
         sprite.scale.set(1, 1);
         sprite.position.set(f.x, f.y);
       }
+      drawables.push({ box: f.sort, nodes: [sprite] });
     }
 
     for (const ch of state.characters) {
@@ -733,19 +809,20 @@ export class OfficeSceneRenderer {
       const spriteData = getCharacterSprite(ch, sprites);
       const texture = getTexture(spriteData);
       const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
-      const localX = ch.x - texture.width / 2;
-      const localY = ch.y + sittingOffset - texture.height;
-      const charZY = ch.y + TILE_SIZE / 2 + CHARACTER_Z_SORT_OFFSET;
+      const anchor = worldToIso(ch.x, ch.y);
+      const localX = Math.round(anchor.x - texture.width / 2);
+      const localY = Math.round(anchor.y + sittingOffset - texture.height);
       const alpha = ch.isHeadless && ghostHeadlessAgents ? HEADLESS_CHARACTER_ALPHA : 1;
+      const box = actorBox(ch.x, ch.y);
 
       if (ch.matrixEffect) {
         liveMatrix.add(ch.id);
         const gfx = getOrCreateGraphics(this.matrixPool, ch.id, this.entityContainer);
         gfx.clear();
-        gfx.zIndex = charZY;
         gfx.alpha = alpha;
         gfx.visible = true;
         drawMatrixEffect(gfx, ch, spriteData, localX, localY, 1);
+        drawables.push({ box, nodes: [gfx] });
         continue;
       }
 
@@ -754,9 +831,9 @@ export class OfficeSceneRenderer {
       body.texture = texture;
       body.position.set(localX, localY);
       body.scale.set(1, 1);
-      body.zIndex = charZY;
       body.alpha = alpha;
       body.visible = true;
+      const nodes: Container[] = [body];
 
       const isSelected = state.selection?.selectedAgentId === ch.id;
       const isHovered = state.selection?.hoveredAgentId === ch.id;
@@ -767,10 +844,11 @@ export class OfficeSceneRenderer {
         outline.texture = getTexture(outlineData);
         outline.position.set(localX - 1, localY - 1);
         outline.scale.set(1, 1);
-        outline.zIndex = charZY - OUTLINE_Z_SORT_OFFSET;
         outline.alpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA;
         outline.visible = true;
+        nodes.unshift(outline);
       }
+      drawables.push({ box, nodes });
     }
 
     for (const pet of state.pets ?? []) {
@@ -779,12 +857,21 @@ export class OfficeSceneRenderer {
       if (!spriteData) continue;
       const texture = getTexture(spriteData);
       livePets.add(pet.id);
+      const anchor = worldToIso(pet.x, pet.y);
       const sprite = getOrCreateSprite(this.petPool, pet.id, this.entityContainer);
       sprite.texture = texture;
-      sprite.position.set(pet.x - texture.width / 2, pet.y - texture.height);
+      sprite.position.set(
+        Math.round(anchor.x - texture.width / 2),
+        Math.round(anchor.y - texture.height),
+      );
       sprite.scale.set(1, 1);
-      sprite.zIndex = pet.y + TILE_SIZE / 2;
       sprite.visible = true;
+      drawables.push({ box: actorBox(pet.x, pet.y), nodes: [sprite] });
+    }
+
+    let z = 0;
+    for (const i of isoDrawOrder(drawables.map((d) => d.box))) {
+      for (const node of drawables[i].nodes) node.zIndex = z++;
     }
 
     pruneStale(this.furniturePool, this.entityContainer, liveFurniture);
@@ -813,11 +900,12 @@ export class OfficeSceneRenderer {
         }
         const texture = getTexture(spriteData);
         const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
+        const anchor = worldToIso(ch.x, ch.y);
         const sprite = getOrCreateSprite(this.bubblePool, ch.id, this.bubbleContainer);
         sprite.texture = texture;
         sprite.position.set(
-          ch.x - texture.width / 2,
-          ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX - texture.height - 1,
+          Math.round(anchor.x - texture.width / 2),
+          Math.round(anchor.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX - texture.height - 1),
         );
         sprite.alpha = alpha;
         sprite.visible = true;
@@ -827,11 +915,12 @@ export class OfficeSceneRenderer {
         liveBadges.add(ch.id);
         const texture = getTexture(statusBadgeSprite(ch));
         const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
+        const anchor = worldToIso(ch.x, ch.y);
         const sprite = getOrCreateSprite(this.badgePool, ch.id, this.badgeContainer);
         sprite.texture = texture;
         sprite.position.set(
-          ch.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2,
-          ch.y + sittingOff - STATUS_BADGE_VERTICAL_OFFSET_PX - texture.height / 2,
+          Math.round(anchor.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2),
+          Math.round(anchor.y + sittingOff - STATUS_BADGE_VERTICAL_OFFSET_PX - texture.height / 2),
         );
         sprite.visible = true;
       }
@@ -847,7 +936,11 @@ export class OfficeSceneRenderer {
       const texture = getTexture(BUBBLE_HEART_SPRITE);
       const sprite = getOrCreateSprite(this.petBubblePool, pet.id, this.petBubbleContainer);
       sprite.texture = texture;
-      sprite.position.set(pet.x - texture.width / 2, pet.y - TILE_SIZE - texture.height - 1);
+      const anchor = worldToIso(pet.x, pet.y);
+      sprite.position.set(
+        Math.round(anchor.x - texture.width / 2),
+        Math.round(anchor.y - TILE_SIZE - texture.height - 1),
+      );
       sprite.alpha = alpha;
       sprite.visible = true;
     }
@@ -874,17 +967,21 @@ export class OfficeSceneRenderer {
     const cols = state.layoutCols ?? 0;
     const rows = state.layoutRows ?? 0;
     const zoom = state.zoom;
-    const s = TILE_SIZE * zoom;
+    const toDevice = (p: Point): Point => ({ x: offsetX + p.x * zoom, y: offsetY + p.y * zoom });
+    const diamond = (c: number, r: number, w = 1, h = 1) =>
+      footprintDiamond(c, r, w, h).map(toDevice);
 
     if (editor.showGrid) {
       const { color: lineColor, alpha: lineAlpha } = rgbaToPixiColor(GRID_LINE_COLOR);
       for (let c = 0; c <= cols; c++) {
-        const x = offsetX + c * s + 0.5;
-        this.gridGfx.moveTo(x, offsetY).lineTo(x, offsetY + rows * s);
+        const a = toDevice(tileCorner(c, 0));
+        const b = toDevice(tileCorner(c, rows));
+        this.gridGfx.moveTo(a.x, a.y).lineTo(b.x, b.y);
       }
       for (let r = 0; r <= rows; r++) {
-        const y = offsetY + r * s + 0.5;
-        this.gridGfx.moveTo(offsetX, y).lineTo(offsetX + cols * s, y);
+        const a = toDevice(tileCorner(0, r));
+        const b = toDevice(tileCorner(cols, r));
+        this.gridGfx.moveTo(a.x, a.y).lineTo(b.x, b.y);
       }
       this.gridGfx.stroke({ width: 1, color: lineColor, alpha: lineAlpha });
 
@@ -892,14 +989,7 @@ export class OfficeSceneRenderer {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           if (state.tileMap[r]?.[c] === TileType.VOID) {
-            dashRect(
-              this.gridGfx,
-              offsetX + c * s + 0.5,
-              offsetY + r * s + 0.5,
-              s - 1,
-              s - 1,
-              VOID_TILE_DASH_PATTERN,
-            );
+            dashPoly(this.gridGfx, diamond(c, r), VOID_TILE_DASH_PATTERN);
           }
         }
       }
@@ -922,13 +1012,12 @@ export class OfficeSceneRenderer {
       const normalStroke = rgbaToPixiColor(GHOST_BORDER_STROKE);
 
       for (const { c, r } of ghostTiles) {
-        const x = offsetX + c * s;
-        const y = offsetY + r * s;
+        const points = diamond(c, r);
         const isHovered = c === editor.ghostBorderHoverCol && r === editor.ghostBorderHoverRow;
         if (isHovered) {
-          this.ghostBorderGfx.rect(x, y, s, s).fill(hoverFill);
+          this.ghostBorderGfx.poly(polyCoords(points)).fill(hoverFill);
         }
-        dashRect(this.ghostBorderGfx, x + 0.5, y + 0.5, s - 1, s - 1, VOID_TILE_DASH_PATTERN);
+        dashPoly(this.ghostBorderGfx, points, VOID_TILE_DASH_PATTERN);
         this.ghostBorderGfx.stroke({
           width: 1,
           color: isHovered ? hoverStroke.color : normalStroke.color,
@@ -939,48 +1028,64 @@ export class OfficeSceneRenderer {
 
     if (editor.ghostSprite && editor.ghostCol >= 0) {
       const texture = getTexture(editor.ghostSprite);
-      const x = offsetX + editor.ghostCol * s;
-      const y = offsetY + editor.ghostRow * s;
+      const origin = toDevice(
+        footprintSpriteOrigin(
+          editor.ghostCol,
+          editor.ghostRow,
+          editor.ghostFootprintW,
+          editor.ghostFootprintH,
+          texture.width,
+          texture.height,
+        ),
+      );
       this.ghostSpritePixi.texture = texture;
       this.ghostSpritePixi.alpha = GHOST_PREVIEW_SPRITE_ALPHA;
       this.ghostSpritePixi.visible = true;
       if (editor.ghostMirrored) {
         this.ghostSpritePixi.scale.set(-zoom, zoom);
-        this.ghostSpritePixi.position.set(x + texture.width * zoom, y);
+        this.ghostSpritePixi.position.set(origin.x + texture.width * zoom, origin.y);
       } else {
         this.ghostSpritePixi.scale.set(zoom, zoom);
-        this.ghostSpritePixi.position.set(x, y);
+        this.ghostSpritePixi.position.set(origin.x, origin.y);
       }
       const tintColor = hexToNumber(editor.ghostValid ? GHOST_VALID_TINT : GHOST_INVALID_TINT);
       this.ghostTintGfx
-        .rect(x, y, texture.width * zoom, texture.height * zoom)
+        .poly(
+          polyCoords(
+            diamond(
+              editor.ghostCol,
+              editor.ghostRow,
+              editor.ghostFootprintW,
+              editor.ghostFootprintH,
+            ),
+          ),
+        )
         .fill({ color: tintColor, alpha: GHOST_PREVIEW_TINT_ALPHA });
     }
 
     if (editor.hasSelection) {
-      const x = offsetX + editor.selectedCol * s;
-      const y = offsetY + editor.selectedRow * s;
-      const w = editor.selectedW * s;
-      const h = editor.selectedH * s;
-      dashRect(this.selectionGfx, x + 1, y + 1, w - 2, h - 2, SELECTION_DASH_PATTERN);
+      const { selectedCol: col, selectedRow: row, selectedW: w, selectedH: h } = editor;
+      dashPoly(this.selectionGfx, diamond(col, row, w, h), SELECTION_DASH_PATTERN);
       this.selectionGfx.stroke({ width: 2, color: hexToNumber(SELECTION_HIGHLIGHT_COLOR) });
 
+      const rightVertex = toDevice(tileCorner(col + w, row));
       editor.deleteButtonBounds = this.drawRoundButton(
         this.deleteButtonGfx,
-        offsetX + (editor.selectedCol + editor.selectedW) * s + 1,
-        offsetY + editor.selectedRow * s - 1,
+        rightVertex.x,
+        rightVertex.y,
         zoom,
-        hexToPixiColor(DELETE_BUTTON_BG),
+        rgbaToPixiColor(DELETE_BUTTON_BG),
         'x',
       );
 
       if (editor.isRotatable) {
+        const leftVertex = toDevice(tileCorner(col, row + h));
         editor.rotateButtonBounds = this.drawRoundButton(
           this.rotateButtonGfx,
-          offsetX + editor.selectedCol * s - 1,
-          offsetY + editor.selectedRow * s - 1,
+          leftVertex.x,
+          leftVertex.y,
           zoom,
-          hexToPixiColor(ROTATE_BUTTON_BG),
+          rgbaToPixiColor(ROTATE_BUTTON_BG),
           'rotate',
         );
       } else {
@@ -1013,7 +1118,9 @@ export class OfficeSceneRenderer {
       gfx.stroke({ width: lineWidth, color: iconColor, cap: 'round' });
     } else {
       const arcR = radius * BUTTON_ICON_SIZE_FACTOR;
-      gfx.arc(cx, cy, arcR, -Math.PI * 0.8, Math.PI * 0.7);
+      const startAngle = -Math.PI * 0.8;
+      gfx.moveTo(cx + arcR * Math.cos(startAngle), cy + arcR * Math.sin(startAngle));
+      gfx.arc(cx, cy, arcR, startAngle, Math.PI * 0.7);
       gfx.stroke({ width: lineWidth, color: iconColor, cap: 'round' });
       const endAngle = Math.PI * 0.7;
       const endX = cx + arcR * Math.cos(endAngle);

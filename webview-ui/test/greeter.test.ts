@@ -27,6 +27,7 @@ import { test } from 'vitest';
 
 import { GREETER_ID, GREETER_TILE_MARGIN } from '../src/constants.js';
 import { OfficeState } from '../src/office/engine/officeState.js';
+import { worldToIso } from '../src/office/iso.js';
 import type { OfficeLayout } from '../src/office/types.js';
 import { CharacterState, MATRIX_EFFECT_DURATION, TileType } from '../src/office/types.js';
 
@@ -139,7 +140,8 @@ test('is invisible to hit-testing — clicks pass through', () => {
   os.update(MATRIX_EFFECT_DURATION + 0.05);
   const ch = os.greeter!;
 
-  assert.equal(os.getCharacterAt(ch.x, ch.y - 1), null, 'no hit on the greeter sprite');
+  const anchor = worldToIso(ch.x, ch.y);
+  assert.equal(os.getCharacterAt(anchor.x, anchor.y - 1), null, 'no hit on the greeter sprite');
 });
 
 /**

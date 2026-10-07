@@ -11,15 +11,16 @@
 
 import {
   CHARACTER_HIT_HALF_WIDTH,
-  INTRO_BUBBLE_ANCHOR_RISE_WORLD,
+  INTRO_BUBBLE_ANCHOR_RISE_PX,
   INTRO_BUBBLE_EDGE_MARGIN_PX,
-  INTRO_BUBBLE_OFFSET_X_WORLD,
+  INTRO_BUBBLE_OFFSET_X_PX,
   INTRO_CAMERA_DOWN_SHIFT_PX,
   INTRO_CAMERA_MAX_X_OFFSET_VIEWPORT_FRACTION,
-  INTRO_CAMERA_MIN_CHAR_VISIBLE_WORLD,
+  INTRO_CAMERA_MIN_CHAR_VISIBLE_PX,
   INTRO_TAIL_STEPS,
-  INTRO_TAIL_TARGET_RISE_WORLD,
+  INTRO_TAIL_TARGET_RISE_PX,
 } from '../constants.js';
+import { isoToWorld } from '../office/iso.js';
 import { overlayProjection } from '../office/projection.js';
 
 export interface IntroBubbleFrame {
@@ -56,8 +57,9 @@ export function computeIntroBubbleGeometry(frame: IntroBubbleFrame): IntroBubble
 
   // Anchor the bubble's bottom-left up-right of the greeter's head, clamped
   // into the container.
-  const anchorX = project.toScreenX(greeter.x + INTRO_BUBBLE_OFFSET_X_WORLD);
-  const anchorY = project.toScreenY(greeter.y - INTRO_BUBBLE_ANCHOR_RISE_WORLD);
+  const anchor = project.project(greeter.x, greeter.y, INTRO_BUBBLE_ANCHOR_RISE_PX);
+  const anchorX = anchor.x + project.toCssLength(INTRO_BUBBLE_OFFSET_X_PX);
+  const anchorY = anchor.y;
   const left = Math.max(margin, Math.min(anchorX, containerRect.width - bubbleWidth - margin));
   const top = Math.max(
     margin,
@@ -71,8 +73,9 @@ export function computeIntroBubbleGeometry(frame: IntroBubbleFrame): IntroBubble
   // from its preferred spot above the character.
   let tailSquares: IntroBubbleGeometry['tailSquares'] = [];
   if (bubbleWidth > 0 && bubbleHeight > 0) {
-    const headX = project.toScreenX(greeter.x);
-    const headY = project.toScreenY(greeter.y - INTRO_TAIL_TARGET_RISE_WORLD);
+    const head = project.project(greeter.x, greeter.y, INTRO_TAIL_TARGET_RISE_PX);
+    const headX = head.x;
+    const headY = head.y;
     const edgeX = Math.max(left, Math.min(headX, left + bubbleWidth));
     const edgeY = Math.max(top, Math.min(headY, top + bubbleHeight));
     tailSquares = INTRO_TAIL_STEPS.map(({ t, size }) => ({
@@ -86,22 +89,24 @@ export function computeIntroBubbleGeometry(frame: IntroBubbleFrame): IntroBubble
   // against the viewport. The ideal composition assumes the bubble fits
   // up-right of the character; when a small viewport clamps the bubble to the
   // screen instead, the uncapped center would shove the greeter to the edge.
-  const bubbleWorldW = project.toWorldLength(bubbleWidth);
-  const bubbleWorldH = project.toWorldLength(bubbleHeight);
+  // Offsets are screen sprite px; the target goes back to world coords.
+  const bubbleSpriteW = project.toSpriteLength(bubbleWidth);
+  const bubbleSpriteH = project.toSpriteLength(bubbleHeight);
   const offX = Math.min(
-    (INTRO_BUBBLE_OFFSET_X_WORLD + bubbleWorldW - CHARACTER_HIT_HALF_WIDTH) / 2,
-    project.viewportWorldWidth * INTRO_CAMERA_MAX_X_OFFSET_VIEWPORT_FRACTION,
+    (INTRO_BUBBLE_OFFSET_X_PX + bubbleSpriteW - CHARACTER_HIT_HALF_WIDTH) / 2,
+    project.viewportSpriteWidth * INTRO_CAMERA_MAX_X_OFFSET_VIEWPORT_FRACTION,
   );
   const offY = Math.min(
-    (INTRO_BUBBLE_ANCHOR_RISE_WORLD + bubbleWorldH) / 2,
-    project.viewportWorldHeight / 2 - INTRO_CAMERA_MIN_CHAR_VISIBLE_WORLD,
+    (INTRO_BUBBLE_ANCHOR_RISE_PX + bubbleSpriteH) / 2,
+    project.viewportSpriteHeight / 2 - INTRO_CAMERA_MIN_CHAR_VISIBLE_PX,
   );
   // Aim BELOW the composition center: the camera moves down, so the character
   // + bubble land a bit above the vertical center of the view.
-  const downShift = project.toWorldLength(INTRO_CAMERA_DOWN_SHIFT_PX);
+  const downShift = project.toSpriteLength(INTRO_CAMERA_DOWN_SHIFT_PX);
+  const worldDelta = isoToWorld(offX, downShift - Math.max(0, offY));
   const cameraTarget = {
-    x: greeter.x + offX,
-    y: greeter.y - Math.max(0, offY) + downShift,
+    x: greeter.x + worldDelta.x,
+    y: greeter.y + worldDelta.y,
   };
 
   return { left, top, tailSquares, cameraTarget };

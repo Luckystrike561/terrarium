@@ -14,7 +14,6 @@ import {
   eraseArea,
   eraseCarpet,
   expandLayout,
-  getWallPlacementRow,
   moveFurniture,
   paintArea,
   paintCarpet,
@@ -717,10 +716,9 @@ export function useEditorActions(
           editorState.selectedFurnitureUid = hit ? hit.uid : null;
           setEditorTick((n) => n + 1);
         } else {
-          const placementRow = getWallPlacementRow(type, row);
-          if (!canPlaceFurniture(layout, type, col, placementRow)) return;
+          if (!canPlaceFurniture(layout, type, col, row)) return;
           const uid = `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-          const placed: PlacedFurniture = { uid, type, col, row: placementRow };
+          const placed: PlacedFurniture = { uid, type, col, row };
           if (editorState.pickedFurnitureColor) {
             placed.color = { ...editorState.pickedFurnitureColor };
           }

@@ -135,8 +135,9 @@ export function ToolOverlay({
 
         // Position above character
         const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
-        const screenX = project.toScreenX(ch.x);
-        const screenY = project.toScreenY(ch.y + sittingOffset - TOOL_OVERLAY_VERTICAL_OFFSET);
+        const point = project.project(ch.x, ch.y, TOOL_OVERLAY_VERTICAL_OFFSET - sittingOffset);
+        const screenX = point.x;
+        const screenY = point.y;
 
         // A "Done" agent (finished turn: waiting bubble without awaitingInput)
         // shows ONLY its floating green checkmark bubble, never the label panel
