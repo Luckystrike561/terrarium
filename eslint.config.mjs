@@ -37,11 +37,5 @@ export default [
       'pixel-agents/no-inline-colors': 'error',
     },
   },
-  {
-    files: ['adapters/vscode/constants.ts'],
-    rules: {
-      'pixel-agents/no-inline-colors': 'off',
-    },
-  },
   eslintConfigPrettier,
 ];

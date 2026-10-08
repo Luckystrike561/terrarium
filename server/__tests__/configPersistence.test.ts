@@ -201,7 +201,6 @@ describe('configPersistence: areas', () => {
       setHooksEnabled('claude', false); // a persisted "off" must not survive uninstall,
       setHooksEnabled('other', false); // or the next install never prompts
       const cfg = readConfig();
-      cfg.vscode.hooksInfoShown = true;
       cfg.standalone.hooksInfoShown = true;
       writeConfig(cfg);
 
@@ -212,7 +211,6 @@ describe('configPersistence: areas', () => {
       expect(getHooksEnabled('claude')).toBe(true);
       expect(getHooksEnabled('other')).toBe(true);
       const reset = readConfig();
-      expect(reset.vscode.hooksInfoShown).toBe(false);
       expect(reset.standalone.hooksInfoShown).toBe(false);
     });
   });
@@ -222,24 +220,18 @@ describe('configPersistence: areas', () => {
   describe('readConfig + writeConfig round-trip for area settings', () => {
     it('returns defaults (showAreas=false, areaMappings={}) when no config file exists', () => {
       const cfg = readConfig();
-      expect(cfg.vscode.showAreas).toBe(false);
-      expect(cfg.vscode.areaMappings).toEqual({});
       expect(cfg.standalone.showAreas).toBe(false);
       expect(cfg.standalone.areaMappings).toEqual({});
     });
 
-    it('round-trips showAreas + areaMappings per-namespace independently', () => {
+    it('round-trips showAreas + areaMappings', () => {
       const cfg = readConfig();
-      cfg.vscode.showAreas = true;
-      cfg.vscode.areaMappings = { frontend: ['Engineering'] };
-      cfg.standalone.showAreas = false;
+      cfg.standalone.showAreas = true;
       cfg.standalone.areaMappings = { backend: ['Platform'] };
       writeConfig(cfg);
 
       const reloaded = readConfig();
-      expect(reloaded.vscode.showAreas).toBe(true);
-      expect(reloaded.vscode.areaMappings).toEqual({ frontend: ['Engineering'] });
-      expect(reloaded.standalone.showAreas).toBe(false);
+      expect(reloaded.standalone.showAreas).toBe(true);
       expect(reloaded.standalone.areaMappings).toEqual({ backend: ['Platform'] });
     });
 
@@ -249,29 +241,40 @@ describe('configPersistence: areas', () => {
       fs.writeFileSync(
         path.join(configDir, 'config.json'),
         JSON.stringify({
-          vscode: { showAreas: 'yes please', areaMappings: 'not-an-object' },
-          standalone: { showAreas: true, areaMappings: { frontend: 'broken' } },
+          standalone: { showAreas: 'yes please', areaMappings: 'not-an-object' },
         }),
         'utf-8',
       );
 
       const cfg = readConfig();
       // showAreas: 'yes please' is not a boolean → default false
-      expect(cfg.vscode.showAreas).toBe(false);
-      expect(cfg.vscode.areaMappings).toEqual({});
-      // showAreas: true is valid; areaMappings.frontend: 'broken' is not an array → dropped
-      expect(cfg.standalone.showAreas).toBe(true);
+      expect(cfg.standalone.showAreas).toBe(false);
       expect(cfg.standalone.areaMappings).toEqual({});
     });
 
-    it('keeps namespaces isolated when only one writes mappings', () => {
+    it('loads a config.json carrying a leftover vscode key without error, keeps standalone intact, and drops the key on next write', () => {
+      const configDir = path.join(tempHome, '.pixel-agents');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.json'),
+        JSON.stringify({
+          vscode: { showAreas: true, areaMappings: { frontend: ['Engineering'] } },
+          standalone: { showAreas: false, areaMappings: { backend: ['Platform'] } },
+        }),
+        'utf-8',
+      );
+
       const cfg = readConfig();
-      cfg.vscode.areaMappings = { frontend: ['Engineering'] };
+      expect(cfg.standalone.showAreas).toBe(false);
+      expect(cfg.standalone.areaMappings).toEqual({ backend: ['Platform'] });
+
       writeConfig(cfg);
 
-      const reloaded = readConfig();
-      expect(reloaded.vscode.areaMappings).toEqual({ frontend: ['Engineering'] });
-      expect(reloaded.standalone.areaMappings).toEqual({});
+      const configPath = path.join(configDir, 'config.json');
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
+      expect('vscode' in raw).toBe(false);
+      const reread = readConfig();
+      expect(reread.standalone.areaMappings).toEqual({ backend: ['Platform'] });
     });
   });
 });

@@ -62,8 +62,7 @@ const CLOSING_STEP = 3;
 
 /**
  * The Intro: the four-step first-run tour the greeter character "speaks",
- * shared by both surfaces (the VS Code webview and the standalone browser
- * render this same component off the same server message).
+ * rendered off the same server message every connected browser receives.
  *
  * Steps: welcome → Claude Code → hooks consent → all set. The consent step is
  * the same first-run ask as before, now wrapped in a tour; its copy still

@@ -1,10 +1,8 @@
 /**
- * AgentRuntime: shared agent lifecycle core for VS Code and standalone modes.
+ * AgentRuntime: shared agent lifecycle core for the standalone CLI server.
  *
- * Owns all infrastructure that both PixelAgentsViewProvider (VS Code) and the
- * standalone CLI need: timer Maps, file watchers, HookEventHandler, DismissalTracker,
- * session scanning, and agent removal. Adapters (VS Code, CLI) create an instance
- * and register platform-specific lifecycle callbacks.
+ * Owns all infrastructure the standalone CLI needs: timer Maps, file watchers,
+ * HookEventHandler, DismissalTracker, session scanning, and agent removal.
  *
  * This is the single source of truth for agent lifecycle wiring. No duplication.
  */
@@ -70,7 +68,6 @@ export class AgentRuntime {
   // -- the two spellings differ by drive-letter case on Windows.
   readonly knownJsonlFiles = new PathSet();
   readonly projectScanTimer = { current: null as ReturnType<typeof setInterval> | null };
-  readonly activeAgentId = { current: null as number | null };
   private externalScanTimer: ReturnType<typeof setInterval> | null = null;
   private staleCheckTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -280,10 +277,8 @@ export class AgentRuntime {
         this.removeTeammates(agentId);
         // Unnamed background spawns die with their lead's session too.
         this.subagentWatch.removeByLead(agentId);
-        if (agent.isExternal) {
-          this.unregisterAgent(agent.sessionId);
-          this.removeAgent(agentId);
-        }
+        this.unregisterAgent(agent.sessionId);
+        this.removeAgent(agentId);
       },
     });
   }
@@ -413,7 +408,6 @@ export class AgentRuntime {
       projectDir,
       this.knownJsonlFiles,
       this.projectScanTimer,
-      this.activeAgentId,
       this.store.nextAgentId,
       this.store,
       this.fileWatchers,
@@ -422,11 +416,10 @@ export class AgentRuntime {
       this.permissionTimers,
       () => this.store.persist(),
       onAgentCreated ?? ((agent) => this.registerAgent(agent.sessionId, agent.id)),
-      this.hooksEnabled,
     );
   }
 
-  /** Start external session scanning (detects sessions from other terminals). */
+  /** Start external session scanning (detects sessions not launched from this server). */
   startExternalScanning(projectDir: string): void {
     if (this.externalScanTimer) return;
 
@@ -460,10 +453,8 @@ export class AgentRuntime {
   // ── Restore persisted external agents (standalone) ──
 
   /**
-   * Re-create external agents from the adapter's persistence on startup.
-   * Only external agents are restorable here (no terminal to rebind).
-   * VS Code uses its own restoreAgents() in agentManager.ts to also handle
-   * terminal agents via vscode.window.terminals.
+   * Re-create agents from the adapter's persistence on startup. This is the
+   * only restore path; there is no separate adapter-side restore.
    */
   restoreExternalAgents(): void {
     const adapter = this.store.getAdapter();
@@ -474,7 +465,6 @@ export class AgentRuntime {
     let maxId = 0;
 
     for (const p of persisted) {
-      if (!p.isExternal) continue;
       // Background-spawn children (a leadAgentId but no teamName) are derived
       // state: the 1s scan re-materializes them from sidecars while their spawn
       // is live. Restoring them directly would resurrect immortal characters
@@ -494,8 +484,6 @@ export class AgentRuntime {
       const agent: AgentState = {
         id: p.id,
         sessionId: p.sessionId || path.basename(p.jsonlFile, '.jsonl'),
-        terminalRef: undefined,
-        isExternal: true,
         projectDir: p.projectDir,
         jsonlFile: p.jsonlFile,
         fileOffset: 0,

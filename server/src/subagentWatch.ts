@@ -73,8 +73,6 @@ export class SubagentWatch {
       // Shares the lead's session like the transcript it mirrors. Never
       // registered with the session router.
       sessionId: lead.sessionId,
-      terminalRef: undefined,
-      isExternal: true,
       projectDir: lead.projectDir,
       jsonlFile: entry.jsonlPath,
       fileOffset: 0,

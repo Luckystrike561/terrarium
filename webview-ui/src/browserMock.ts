@@ -1,11 +1,11 @@
 /**
- * Browser runtime mock — fetches assets and injects the same postMessage
- * events the VS Code extension would send.
+ * Browser runtime mock — fetches assets and injects the same ServerMessage
+ * events the standalone server would send over the WebSocket transport.
  *
  * In Vite dev, it prefers pre-decoded JSON endpoints from middleware.
  * In plain browser builds, it falls back to decoding PNGs at runtime.
  *
- * Only imported in browser runtime; tree-shaken from VS Code webview runtime.
+ * Only imported in Vite dev mode; tree-shaken from the production build.
  */
 
 import { rgbaToHex } from '../../core/src/assets/colorUtils.ts';
@@ -248,8 +248,8 @@ export async function initBrowserMock(): Promise<void> {
  * Call inside a useEffect in App.tsx -- after the window message listener
  * in useExtensionMessages has been registered.
  *
- * Only used in Vite dev mode (npm run dev). In standalone server mode and
- * VS Code mode, the server/extension sends all state over the transport.
+ * Only used in Vite dev mode (npm run dev). In standalone server mode the
+ * server sends all state over the transport.
  */
 export function dispatchMockMessages(): void {
   if (!mockPayload) return;

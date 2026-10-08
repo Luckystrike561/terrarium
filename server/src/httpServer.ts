@@ -13,18 +13,11 @@ import type {
   SetHooksEnabledSideEffect,
 } from './clientMessageHandler.js';
 import { handleClientMessage } from './clientMessageHandler.js';
-import {
-  HOOK_API_PREFIX,
-  MAX_HOOK_BODY_SIZE,
-  WS_CLOSE_FORBIDDEN_ORIGIN,
-  WS_CLOSE_UNAUTHORIZED,
-} from './constants.js';
+import { HOOK_API_PREFIX, MAX_HOOK_BODY_SIZE, WS_CLOSE_FORBIDDEN_ORIGIN } from './constants.js';
 import type { AgentState } from './types.js';
 
 /** Options for creating the HTTP + WebSocket server. */
 export interface HttpServerOptions {
-  /** true = VS Code embedded mode (ephemeral port, no static, quiet logging) */
-  embedded: boolean;
   /** Host to bind to. Default: '127.0.0.1' */
   host?: string;
   /** Port to listen on. Default: 0 (auto-assign) */
@@ -33,7 +26,7 @@ export interface HttpServerOptions {
   token: string;
   /** AgentStateStore for WebSocket broadcast piping */
   store: AgentStateStore;
-  /** Shared agent lifecycle core (for toggle side effects + standalone restore). Optional in embedded mode. */
+  /** Shared agent lifecycle core (for toggle side effects + standalone restore). */
   runtime?: AgentRuntime;
   /** Path to SPA dist directory for static serving (standalone only) */
   staticDir?: string;
@@ -63,15 +56,15 @@ const startTime = Date.now();
  */
 export async function createHttpServer(options: HttpServerOptions): Promise<HttpServerHandle> {
   const app = Fastify({
-    logger: !options.embedded,
+    logger: true,
     bodyLimit: MAX_HOOK_BODY_SIZE,
   });
 
   await app.register(fastifyCors, { origin: true });
   await app.register(fastifyWebsocket);
 
-  // Static SPA serving (standalone mode only)
-  if (!options.embedded && options.staticDir) {
+  // Static SPA serving
+  if (options.staticDir) {
     await app.register(fastifyStatic, {
       root: options.staticDir,
       prefix: '/',
@@ -144,27 +137,20 @@ function registerHookRoute(app: FastifyInstance, options: HttpServerOptions): vo
 
 function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions): void {
   app.get('/ws', { websocket: true }, (socket, request) => {
-    // CONNECTION gate. Embedded (VS Code) requires the Bearer token. Standalone
-    // requires a same-origin handshake instead (isAllowedWebSocketOrigin), so a
-    // non-browser local client with no Origin can still watch the office. What
-    // may be DONE over an accepted connection is a separate question, decided
-    // below.
-    if (options.embedded) {
-      if (!timingSafeStringEqual(request.headers.authorization ?? '', `Bearer ${options.token}`)) {
-        socket.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized');
-        return;
-      }
-    } else if (!isAllowedWebSocketOrigin(request.headers.origin, request.headers.host)) {
+    // CONNECTION gate: is this handshake same-origin? (isAllowedWebSocketOrigin).
+    // A non-browser local client with no Origin can still watch the office.
+    // What may be DONE over an accepted connection is a separate question,
+    // decided below.
+    if (!isAllowedWebSocketOrigin(request.headers.origin, request.headers.host)) {
       socket.close(WS_CLOSE_FORBIDDEN_ORIGIN, 'forbidden origin');
       return;
     }
 
-    // Both modes prove privilege with the SAME out-of-band secret, differently
-    // carried: embedded sends the Bearer token it was handed in-process;
-    // standalone sends the `?token=` the CLI printed in the local URL and the
-    // SPA forwarded on this handshake. Nothing about a network POSITION is
-    // consulted, because every position is reproducible by a forwarder.
-    const privileged = options.embedded || standaloneTokenValid(request.url, options.token);
+    // Privilege is proved with an out-of-band secret: the `?token=` the CLI
+    // printed in the local URL and the SPA forwarded on this handshake.
+    // Nothing about a network POSITION is consulted, because every position
+    // is reproducible by a forwarder.
+    const privileged = standaloneTokenValid(request.url, options.token);
 
     const { store } = options;
 
@@ -174,7 +160,6 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
         type: 'agentCreated',
         id,
         folderName: agent.folderName,
-        isExternal: agent.isExternal || undefined,
         isTeammate: agent.leadAgentId !== undefined || undefined,
         teammateName: agent.agentName,
         parentAgentId: agent.leadAgentId,
@@ -201,7 +186,7 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
     socket.on('message', (data: Buffer | string) => {
       try {
         const msg = JSON.parse(data.toString()) as Record<string, unknown>;
-        if (!options.embedded && msg.type) {
+        if (msg.type) {
           console.log('[Pixel Agents] WS client message:', msg.type);
         }
         handleClientMessage(msg, (m) => safeSend(socket, m), {

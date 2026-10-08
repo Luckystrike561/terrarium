@@ -17,7 +17,6 @@ npm-debug.log*
 Thumbs.db
 
 # IDE
-.vscode-test/
 /.idea
 
 # E2E test artifacts
@@ -27,7 +26,6 @@ allure-results/
 allure-report/
 
 # Build artifacts
-*.vsix
 *.map
 
 # Environment files

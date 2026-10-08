@@ -1,6 +1,6 @@
 /**
- * Asset pipeline types — shared between the extension host, Vite build
- * scripts, browser mock, and future standalone backends.
+ * Asset pipeline types shared by the server, the Vite build scripts and the
+ * browser mock.
  */
 
 export interface CharacterDirectionSprites {

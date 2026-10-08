@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- **Removed the VS Code extension surface** — The standalone server (`npx pixel-agents`) is now the only surface. The VS Code adapter, its webview transport, and its packaging (`.vsix`, Marketplace/Open VSX publishing) are gone. A leftover `vscode` config key or `vscode-state.json` from an older install is ignored, not a startup error; existing `~/.pixel-agents/` installs keep working.
+
 ## v1.4.1
 
 ### Features

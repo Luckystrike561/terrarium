@@ -19,7 +19,6 @@ import {
   CLAUDE_LARGE_CONTEXT_WINDOW,
   CLAUDE_SMALL_CONTEXT_MODEL_PATTERN,
   CLAUDE_SMALL_CONTEXT_WINDOW,
-  CLAUDE_TERMINAL_NAME_PREFIX,
 } from './constants.js';
 
 // ── formatToolStatus: moved from src/transcriptParser.ts ──
@@ -83,7 +82,7 @@ function getSessionDirs(workspacePath: string): string[] {
   if (fs.existsSync(projectDir)) return [projectDir];
 
   // Case-insensitive fallback for Windows: drive letter casing can differ
-  // between what VS Code gives us (e.g. "c:\...") and Claude's encoding ("C:\...").
+  // between what `process.cwd()` gives us (e.g. "c:\...") and Claude's encoding ("C:\...").
   const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
   try {
     if (fs.existsSync(projectsRoot)) {
@@ -97,16 +96,6 @@ function getSessionDirs(workspacePath: string): string[] {
 
   // Return the expected path even if it doesn't exist yet (caller tolerates missing dirs).
   return [projectDir];
-}
-
-function buildLaunchCommand(
-  sessionId: string,
-  cwd: string,
-  opts?: { bypassPermissions?: boolean },
-): { command: string; args: string[]; env?: Record<string, string> } {
-  const args = ['--session-id', sessionId];
-  if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
-  return { command: 'claude', args, env: { PWD: cwd } };
 }
 
 /** Root that holds every Claude session across all workspaces. Used by the
@@ -307,13 +296,11 @@ export const claudeProvider: HookProvider = {
   permissionExemptTools: new Set(['Task', 'Agent', 'AskUserQuestion']),
   subagentToolNames: new Set(['Task', 'Agent']),
   readingTools: new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']),
-  terminalNamePrefix: CLAUDE_TERMINAL_NAME_PREFIX,
   contextWindowForModel,
 
   getSessionDirs,
   getAllSessionRoots,
   sessionFilePattern: '*.jsonl',
-  buildLaunchCommand,
 
   team: claudeTeamProvider,
 };

@@ -79,7 +79,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
     process.env.HOME = tempHome;
 
     store = new AgentStateStore();
-    store.setAdapter(new FileStateAdapter({ namespace: 'standalone' }));
+    store.setAdapter(new FileStateAdapter());
     sent = [];
     ctx = { store, cache: null, privileged: true };
   });

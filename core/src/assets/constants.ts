@@ -1,8 +1,7 @@
 /**
- * Shared constants — used by the extension host, Vite build scripts,
- * and future standalone backend.
+ * Shared constants — used by the server and Vite build scripts.
  *
- * No VS Code dependency. Only asset parsing and layout-related values.
+ * Only asset parsing and layout-related values.
  */
 
 // ── PNG / Asset Parsing ─────────────────────────────────────

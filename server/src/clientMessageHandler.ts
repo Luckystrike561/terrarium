@@ -56,17 +56,16 @@ export interface ClientMessageContext {
    * Whether this client may send messages that reach OUTSIDE `~/.pixel-agents/`
    * — today only `setHooksEnabled`, which grants machine-wide consent to modify
    * `~/.claude/settings.json`. Decided per-connection by the transport
-   * (httpServer's standaloneTokenValid, or the embedded Bearer token); defaults
-   * to false so a caller that forgets to pass it gets the safe answer.
+   * (httpServer's standaloneTokenValid); defaults to false so a caller that
+   * forgets to pass it gets the safe answer.
    */
   privileged?: boolean;
 }
 
-// ── Setting key constants (mirror adapters/vscode/constants.ts) ──
+// ── Setting key constants ──
 const KEY_SOUND_ENABLED = 'pixel-agents.soundEnabled';
 const KEY_LAST_SEEN_VERSION = 'pixel-agents.lastSeenVersion';
 const KEY_ALWAYS_SHOW_LABELS = 'pixel-agents.alwaysShowLabels';
-const KEY_GHOST_HEADLESS_AGENTS = 'pixel-agents.ghostHeadlessAgents';
 const KEY_WATCH_ALL_SESSIONS = 'pixel-agents.watchAllSessions';
 const KEY_HOOKS_INFO_SHOWN = 'pixel-agents.hooksInfoShown';
 const KEY_SHOW_AREAS = 'pixel-agents.showAreas';
@@ -92,10 +91,10 @@ export function handleClientMessage(
       break;
 
     case 'closeAgent': {
-      // Standalone agents are always external (no terminal), so mirror the VS
-      // Code external-agent branch: dismiss the file (so the external scanner
-      // doesn't re-adopt it) then remove. removeAgent fires the agentRemoved
-      // store event, which httpServer maps to an agentClosed broadcast.
+      // Standalone agents are always external (no terminal): dismiss the
+      // file (so the external scanner doesn't re-adopt it) then remove.
+      // removeAgent fires the agentRemoved store event, which httpServer
+      // maps to an agentClosed broadcast.
       const id = msg.id as number;
       const agent = store.get(id);
       if (agent && runtime) {
@@ -166,10 +165,6 @@ export function handleClientMessage(
 
     case 'setAlwaysShowLabels':
       adapter?.setSetting(KEY_ALWAYS_SHOW_LABELS, msg.enabled);
-      break;
-
-    case 'setGhostHeadlessAgents':
-      adapter?.setSetting(KEY_GHOST_HEADLESS_AGENTS, msg.enabled);
       break;
 
     case 'setWatchAllSessions': {
@@ -271,8 +266,6 @@ export function handleClientMessage(
     }
 
     default:
-      // focusAgent, exportLayout, importLayout
-      // require IDE-specific handling (not yet implemented for standalone)
       break;
   }
 }
@@ -417,7 +410,6 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     extensionVersion: process.env.PIXEL_AGENTS_VERSION ?? '',
     watchAllSessions,
     alwaysShowLabels: adapter?.getSetting(KEY_ALWAYS_SHOW_LABELS, false) ?? false,
-    ghostHeadlessAgents: adapter?.getSetting(KEY_GHOST_HEADLESS_AGENTS, false) ?? false,
     hooksEnabled,
     hooksInfoShown: adapter?.getSetting(KEY_HOOKS_INFO_SHOWN, false) ?? false,
     externalAssetDirectories: cfg.externalAssetDirectories,
@@ -444,7 +436,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
       .then((installed) => {
         send({ type: 'hooksStatus', providerId: provider.id, installed });
         // 4a-bis. First-run consent, asked in the app: this connect is the moment the user can be asked, so the ask
-        // rides the handshake and consentGate owns every condition (VS Code calls the same function). The record is
+        // rides the handshake and consentGate owns every condition. The record is
         // re-read here rather than taken from startup — another tab may have answered while this one loaded.
         // Dismissing sends nothing, so the ask returns on the next connect: fail-closed, never nagging in-session.
         const request = hooksConsentRequest(
@@ -474,22 +466,18 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     runtime.hooksEnabled.current = hooksEnabled;
   }
 
-  // 5. Restore persisted external agents (standalone only; VS Code handles its own restore)
+  // 5. Restore persisted external agents.
   runtime?.restoreExternalAgents();
 
-  // 6. Existing agents (either just restored, or from VS Code adapter if present)
+  // 6. Existing agents (just restored, if any)
   const agentIds: number[] = [];
   const folderNames: Record<number, string> = {};
-  const externalAgents: Record<number, boolean> = {};
   const persistedSeats = adapter?.loadSeats() ?? {};
   const agentMeta: Record<number, { palette?: number; hueShift?: number; seatId?: string }> = {};
   for (const [id, agent] of store) {
     agentIds.push(id);
     if (agent.folderName) {
       folderNames[id] = agent.folderName;
-    }
-    if (agent.isExternal) {
-      externalAgents[id] = true;
     }
     const persisted = persistedSeats[String(id)];
     agentMeta[id] = {
@@ -503,7 +491,6 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     agents: agentIds,
     agentMeta,
     folderNames,
-    externalAgents,
   });
 
   // 7. Layout last (see step 3): flushes the webview's buffered existingAgents

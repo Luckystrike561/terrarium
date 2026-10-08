@@ -4,7 +4,7 @@ import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
-import { WS_CLOSE_FORBIDDEN_ORIGIN, WS_CLOSE_UNAUTHORIZED } from '../src/constants.js';
+import { WS_CLOSE_FORBIDDEN_ORIGIN } from '../src/constants.js';
 
 // Isolated temp HOME: the server writes ~/.pixel-agents/{server.json,servers/}
 // and the consent assertions below read ~/.pixel-agents/config.json.
@@ -122,7 +122,6 @@ describe('/ws connection gate', () => {
 
   async function startStandalone(): Promise<{ port: number }> {
     const config = await server.start({
-      embedded: false,
       store: new AgentStateStore(),
       // Mirrors the standalone CLI's own side effect (server/src/cli.ts): an
       // enable toggle over this socket IS the consent grant. Wired here so the
@@ -198,34 +197,6 @@ describe('/ws connection gate', () => {
     expect(result.accepted).toBe(false);
     expect(result.closeCode).toBe(WS_CLOSE_FORBIDDEN_ORIGIN);
   });
-
-  // 5. Embedded mode is Bearer-gated and unchanged by the Origin gate: a
-  //    same-origin-looking connection without the token is still refused.
-  it('rejects an embedded connection without the Bearer token', async () => {
-    const config = await server.start({ embedded: true, store: new AgentStateStore() });
-
-    const result = await connect(config.port, {
-      Origin: `http://127.0.0.1:${config.port.toString()}`,
-    });
-    sockets.push(result.socket);
-
-    expect(result.accepted).toBe(false);
-    expect(result.closeCode).toBe(WS_CLOSE_UNAUTHORIZED);
-  });
-
-  // 6. Embedded + correct token connects, and no Origin gate is applied there
-  //    (the VS Code webview's Origin is a vscode-webview:// URL, never our host).
-  it('accepts an embedded connection with the Bearer token and a foreign Origin', async () => {
-    const config = await server.start({ embedded: true, store: new AgentStateStore() });
-
-    const result = await connect(config.port, {
-      Authorization: `Bearer ${config.token}`,
-      Origin: 'vscode-webview://some-webview-id',
-    });
-    sockets.push(result.socket);
-
-    expect(result.accepted).toBe(true);
-  });
 });
 
 /**
@@ -275,7 +246,6 @@ describe('/ws privileged-message gate', () => {
 
   async function startStandalone(): Promise<{ port: number; token: string }> {
     const config = await server.start({
-      embedded: false,
       store: new AgentStateStore(),
       // The real cli.ts side effect, minus the actual install: an enable
       // toggle over this socket IS the consent grant (server/src/cli.ts).

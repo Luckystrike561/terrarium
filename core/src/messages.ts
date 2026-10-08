@@ -11,7 +11,6 @@ export type ServerMessage =
   | ProviderCapabilities
   | AgentCreated
   | AgentClosed
-  | AgentSelected
   | ExistingAgents
   | AgentStatus
   | AgentToolStart
@@ -38,27 +37,20 @@ export type ServerMessage =
   | HooksConsentRequest
   | ExternalAssetDirectoriesUpdated
   | AreaMappingsLoaded
-  | WorkspaceFolders
   | AgentDiagnostics;
 
 export type ClientMessage =
   | WebviewReady
-  | LaunchAgent
-  | FocusAgent
   | CloseAgent
   | SaveAgentSeats
   | SaveLayout
   | SetSoundEnabled
   | SetLastSeenVersion
   | SetAlwaysShowLabels
-  | SetGhostHeadlessAgents
   | SetHooksEnabled
   | HooksConsentResponse
   | SetHooksInfoShown
   | SetWatchAllSessions
-  | ExportLayout
-  | ImportLayout
-  | OpenSessionsFolder
   | AddExternalAssetDirectory
   | RemoveExternalAssetDirectory
   | SaveAreaMappings
@@ -75,7 +67,6 @@ export interface AgentCreated {
   type: 'agentCreated';
   id: number;
   folderName?: string;
-  isExternal?: boolean;
   palette?: number;
   hueShift?: number;
 }
@@ -85,17 +76,11 @@ export interface AgentClosed {
   id: number;
 }
 
-export interface AgentSelected {
-  type: 'agentSelected';
-  id: number;
-}
-
 export interface ExistingAgents {
   type: 'existingAgents';
   agents: number[];
   agentMeta: Record<string, AgentSeatMeta>;
   folderNames: Record<string, string>;
-  externalAgents: Record<string, boolean>;
 }
 
 export interface AgentSeatMeta {
@@ -278,7 +263,6 @@ export interface SettingsLoaded {
   extensionVersion: string;
   watchAllSessions: boolean;
   alwaysShowLabels: boolean;
-  ghostHeadlessAgents: boolean;
   hooksEnabled: boolean;
   hooksInfoShown: boolean;
   externalAssetDirectories: string[];
@@ -308,16 +292,6 @@ export interface AreaMappingsLoaded {
   mappings: Record<string, string[]>;
 }
 
-export interface WorkspaceFolders {
-  type: 'workspaceFolders';
-  folders: WorkspaceFolder[];
-}
-
-export interface WorkspaceFolder {
-  name: string;
-  path: string;
-}
-
 export interface AgentDiagnostics {
   type: 'agentDiagnostics';
   agents: Record<string, any>[];
@@ -325,17 +299,6 @@ export interface AgentDiagnostics {
 
 export interface WebviewReady {
   type: 'webviewReady';
-}
-
-export interface LaunchAgent {
-  type: 'launchAgent';
-  folderPath?: string;
-  bypassPermissions?: boolean;
-}
-
-export interface FocusAgent {
-  type: 'focusAgent';
-  id: number;
 }
 
 export interface CloseAgent {
@@ -374,11 +337,6 @@ export interface SetAlwaysShowLabels {
   enabled: boolean;
 }
 
-export interface SetGhostHeadlessAgents {
-  type: 'setGhostHeadlessAgents';
-  enabled: boolean;
-}
-
 export interface SetHooksEnabled {
   type: 'setHooksEnabled';
   providerId: string;
@@ -400,18 +358,6 @@ export interface SetHooksInfoShown {
 export interface SetWatchAllSessions {
   type: 'setWatchAllSessions';
   enabled: boolean;
-}
-
-export interface ExportLayout {
-  type: 'exportLayout';
-}
-
-export interface ImportLayout {
-  type: 'importLayout';
-}
-
-export interface OpenSessionsFolder {
-  type: 'openSessionsFolder';
 }
 
 export interface AddExternalAssetDirectory {

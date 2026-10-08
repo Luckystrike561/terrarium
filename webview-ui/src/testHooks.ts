@@ -1,6 +1,5 @@
 import type { ColorValue } from './components/ui/types.js';
 import { OfficeState } from './office/engine/officeState.js';
-import { isGhostHeadlessAgentsEnabled } from './office/engine/sceneRenderer.js';
 import { carpetJunctionCase } from './office/sprites/carpetTiles.js';
 
 declare global {
@@ -13,11 +12,8 @@ declare global {
         agentName?: string;
         bubbleType: 'permission' | 'waiting' | null;
         waitingAwaitingInput?: boolean;
-        isHeadless?: boolean;
         isGreeter?: boolean;
       }>;
-      /** Effective "Display headless as ghosts" setting the renderer is using. */
-      getGhostHeadlessAgents?: () => boolean;
       // ── Carpet + Areas observability (added for carpet/areas e2e) ──
       /** Sparse list of painted carpet tiles with their grid coords. */
       getCarpetTiles?: () => Array<{
@@ -127,14 +123,9 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
       agentName: ch.agentName,
       bubbleType: ch.bubbleType,
       waitingAwaitingInput: ch.waitingAwaitingInput,
-      isHeadless: ch.isHeadless,
       isGreeter: ch.isGreeter,
     }));
   };
-
-  // The ghost setting lives in the renderer module (read every rAF frame), not
-  // in OfficeState, so e2e reads it from there to assert what is actually drawn.
-  hooks.getGhostHeadlessAgents = () => isGhostHeadlessAgentsEnabled();
 
   hooks.selectAgent = (id) => {
     const os = officeStateRef.current;

@@ -7,8 +7,8 @@
  *       provider ships.)
  *   2. Add an export line below.
  *
- * The adapter (VS Code extension, standalone CLI, etc.) imports from here rather
- * than reaching into each provider directory directly.
+ * The standalone CLI server imports from here rather than reaching into each
+ * provider directory directly.
  */
 
 import type { HookProvider } from '../../../core/src/provider.js';

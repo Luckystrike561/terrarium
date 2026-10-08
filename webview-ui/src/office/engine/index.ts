@@ -13,8 +13,4 @@ export type {
   SelectionRenderState,
   WorldRenderState,
 } from './sceneRenderer.js';
-export {
-  isGhostHeadlessAgentsEnabled,
-  OfficeSceneRenderer,
-  setGhostHeadlessAgents,
-} from './sceneRenderer.js';
+export { OfficeSceneRenderer } from './sceneRenderer.js';

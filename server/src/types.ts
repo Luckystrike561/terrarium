@@ -1,12 +1,6 @@
-import type * as vscode from 'vscode';
-
 export interface AgentState {
   id: number;
   sessionId: string;
-  /** Terminal reference — undefined for extension panel sessions */
-  terminalRef?: vscode.Terminal;
-  /** Whether this agent was detected from an external source (VS Code extension panel, etc.) */
-  isExternal: boolean;
   projectDir: string;
   jsonlFile: string;
   fileOffset: number;
@@ -92,10 +86,6 @@ export interface AgentState {
 export interface PersistedAgent {
   id: number;
   sessionId?: string;
-  /** Terminal name — empty string for extension panel sessions */
-  terminalName: string;
-  /** Whether this agent was detected from an external source */
-  isExternal?: boolean;
   jsonlFile: string;
   projectDir: string;
   /** Workspace folder name (only set for multi-root workspaces) */

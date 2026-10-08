@@ -3,13 +3,13 @@ import * as path from 'path';
 /**
  * Canonical key for a filesystem path used as a Map/Set key or compared for identity.
  *
- * The same JSONL transcript reaches the runtime through two producers that spell it
- * differently on Windows:
+ * The same JSONL transcript reaches the runtime through two producers that can
+ * spell it differently on Windows:
  *
  *  - hooks carry `transcript_path` derived from Claude's own `process.cwd()`
  *    (`...\projects\C--Users-me-project\<id>.jsonl`)
- *  - the scanners build paths from the workspace folder VS Code reports, and
- *    `Uri.fsPath` lowercases the drive letter
+ *  - the scanners build paths from Node's own `process.cwd()`, resolved and
+ *    case-folded independently
  *    (`...\projects\c--Users-me-project\<id>.jsonl`)
  *
  * Windows resolves both to the same file, so `readdirSync` happily returns entries

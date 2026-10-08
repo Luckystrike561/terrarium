@@ -11,8 +11,7 @@ const STATE_LABELS: Partial<Record<TransportState, string>> = {
 
 /**
  * Standalone connection status badge. Renders nothing while connected (the happy
- * path, and always in VS Code where the transport is permanently connected), so
- * it is invisible unless the WebSocket drops in standalone mode. Modeled on
+ * path), so it is invisible unless the WebSocket drops. Modeled on
  * VersionIndicator's absolute-overlay + pixel-panel convention.
  */
 export function ConnectionIndicator() {

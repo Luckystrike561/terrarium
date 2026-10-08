@@ -66,10 +66,6 @@ export const SETTINGS_MUTATE_ATTEMPTS = 3;
 /** Delay between settings.json mutation attempts (lets a concurrent writer finish). */
 export const SETTINGS_MUTATE_RETRY_DELAY_MS = 100;
 
-/** Terminal name prefix used when launching Claude Code in VS Code.
- *  Used by the extension to match terminals to agents for adoption. */
-export const CLAUDE_TERMINAL_NAME_PREFIX = 'Claude Code';
-
 // ── Context windows (per model, in tokens) ──────────────────
 //
 // Transcripts report token usage but never the window it counts against, so

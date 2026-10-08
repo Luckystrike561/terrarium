@@ -2,36 +2,25 @@
 
 Pixel Agents turns AI coding sessions into animated characters in a pixel-art office. This glossary is the canonical language for contributors and integrators; end-user docs may simplify it but must never contradict it.
 
-## Hosts & Adapters
+## Host
 
 **Host**:
 The machine Pixel Agents runs on — a laptop, a phone, a VPS, a Raspberry Pi. The office is the same on every host, and can be reached from another device.
 _Avoid_: platform, environment, server (that's the runtime process)
 
-**Adapter**:
-The integration that connects one editor or application — VS Code, standalone, a macOS app, and the like — to Pixel Agents. An adapter composes the runtime and the office UI, and binds them to that environment's terminals, storage, and conventions. One adapter per editor or application; VS Code and standalone are the two today.
-_Avoid_: host (that's the machine it runs on), surface, flavor, platform, edition
-
 **Standalone**:
-The adapter that serves the office to a browser from a local server, independent of any editor.
-_Avoid_: CLI (that's the entry command, not the adapter), browser mode
+The local server that serves the office to a browser, independent of any editor.
+_Avoid_: CLI (that's the entry command, not the server)
 
 ## Agents & Teams
 
 **Agent**:
-An AI coding session tracked by Pixel Agents, whether spawned from the office or adopted from an external terminal.
+An AI coding session tracked by Pixel Agents, adopted from wherever it runs.
 _Avoid_: bot, terminal (as a synonym), session (as a synonym)
-
-**Headless agent**:
-An agent with no terminal — a non-interactive run adopted from outside the office, for example. A full citizen: it has a seat and can be selected, but there is no terminal to focus. Agents it spawns are sub-agents or teammates like anyone else's. Optionally drawn as a Ghost.
 
 **Character**:
 The animated pixel-art figure representing an agent in the office. An agent has a status and a session; its character has a position and an animation state.
 _Avoid_: avatar, sprite (a sprite is the image asset, not the figure)
-
-**Ghost**:
-A character drawn translucent because its agent is headless — the visual shorthand for "nothing to focus here". Opt-in: off unless the user turns on "Display Headless as Ghosts", and never used in adapters without terminals, where every agent would qualify and the cue would say nothing. Teammates and sub-agents are never ghosts; clicking one reaches its lead's or parent's terminal.
-_Avoid_: faded, dimmed, transparent, inactive (that's a status)
 
 **Sub-agent**:
 An unnamed piece of delegated work spawned by an agent, visualized with its own character near its parent — around it, not in a seat. Not an Agent (no session of its own) and not a Teammate (no name). It exists only for the duration of its task, which may outlive the parent's turn. Having no name is what makes it a sub-agent.
@@ -50,16 +39,12 @@ _Avoid_: inline teammate, tmux teammate, session teammate (former run-style dist
 
 ## Agent Lifecycle
 
-**Launch**:
-Start a new agent from the office.
-_Avoid_: spawn (that's the character-level visual event), create
-
 **Adopt**:
-Begin tracking a session that was started outside the office. An adopted agent is a full citizen.
-_Avoid_: import, attach
+Begin tracking a session that was started outside the office. Every agent enters the office this way.
+_Avoid_: import, attach, launch
 
 **Spawn / Despawn**:
-The character-level visual event: a character materializing into or dissolving out of the office. An agent is launched or adopted; its character spawns.
+The character-level visual event: a character materializing into or dissolving out of the office. An agent is adopted; its character spawns.
 
 **Dismiss**:
 Remove an agent from the office by user choice, without judging its session. A dismissed session is not re-adopted.
@@ -73,14 +58,11 @@ _Avoid_: stale (implies inactivity or age, which never removes an agent), dead, 
 
 **Select**:
 Mark a character as the current subject in the office (the white outline). Selection is what seat reassignment operates on.
-_Avoid_: focus (reserved for terminals), highlight
+_Avoid_: highlight
 
 **Follow**:
 The camera tracking the selected character. Ends on manual pan or deselection.
 _Avoid_: track
-
-**Focus**:
-Bring an agent's terminal to the front. Reserved exclusively for terminals — never the in-office highlight.
 
 ## First Run
 
@@ -150,7 +132,7 @@ A named region of tiles. Areas exist so workspace folders can be mapped to them.
 _Avoid_: zone, region
 
 **Area mapping**:
-The assignment of a workspace folder to one or more areas. Many folders may share an area. Agents launched from a folder prefer seats inside any of its areas.
+The assignment of a workspace folder to one or more areas. Many folders may share an area. Agents adopted from a folder prefer seats inside any of its areas.
 
 **Furniture**:
 A placeable item in the layout — desks, chairs, storage, electronics, decor.
@@ -204,13 +186,13 @@ The canonical, CLI-agnostic description of something happening in a session: a t
 _Avoid_: hook event (the raw, CLI-specific payload before a provider normalizes it)
 
 **Runtime**:
-The adapter-independent core that tracks agents and drives the office. It is a separate thing from the adapters that compose it, the providers that feed it, and the office UI it serves.
+The core that tracks agents and drives the office. It is a separate thing from the providers that feed it and the office UI it serves.
 _Avoid_: server, backend
 
 **Transport**:
-The channel carrying protocol messages between the office UI and the runtime. The protocol is identical on every adapter; only the wire differs.
+The channel carrying protocol messages between the office UI and the runtime.
 _Avoid_: connection, socket
 
 **Protocol**:
-The message contract between the office UI and the runtime, shared by every adapter and defined in a single source of truth.
+The message contract between the office UI and the runtime, defined in a single source of truth.
 _Avoid_: API

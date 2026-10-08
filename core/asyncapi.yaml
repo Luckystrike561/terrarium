@@ -11,10 +11,10 @@ info:
   version: 1.0.0
   description: |
     Bidirectional WebSocket protocol between the Pixel Agents server and any UI client
-    (the bundled VS Code webview, the standalone browser SPA, or future third-party
-    clients). The server watches AI-coding-agent transcripts, parses tool activity, 
-    owns office layout, and streams events to all connected clients. 
-    Clients send commands to launch agents, save layout, and toggle settings.
+    (the standalone browser SPA, or future third-party clients). The server watches
+    AI-coding-agent transcripts, parses tool activity, owns office layout, and streams
+    events to all connected clients. Clients send commands to launch agents, save
+    layout, and toggle settings.
 
     The protocol is provider-agnostic: a HookProvider implementation defines how raw
     CLI events are normalized to the AgentEvent shape, which the server translates
@@ -82,7 +82,6 @@ components:
         # Agent lifecycle
         - $ref: '#/components/schemas/AgentCreated'
         - $ref: '#/components/schemas/AgentClosed'
-        - $ref: '#/components/schemas/AgentSelected'
         - $ref: '#/components/schemas/ExistingAgents'
         # Agent status / tool activity
         - $ref: '#/components/schemas/AgentStatus'
@@ -116,7 +115,6 @@ components:
         - $ref: '#/components/schemas/HooksConsentRequest'
         - $ref: '#/components/schemas/ExternalAssetDirectoriesUpdated'
         - $ref: '#/components/schemas/AreaMappingsLoaded'
-        - $ref: '#/components/schemas/WorkspaceFolders'
         # Diagnostics
         - $ref: '#/components/schemas/AgentDiagnostics'
       discriminator: type
@@ -124,22 +122,16 @@ components:
     ClientMessage:
       oneOf:
         - $ref: '#/components/schemas/WebviewReady'
-        - $ref: '#/components/schemas/LaunchAgent'
-        - $ref: '#/components/schemas/FocusAgent'
         - $ref: '#/components/schemas/CloseAgent'
         - $ref: '#/components/schemas/SaveAgentSeats'
         - $ref: '#/components/schemas/SaveLayout'
         - $ref: '#/components/schemas/SetSoundEnabled'
         - $ref: '#/components/schemas/SetLastSeenVersion'
         - $ref: '#/components/schemas/SetAlwaysShowLabels'
-        - $ref: '#/components/schemas/SetGhostHeadlessAgents'
         - $ref: '#/components/schemas/SetHooksEnabled'
         - $ref: '#/components/schemas/HooksConsentResponse'
         - $ref: '#/components/schemas/SetHooksInfoShown'
         - $ref: '#/components/schemas/SetWatchAllSessions'
-        - $ref: '#/components/schemas/ExportLayout'
-        - $ref: '#/components/schemas/ImportLayout'
-        - $ref: '#/components/schemas/OpenSessionsFolder'
         - $ref: '#/components/schemas/AddExternalAssetDirectory'
         - $ref: '#/components/schemas/RemoveExternalAssetDirectory'
         - $ref: '#/components/schemas/SaveAreaMappings'
@@ -183,8 +175,6 @@ components:
           type: integer
         folderName:
           type: string
-        isExternal:
-          type: boolean
         palette:
           type: integer
           description: Server-assigned character palette index.
@@ -203,24 +193,13 @@ components:
         id:
           type: integer
 
-    AgentSelected:
-      description: An agent's terminal was focused (VS Code only). UI should highlight it.
-      type: object
-      additionalProperties: false
-      required: [type, id]
-      properties:
-        type:
-          const: agentSelected
-        id:
-          type: integer
-
     ExistingAgents:
       description: |
         Snapshot of all current agents. Sent on initial connect and after agent set
         changes that the client missed. Includes seat/palette assignments.
       type: object
       additionalProperties: false
-      required: [type, agents, agentMeta, folderNames, externalAgents]
+      required: [type, agents, agentMeta, folderNames]
       properties:
         type:
           const: existingAgents
@@ -238,11 +217,6 @@ components:
           description: Map of agent ID (string) to workspace folder name.
           additionalProperties:
             type: string
-        externalAgents:
-          type: object
-          description: Map of agent ID (string) to external flag.
-          additionalProperties:
-            type: boolean
 
     AgentStatus:
       description: Active vs waiting state for an agent (drives character animation).
@@ -658,7 +632,6 @@ components:
         - extensionVersion
         - watchAllSessions
         - alwaysShowLabels
-        - ghostHeadlessAgents
         - hooksEnabled
         - hooksInfoShown
         - externalAssetDirectories
@@ -675,8 +648,6 @@ components:
         watchAllSessions:
           type: boolean
         alwaysShowLabels:
-          type: boolean
-        ghostHeadlessAgents:
           type: boolean
         hooksEnabled:
           type: boolean
@@ -778,19 +749,6 @@ components:
           items:
             type: string
 
-    WorkspaceFolders:
-      description: Multi-root workspace folders (VS Code only).
-      type: object
-      additionalProperties: false
-      required: [type, folders]
-      properties:
-        type:
-          const: workspaceFolders
-        folders:
-          type: array
-          items:
-            $ref: '#/components/schemas/WorkspaceFolder'
-
     AgentDiagnostics:
       description: Connection diagnostics for all agents (response to requestDiagnostics).
       type: object
@@ -815,31 +773,6 @@ components:
       properties:
         type:
           const: webviewReady
-
-    LaunchAgent:
-      description: Launch a new Claude agent in a new terminal.
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: launchAgent
-        folderPath:
-          type: string
-          description: Workspace folder path (for multi-root workspaces).
-        bypassPermissions:
-          type: boolean
-
-    FocusAgent:
-      description: Focus an agent's terminal.
-      type: object
-      additionalProperties: false
-      required: [type, id]
-      properties:
-        type:
-          const: focusAgent
-        id:
-          type: integer
 
     CloseAgent:
       description: Close (dismiss) an agent.
@@ -905,19 +838,6 @@ components:
       properties:
         type:
           const: setAlwaysShowLabels
-        enabled:
-          type: boolean
-
-    SetGhostHeadlessAgents:
-      description: >-
-        Toggle translucent rendering for headless agents (adopted sessions with no
-        terminal to focus).
-      type: object
-      additionalProperties: false
-      required: [type, enabled]
-      properties:
-        type:
-          const: setGhostHeadlessAgents
         enabled:
           type: boolean
 
@@ -995,38 +915,10 @@ components:
         enabled:
           type: boolean
 
-    ExportLayout:
-      description: Trigger layout export via host-native save dialog.
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: exportLayout
-
-    ImportLayout:
-      description: Trigger layout import via host-native open dialog.
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: importLayout
-
-    OpenSessionsFolder:
-      description: Open ~/.claude/projects in the OS file manager.
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: openSessionsFolder
-
     AddExternalAssetDirectory:
       description: >-
-        Add an external asset directory. In VS Code the host shows a native
-        directory picker and omits `path`; the standalone browser has no native
-        picker, so it supplies an absolute `path` typed by the user.
+        Add an external asset directory. The browser has no native directory
+        picker, so the client supplies an absolute `path` typed by the user.
       type: object
       additionalProperties: false
       required: [type]
@@ -1035,7 +927,7 @@ components:
           const: addExternalAssetDirectory
         path:
           type: string
-          description: Absolute directory path (standalone browser only; omitted in VS Code).
+          description: Absolute directory path typed by the user.
 
     RemoveExternalAssetDirectory:
       description: Remove an external asset directory by path.
@@ -1114,16 +1006,6 @@ components:
           type: integer
         seatId:
           type: [string, 'null']
-
-    WorkspaceFolder:
-      type: object
-      additionalProperties: false
-      required: [name, path]
-      properties:
-        name:
-          type: string
-        path:
-          type: string
 
     CharacterSpriteSet:
       description: |

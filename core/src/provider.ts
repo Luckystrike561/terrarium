@@ -111,10 +111,6 @@ export interface HookProvider {
    *  The provider classifies tools as read-like or write-like; the webview renders
    *  the animation. Allows new providers to override without webview edits. */
   readonly readingTools: ReadonlySet<string>;
-  /** Terminal name prefix used when launching this CLI. Used by the extension to
-   *  match VS Code terminals to agents for heuristic adoption. */
-  readonly terminalNamePrefix?: string;
-
   /** Context window, in tokens, for a model id this CLI reports in its
    *  transcripts. Transcripts state token usage but never the limit it counts
    *  against, so only the provider can say — and getting it wrong is visible:
@@ -136,16 +132,6 @@ export interface HookProvider {
   readonly sessionFilePattern?: string;
   /** Parse one line of a transcript file into an AgentEvent. */
   parseTranscriptLine?(line: string): AgentEvent | null;
-  /** Build CLI launch command for +Agent button. */
-  buildLaunchCommand?(
-    sessionId: string,
-    cwd: string,
-    opts?: { bypassPermissions?: boolean },
-  ): {
-    command: string;
-    args: string[];
-    env?: Record<string, string>;
-  };
 
   // ── Optional team/subagent extension (Agent Teams on Claude; empty for single-agent CLIs) ──
 

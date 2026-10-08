@@ -8,7 +8,6 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 0,
     sessionId: 'test-session',
-    isExternal: false,
     projectDir: '/test',
     jsonlFile: '/test/session.jsonl',
     fileOffset: 0,

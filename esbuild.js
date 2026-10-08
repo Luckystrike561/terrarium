@@ -5,7 +5,7 @@ const path = require('path');
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
-/** Extension version read from package.json at build time, inlined via esbuild `define`. */
+/** Package version read from package.json at build time, inlined via esbuild `define`. */
 const pkgVersion = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'),
 ).version;
@@ -83,53 +83,16 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-  const ctx = await esbuild.context({
-    entryPoints: ['adapters/vscode/extension.ts'],
-    bundle: true,
-    format: 'cjs',
-    minify: production,
-    sourcemap: !production,
-    sourcesContent: false,
-    platform: 'node',
-    outfile: 'dist/extension.js',
-    external: ['vscode'],
-    define: versionDefine,
-    logLevel: 'silent',
-    plugins: [
-      /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin,
-    ],
-  });
   if (watch) {
-    await ctx.watch();
     copyAssets();
     buildHooks();
     const cliCtx = await esbuild.context({ ...cliOptions, plugins: [esbuildProblemMatcherPlugin] });
     await cliCtx.watch();
   } else {
-    await ctx.rebuild();
-    await ctx.dispose();
-    // Copy assets and hooks after build
     copyAssets();
     buildHooks();
     await buildCli();
-    await buildUninstall();
   }
-}
-
-/** Bundle the vscode:uninstall hook — plain Node, runs after extension removal. */
-async function buildUninstall() {
-  await esbuild.build({
-    entryPoints: ['adapters/vscode/uninstall.ts'],
-    bundle: true,
-    format: 'cjs',
-    minify: production,
-    sourcemap: false,
-    platform: 'node',
-    outfile: 'dist/uninstall.js',
-    define: versionDefine,
-    logLevel: 'silent',
-  });
 }
 
 const cliOptions = {

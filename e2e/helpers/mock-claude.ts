@@ -2,9 +2,8 @@ import { type ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import { getExternalNarrationLogPath } from './external-monitor';
 import { waitForHookServer } from './hooks';
-import { narrate } from './test-narration';
+import { getExternalNarrationLogPath, narrate } from './test-narration';
 
 const DEFAULT_HOLD_OPEN_MS = 30_000;
 const HOOK_SETUP_TIMEOUT_MS = 20_000;
@@ -344,10 +343,7 @@ export async function spawnExternalClaudeScenario(options: {
   scenario: ClaudeMockScenario;
   sessionId: string;
 }): Promise<ExternalClaudeSpawn> {
-  // Universal narration moment (cosmetic): every external spawn is a detached
-  // session Pixel Agents adopts rather than launches. Its own magenta stdout
-  // narrates the per-hook timeline in the monitor tab.
-  narrate.step('spawning a detached external mock session (adopted, not launched)');
+  narrate.step('spawning an external mock session');
   await arrangeNextClaudeInvocation(options.tmpHome, options.scenario);
 
   const claudeBinary = getMockClaudeBinaryPath(options.tmpHome);
@@ -355,13 +351,11 @@ export async function spawnExternalClaudeScenario(options: {
     ...applyMockHomeEnv(process.env, options.tmpHome),
     PATH: `${path.dirname(claudeBinary)}${path.delimiter}${process.env['PATH'] ?? ''}`,
     PIXEL_AGENTS_NODE_BIN: process.execPath,
-    // Switches the runner's narration to the magenta [external·tag] style.
-    PIXEL_AGENTS_MOCK_EXTERNAL: '1',
   };
 
   // Pipe stderr so we can surface diagnostics on timeout. stdout (the mock's
   // step-by-step narration) appends to the per-test external-narration log,
-  // which the monitor terminal opened below tails inside the recorded window.
+  // which the fixture attaches to failing tests.
   const narrationLog = getExternalNarrationLogPath(options.tmpHome);
   fs.mkdirSync(path.dirname(narrationLog), { recursive: true });
   const narrationFd = fs.openSync(narrationLog, 'a');

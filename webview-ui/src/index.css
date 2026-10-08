@@ -76,7 +76,7 @@
   --text-4xl: 52px;
   --text-5xl: 64px;
 
-  /* Colors — reference :root vars so VS Code shows swatches */
+  /* Colors — reference :root vars so editors show swatches */
   --color-bg: var(--color-bg);
   --color-bg-dark: var(--color-bg-dark);
   --color-bg-thumb: var(--color-bg-thumb);

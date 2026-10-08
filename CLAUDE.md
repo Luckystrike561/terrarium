@@ -1,12 +1,12 @@
 # Pixel Agents — Compressed Reference
 
-Pixel art office where AI agents (Claude Code terminals today, any tool tomorrow) become animated characters. Ships as a **VS Code extension** and an **`npx pixel-agents` standalone CLI** from the same source tree.
+Pixel art office where AI agents (Claude Code terminals today, any tool tomorrow) become animated characters. Ships as the `npx pixel-agents` standalone server, which serves the office to a browser.
 
-`CONTEXT.md` is the canonical glossary — read it for what terms like Agent, Sub-agent, Teammate, Lead, Adopt, or Headless agent mean here, and use its vocabulary in code, comments, and docs.
+`CONTEXT.md` is the canonical glossary — read it for what terms like Agent, Sub-agent, Teammate, Lead, or Adopt mean here, and use its vocabulary in code, comments, and docs.
 
 ## Architecture
 
-Strict layering: `core/` depends on nothing; `server/` depends only on `core/`; `webview-ui/` depends only on `core/`; `adapters/vscode/` depends on `core/` and `server/`. The standalone CLI never imports `adapters/vscode/` and vice versa.
+Strict layering: `core/` depends on nothing; `server/` depends only on `core/`; `webview-ui/` depends only on `core/`. The server never imports `webview-ui/` and vice versa.
 
 ```
 core/                                Protocol + interface definitions (zero runtime side effects)
@@ -18,33 +18,32 @@ core/                                Protocol + interface definitions (zero runt
     teamProvider.ts                  Optional TeamProvider (semantic queries for Lead + Teammates)
     transport.ts                     MessageTransport interface, TransportState
     adapter.ts                       StateAdapter, AssetCache, PersistedAgent, AgentSeat
-    terminalAdapter.ts               TerminalAdapter (editor-driven terminal management)
     normalizeProjectPath.ts
     constants.ts
 
-server/                              Lifecycle runtime + Fastify HTTP/WS server
+server/                              Lifecycle runtime + Fastify HTTP/WS server + standalone CLI
   src/
     providers/hook/claude/           Reference HookProvider — only place that knows Claude specifics
       claude.ts                      normalizeHookEvent for 11 Claude events, formatToolStatus, file fallback
       claudeTeamProvider.ts          TeamProvider: reads ~/.claude/teams/<name>/config.json
-      claudeHookInstaller.ts         Consent-gated install/uninstall in ~/.claude/settings.json (abort on unparseable file or non-array hooks.<Event>; one-time .pixel-agents.backup, exclusive-create, no backup ⇒ no write — but skipped when the replaced content is entirely our own install's output, since backing up our own file masquerades as the user's original (`settingsHoldOnlyOurHooks`, compared against makeHookEntry — the WRITER — so a field added to what we write can't silently revive the bug; only `command`/`timeout` may differ, they vary across installs); every write failure THROWS; mode preserved, 0600 on create; re-read verify immediately before rename + retry; hook identity = `/.pixel-agents/hooks/claude-hook.js` suffix anchored at both ends of the command's first token, case-insensitive; `areHooksInstalled` = ANY of our commands on ANY event)
+      claudeHookInstaller.ts         Consent-gated install/uninstall in ~/.claude/settings.json (abort on unparseable file or non-array hooks.<Event>; one-time .pixel-agents.backup, exclusive-create, no backup ⇒ no write — but skipped when the replaced content is entirely our own install's output, since backing up our own file masquerades as the user's original (`settingsHoldOnlyOurHooks`, compared against makeHookEntry — the WRITER — so a field added to what we write can't silently revive the bug; only `command`/`timeout` may differ, they vary across installs); every write failure THROWS; mode preserved, 0600 on create; re-read verify immediately before rename + retry; hook identity = `/.pixel-agents/hooks/claude-hook.js` suffix anchored at both ends of the…
       consentCopy.ts                 Claude's first-run consent disclosure text (scope/data/undo), served through consentDisclosure()
       constants.ts                   Claude hook event names, script path
       hooks/claude-hook.ts           Hook script (CJS+shebang, bundled to dist/hooks/claude-hook.js)
     providers/hook/consentGate.ts    Provider-agnostic consent POLICY: when to ask (hooksConsentRequest per provider) and what an answer means (consentActionFor(choice, {installed, consent}) — see docs/adr/0001)
-    providers/hook/consentExecutor.ts Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order for both surfaces, and SERIALIZES answers per process across ALL providers
+    providers/hook/consentExecutor.ts Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order, and SERIALIZES answers per process across ALL providers
     providers/index.ts               Provider registry (claudeProvider + the hookProviders list the consent gate loops over)
     agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
     sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending external sessions
     dismissalTracker.ts              Unified dismissal state (replaces four legacy globals)
     hookEventHandler.ts              Dispatches normalized AgentEvent into runtime
-    httpServer.ts                    Fastify: POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA (standalone)
-    clientMessageHandler.ts          Single dispatch point for ClientMessage from webview
+    httpServer.ts                    Fastify: POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA
+    clientMessageHandler.ts          Single dispatch point for ClientMessage from the webview
     server.ts                        Top-level composition
     cli.ts                           npx pixel-agents entry (npm bin)
-    fileStateAdapter.ts              Namespaced ~/.pixel-agents/ persistence
-    configPersistence.ts             { vscode, standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean} }
+    fileStateAdapter.ts              ~/.pixel-agents/ persistence
+    configPersistence.ts             { standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean} }
     layoutPersistence.ts             ~/.pixel-agents/layout.json with atomic tmp+rename
     fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
     transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
@@ -56,24 +55,14 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
   __tests__/                         28 Vitest files
   manual-hook-events.http            Manual hook testing helper (REST-Client format)
 
-adapters/vscode/                     VS Code surface — composes core + server
-  extension.ts                       activate() / deactivate()
-  PixelAgentsViewProvider.ts         WebviewViewProvider, thin bridge to AgentRuntime
-  agentManager.ts                    Terminal lifecycle (claude --session-id <uuid>), restore, persist
-  vscodeTerminalAdapter.ts           TerminalAdapter implementation
-  uninstall.ts                       vscode:uninstall hook — removes hook entries + factory-resets hooks config after extension removal
-  migrateVsCodeState.ts              One-time legacy state migration (verify-before-clear)
-  constants.ts                       VS Code IDs, command names, key names
-
 webview-ui/                          React 19 + Canvas UI (depends only on core/)
   src/
     transport/
-      index.ts                       createTransport() — single runtime branching point
-      postMessageTransport.ts        VS Code mode (acquireVsCodeApi)
-      webSocketTransport.ts          Standalone mode (exponential backoff, send queue)
+      index.ts                       createTransport() constructs the WebSocketTransport
+      webSocketTransport.ts          Exponential backoff, send queue
       types.ts                       Re-exports MessageTransport from core
-    runtime.ts                       isBrowserRuntime detection
-    browserMock.ts                   Standalone-browser asset fetch + message injection
+    runtime.ts                       isE2E detection
+    browserMock.ts                   Dev-server asset fetch + message injection
     testHooks.ts                     window globals exposed for e2e (officeState, helpers)
     main.tsx                         React entry (StrictMode + createRoot)
     App.tsx                          Composition root (hooks + components + EditActionBar)
@@ -123,22 +112,19 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
         OfficeCanvas.tsx             Owns the Pixi Application, resize, DPR, mouse hit-testing, drag-to-move
         ToolOverlay.tsx              Activity label above hovered/selected character
 
-e2e/                                 Playwright suite (real VS Code + mock-claude scenarios)
+e2e/                                 Playwright suite (standalone server + mock-claude scenarios), Chromium only
   playwright.config.ts
   global-setup.ts
   fixtures/
-    pixel-agents.ts                  VS Code fixture: launch Electron, wait for panel
-    standalone.ts                    Standalone CLI fixture: spawn server + browser page
+    standalone.ts                    Standalone fixture: spawn server + browser page
     mock-claude, mock-claude.cmd     Bash + cmd wrapper invoked instead of real claude
     mock-claude-runner.cjs           Scenario runner: appendJsonl, emitHook, holdOpen
   helpers/
-    launch.ts                        Electron app + isolated HOME/workspace
     mock-claude.ts                   claudeScenario() builder
     office.ts                        Overlay locators + assertions
     webview.ts                       Settings/modal helpers
     hooks.ts                         Hook server lifecycle helpers
     standalone.ts                    Standalone server + WebSocket browser helpers
-    internal-agent.ts                spawnInternalAgentAndWait
     lifecycle.ts                     Reusable scenario fragments
     team.ts                          Team config seeding + teammate helpers
     allure-labels.ts                 @area:<tag> → Allure epic
@@ -165,12 +151,11 @@ webview-ui/                          npm workspace
 
 ## Distribution
 
-Two artifacts from one source tree:
+One artifact from one source tree:
 
-- **VS Code extension** (`.vsix`) — `pablodelucca.pixel-agents` on VS Code Marketplace and Open VSX. Bundles VS Code adapter + webview SPA + assets + hook scripts.
-- **npm package** (`pixel-agents`) — `npx pixel-agents [--port 3100]` runs the Fastify server and serves the SPA on the same port. Bundles CLI + webview SPA + assets + hook scripts + `core/asyncapi.yaml` (so third-party clients can regenerate from it).
+- **npm package** (`pixel-agents`) — `npx pixel-agents [--port 3100]` runs the Fastify server and serves the SPA on the same port. Bundles the CLI + webview SPA + assets + hook scripts + `core/asyncapi.yaml` (so third-party clients can regenerate from it).
 
-`package.json:files` allowlist controls the npm tarball: `dist/cli.js{,.map}`, `dist/webview/`, `dist/assets/`, `dist/hooks/`, `core/asyncapi.yaml`, `icon.png`. `dist/extension.js` is intentionally excluded since the VS Code entry ships through the `.vsix`.
+`package.json:files` allowlist controls the npm tarball: `dist/cli.js{,.map}`, `dist/webview/`, `dist/assets/`, `dist/hooks/`, `core/asyncapi.yaml`, `icon.png`.
 
 ## Communication Flow
 
@@ -189,11 +174,11 @@ JSONL transcripts ─FileWatcher─→ TranscriptParser ┤
                                                    ↓
                                               StoreEvents → broadcast
                                                    ↓
-                          PostMessageTransport ──┤├── WebSocketTransport
-                                 (VS Code)      (standalone browser)
+                                           WebSocketTransport
+                                          (standalone browser)
 ```
 
-The VS Code adapter wires `PostMessageTransport` against `acquireVsCodeApi()`. The standalone CLI exposes the same protocol over WebSocket at `/ws` with the webview SPA served from the same Fastify instance. **The protocol shape is identical; only the wire differs.**
+The server exposes the protocol over WebSocket at `/ws`, with the webview SPA served from the same Fastify instance.
 
 Adding a new CLI integration is one subdirectory under `server/src/providers/hook/<id>/`: provider, optional `TeamProvider`, installer, hook scripts. Zero changes to the runtime, the UI, or any existing provider.
 
@@ -201,8 +186,8 @@ Adding a new CLI integration is one subdirectory under `server/src/providers/hoo
 
 `core/asyncapi.yaml` is the contract. Pinned to **3.0.0** because `@asyncapi/modelina@5.10.1` declares `supportedVersions: ['3.0.0']` only; bumping to 3.1.0 produces `export type Root = any`. Revisit when Modelina ships 3.1.0 support.
 
-- **27 ServerMessage variants** (server → client): agent lifecycle, agent activity, sub-agent activity, team + context usage, assets, settings + workspace, diagnostics.
-- **18 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `launchAgent`, `focusAgent`, `closeAgent`), layout (`saveAgentSeats`, `saveLayout`, `exportLayout`, `importLayout`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), discovery + assets, diagnostics.
+- **30 ServerMessage variants** (server → client): agent lifecycle, agent activity, sub-agent activity, team + context usage, assets, settings, diagnostics.
+- **16 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `closeAgent`), layout (`saveAgentSeats`, `saveLayout`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), discovery + assets, diagnostics.
 
 Both unions use `oneOf` with `discriminator: type`. Every concrete message sets `additionalProperties: false`.
 
@@ -222,9 +207,9 @@ export interface MessageTransport {
 export type TransportState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 ```
 
-`PostMessageTransport` reports `connected` for its entire lifetime. `WebSocketTransport` reconnects with exponential backoff (250 ms, 500 ms, 1 s, 2 s, 4 s, capped) and queues sends while disconnected.
+`WebSocketTransport` reconnects with exponential backoff (250 ms, 500 ms, 1 s, 2 s, 4 s, capped) and queues sends while disconnected.
 
-`createTransport()` in `webview-ui/src/transport/index.ts` is the **only branching point** in the UI codebase. Everything downstream uses the `MessageTransport` interface and never knows which transport is active.
+`createTransport()` in `webview-ui/src/transport/index.ts` constructs the `WebSocketTransport`. Everything downstream uses the `MessageTransport` interface and never knows about the wire underneath.
 
 ## Provider Abstraction
 
@@ -266,7 +251,7 @@ Teammate dismissal is driven by team config polling (`getTeamMembers(teamName)` 
 
 ## Server Runtime
 
-`AgentRuntime` (`server/src/agentRuntime.ts`) is the shared lifecycle core. Both surfaces (`adapters/vscode/PixelAgentsViewProvider.ts` and `server/src/cli.ts`) compose the same runtime; only the `StateAdapter` namespace, `MessageTransport`, and `TerminalAdapter` differ.
+`AgentRuntime` (`server/src/agentRuntime.ts`) is the shared lifecycle core composed by `server/src/cli.ts`; only the `StateAdapter` namespace and `MessageTransport` differ between a running server and its tests.
 
 ```typescript
 export class AgentRuntime {
@@ -276,7 +261,6 @@ export class AgentRuntime {
     layoutPersistence: LayoutPersistence;
     assetCache: AssetCache;
     config: Pick<AdapterSettings, 'hooksEnabled' | 'watchAllSessions'>;
-    terminalAdapter?: TerminalAdapter;
     callbacks: RuntimeLifecycleCallbacks;
   });
   registerAgent / unregisterAgent / removeAgent / removeTeammate / removeTeammates
@@ -305,12 +289,12 @@ Fastify v5 with `@fastify/cors`, `@fastify/websocket`, and (in standalone) `@fas
 | POST   | `/api/hooks/:providerId` | Bearer-authenticated hook event ingress |
 | GET    | `/api/health`            | Liveness: `{ ok, version, port, pid }`  |
 | GET    | `/ws`                    | Bidirectional protocol channel          |
-| GET    | `/*` (standalone only)   | Webview SPA via `@fastify/static`       |
+| GET    | `/*`                     | Webview SPA via `@fastify/static`       |
 
-`/ws` is gated in **two tiers**, because `setHooksEnabled(true)` over this socket is a durable, machine-wide consent grant plus a hook install.
+`/ws` is gated in **one tier plus a privileged escalation**, because `setHooksEnabled(true)` over this socket is a durable, machine-wide consent grant plus a hook install.
 
-1. **Connection** (`isAllowedWebSocketOrigin`): embedded requires the Bearer token; standalone requires a same-origin handshake. A missing Origin still connects (non-browser clients send none). This tier is weak by design — a DNS-rebound page sends `Origin` and `Host` as the same attacker-chosen name and IS accepted (`httpServerWs.test.ts` pins that).
-2. **Privileged messages** (`standaloneTokenValid`, `ClientMessageContext.privileged`): proved by an out-of-band secret — embedded via its Bearer token, standalone via the server token in the `/ws` `?token=` query, which the CLI prints in the local URL and the SPA forwards (`webview-ui/src/transport/index.ts`). **Never a network position**: peer address, `Host` and `Origin` all ride the channel a proxy speaks, so a LAN-bound forwarder piping bytes to 127.0.0.1 satisfies all three. The token is a replayable bearer capability, not evidence of locality — it also reaches browser history and Fastify's request log, so the printed URL is documented to the user as a secret. An untokened client still watches the office; it just cannot change `~/.claude/settings.json`.
+1. **Connection** (`isAllowedWebSocketOrigin`): requires a same-origin handshake. A missing Origin still connects (non-browser clients send none). This tier is weak by design — a DNS-rebound page sends `Origin` and `Host` as the same attacker-chosen name and IS accepted (`httpServerWs.test.ts` pins that).
+2. **Privileged messages** (`standaloneTokenValid`, `ClientMessageContext.privileged`): proved by an out-of-band secret — the server token in the `/ws` `?token=` query, which the CLI prints in the local URL and the SPA forwards (`webview-ui/src/transport/index.ts`). **Never a network position**: peer address, `Host` and `Origin` all ride the channel a proxy speaks, so a LAN-bound forwarder piping bytes to 127.0.0.1 satisfies all three. The token is a replayable bearer capability, not evidence of locality — it also reaches browser history and Fastify's request log, so the printed URL is documented to the user as a secret. An untokened client still watches the office; it just cannot change `~/.claude/settings.json`.
 
 The **hooks preference is persisted only after the install/uninstall settled and the on-disk result agrees** — writing it first strands the user when an uninstall fails: entries still firing, but a persisted hooks-off makes the next startup skip the consent/install path entirely.
 
@@ -318,7 +302,7 @@ Server discovery written to `~/.pixel-agents/server.json` with `{ port, pid, aut
 
 ### ClientMessageHandler
 
-Single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `LayoutPersistence`, or `FileStateAdapter`, or delegates to host-specific callbacks (`onLaunchAgent`, `onOpenSessionsFolder`, `onExportLayout`, `onImportLayout`, `onSetHooksEnabled`). Both surfaces wire the same handler.
+Single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `LayoutPersistence`, or `FileStateAdapter`, or delegates to host-specific callbacks (`onSetHooksEnabled`).
 
 ### ServerAgentState (server/src/types.ts)
 
@@ -328,19 +312,16 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 
 ```
 ~/.pixel-agents/
-  config.json              { vscode, standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider) }
-  vscode-state.json        { agents, seats }
+  config.json              { standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider) }
   standalone-state.json    { agents, seats }
-  layout.json              OfficeLayout (shared across surfaces)
+  layout.json              OfficeLayout
   server.json              { port, pid, authToken }
   hooks/claude-hook.js     Bundled hook script (CJS, shebang)
 ```
 
-`FileStateAdapter({ namespace })` backs both runtimes. Per-namespace settings: `soundEnabled`, `lastSeenVersion`, `alwaysShowLabels`, `watchAllSessions`, `hooksInfoShown` (the hooks preference is per-provider and machine-global, at the config top level). Running both surfaces in parallel never clobbers either.
+`FileStateAdapter` backs persistence. Settings: `soundEnabled`, `lastSeenVersion`, `alwaysShowLabels`, `watchAllSessions`, `hooksInfoShown` (the hooks preference is per-provider and machine-global, at the config top level). A leftover config key or state file from an older multi-surface install is ignored, never an error.
 
-`migrateVsCodeState` (VS Code adapter only) walks each known legacy key once with **verify-before-clear** semantics: write to file, read back, only then clear the legacy key. While anything remains unmigrated, activation shows a non-blocking warning.
-
-Layout writes are atomic via tmp + rename. Cross-window watching is hybrid (`fs.watch` + 2 s polling). `markOwnWrite()` prevents the watcher from re-reading our own write.
+Layout writes are atomic via tmp + rename. The server reads `layout.json` on every `webviewReady` and serves the bundled default only when the file is missing.
 
 ## Agent Status Tracking
 
@@ -355,7 +336,7 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 | Mode                     | Source                                                 | Detection                                                                                                                                                                                                                                                                         |
 | ------------------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Hooks** (preferred)    | Claude Code Hooks API → HTTP POST → `HookEventHandler` | Instant, reliable. Installed events are `CLAUDE_HOOK_EVENTS`. `UserPromptSubmit`/`TaskCreated` are deliberately NOT installed — they normalize to null, so installing them only forwarded prompt text to be dropped; `normalizeHookEvent` still tolerates them for stale installs |
-| **Heuristic** (fallback) | Polling JSONL files                                    | Per-agent 500 ms JSONL polling for /clear detection; 1 s main scanner for terminal adoption; 3 s external scanner; 30 s stale check. Content-based /clear detection (`/clear</command-name>` in first 8 KB)                                                                       |
+| **Heuristic** (fallback) | Polling JSONL files                                    | Per-agent 500 ms JSONL polling for /clear detection; 1 s main scanner for workspace session adoption; 3 s external scanner; 30 s stale check. Content-based /clear detection (`/clear</command-name>` in first 8 KB)                                                              |
 
 The `hookDelivered` flag (per agent) and `hooksEnabled` (global) gate timer logic. JSONL polling always runs in both modes for tool content (status text, animations); only permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
 
@@ -382,7 +363,7 @@ Every agent's context gauge. Fed from `message.usage` on assistant records by `p
 
 **Rendering**: Game state in imperative `OfficeState` class (not React state), rendered as **2:1 isometric pixel art** via a PixiJS (WebGL) retained scene graph (`engine/sceneRenderer.ts`), not Canvas 2D. The simulation (pathfinding, seats, layout, editor actions) stays on the top-down tile grid; only drawing and hit-testing go through `office/iso.ts` (`isoX = x - y`, `isoY = (x + y)/2 - z`, a tile is a 32×16 diamond). Zoom = device-pixels-per-sprite-pixel, `antialias: false`, `roundPixels: true`, nearest-neighbor texture sampling. No `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly. World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container positioned/scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and are built in local, unscaled iso pixel coordinates. Editor chrome (iso grid, ghost border, selection diamond, delete/rotate buttons) and area labels render in device-pixel space directly since their stroke widths and minimum font size are deliberately constant-in-device-pixels. `pixi.js/unsafe-eval` is imported before any renderer is created so the webview's CSP (no `unsafe-eval`) never blocks Pixi's uniform-buffer sync path. **The office fits the viewport exactly; there is no user zoom.** `OfficeCanvas` derives the zoom every frame as `fitZoom`: the zoom at which the iso bounding box of the non-VOID tiles (`boundsRect(contentBounds)`, raised by the back-wall height) touches the canvas on its tighter axis, centered. It is deliberately **not an integer**, so sprite pixels can be uneven. It reports up through `onZoomChange` for the DOM overlays. Only a canvas too small for `ZOOM_MIN` (1x) scrolls (wheel, trackpad, Shift+wheel for horizontal, middle-mouse drag), and every pan goes through `clampPan` so it never scrolls past the office edge. Ctrl+wheel is swallowed. The editor freezes the zoom it entered with and widens the scroll range to the whole grid plus the one-tile ghost border (`editBounds`). **Camera follow**: `cameraFollowId` (separate from `selectedAgentId`) smoothly centers camera on the followed agent (clamped like any pan); set on agent click, cleared on deselection or manual scroll.
 
-**UI styling**: Pixel art aesthetic — sharp corners (`borderRadius: 0`), solid backgrounds (`#1e1e2e`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables in `index.css` `:root` (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...). Pixel font: FS Pixel Sans (`webview-ui/src/fonts/`), loaded via `@font-face`, applied globally. The HUD is furnished like the office: `+ Agent` / `Layout` / `Settings` sit on a nailed wooden plank (`.wood-plank`, pixel icons via `ui/PixelIcon.tsx`), and Settings opens as a clipboard above it (`ui/Clipboard.tsx`). Its `.paper-sheet` re-points the palette variables (`--color-text`, `--color-btn-bg`, ...) so the shared `Checkbox` / `MenuItem` / ghost `Button` render as ink on paper without a second set of controls.
+**UI styling**: Pixel art aesthetic — sharp corners (`borderRadius: 0`), solid backgrounds (`#1e1e2e`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables in `index.css` `:root` (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...). Pixel font: FS Pixel Sans (`webview-ui/src/fonts/`), loaded via `@font-face`, applied globally. The HUD is furnished like the office: `Layout` / `Settings` sit on a nailed wooden plank (`.wood-plank`, pixel icons via `ui/PixelIcon.tsx`), and Settings opens as a clipboard above it (`ui/Clipboard.tsx`). Its `.paper-sheet` re-points the palette variables (`--color-text`, `--color-btn-bg`, ...) so the shared `Checkbox` / `MenuItem` / ghost `Button` render as ink on paper without a second set of controls.
 
 Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-colors` (hex/rgb/rgba/hsl/hsla literals only in `constants.ts`), `pixel-shadow` (must use `var(--pixel-shadow)` or `2px 2px 0px`), `pixel-font` (must reference FS Pixel Sans). All `error`-level — they block PRs.
 
@@ -396,7 +377,7 @@ Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-
 
 **Spawn/despawn effect**: Matrix-style digital rain animation (0.3 s). 16 vertical columns sweep top-to-bottom with staggered timing. Spawn: green rain reveals character pixels. Despawn: character pixels consumed by green rain trails. `matrixEffect` field on Character (`'spawn'`/`'despawn'`/`null`). Normal FSM is paused during effect. Restored agents (`existingAgents`) use `skipSpawnEffect: true` to appear instantly.
 
-**Sub-agents**: Negative IDs (from -1 down). Created on `agentToolStart` with "Subtask:" prefix, or lazily by `subagentToolStart` when missing (watched background spawns, post-reload recreation). Same palette + hueShift as parent. Click focuses parent terminal. Not persisted. Spawn at the closest free walkable tile to the parent (`closestFreeWalkableTile`) — around it, never in a seat. Idle (stop typing) when every tracked sub-tool row is done; overlay shows the latest non-done sub-tool status, falling back to the Subtask label.
+**Sub-agents**: Negative IDs (from -1 down). Created on `agentToolStart` with "Subtask:" prefix, or lazily by `subagentToolStart` when missing (watched background spawns, post-reload recreation). Same palette + hueShift as parent. Click selects the parent agent. Not persisted. Spawn at the closest free walkable tile to the parent (`closestFreeWalkableTile`) — around it, never in a seat. Idle (stop typing) when every tracked sub-tool row is done; overlay shows the latest non-done sub-tool status, falling back to the Subtask label.
 
 **Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2 s. Sprites in `spriteData.ts`. Every non-sub-agent character also carries a persistent **status badge** above its head (`renderStatusBadges`, sprites `sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
 
@@ -432,7 +413,7 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 **Catalog**: `furniture-catalog.json` with `id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?`. String-based type system. Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-placeable items use the `wall` category and appear in a dedicated "Wall" tab. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`).
 
-**Per-furniture manifests**: Each furniture item lives in its own folder under `assets/furniture/` with a `manifest.json` that declares its sprites, rotation groups, state groups (on/off), and animation frames. Floor tiles are individual PNGs in `assets/floors/`; wall tile sets in `assets/walls/`. The bundled furniture and characters are **generated**: `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/` and `assets/characters/` from code (`scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `lib/scene.ts`, `characters.ts` stamps hand-placed pixel templates); `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (open-plan work space, glass-walled CTO office and meeting room, break room with kitchen, coffee machine and lounge) as `default-layout-<REVISION>.json`; bump `REVISION` on every change, which replaces saved layouts with a lower revision. `scripts/iso-art/preview.ts <module>` renders review sheets to `/tmp/iso-preview` without touching assets. **Iso sprite anchor contract**: an item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges (`footprintSpriteOrigin`); sprites of any other width are treated as flat art and stand centered on the footprint. Orientation = the facing direction on the grid (front = +row/screen lower-left, right = +col, back, left); rotated footprints are transposed. Desk tops are at z=12 (`DESK_SURFACE_Z`), chair seats at z=6, walls 40 px tall, and surface items are drawn starting at desk height.
+**Per-furniture manifests**: Each furniture item lives in its own folder under `assets/furniture/` with a `manifest.json` that declares its sprites, rotation groups, state groups (on/off), and animation frames. Floor tiles are individual PNGs in `assets/floors/`; wall tile sets in `assets/walls/`. The bundled furniture and characters are **generated**: `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/` and `assets/characters/` from code (`scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `lib/scene.ts`, `characters.ts` stamps hand-placed pixel templates); `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (open-plan work space, glass-walled CTO office and meeting room, break room with kitchen, coffee machine and lounge) as `default-layout-<REVISION>.json`; bump `REVISION` on every change. The server serves the bundled default only when `~/.pixel-agents/layout.json` does not exist, so a saved layout is never replaced by a newer default. `scripts/iso-art/preview.ts <module>` renders review sheets to `/tmp/iso-preview` without touching assets. **Iso sprite anchor contract**: an item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges (`footprintSpriteOrigin`); sprites of any other width are treated as flat art and stand centered on the footprint. Orientation = the facing direction on the grid (front = +row/screen lower-left, right = +col, back, left); rotated footprints are transposed. Desk tops are at z=12 (`DESK_SURFACE_Z`), chair seats at z=6, walls 40 px tall, and surface items are drawn starting at desk height.
 
 **Rotation groups**: `buildDynamicCatalog()` builds `rotationGroups` Map from assets sharing a `groupId`. Supports 2+ orientations (e.g., front/back only). Editor palette shows 1 item per group (front orientation preferred). `getRotatedType()` cycles through available orientations.
 
@@ -470,8 +451,7 @@ Three tiers, each with its own framework.
 | `hookEventHandler.test.ts`     | Routing, buffering, normalized dispatch, team gating                                                                                           |
 | `sessionRouter.test.ts`        | session_id mapping, pending sessions, buffer flush                                                                                             |
 | `fileWatcherDismissal.test.ts` | DismissalTracker integration                                                                                                                   |
-| `fileStateAdapter.test.ts`     | Namespaced persistence, allowlist, settings round-trip                                                                                         |
-| `migrateVsCodeState.test.ts`   | Verify-before-clear, partial migration                                                                                                         |
+| `fileStateAdapter.test.ts`     | Persistence, allowlist, settings round-trip, leftover legacy state ignored                                                                     |
 | `teamUtils.test.ts`            | Inline-teammate helpers                                                                                                                        |
 | `claudeTeamProvider.test.ts`   | Discovery, membership, metadata extraction                                                                                                     |
 | `claude.test.ts`               | `normalizeHookEvent` per Claude event, file fallback                                                                                           |
@@ -479,7 +459,7 @@ Three tiers, each with its own framework.
 | `consentFlow.test.ts`          | In-app consent over the wire: who is asked, what each answer writes, Back-and-revise semantics, answer serialization                           |
 | `claude-hook.test.ts`          | Spawned hook script integration (needs `dist/hooks/claude-hook.js`)                                                                            |
 | `server.test.ts`               | HTTP lifecycle, auth, `/ws`, broadcast                                                                                                         |
-| `httpServerWs.test.ts`         | `/ws` gate: standalone same-origin, embedded Bearer                                                                                            |
+| `httpServerWs.test.ts`         | `/ws` gate: same-origin connection, `?token=` privilege                                                                                        |
 | `mockClaudeRunner.test.ts`     | E2E scenario runner sanity                                                                                                                     |
 
 Run: `npm run test:server` (or `npm test` for all).
@@ -492,13 +472,13 @@ Run: `npm run test:webview`.
 
 ### End-to-end (Playwright)
 
-`e2e/` contains Playwright tests against a real VS Code Electron instance and a standalone Fastify server. CI runs the suite on Linux, macOS, and Windows in three shards at `--workers=1`. The generated [e2e inventory](e2e/README.md) is the source of truth for current specs, scenarios, and `@area:` coverage.
+`e2e/` contains Playwright tests against a standalone Fastify server, Chromium only. CI runs the suite on Linux, macOS, and Windows in three shards at `--workers=1`. The generated [e2e inventory](e2e/README.md) is the source of truth for current specs, scenarios, and `@area:` coverage.
 
 **Mock claude**: Tests never invoke real `claude`. A bash script (`e2e/fixtures/mock-claude`) is copied into an isolated `bin/` and prepended to `PATH`. The scenario runner (`mock-claude-runner.cjs`) honors `claudeScenario(...).at(ms).appendJsonl(record).emitHook(event).holdOpenFor(ms).build()` to drive timed JSONL writes and hook events.
 
 **Authoring rules (normative)**: before writing a new spec, read `e2e/README.md` → "Mocking model & rules". It is the single source of truth for the process-boundary principle, the append-only transcript rule, the assert-on-visible-outcomes discipline, and the one standalone-server exception. New tests must follow that model.
 
-**Isolation**: each test gets its own `tmpHome`, workspace directory, VS Code `--user-data-dir`, and mock-log file. No state leaks between tests.
+**Isolation**: each test gets its own `tmpHome`, workspace directory, and mock-log file. No state leaks between tests.
 
 **Auto-fixtures**: `_allureLabels` (auto: true) reads `@area:<tag>` from `testInfo.tags` and applies the corresponding Allure epic.
 
@@ -532,11 +512,10 @@ npm test                   # webview + server vitest
 npm run e2e                # Playwright
 ```
 
-`esbuild.js` runs three bundles:
+`esbuild.js` runs two bundles:
 
-1. **Extension** (`dist/extension.js`) from `adapters/vscode/extension.ts`. External: `vscode`.
-2. **CLI** (`dist/cli.js`) from `server/src/cli.ts`. Externals pulled at install time (`fastify`, `@fastify/*`).
-3. **Hook scripts** (`dist/hooks/claude-hook.js`) from `server/src/providers/hook/claude/hooks/claude-hook.ts`. CJS, shebang.
+1. **CLI** (`dist/cli.js`) from `server/src/cli.ts`. Externals pulled at install time (`fastify`, `@fastify/*`).
+2. **Hook scripts** (`dist/hooks/claude-hook.js`) from `server/src/providers/hook/claude/hooks/claude-hook.ts`. CJS, shebang.
 
 `define: { 'process.env.PIXEL_AGENTS_VERSION': JSON.stringify(version) }` stamps the package version into all bundles.
 
@@ -549,8 +528,6 @@ cd webview-ui && npm run dev        # Vite dev server (separate terminal)
 
 The webview Vite dev server is **not** included in `npm run watch` — it has to be run separately.
 
-**F5 in VS Code** launches the Extension Development Host with the local extension loaded.
-
 ### CI
 
 Single workflow runs (in order): install, lint, `asyncapi:validate`, `asyncapi:generate` + drift check, `e2e:inventory` + drift check, `check-types`, `test:server`, `test:webview`, `e2e` (3-OS x 3-shard matrix: Linux, macOS, Windows), `package`, then a PR-only Vercel preview deploy of the combined Allure report (gated on secrets; gracefully skips on forks, non-blocking on failure). Pushes to `main` run the checks but never deploy to Vercel.
@@ -560,27 +537,26 @@ The drift checks are the central guarantees: `core/asyncapi.yaml` ↔ `core/src/
 ## TypeScript Constraints
 
 - **No `enum`** (`erasableSyntaxOnly` in webview) — use `as const` objects (`TileType`, `CharacterState`, `Direction`, `EditTool`).
-- **`import type`** required for type-only imports (`verbatimModuleSyntax` in webview; convention in extension).
+- **`import type`** required for type-only imports (`verbatimModuleSyntax` in webview; convention in the server).
 - **`noUnusedLocals` / `noUnusedParameters`** — strict everywhere.
-- **`.js` extensions** on all relative imports in extension + server (Node16 module resolution).
-- **Module Node16, target ES2022** in the extension/server. **`erasableSyntaxOnly`, `verbatimModuleSyntax`, `noFallthroughCasesInSwitch`** in the webview.
+- **`.js` extensions** on all relative imports in the server (Node16 module resolution).
+- **Module Node16, target ES2022** in the server. **`erasableSyntaxOnly`, `verbatimModuleSyntax`, `noFallthroughCasesInSwitch`** in the webview.
 
 ## Constants Policy
 
 All magic numbers and strings are centralized — never inline:
 
-| Where                              | What lives there                                                                                                                        |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `server/src/constants.ts`          | All timing/scanning constants (`PERMISSION_TIMER_DELAY_MS`, `TEXT_IDLE_DELAY_MS`, scanner intervals) shared by extension and standalone |
-| `adapters/vscode/constants.ts`     | VS Code-only IDs, command names, workspace state keys                                                                                   |
-| `core/src/constants.ts`            | Protocol-level constants (e.g., transport state names)                                                                                  |
-| `webview-ui/src/constants.ts`      | Webview magic numbers (grid, animation, rendering, camera, zoom, editor, game logic) + canvas overlay rgba strings                      |
-| `webview-ui/src/index.css` `:root` | CSS custom properties (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...) for React inline styles and CSS                           |
-| `webview-ui/src/office/types.ts`   | Re-exports grid constants from `constants.ts` for convenience                                                                           |
+| Where                              | What lives there                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `server/src/constants.ts`          | All timing/scanning constants (`PERMISSION_TIMER_DELAY_MS`, `TEXT_IDLE_DELAY_MS`, scanner intervals), server-wide  |
+| `core/src/constants.ts`            | Protocol-level constants (e.g., transport state names)                                                             |
+| `webview-ui/src/constants.ts`      | Webview magic numbers (grid, animation, rendering, camera, zoom, editor, game logic) + canvas overlay rgba strings |
+| `webview-ui/src/index.css` `:root` | CSS custom properties (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...) for React inline styles and CSS      |
+| `webview-ui/src/office/types.ts`   | Re-exports grid constants from `constants.ts` for convenience                                                      |
 
 ## Error Handling
 
-- **Try-catch with graceful degradation** — errors logged but never crash the extension.
+- **Try-catch with graceful degradation** — errors logged but never crash the server.
 - **Malformed JSONL lines** silently ignored (catch block in `processTranscriptLine`).
 - **Missing assets** logged with warning, operation continues with null/fallback.
 - No centralized error reporting or telemetry.
@@ -589,7 +565,7 @@ All magic numbers and strings are centralized — never inline:
 
 Use `console.log`/`error`/`warn` with prefixed context:
 
-- Extension: `[Pixel Agents]`, `[Extension]`
+- Server: `[Pixel Agents]`
 - Asset loading: `[AssetLoader]`
 - Webview: `[Webview]`
 
@@ -601,7 +577,6 @@ Use `console.log`/`error`/`warn` with prefixed context:
 - **Idle detection** has two signals: (1) `system` + `subtype: "turn_duration"` — reliable for tool-using turns (~98%), emitted once per completed turn. (2) Text-idle timer (`TEXT_IDLE_DELAY_MS = 5 s`) — for text-only turns. Only starts when `hadToolsInTurn` is false; suppressed once `hadToolsInTurn` becomes true. Reset on new user prompt or `turn_duration`. Cancelled by ANY new JSONL data.
 - User prompt `content` can be string (text) or array (tool_results) — handle both.
 - `/clear` creates a NEW JSONL file (old file just stops).
-- `--output-format stream-json` needs non-TTY stdin — can't use with VS Code terminals.
 - Hook-based IPC failed in early prototypes (hooks captured at startup, env vars don't propagate). HTTP `/api/hooks/:providerId` with `~/.pixel-agents/server.json` discovery works.
 - PNG→SpriteData: pngjs for RGBA buffer, alpha threshold 2 (`PNG_ALPHA_THRESHOLD`), supports `#RRGGBBAA` semi-transparent pixels.
 - OfficeCanvas selection changes are imperative (`editorState.selectedFurnitureUid`); must call `onEditorSelectionChange()` to trigger React re-render for toolbar.
@@ -613,7 +588,7 @@ Use `console.log`/`error`/`warn` with prefixed context:
 
 ## Manual Hook Testing
 
-`server/manual-hook-events.http` (REST-Client format) drives the local hook server while the extension is running. Copy `port` and `token` from `~/.pixel-agents/server.json`, set `cwd` to a workspace folder opened in the Extension Development Host. Covers `SessionStart` → `PreToolUse` → `PermissionRequest`/`Notification`/`Stop` → `SessionEnd`.
+`server/manual-hook-events.http` (REST-Client format) drives the local hook server while the server is running. Copy `port` and `token` from `~/.pixel-agents/server.json` and set `cwd` to a workspace directory the server is running against. Covers `SessionStart` → `PreToolUse` → `PermissionRequest`/`Notification`/`Stop` → `SessionEnd`.
 
 If `cwd` is outside the current workspace, enable **Watch All Sessions** first.
 
@@ -633,28 +608,24 @@ Supporting: `wall-tile-editor.html` (wall sprite editing), `jsonl-viewer.html` (
 
 ## Key Decisions
 
-- **Layered codebase** (core → server → adapters; core → webview-ui). Standalone CLI never imports `adapters/vscode/` and vice versa.
+- **Layered codebase** (core → server; core → webview-ui). The server never imports `webview-ui/` and vice versa.
 - **AsyncAPI 3.0 contract**, generated TS bindings, CI drift check. Single source of truth for the wire protocol.
-- **AgentRuntime** shared lifecycle core, composed by both surfaces.
+- **AgentRuntime** shared lifecycle core, composed by the server.
 - **AgentStateStore** as single source of truth with typed mutations and typed events. No transport calls outside the broadcast layer.
-- **Transport abstraction**: `MessageTransport` interface, `PostMessageTransport` + `WebSocketTransport`. One branching point in the entire UI.
+- **Transport abstraction**: `MessageTransport` interface, `WebSocketTransport`. One construction point in the entire UI.
 - **HookProvider** as the integration boundary, with optional file fallback. New CLIs are a single subdirectory under `server/src/providers/hook/<id>/`.
 - **TeamProvider** as optional extension. Claude Agent Teams is the only implementation.
-- **Per-adapter namespaced persistence** under `~/.pixel-agents/`. VS Code and standalone never clobber each other.
-- **Verify-before-clear migration** for legacy VS Code state.
-- **Single `WebviewViewProvider`** (panel area, not editor area).
-- **Inline esbuild problem matcher** (no extra extension needed).
+- **Single-namespace persistence** under `~/.pixel-agents/`.
 - **`erasableSyntaxOnly`** in webview forbids `enum` — use `as const` objects.
 - **Server always starts** regardless of hooks toggle. Only hook installation is gated by the setting.
-- **Consent before any FIRST settings-file write**, per provider (`hooksConsent: {providerId: 'granted'|'declined'}`, absent = unanswered; the `hooksEnabled` preference beside it is per-provider and machine-global). **Exactly one population is asked: the one with nothing of ours installed** — hooks already on disk are granted silently at startup, since that install only ever removes events. The ask is one step of the Intro, the four-step first-run tour a greeter character speaks in-app on both surfaces (`IntroBubble.tsx`); the server sends `hooksConsentRequest` during the `webviewReady` handshake, one per provider, privileged connections only, carrying the provider's own `consentDisclosure()` so no client-side copy can drift. The ask-or-not predicate, the choice→action rule, and the execution live ONCE in `server/src/providers/hook/` (`consentGate.ts` decides, `consentExecutor.ts` performs); surfaces supply only their effects. **A choice is an absolute state command, not an event** — Back re-opens the ask, so a revision undoes whatever the earlier answer left: hooks on disk, a grant a failed install recorded, or a decline's own persisted hooks-off. That is why the consent record is a tri-state and each answer commits in ONE config write; the full rule and its rejected alternatives are `docs/adr/0001`. An abort (close x, Escape) sends nothing and the whole Intro returns next open; the closing step reports the install OUTCOME, not the click.
-- **`hooksStatus` is install state, `hooksEnabled` is preference.** The Settings checkbox binds to `hooksInstalled` and toggles the _displayed_ state with no optimistic local update, so it can't read "on" over an untouched settings.json and lands correct rather than flickering when an install fails. Every failure path re-derives and broadcasts the truth (standalone via `clientMessageHandler`, VS Code via `reportHooksStatus`). The hook script is copied BEFORE the entries are written; a failed copy aborts the install (entries pointing at a missing script spawn a dead `node` per event). **Hooks-off is persisted only AFTER a successful uninstall** — flipping it first strands the user: the entries keep firing while the persisted preference makes the next start skip the gate entirely.
+- **Consent before any FIRST settings-file write**, per provider (`hooksConsent: {providerId: 'granted'|'declined'}`, absent = unanswered; the `hooksEnabled` preference beside it is per-provider and machine-global). **Exactly one population is asked: the one with nothing of ours installed** — hooks already on disk are granted silently at startup, since that install only ever removes events. The ask is one step of the Intro, the four-step first-run tour a greeter character speaks in-app (`IntroBubble.tsx`); the server sends `hooksConsentRequest` during the `webviewReady` handshake, one per provider, privileged connections only, carrying the provider's own `consentDisclosure()` so no client-side copy can drift. The ask-or-not predicate, the choice→action rule, and the execution live ONCE in `server/src/providers/hook/` (`consentGate.ts` decides, `consentExecutor.ts` performs). **A choice is an absolute state command, not an event** — Back re-opens the ask, so a revision undoes whatever the earlier answer left: hooks on disk, a grant a failed install recorded, or a decline's own persisted hooks-off. That is why the consent record is a tri-state and each answer commits in ONE config write; the full rule and its rejected alternatives are `docs/adr/0001`. An abort (close x, Escape) sends nothing and the whole Intro returns next open; the closing step reports the install OUTCOME, not the click.
+- **`hooksStatus` is install state, `hooksEnabled` is preference.** The Settings checkbox binds to `hooksInstalled` and toggles the _displayed_ state with no optimistic local update, so it can't read "on" over an untouched settings.json and lands correct rather than flickering when an install fails. Every failure path re-derives and broadcasts the truth via `clientMessageHandler`. The hook script is copied BEFORE the entries are written; a failed copy aborts the install (entries pointing at a missing script spawn a dead `node` per event). **Hooks-off is persisted only AFTER a successful uninstall** — flipping it first strands the user: the entries keep firing while the persisted preference makes the next start skip the gate entirely.
 - **Never rewrite a shape we did not author.** The unparseable-file abort generalizes: a non-object `hooks`, a non-array `hooks.<Event>`, and junk entries inside an event array are all refused or passed through, never replaced. An array `hooks` was the sharp case — string keys assigned onto it vanish from `JSON.stringify`, so the write committed and reported `installed: true` over a file with no hooks in it. Emptied event keys are deleted only when _our_ removal emptied them. **Internal sentinels must not be values user JSON can hold**: `null` marked "this entry is now empty", so a user-authored `null` inside a hooks array was silently deleted (a file with no Pixel Agents command anywhere came back rewritten and logged as "Hooks removed") — it is a `Symbol` now.
 - **Hook identity is anchored at both ends, not a substring.** `includes('claude-hook.js') && includes('.pixel-agents')` claimed — and `uninstallHooks` then DELETED — a `.backup` copy of our script, a shell comment naming our path, a wrapper passing it as an argument, `/opt/evil.pixel-agents/hooks/claude-hook.js`, and `my-pixel-agents-hook.js`. Ours = the `/.pixel-agents/hooks/claude-hook.js` suffix, ending the command's FIRST token, matched **case-insensitively** (the token is normalized to lower case). Case-sensitive matching is what shipped, and on the case-insensitive volumes this runs on (macOS, Windows) a differently-cased path is the SAME INODE as our script and genuinely firing: reinstall appended a duplicate and uninstall left the cased entry as an orphan our own `areHooksInstalled` could no longer see — a live hook with no removal route. The folding is unconditional (no filesystem case-sensitivity probe), so the accepted trade is a Linux-only false positive that is **not** a mere dedup: on a case-sensitive volume `~/.Pixel-Agents/hooks/claude-hook.js` is a genuinely DIFFERENT file, we classify it as ours, and uninstall **deletes** it (`claudeHookInstaller.test.ts` pins that removal). Nothing creates that path, and the trade is deliberate — the alternative is a guaranteed unremovable live hook on the two platforms this actually ships to. A symlink alias to our script is deliberately _not_ recognized — the cost is one duplicate entry, versus deleting a stranger's hook if we resolved paths.
 - **E2E over webview unit tests** for OSS friction. Community PRs change webview internals constantly; unit tests would force contributors to update internals tests on top of feature work. E2E pins user-facing behavior, which is stable across internal refactors.
 
 ## Project Identity
 
-- Extension ID: `pablodelucca.pixel-agents` (VS Code Marketplace + Open VSX)
 - npm package: `pixel-agents` (CLI bin: `pixel-agents`)
 - GitHub: `https://github.com/pixel-agents-hq/pixel-agents`
 - License: MIT

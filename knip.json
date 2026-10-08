@@ -28,7 +28,6 @@
         "scripts/*.{ts,mjs}"
       ],
       "project": [
-        "adapters/vscode/**/*.ts",
         "core/src/**/*.ts",
         "e2e/**/*.ts",
         "scripts/**/*.{ts,mjs}"

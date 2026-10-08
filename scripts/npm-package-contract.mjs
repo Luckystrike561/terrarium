@@ -18,7 +18,6 @@ export const REQUIRED_PACKAGE_FILES = [
   'LICENSE',
   'README.md',
   'dist/cli.js',
-  'dist/extension.js',
   'dist/hooks/claude-hook.js',
   'dist/webview/index.html',
   'icon.png',
@@ -34,7 +33,6 @@ export const REQUIRED_PACKAGE_PREFIXES = [
 export const FORBIDDEN_PACKAGE_PREFIXES = [
   '.github/',
   '.husky/',
-  'adapters/',
   'core/',
   'dist/browser/',
   'dist/webview-preview/',
