@@ -25,7 +25,7 @@
 
 <!-- Add your own test steps -->
 
-- [ ] Tested in Extension Development Host (F5)
+- [ ] Tested against the standalone server (`npx pixel-agents` / `npm run build && node dist/cli.js`)
 - [ ] ...
 
 ## E2E coverage

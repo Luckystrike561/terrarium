@@ -7,9 +7,14 @@ import path from 'node:path';
 import { expect, type Page } from '@playwright/test';
 
 import { type HookServerConfig, waitForHookServer } from './hooks';
+import { applyMockHomeEnv } from './mock-claude';
 
 const REPO_ROOT = path.join(__dirname, '../..');
 const STANDALONE_CLI = path.resolve(REPO_ROOT, 'dist', 'cli.js');
+const MOCK_CLAUDE_PATH = path.join(REPO_ROOT, 'e2e/fixtures/mock-claude');
+const MOCK_CLAUDE_CMD_PATH = path.join(REPO_ROOT, 'e2e/fixtures/mock-claude.cmd');
+const MOCK_CLAUDE_RUNNER_PATH = path.join(REPO_ROOT, 'e2e/fixtures/mock-claude-runner.cjs');
+const IS_WINDOWS = process.platform === 'win32';
 
 export interface RecordedServerMessage {
   type: string;
@@ -19,6 +24,8 @@ export interface RecordedServerMessage {
 export interface StandaloneSession {
   tmpHome: string;
   workspaceDir: string;
+  /** Invocation log the mock `claude` appends one `session-id=<id>` line to per run. */
+  mockLogFile: string;
   hostUrl: string;
   hookServerConfig: HookServerConfig;
   getHostLogs: () => string;
@@ -32,20 +39,33 @@ export interface StandaloneSession {
   /** Restart the host on the SAME port after `stopHost`, so the already-connected
    *  browser page's exponential-backoff retry succeeds again. */
   startHost: () => Promise<void>;
+  /** Reload the SPA and wait until the office is interactive again (the
+   *  standalone counterpart of closing and reopening the panel). */
+  reloadPage: () => Promise<void>;
 }
 
 export interface LaunchStandaloneOptions {
-  /** Reuse an existing isolated HOME (for cross-surface multi-server tests).
-   *  A supplied directory is never removed by standalone cleanup. */
+  /** Reuse an existing isolated HOME (for multi-server tests). A supplied
+   *  directory is never removed by standalone cleanup, and its mock `claude`
+   *  lives in the `bin/` sibling of that HOME. */
   homeDir?: string;
   /** Reuse an existing workspace. A supplied directory is never removed by
    *  standalone cleanup. */
   workspaceDir?: string;
   /** Pre-seed a granted Claude hooksConsent entry so the first-run dialog never
    *  covers the office (default). The consent specs opt out with `false` —
-   *  they are the only ones that want the dialog. Never overwrites a
-   *  config.json that already exists (a shared HOME was seeded by its owner). */
+   *  they are the only ones that want the dialog. Ignored when `seedConfig` is
+   *  given. Never overwrites a config.json that already exists (a shared HOME
+   *  was seeded by its owner). */
   seedHooksConsent?: boolean;
+  /** Full `~/.pixel-agents/config.json` to seed instead of the baseline. */
+  seedConfig?: unknown;
+  /** `~/.pixel-agents/layout.json` to seed (must carry a high layoutRevision to
+   *  survive the bundled-default reset). */
+  seedLayout?: unknown;
+  /** `~/.claude/settings.json` to seed before the server starts. A string is
+   *  written verbatim so a spec can seed a deliberately unparseable file. */
+  seedClaudeSettings?: unknown;
   /** Provider modules forwarded as `--provider <ids>` (comma-separated, default: the CLI's own default, 'claude').
    *  Herdr specs pass 'herdr' (or 'herdr,omp') so the standalone host connects to a local Herdr socket instead of
    *  installing Claude hooks. */
@@ -105,11 +125,12 @@ function spawnStandaloneHost(args: {
   homeDir: string;
   hostPort: number;
   workspaceDir: string;
+  mockBinDir: string;
   provider?: string;
 }): ChildProcessWithoutNullStreams {
   if (!fs.existsSync(STANDALONE_CLI)) {
     throw new Error(
-      `Standalone CLI not built at ${STANDALONE_CLI}. Run 'npm run compile' before standalone e2e tests.`,
+      `Standalone CLI not built at ${STANDALONE_CLI}. Run 'npm run compile' before e2e tests.`,
     );
   }
   const cliArgs = [STANDALONE_CLI, '--port', args.hostPort.toString(), '--host', '127.0.0.1'];
@@ -119,12 +140,76 @@ function spawnStandaloneHost(args: {
   return spawn(process.execPath, cliArgs, {
     cwd: args.workspaceDir,
     env: {
-      ...process.env,
-      HOME: args.homeDir,
+      ...applyMockHomeEnv(process.env, args.homeDir),
       USERPROFILE: args.homeDir,
+      PATH: `${args.mockBinDir}${path.delimiter}${process.env['PATH'] ?? ''}`,
+      PIXEL_AGENTS_NODE_BIN: process.execPath,
+      // Server-side hook/broadcast timeline, attached to failing tests.
+      PIXEL_AGENTS_DEBUG_LOG: path.join(args.homeDir, '.pixel-agents', 'debug.log'),
+      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
     },
     stdio: 'pipe',
   });
+}
+
+/**
+ * Install the mock `claude` into `bin/`, the sibling of the isolated HOME, where
+ * spawnExternalClaudeScenario resolves it. The wrapper resolves its runner
+ * relative to its own directory, so both must live there.
+ */
+function installMockClaude(mockBinDir: string): void {
+  fs.mkdirSync(mockBinDir, { recursive: true });
+  fs.copyFileSync(MOCK_CLAUDE_RUNNER_PATH, path.join(mockBinDir, 'mock-claude-runner.cjs'));
+  if (IS_WINDOWS) {
+    fs.copyFileSync(MOCK_CLAUDE_CMD_PATH, path.join(mockBinDir, 'claude.cmd'));
+    return;
+  }
+  const binary = path.join(mockBinDir, 'claude');
+  fs.copyFileSync(MOCK_CLAUDE_PATH, binary);
+  fs.chmodSync(binary, 0o755);
+}
+
+/**
+ * Seed the isolated HOME before the server reads it. config.json always turns
+ * labels on (overlay text is only assertable when labels render without hover)
+ * and, by default, grants the Claude consent so the first-run Intro does not
+ * cover the office.
+ */
+function seedHome(tmpHome: string, options: LaunchStandaloneOptions): void {
+  const paDir = path.join(tmpHome, '.pixel-agents');
+  fs.mkdirSync(paDir, { recursive: true });
+  const configPath = path.join(paDir, 'config.json');
+  if (!fs.existsSync(configPath)) {
+    const seedConfig = options.seedConfig ?? {
+      standalone: { alwaysShowLabels: true },
+      ...((options.seedHooksConsent ?? true) ? { hooksConsent: { claude: 'granted' } } : {}),
+    };
+    fs.writeFileSync(configPath, JSON.stringify(seedConfig, null, 2));
+  }
+  if (options.seedLayout !== undefined) {
+    fs.writeFileSync(path.join(paDir, 'layout.json'), JSON.stringify(options.seedLayout, null, 2));
+  }
+  if (options.seedClaudeSettings !== undefined) {
+    const claudeDir = path.join(tmpHome, '.claude');
+    fs.mkdirSync(claudeDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(claudeDir, 'settings.json'),
+      typeof options.seedClaudeSettings === 'string'
+        ? options.seedClaudeSettings
+        : JSON.stringify(options.seedClaudeSettings, null, 2),
+    );
+  }
+}
+
+/** Real Claude Code reads its team-mode switch from the workspace's
+ *  settings.local.json; the mock reads the same file. */
+function seedWorkspace(workspaceDir: string): void {
+  const claudeDir = path.join(workspaceDir, '.claude');
+  fs.mkdirSync(claudeDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(claudeDir, 'settings.local.json'),
+    JSON.stringify({ env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' } }, null, 2),
+  );
 }
 
 async function stopProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
@@ -231,22 +316,24 @@ export async function launchStandalone(
 ): Promise<StandaloneSession> {
   const ownsHome = options.homeDir === undefined;
   const ownsWorkspace = options.workspaceDir === undefined;
-  const tmpHome =
-    options.homeDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-standalone-e2e-home-'));
-  const workspaceDir =
-    options.workspaceDir ??
-    fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-standalone-e2e-workspace-'));
+  const tmpBase = ownsHome ? fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-e2e-')) : undefined;
+  const tmpHome = options.homeDir ?? path.join(tmpBase!, 'home');
+  const mockBinDir = path.resolve(tmpHome, '..', 'bin');
+  const workspaceDirRaw = options.workspaceDir ?? path.join(tmpBase ?? tmpHome, 'workspace');
   fs.mkdirSync(tmpHome, { recursive: true });
-  fs.mkdirSync(workspaceDir, { recursive: true });
-  // Consent baseline, mirroring the VS Code launch helper: without it the CLI
-  // asks over the tokened /ws handshake and the in-app dialog covers the
-  // office in every spec. Only when the file does not exist yet — a shared
-  // HOME (multi-server) was already seeded by the surface that owns it.
-  const configPath = path.join(tmpHome, '.pixel-agents', 'config.json');
-  if ((options.seedHooksConsent ?? true) && !fs.existsSync(configPath)) {
-    fs.mkdirSync(path.dirname(configPath), { recursive: true });
-    fs.writeFileSync(configPath, JSON.stringify({ hooksConsent: { claude: 'granted' } }, null, 2));
-  }
+  fs.mkdirSync(workspaceDirRaw, { recursive: true });
+  // The mock `claude` hashes `process.cwd()` into its project dir and the server
+  // hashes its own cwd the same way, so both must see one canonical path:
+  // Windows `os.tmpdir()` can be an 8.3 short name and macOS's lives behind the
+  // `/var` -> `/private/var` symlink.
+  const workspaceDir =
+    IS_WINDOWS || process.platform === 'darwin'
+      ? fs.realpathSync.native(workspaceDirRaw)
+      : workspaceDirRaw;
+  seedHome(tmpHome, options);
+  seedWorkspace(workspaceDir);
+  installMockClaude(mockBinDir);
+  const mockLogFile = path.join(tmpHome, '.claude-mock', 'invocations.log');
   const hostPort = await getFreePort();
   const hostUrl = `http://127.0.0.1:${hostPort}`;
 
@@ -257,6 +344,7 @@ export async function launchStandalone(
       homeDir: tmpHome,
       hostPort,
       workspaceDir,
+      mockBinDir,
       provider: options.provider,
     });
     proc.stdout.on('data', (chunk) => {
@@ -268,6 +356,11 @@ export async function launchStandalone(
     return proc;
   }
   let hostProcess = spawnAndAttach();
+
+  function removeOwnedDirs(): void {
+    if (tmpBase) fs.rmSync(tmpBase, { recursive: true, force: true });
+    if (ownsWorkspace && !tmpBase) fs.rmSync(workspaceDir, { recursive: true, force: true });
+  }
 
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -288,6 +381,7 @@ export async function launchStandalone(
     return {
       tmpHome,
       workspaceDir,
+      mockLogFile,
       hostUrl,
       hookServerConfig,
       getHostLogs: () =>
@@ -300,16 +394,20 @@ export async function launchStandalone(
         hostProcess = spawnAndAttach();
         await waitForHttpOk(`${hostUrl}/api/health`);
       },
+      reloadPage: async () => {
+        await page.reload();
+        await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible({
+          timeout: 30_000,
+        });
+      },
       cleanup: async () => {
         await stopProcess(hostProcess);
-        if (ownsHome) fs.rmSync(tmpHome, { recursive: true, force: true });
-        if (ownsWorkspace) fs.rmSync(workspaceDir, { recursive: true, force: true });
+        removeOwnedDirs();
       },
     };
   } catch (error) {
     await stopProcess(hostProcess);
-    if (ownsHome) fs.rmSync(tmpHome, { recursive: true, force: true });
-    if (ownsWorkspace) fs.rmSync(workspaceDir, { recursive: true, force: true });
+    removeOwnedDirs();
     throw error;
   }
 }

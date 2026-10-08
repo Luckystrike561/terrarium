@@ -19,7 +19,7 @@ import type { AgentState } from './types.js';
  */
 let currentPaletteCount = PALETTE_COUNT;
 
-/** Set the palette count after asset loading (standalone + VS Code). */
+/** Set the palette count after asset loading. */
 export function setPaletteCount(count: number): void {
   currentPaletteCount = Math.max(1, Math.floor(count));
 }

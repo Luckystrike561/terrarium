@@ -5,7 +5,7 @@
  *
  * Writes webview-ui/public/assets/default-layout-<REVISION>.json and removes
  * older default-layout-*.json files. Bump REVISION whenever the layout
- * changes: the server replaces any saved layout with a lower revision.
+ * changes. The server serves this default only when no layout.json exists.
  *
  * Rooms: open-plan work space (top left), CTO office (top right), meeting
  * room (bottom right), break room with kitchen and lounge (bottom left).

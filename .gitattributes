@@ -5,6 +5,3 @@
 *.png binary
 *.jpg binary
 *.ttf binary
-
-# VS Code extension package
-*.vsix binary

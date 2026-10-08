@@ -28,7 +28,7 @@ type HookEventCallback = (providerId: string, event: Record<string, unknown>) =>
 
 /**
  * Pixel Agents server: receives hook events, broadcasts state via WebSocket,
- * and optionally serves the SPA in standalone mode.
+ * and serves the SPA.
  *
  * Routes (via Fastify in httpServer.ts):
  * - `POST /api/hooks/:providerId` -- hook event (auth required, 64KB body limit)
@@ -37,12 +37,11 @@ type HookEventCallback = (providerId: string, event: Record<string, unknown>) =>
  *
  * Discovery: writes `~/.pixel-agents/server.json` (legacy single-target pointer)
  * and `~/.pixel-agents/servers/<pid>-<port>.json` (multi-server registry entry)
- * with port, PID, auth token, and capability flags.
- * Multi-window / multi-surface: a second instance detects running servers via
- * the registry and reuses one only when it offers the same capability
- * (embedded reuses embedded, standalone reuses standalone) -- an embedded
- * VS Code server and a standalone `npx pixel-agents` server can run at once,
- * each owning its own registry entry, both reachable by hook fan-out.
+ * with port, PID, and auth token.
+ * Multi-window: a second instance detects running servers via the registry and
+ * reuses one only when the caller passed an explicit port that matches an
+ * existing entry -- callers with no explicit port (the ephemeral default)
+ * always start a fresh server, since there is nothing to match against.
  */
 export class PixelAgentsServer {
   private app: FastifyInstance | null = null;
@@ -62,7 +61,6 @@ export class PixelAgentsServer {
   async start(options?: {
     store?: AgentStateStore;
     runtime?: AgentRuntime;
-    embedded?: boolean;
     host?: string;
     port?: number;
     staticDir?: string;
@@ -70,22 +68,17 @@ export class PixelAgentsServer {
     onSetHooksEnabled?: SetHooksEnabledSideEffect;
     onReloadAssets?: ReloadAssetsSideEffect;
   }): Promise<ServerConfig> {
-    const embedded = options?.embedded ?? true;
-    const wantsSpa = !embedded;
-
-    // Capability-based reuse: an embedded (VS Code) caller only reuses another
-    // embedded server (today's multi-window sharing); a standalone caller only
-    // reuses another standalone -- never across the boundary, which is what
-    // used to leave a standalone attached to VS Code's SPA-less embedded
-    // server (blank page). Prune dead entries first so a crashed server's
-    // stale file never blocks discovery of a live one.
+    // Port-aware reuse: only reuse an existing registry entry when the caller
+    // passed an explicit port that matches it. With no explicit port (the
+    // ephemeral default), always start fresh. Prune dead entries first so a
+    // crashed server's stale file never blocks discovery of a live one.
     const registry = this.readAndPruneRegistry();
-    const candidate = registry.find((e) => e.servesSpa === wantsSpa);
+    const candidate = registry.find((e) => options?.port !== undefined && e.port === options.port);
     if (candidate) {
       this.config = candidate;
       this.ownsServer = false;
       console.log(
-        `[Pixel Agents] Reusing existing ${wantsSpa ? 'standalone' : 'embedded'} server on port ${candidate.port} (PID ${candidate.pid})`,
+        `[Pixel Agents] Reusing existing server on port ${candidate.port} (PID ${candidate.pid})`,
       );
       return candidate;
     }
@@ -95,7 +88,6 @@ export class PixelAgentsServer {
     const store = options?.store;
 
     const { app, port } = await createHttpServer({
-      embedded,
       host: options?.host,
       port: options?.port,
       token,
@@ -114,7 +106,6 @@ export class PixelAgentsServer {
       pid: process.pid,
       token,
       startedAt: Date.now(),
-      servesSpa: wantsSpa,
       protocol: SERVER_REGISTRY_PROTOCOL_VERSION,
       // Diagnostic-only: forward the debug-log path to the hook script via
       // server.json (env vars don't reach the spawned hook reliably).
@@ -122,6 +113,7 @@ export class PixelAgentsServer {
         ? { debugLog: process.env['PIXEL_AGENTS_DEBUG_LOG'] }
         : {}),
     };
+
     this.ownsServer = true;
     // Dual-write: legacy single-target pointer (old hook scripts) + registry
     // entry (new hook scripts fan out to every entry here).

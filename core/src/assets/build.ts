@@ -1,6 +1,5 @@
 /**
- * Build-time asset generators — shared between Vite plugin, extension host,
- * and future standalone backends.
+ * Build-time asset generators shared by the Vite plugin and the server.
  *
  * Reads furniture manifests and asset directories and produces
  * catalog and index structures.

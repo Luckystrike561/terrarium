@@ -54,7 +54,6 @@ interface EditorActions {
   setLastSavedLayout: (layout: OfficeLayout) => void;
   /** Clear the dirty flag (used after a browser import applies a new saved baseline). */
   markClean: () => void;
-  handleOpenClaude: () => void;
   handleToggleEditMode: () => void;
   handleToolChange: (tool: EditToolType) => void;
   handleTileTypeChange: (type: TileTypeVal) => void;
@@ -151,10 +150,6 @@ export function useEditorActions(
     },
     [getOfficeState, editorState, saveLayout],
   );
-
-  const handleOpenClaude = useCallback(() => {
-    transport.send({ type: 'launchAgent' });
-  }, []);
 
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => {
@@ -913,7 +908,6 @@ export function useEditorActions(
     saveTimerRef,
     setLastSavedLayout,
     markClean,
-    handleOpenClaude,
     handleToggleEditMode,
     handleToolChange,
     handleTileTypeChange,

@@ -1,6 +1,5 @@
 /**
- * Server-side asset decoders — shared between Vite plugin, extension host,
- * and future standalone backends.
+ * Asset decoders shared by the Vite plugin and the server.
  *
  * Reads PNG files from an assets directory and decodes them into SpriteData
  * format using the shared pngDecoder module.

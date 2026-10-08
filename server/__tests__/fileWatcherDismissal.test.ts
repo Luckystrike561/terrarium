@@ -3,17 +3,6 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// fileWatcher.ts does `import * as vscode from 'vscode'` at module load; the 'vscode'
-// package only resolves inside the extension host. Stub the two APIs fileWatcher actually
-// touches at runtime (vscode.window.activeTerminal / terminals) so the module loads
-// under vitest. Must be declared BEFORE the fileWatcher import.
-vi.mock('vscode', () => ({
-  window: {
-    activeTerminal: undefined,
-    terminals: [],
-  },
-}));
-
 import { AgentStateStore } from '../src/agentStateStore.js';
 import {
   DISMISSED_COOLDOWN_MS,
@@ -25,7 +14,6 @@ import {
   adoptExternalSessionFromHook,
   ensureProjectScan,
   scanExternalDir,
-  scanForNewJsonlFiles,
   setDismissalTracker,
   setTeamProvider,
   startExternalSessionScanning,
@@ -252,48 +240,6 @@ describe('fileWatcher dismissal state', () => {
     });
   });
 
-  // ── scanForNewJsonlFiles (project-scan helper) ─────────────────────
-
-  describe('scanForNewJsonlFiles: project scanner', () => {
-    function runProjectScan(): void {
-      scanForNewJsonlFiles(
-        projectDir,
-        knownJsonlFiles,
-        { current: null },
-        nextAgentIdRef,
-        agents,
-        fileWatchers,
-        pollingTimers,
-        waitingTimers,
-        permissionTimers,
-        () => {},
-      );
-    }
-
-    it('skips files already in knownJsonlFiles (seeded at startup)', () => {
-      const file = writeJsonlFile('sess-1.jsonl', '{"type":"assistant"}\n');
-      knownJsonlFiles.add(file);
-
-      runProjectScan();
-
-      // No adoption — the file is known, not new.
-      expect(agents.size).toBe(0);
-    });
-
-    it('skips files expired in dismissedJsonlFiles during project scan', () => {
-      // Project scan (used by the internal terminal adoption path) also
-      // honors dismissal cooldown. Seed the file as dismissed very recently.
-      const file = writeJsonlFile('sess-1.jsonl', '{"type":"assistant"}\n');
-      tracker.dismiss(file, Date.now() - 5_000);
-
-      runProjectScan();
-
-      // No active-terminal agent is present, so adoption shouldn't fire regardless.
-      // Primarily: dismissal entry should NOT get erased by this pass.
-      expect(tracker.isDismissed(file)).toBe(true);
-    });
-  });
-
   describe('scanExternalDir: team session ownership', () => {
     it('leaves a tracked lead’s teammate session to team discovery', () => {
       // Newer harnesses run each spawned agent as its own top-level session in
@@ -311,7 +257,6 @@ describe('fileWatcher dismissal state', () => {
           id: 1,
           jsonlFile: leadFile,
           projectDir,
-          isExternal: false,
           teamName,
         } as AgentState);
 
@@ -347,7 +292,6 @@ describe('fileWatcher dismissal state', () => {
           id: 1,
           jsonlFile: leadFile,
           projectDir,
-          isExternal: false,
           teamName,
         } as AgentState);
 
@@ -394,7 +338,6 @@ describe('fileWatcher dismissal state', () => {
         projectDir,
         knownJsonlFiles,
         projectScanTimerRef,
-        { current: null },
         nextAgentIdRef,
         agents,
         fileWatchers,
@@ -402,8 +345,6 @@ describe('fileWatcher dismissal state', () => {
         waitingTimers,
         permissionTimers,
         () => {},
-        undefined,
-        { current: true },
       );
       writeJsonlFile('workspace-session.jsonl', '{"type":"assistant"}\n');
 
@@ -431,7 +372,6 @@ describe('fileWatcher dismissal state', () => {
       expect(agents.size).toBe(1);
       const adopted = [...agents.values()][0];
       expect(adopted.jsonlFile).toBe(path.join(projectDir, 'workspace-session.jsonl'));
-      expect(adopted.isExternal).toBe(true);
     });
 
     it('does not steal a replacement transcript while an agent awaits reassignment', () => {
@@ -440,7 +380,6 @@ describe('fileWatcher dismissal state', () => {
       knownJsonlFiles.add(oldFile);
       agents.set(1, {
         id: 1,
-        isExternal: false,
         projectDir,
         jsonlFile: oldFile,
         pendingClear: true,
@@ -459,9 +398,9 @@ describe('fileWatcher dismissal state', () => {
 
     it('honors a dismissal recorded under a different path spelling', () => {
       // Windows only: the user closes a hook-adopted agent (Claude's spelling of the
-      // transcript path) and the scanner then rediscovers the same file under VS Code's
-      // spelling. An exact-string dismissal key missed and the file was re-adopted
-      // seconds later, mid-cooldown.
+      // transcript path) and the scanner then rediscovers the same file under the
+      // scanner's own case-folded spelling. An exact-string dismissal key missed and
+      // the file was re-adopted seconds later, mid-cooldown.
       const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
       try {
         const file = writeJsonlFile('closed-session.jsonl', '{"type":"assistant"}\n');
@@ -496,7 +435,6 @@ describe('fileWatcher dismissal state', () => {
         const file = writeJsonlFile('workspace-session.jsonl', '{"type":"assistant"}\n');
         agents.set(1, {
           id: 1,
-          isExternal: true,
           projectDir,
           jsonlFile: file.toUpperCase(),
         } as AgentState);

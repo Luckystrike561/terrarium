@@ -275,7 +275,7 @@ describe('provider modules', () => {
       const server = new PixelAgentsServer();
       const activeRuntime = runtime;
       server.onHookEvent((providerId, event) => activeRuntime.handleHookEvent(providerId, event));
-      const config = await server.start({ store, runtime, embedded: false });
+      const config = await server.start({ store, runtime });
       const post = (providerId: string, body: Message) =>
         fetch(`http://127.0.0.1:${config.port}/api/hooks/${providerId}`, {
           method: 'POST',

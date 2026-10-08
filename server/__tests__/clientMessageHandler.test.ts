@@ -24,8 +24,6 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 1,
     sessionId: 'sess-1',
-    terminalRef: undefined,
-    isExternal: false,
     projectDir: '/test',
     jsonlFile: '/test/session.jsonl',
     fileOffset: 0,
@@ -72,7 +70,7 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
     process.env.HOME = tempHome;
 
     store = new AgentStateStore();
-    store.setAdapter(new FileStateAdapter({ namespace: 'standalone' }));
+    store.setAdapter(new FileStateAdapter());
     sent = [];
     ctx = freshCtx();
   });
@@ -117,18 +115,6 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
 
       const cfg = readConfig();
       expect(cfg.standalone.areaMappings).toEqual({});
-    });
-
-    it('does not leak into the vscode namespace', () => {
-      handleClientMessage(
-        { type: 'saveAreaMappings', mappings: { frontend: ['Engineering'] } },
-        (m) => sent.push(m),
-        ctx,
-      );
-
-      const cfg = readConfig();
-      expect(cfg.standalone.areaMappings).toEqual({ frontend: ['Engineering'] });
-      expect(cfg.vscode.areaMappings).toEqual({});
     });
   });
 
@@ -439,7 +425,7 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
     process.env.HOME = tempHome;
 
     store = new AgentStateStore();
-    store.setAdapter(new FileStateAdapter({ namespace: 'standalone' }));
+    store.setAdapter(new FileStateAdapter());
     sent = [];
     ctx = freshCtx();
   });

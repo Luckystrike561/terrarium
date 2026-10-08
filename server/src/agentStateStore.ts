@@ -46,7 +46,6 @@ export class AgentStateStore {
   private readonly agents = new Map<number, AgentState>();
   private readonly emitter = new EventEmitter();
   readonly nextAgentId = { current: 1 };
-  readonly nextTerminalIndex = { current: 1 };
   private adapter: StateAdapter | undefined;
 
   // ── Adapter ──────────────────────────────────────────────────
@@ -131,7 +130,7 @@ export class AgentStateStore {
     this.agents.clear();
   }
 
-  // ── Broadcast (replaces direct webview.postMessage in server/) ─
+  // ── Broadcast ─────────────────────────────────────────────
 
   broadcast(message: Record<string, unknown>): void {
     debugLogBroadcast(message);
@@ -159,8 +158,6 @@ export class AgentStateStore {
       persisted.push({
         id: agent.id,
         sessionId: agent.sessionId,
-        terminalName: agent.terminalRef?.name ?? '',
-        isExternal: agent.isExternal || undefined,
         jsonlFile: agent.jsonlFile,
         projectDir: agent.projectDir,
         folderName: agent.folderName,

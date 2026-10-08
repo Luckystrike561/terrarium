@@ -107,9 +107,9 @@ test.describe('Standalone / hooks', () => {
 
 /**
  * The standalone consent path end to end. The fixture normally seeds a granted Claude consent; these opt out, so the
- * CLI starts with nothing installed and the server asks over the tokened /ws handshake — the SAME in-app dialog the
- * VS Code webview shows (pinned in claude/hooks-on/consent.spec.ts). Here the pins are the standalone-only halves:
- * the token boundary and the checkbox route.
+ * CLI starts with nothing installed and the server asks over the tokened /ws handshake. The full Intro flow — the
+ * tour, the disclosure, and every button's on-disk consequence — is pinned in claude/hooks-on/consent.spec.ts; the
+ * pins here are the standalone-only halves: the token boundary and the Settings-checkbox route.
  */
 test.describe('Standalone / hooks consent', () => {
   test.use({ seedHooksConsent: false });
@@ -127,32 +127,6 @@ test.describe('Standalone / hooks consent', () => {
   function ourHookEventCount(tmpHome: string): number {
     return ourHookEvents(tmpHome).length;
   }
-
-  // The operator's route: the printed tokened URL loads a privileged session,
-  // the Intro rides the handshake, and Install (on its consent step) writes
-  // the hooks.
-  test('the tokened page shows the Intro and Install writes the hooks @area:standalone', async ({
-    page,
-    standalone,
-  }) => {
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible({ timeout: 30_000 });
-    await advanceIntroToConsentStep(dialog);
-    // The disclosure travels with the request — the browser renders the
-    // server's exact terms.
-    await expect(dialog).toContainText('~/.claude/settings.json');
-    await expect(dialog).toContainText('Instant Detection (Hooks)');
-
-    expect(fs.existsSync(path.join(standalone.tmpHome, '.claude', 'settings.json'))).toBe(false);
-
-    await dialog.getByRole('button', { name: 'Install Hooks' }).click();
-
-    await expect.poll(() => readConsentFrom(standalone.tmpHome), { timeout: 15_000 }).toBe(true);
-    await expect.poll(() => ourHookEventCount(standalone.tmpHome), { timeout: 15_000 }).toBe(12);
-
-    // The install's own hooksStatus broadcast must not yank the closing step.
-    await finishIntro(dialog);
-  });
 
   // The token boundary, at the browser level: a bare-URL session still watches
   // the office but is never asked — its answer would be ignored

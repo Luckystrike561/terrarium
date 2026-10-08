@@ -17,9 +17,8 @@ import type { AssetCache } from './clientMessageHandler.js';
 import { setPaletteCount } from './paletteAssigner.js';
 
 /**
- * Shared asset-loading helpers used by BOTH the VS Code adapter and the
- * standalone server, so external asset directories behave identically across
- * surfaces (no copy-paste of the load+merge loops).
+ * Shared asset-loading helpers used by the standalone server so external
+ * asset directories behave identically across startup and reload.
  *
  * Asymmetry preserved deliberately: the bundled root uses the canonical loaders
  * (`loadCharacterSprites`/`loadPetSprites`), while external directories use the
@@ -55,8 +54,7 @@ export async function loadAllCharacters(
   // Sync the server-side palette count so assignPaletteIfNeeded and the
   // saveAgentSeats guard use the dynamic ceiling (external dirs can add
   // char_N.png past the bundled 6). Centralizing here means every entry
-  // point -- standalone startup, standalone reload, VS Code startup,
-  // VS Code reload -- sees the same count without four scattered calls.
+  // point -- startup, reload -- sees the same count without scattered calls.
   if (chars) setPaletteCount(chars.characters.length);
   return chars;
 }

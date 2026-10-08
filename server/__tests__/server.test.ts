@@ -160,7 +160,7 @@ describe('PixelAgentsServer', () => {
   });
 
   // 10. Registry entry written alongside the legacy server.json
-  it('writes a registry entry with port, pid, servesSpa, protocol', async () => {
+  it('writes a registry entry with port, pid, protocol', async () => {
     const config = await server.start();
     const files = registryFiles();
     expect(files).toHaveLength(1);
@@ -168,73 +168,43 @@ describe('PixelAgentsServer', () => {
     expect(entry.port).toBe(config.port);
     expect(entry.pid).toBe(process.pid);
     expect(entry.token).toBe(config.token);
-    expect(entry.servesSpa).toBe(false); // embedded (default) never serves the SPA
     expect(typeof entry.protocol).toBe('number');
   });
 
-  // 11. Second instance, same capability (embedded+embedded), reuses existing server
-  it('second embedded instance reuses an existing embedded server', async () => {
-    const config1 = await server.start({ embedded: true });
+  // 11. No explicit port: a second instance never reuses, always starts fresh
+  it('second instance with no explicit port never reuses; starts its own', async () => {
+    const config1 = await server.start();
     const server2 = new PixelAgentsServer();
-    const config2 = await server2.start({ embedded: true });
+    const config2 = await server2.start();
+    expect(config2.port).not.toBe(config1.port);
+    expect(registryFiles()).toHaveLength(2);
+    server2.stop();
+  });
+
+  // 12. Explicit matching port: a second instance reuses the existing server
+  it('second instance with an explicit matching port reuses the existing server', async () => {
+    const config1 = await server.start();
+    const server2 = new PixelAgentsServer();
+    const config2 = await server2.start({ port: config1.port });
     expect(config2.port).toBe(config1.port);
     expect(config2.pid).toBe(config1.pid);
     expect(registryFiles()).toHaveLength(1); // reuse -- server2 wrote no entry of its own
     server2.stop(); // should not delete server.json / the registry entry (not owner)
   });
 
-  // 12. Second instance, same capability (standalone+standalone), reuses existing server
-  it('second standalone instance reuses an existing standalone server', async () => {
-    const config1 = await server.start({ embedded: false });
+  // 13. Explicit non-matching port: a second instance starts its own, on that port
+  it('second instance with an explicit non-matching port starts its own', async () => {
+    const config1 = await server.start();
     const server2 = new PixelAgentsServer();
-    const config2 = await server2.start({ embedded: false });
-    expect(config2.port).toBe(config1.port);
-    expect(registryFiles()).toHaveLength(1);
-    server2.stop();
-  });
-
-  // 13. Capability mismatch: a standalone caller never reuses an embedded server
-  it('standalone does not reuse an existing embedded server; starts its own', async () => {
-    const config1 = await server.start({ embedded: true });
-    const server2 = new PixelAgentsServer();
-    const config2 = await server2.start({ embedded: false });
+    const otherPort = config1.port === 65_535 ? config1.port - 1 : config1.port + 1;
+    const config2 = await server2.start({ port: otherPort });
+    expect(config2.port).toBe(otherPort);
     expect(config2.port).not.toBe(config1.port);
     expect(registryFiles()).toHaveLength(2);
     server2.stop();
   });
 
-  // 14. Capability mismatch, mirrored: an embedded caller never reuses a standalone server
-  it('embedded does not reuse an existing standalone server; starts its own', async () => {
-    const config1 = await server.start({ embedded: false });
-    const server2 = new PixelAgentsServer();
-    const config2 = await server2.start({ embedded: true });
-    expect(config2.port).not.toBe(config1.port);
-    expect(registryFiles()).toHaveLength(2);
-    server2.stop();
-  });
-
-  // 15. Embedded + standalone coexist: two independent live registry entries, neither reuses
-  it('embedded and standalone servers coexist as two live registry entries', async () => {
-    const embeddedConfig = await server.start({ embedded: true });
-    const standalone = new PixelAgentsServer();
-    const standaloneConfig = await standalone.start({ embedded: false });
-
-    expect(standaloneConfig.port).not.toBe(embeddedConfig.port);
-    expect(standaloneConfig.token).not.toBe(embeddedConfig.token);
-    const files = registryFiles();
-    expect(files).toHaveLength(2);
-    const entries = files.map((f) =>
-      JSON.parse(fs.readFileSync(path.join(registryDir, f), 'utf-8')),
-    );
-    expect(entries.some((e) => e.servesSpa === false && e.port === embeddedConfig.port)).toBe(true);
-    expect(entries.some((e) => e.servesSpa === true && e.port === standaloneConfig.port)).toBe(
-      true,
-    );
-
-    standalone.stop();
-  });
-
-  // 16. Dead-pid registry entries are pruned on start, never reused
+  // 14. Dead-pid registry entries are pruned on start, never reused
   it('prunes dead-pid registry entries on start instead of reusing them', async () => {
     fs.mkdirSync(registryDir, { recursive: true });
     const staleFile = path.join(registryDir, '999999-9999.json');
@@ -245,19 +215,18 @@ describe('PixelAgentsServer', () => {
         pid: 999999,
         token: 'stale',
         startedAt: 0,
-        servesSpa: false,
         protocol: 1,
       }),
     );
 
-    const config = await server.start({ embedded: true });
+    const config = await server.start({ port: 9999 });
 
     expect(fs.existsSync(staleFile)).toBe(false); // pruned, not left behind
-    expect(config.port).not.toBe(9999); // never reused the dead entry -- started its own
+    expect(config.port).toBe(9999); // started fresh on the requested port -- never reused the dead entry
     expect(registryFiles()).toHaveLength(1); // only the freshly-started server's entry remains
   });
 
-  // 17. Structurally invalid live-pid entries are malformed, not reusable
+  // 15. Structurally invalid live-pid entries are malformed, not reusable
   it('prunes a structurally invalid live-pid entry instead of reusing it', async () => {
     fs.mkdirSync(registryDir, { recursive: true });
     const malformedFile = path.join(registryDir, `${process.pid}-70000.json`);
@@ -268,12 +237,11 @@ describe('PixelAgentsServer', () => {
         pid: process.pid,
         token: 'invalid-port',
         startedAt: Date.now(),
-        servesSpa: false,
         protocol: 1,
       }),
     );
 
-    const config = await server.start({ embedded: true });
+    const config = await server.start();
 
     expect(config.port).not.toBe(70_000);
     expect(fs.existsSync(malformedFile)).toBe(false);
@@ -301,23 +269,24 @@ describe('PixelAgentsServer', () => {
     expect(fs.existsSync(serverJsonPath)).toBe(true);
   });
 
-  // 20. stop() removes only this server's own registry entry, preserves the other's (D6)
+  // 20. stop() removes only this server's own registry entry, preserves another's
   it('deletes only its own registry entry on stop, preserving a coexisting server', async () => {
-    const embeddedConfig = await server.start({ embedded: true });
-    const standalone = new PixelAgentsServer();
-    const standaloneConfig = await standalone.start({ embedded: false });
+    const config1 = await server.start();
+    const server2 = new PixelAgentsServer();
+    const otherPort = config1.port === 65_535 ? config1.port - 1 : config1.port + 1;
+    const config2 = await server2.start({ port: otherPort });
     expect(registryFiles()).toHaveLength(2);
 
-    standalone.stop();
+    server2.stop();
 
-    // Only the standalone's own entry is gone; the still-running embedded
-    // server's registry entry is untouched (self-only cleanup, D6).
+    // Only server2's own entry is gone; the still-running first server's
+    // registry entry is untouched (self-only cleanup, D6).
     const remaining = registryFiles().map(
       (f) => JSON.parse(fs.readFileSync(path.join(registryDir, f), 'utf-8')) as { port: number },
     );
     expect(remaining).toHaveLength(1);
-    expect(remaining[0].port).toBe(embeddedConfig.port);
-    expect(remaining.some((e) => e.port === standaloneConfig.port)).toBe(false);
+    expect(remaining[0].port).toBe(config1.port);
+    expect(remaining.some((e) => e.port === config2.port)).toBe(false);
   });
 
   // 21. Unknown route returns 404

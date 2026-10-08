@@ -22,12 +22,10 @@ export interface AgentDiagnosticsEntry {
 /**
  * Build the connection-diagnostics payload for every agent in the store.
  *
- * Shared by the VS Code adapter and the standalone server so both surfaces emit
- * an identical `agentDiagnostics` payload. `jsonlExists` and `fileSize` are
- * coupled: both come from a single `fs.statSync` (the "has data but 0 lines"
- * Debug View branch depends on this), while `projectDirExists` is a separate
- * `fs.existsSync`. `lastDataAt === 0` is a meaningful "never" sentinel and is
- * forwarded as-is.
+ * `jsonlExists` and `fileSize` are coupled: both come from a single
+ * `fs.statSync` (the "has data but 0 lines" Debug View branch depends on
+ * this), while `projectDirExists` is a separate `fs.existsSync`.
+ * `lastDataAt === 0` is a meaningful "never" sentinel and is forwarded as-is.
  */
 export function buildAgentDiagnostics(store: AgentStateStore): AgentDiagnosticsEntry[] {
   const diagnostics: AgentDiagnosticsEntry[] = [];

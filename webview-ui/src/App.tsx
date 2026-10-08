@@ -26,7 +26,7 @@ import { isRotatable } from './office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from './office/layout/layoutSerializer.js';
 import { getPetCount } from './office/sprites/petSpriteData.js';
 import { EditTool, type OfficeLayout } from './office/types.js';
-import { isBrowserRuntime, isE2E } from './runtime.js';
+import { isE2E } from './runtime.js';
 import { installTestHooks } from './testHooks.js';
 import { transport } from './transport/index.js';
 
@@ -52,8 +52,7 @@ function App() {
   useEffect(() => {
     // browserMock is for Vite dev mode only (UI prototyping without a server).
     // In standalone server mode, the server sends all state over WebSocket.
-    // In VS Code mode, the extension sends all state via postMessage.
-    if (isBrowserRuntime && import.meta.env.DEV) {
+    if (import.meta.env.DEV) {
       void import('./browserMock.js').then(({ dispatchMockMessages }) => dispatchMockMessages());
     }
   }, []);
@@ -68,6 +67,7 @@ function App() {
   const {
     agents,
     selectedAgent,
+    setSelectedAgent,
     agentTools,
     agentStatuses,
     subagentTools,
@@ -75,7 +75,6 @@ function App() {
     layoutReady,
     layoutWasReset,
     loadedAssets,
-    workspaceFolders,
     agentFolderNames,
     externalAssetDirectories,
     lastSeenVersion,
@@ -83,8 +82,6 @@ function App() {
     watchAllSessions,
     setWatchAllSessions,
     alwaysShowLabels,
-    ghostHeadlessAgents,
-    setGhostHeadlessAgents,
     hooksEnabled,
     hooksInstalled,
     hooksStatusSeq,
@@ -133,17 +130,12 @@ function App() {
     });
   }, []);
 
-  // Toggle "Display headless as ghosts". setGhostHeadlessAgents also updates the
-  // renderer's module copy, so the office redraws on the next frame.
-  const handleToggleGhostHeadlessAgents = useCallback(() => {
-    const next = !ghostHeadlessAgents;
-    setGhostHeadlessAgents(next);
-    transport.send({ type: 'setGhostHeadlessAgents', enabled: next });
-  }, [ghostHeadlessAgents, setGhostHeadlessAgents]);
-
-  const handleSelectAgent = useCallback((id: number) => {
-    transport.send({ type: 'focusAgent', id });
-  }, []);
+  const handleSelectAgent = useCallback(
+    (id: number) => {
+      setSelectedAgent(id);
+    },
+    [setSelectedAgent],
+  );
 
   // The Intro's wire-facing state machine — which asks survive being mooted,
   // when a hooksStatus is this tour's install verdict — lives in useIntroTour
@@ -231,32 +223,29 @@ function App() {
     transport.send({ type: 'closeAgent', id });
   }, []);
 
-  const handleClick = useCallback((agentId: number) => {
-    // If clicked agent is a sub-agent, focus the parent's terminal instead
-    const os = getOfficeState();
-    const meta = os.subagentMeta.get(agentId);
-    const focusId = meta ? meta.parentAgentId : agentId;
-    transport.send({ type: 'focusAgent', id: focusId });
-  }, []);
+  const handleClick = useCallback(
+    (agentId: number) => {
+      // If clicked agent is a sub-agent, select the parent instead
+      const os = getOfficeState();
+      const meta = os.subagentMeta.get(agentId);
+      const focusId = meta ? meta.parentAgentId : agentId;
+      setSelectedAgent(focusId);
+    },
+    [setSelectedAgent],
+  );
 
   const officeState = getOfficeState();
 
-  // Merged set of folders the Areas dropdown can map: real workspace folders plus
-  // every distinct folder an agent has run in this session (deduped by name; name
-  // is the areaMappings key / seat-bias identity, path is only the React list key).
-  const areaFolders = useMemo(() => {
-    const byName = new Map<string, { name: string; path: string }>();
-    for (const f of workspaceFolders) byName.set(f.name, f);
-    for (const name of agentFolderNames) {
-      if (!byName.has(name)) byName.set(name, { name, path: name });
-    }
-    return [...byName.values()];
-  }, [workspaceFolders, agentFolderNames]);
+  // Areas dropdown folder list: every distinct folder an agent has run in
+  // this session (deduped by name; name is the areaMappings key / seat-bias
+  // identity, path is only the React list key).
+  const areaFolders = useMemo(
+    () => agentFolderNames.map((name) => ({ name, path: name })),
+    [agentFolderNames],
+  );
 
   // Areas authoring is available when the layout already defines areas, or when
-  // there is at least one mappable folder. Decouples the Areas UI from VS Code
-  // multi-root workspaces (fixes single-root VS Code AND standalone, where
-  // workspaceFolders is always empty).
+  // there is at least one mappable folder.
   const areasAvailable = (officeState.getLayout().areas?.length ?? 0) > 0 || areaFolders.length > 0;
 
   const handleExportLayout = useCallback(() => {
@@ -277,8 +266,8 @@ function App() {
       reader.onload = () => {
         try {
           const imported = JSON.parse(String(reader.result)) as Record<string, unknown>;
-          // Match the VS Code guard, plus the furniture-array check VS Code omits
-          // (migrate + rebuild iterate furniture and would throw on a non-array).
+          // The layout version plus the furniture-array check: migrate + rebuild
+          // iterate furniture and would throw on a non-array.
           if (
             imported.version !== 1 ||
             !Array.isArray(imported.tiles) ||
@@ -509,11 +498,9 @@ function App() {
 
       <BottomToolbar
         isEditMode={editor.isEditMode}
-        onOpenClaude={editor.handleOpenClaude}
         onToggleEditMode={editor.handleToggleEditMode}
         isSettingsOpen={isSettingsOpen}
         onToggleSettings={() => setIsSettingsOpen((v) => !v)}
-        workspaceFolders={workspaceFolders}
       />
 
       <VersionIndicator
@@ -538,8 +525,6 @@ function App() {
         onToggleDebugMode={handleToggleDebugMode}
         alwaysShowOverlay={alwaysShowOverlay}
         onToggleAlwaysShowOverlay={handleToggleAlwaysShowOverlay}
-        ghostHeadlessAgents={ghostHeadlessAgents}
-        onToggleGhostHeadlessAgents={handleToggleGhostHeadlessAgents}
         externalAssetDirectories={externalAssetDirectories}
         watchAllSessions={watchAllSessions}
         onToggleWatchAllSessions={() => {

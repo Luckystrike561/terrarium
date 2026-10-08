@@ -1,5 +1,5 @@
 /**
- * Provider module registry: the one list both surfaces (VS Code, standalone CLI) iterate. Nothing outside a module's
+ * Provider module registry: the one list the standalone CLI iterates. Nothing outside a module's
  * own directory knows any module by name.
  *
  * Adding a module:

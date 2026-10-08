@@ -14,8 +14,6 @@ export interface ServerTarget {
 export interface ServerConfig extends ServerTarget {
   /** Timestamp (ms) when the server started. */
   startedAt: number;
-  /** Whether this server serves the webview SPA (standalone / !embedded). */
-  servesSpa: boolean;
   /** Registry record format version. */
   protocol: number;
 }
@@ -45,7 +43,6 @@ export function isServerConfig(value: unknown): value is ServerConfig {
   return (
     Number.isSafeInteger(value.startedAt) &&
     (value.startedAt as number) >= 0 &&
-    typeof value.servesSpa === 'boolean' &&
     value.protocol === SERVER_REGISTRY_PROTOCOL_VERSION
   );
 }

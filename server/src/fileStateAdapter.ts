@@ -1,16 +1,9 @@
 /**
- * FileStateAdapter: shared StateAdapter implementation for both VS Code and standalone.
+ * FileStateAdapter: the server's StateAdapter implementation.
  *
- * Settings (per adapter namespace) persist to
- *   ~/.pixel-agents/config.json  under keys "vscode" or "standalone".
+ * Settings persist to ~/.pixel-agents/config.json under the "standalone" key.
  *
- * Agents + seats (per adapter) persist to
- *   ~/.pixel-agents/<namespace>-state.json
- *
- * Runtime visibility (which agents show in the office) is scope-controlled by the
- * runtime scanner + Watch All Sessions toggle, not by persistence. Both adapters
- * can observe the same ~/.claude/projects/ filesystem; each keeps its own local
- * agent IDs and seat mappings.
+ * Agents + seats persist to ~/.pixel-agents/standalone-state.json.
  */
 
 import * as fs from 'fs';
@@ -19,7 +12,7 @@ import * as path from 'path';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
 import type { PersistedAgent } from '../../core/src/schemas.js';
-import type { AdapterSettingKey, AdapterSettings, ConfigNamespace } from './configPersistence.js';
+import type { AdapterSettingKey, AdapterSettings } from './configPersistence.js';
 import { ADAPTER_SETTING_KEYS, readConfig, writeConfig } from './configPersistence.js';
 import { LAYOUT_FILE_DIR } from './constants.js';
 
@@ -38,30 +31,20 @@ interface AdapterState {
 
 const EMPTY_STATE: AdapterState = { agents: [], seats: {} };
 
-export interface FileStateAdapterOptions {
-  namespace: ConfigNamespace;
-}
-
 export class FileStateAdapter implements StateAdapter {
-  private readonly namespace: ConfigNamespace;
   private readonly stateFilePath: string;
 
-  constructor(options: FileStateAdapterOptions) {
-    this.namespace = options.namespace;
-    this.stateFilePath = path.join(
-      os.homedir(),
-      LAYOUT_FILE_DIR,
-      `${options.namespace}-state.json`,
-    );
+  constructor() {
+    this.stateFilePath = path.join(os.homedir(), LAYOUT_FILE_DIR, 'standalone-state.json');
   }
 
-  // ── Settings (shared config.json, per-namespace section) ────
+  // ── Settings (shared config.json, "standalone" section) ────
 
   getSetting<T>(key: string, defaultValue: T): T {
     const field = settingNameOf(key);
     if (!field) return defaultValue;
     const config = readConfig();
-    return config[this.namespace][field] as unknown as T;
+    return config.standalone[field] as unknown as T;
   }
 
   setSetting<T>(key: string, value: T): void {
@@ -69,11 +52,11 @@ export class FileStateAdapter implements StateAdapter {
     if (!field) return;
     const config = readConfig();
     // Narrow by field to keep the union-safe write. Each entry is a boolean or string.
-    (config[this.namespace] as unknown as Record<string, unknown>)[field] = value;
+    (config.standalone as unknown as Record<string, unknown>)[field] = value;
     writeConfig(config);
   }
 
-  // ── Agents + seats (adapter-scoped file) ────────────────────
+  // ── Agents + seats ───────────────────────────────────────────
 
   loadAgents(): PersistedAgent[] {
     return this.readState().agents;
@@ -135,4 +118,4 @@ export class FileStateAdapter implements StateAdapter {
 
 // Re-export for callers that want to construct AdapterSettings defaults directly.
 /** @public */
-export type { AdapterSettings, ConfigNamespace };
+export type { AdapterSettings };

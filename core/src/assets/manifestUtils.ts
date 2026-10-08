@@ -1,6 +1,5 @@
 /**
- * Manifest flattening utilities — shared between the extension host, Vite build
- * scripts, and future standalone backend.
+ * Manifest flattening utilities shared by the server and the Vite build scripts.
  *
  * Recursively flattens furniture manifest trees into flat asset arrays.
  */

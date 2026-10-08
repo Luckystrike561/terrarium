@@ -1,5 +1,4 @@
 // ── JSONL File Watching ─────────────────────────────────────
-export const JSONL_POLL_INTERVAL_MS = 1000;
 export const FILE_WATCHER_POLL_INTERVAL_MS = 500;
 export const PROJECT_SCAN_INTERVAL_MS = 1000;
 /** How often a multiplexer pane's transcript is looked for until the CLI creates it. */
@@ -17,8 +16,6 @@ export const TOOL_DONE_DELAY_MS = 300;
 export const PERMISSION_TIMER_DELAY_MS = 7000;
 /** Heuristic: silence duration before marking a text-only turn as complete */
 export const TEXT_IDLE_DELAY_MS = 5000;
-/** Heuristic: idle threshold for per-agent /clear detection (content check prevents stealing) */
-export const CLEAR_IDLE_THRESHOLD_MS = 2000;
 
 // ── External Session Detection ──────────────────────────────
 export const EXTERNAL_SCAN_INTERVAL_MS = 3000;
@@ -71,15 +68,13 @@ export const SERVERS_DIR = 'servers';
 export const MIN_PORT = 1;
 export const MAX_PORT = 65_535;
 /** Format version stamped on every registry entry (both the per-server records
- *  and the legacy server.json). Bump on breaking field changes; additive
- *  fields (servesSpa, protocol itself) don't require a bump -- readers already
- *  tolerate unknown/missing fields (see ServerConfig.debugLog precedent). */
+ * and the legacy server.json). Bump on breaking field changes; additive
+ * fields don't require a bump -- readers already tolerate unknown/missing
+ * fields (see ServerConfig.debugLog precedent). */
 export const SERVER_REGISTRY_PROTOCOL_VERSION = 1;
 
 // ── WebSocket close codes (application range 4000-4999) ────
-/** Embedded mode: Bearer token missing or wrong. */
-export const WS_CLOSE_UNAUTHORIZED = 4001;
-/** Standalone mode: the handshake's Origin is not this server's own origin.
+/** The handshake's Origin is not this server's own origin.
  *  WebSocket connects bypass CORS, so this is the only thing standing between
  *  a drive-by web page and the privileged client-message channel. */
 export const WS_CLOSE_FORBIDDEN_ORIGIN = 4003;
@@ -95,7 +90,6 @@ export const MAX_HOOK_BODY_SIZE = 65_536; // 64KB
 // ── Layout/Config Persistence ──────────────────────────────
 export const LAYOUT_FILE_DIR = '.pixel-agents';
 export const LAYOUT_FILE_NAME = 'layout.json';
-export const LAYOUT_FILE_POLL_INTERVAL_MS = 2000;
 export const LAYOUT_REVISION_KEY = 'layoutRevision';
 export const CONFIG_FILE_NAME = 'config.json';
 

@@ -15,19 +15,8 @@
   "icon": "icon.png",
   "license": "MIT",
   "engines": {
-    "node": ">=22.13",
-    "vscode": "^1.105.0"
+    "node": ">=22.13"
   },
-  "extensionKind": [
-    "workspace"
-  ],
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "main": "./dist/extension.js",
   "bin": {
     "pixel-agents": "./dist/cli.js"
   },
@@ -35,63 +24,13 @@
     "CHANGELOG.md",
     "LICENSE",
     "dist/cli.js",
-    "dist/extension.js",
     "dist/hooks/claude-hook.js",
-    "dist/uninstall.js",
     "dist/assets/",
     "dist/webview/",
     "icon.png"
   ],
-  "contributes": {
-    "commands": [
-      {
-        "command": "pixel-agents.showPanel",
-        "title": "Pixel Agents: Show Panel"
-      },
-      {
-        "command": "pixel-agents.exportDefaultLayout",
-        "title": "Pixel Agents: Export Layout as Default"
-      }
-    ],
-    "viewsContainers": {
-      "panel": [
-        {
-          "id": "pixel-agents-panel",
-          "title": "Pixel Agents",
-          "icon": "$(window)"
-        }
-      ]
-    },
-    "views": {
-      "pixel-agents-panel": [
-        {
-          "type": "webview",
-          "id": "pixel-agents.panelView",
-          "name": "Pixel Agents"
-        }
-      ]
-    },
-    "configuration": {
-      "title": "Pixel Agents",
-      "properties": {
-        "pixel-agents.autoShowPanel": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically open and focus the Pixel Agents panel when VS Code starts."
-        },
-        "pixel-agents.autoSpawnAgent": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically spawn a Claude Code agent when VS Code starts, if no agents are currently running."
-        }
-      }
-    }
-  },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "vscode:uninstall": "node ./dist/uninstall.js",
     "prepack": "npm run package",
-    "build:extension": "node esbuild.js --production",
     "build:webview": "cd webview-ui && npm run build",
     "compile": "npm run asyncapi:generate && npm run check-types && npm run lint && node esbuild.js && npm run build:webview",
     "build": "npm run compile",
@@ -107,11 +46,11 @@
     "asyncapi:validate": "node scripts/validate-asyncapi.mjs",
     "check-types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.test.json",
     "prepare": "husky",
-    "lint": "eslint adapters/vscode server core && cd webview-ui && eslint .",
-    "lint:fix": "eslint adapters/vscode server core --fix && cd webview-ui && eslint . --fix",
+    "lint": "eslint server core && cd webview-ui && eslint .",
+    "lint:fix": "eslint server core --fix && cd webview-ui && eslint . --fix",
     "import-tileset": "tsx scripts/import-tileset-cli.ts",
-    "format": "prettier --write \"adapters/vscode/**/*.ts\" \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
-    "format:check": "prettier --check \"adapters/vscode/**/*.ts\" \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
+    "format": "prettier --write \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
+    "format:check": "prettier --check \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
     "test:webview": "cd webview-ui && npm test",
     "test:server": "cd server && npm test",
     "test:package-contract": "node --test scripts/npm-package-contract.test.mjs",
@@ -133,8 +72,6 @@
     "@playwright/test": "^1.58.2",
     "@types/node": "26.x",
     "@types/pngjs": "^6.0.5",
-    "@types/vscode": "^1.105.0",
-    "@vscode/test-electron": "^3.1.0",
     "allure-commandline": "^2.38.1",
     "allure-playwright": "^3.7.1",
     "esbuild": "^0.28.0",
@@ -153,7 +90,6 @@
     "typescript-eslint": "^8.54.0"
   },
   "lint-staged": {
-    "adapters/vscode/**/*.ts": "eslint --fix",
     "server/**/*.ts": "eslint --fix",
     "core/src/**/*.ts": "eslint --fix",
     "webview-ui/src/**/*.{ts,tsx}": "eslint --fix",

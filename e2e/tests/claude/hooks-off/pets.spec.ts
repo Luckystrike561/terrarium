@@ -1,9 +1,9 @@
-import type { Frame, Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
-import { expect, test } from '../../../fixtures/pixel-agents';
-import { closeBottomPanel, getPixelAgentsFrame, reopenBottomPanel } from '../../../helpers/webview';
+import { expect, test } from '../../../fixtures/standalone';
+import { dismissFirstRunTooltips } from '../../../helpers/editor';
 
 /**
  * e2e coverage for the animated pet system.
@@ -44,58 +44,42 @@ type PetWindow = Window & { __pixelAgentsTestHooks?: PetTestHooks };
 
 const PETS_CAROUSEL = '[data-testid="pets-carousel"]';
 
-/**
- * Dismiss the first-run tooltips ("Instant Detection Active", "Updated to vN")
- * that overlay the top toolbar and would otherwise intercept the Layout click.
- * Mirrors the layout-editor smoke test in hooks-on/lifecycle.spec.ts.
- */
-async function dismissFirstRunTooltips(frame: Frame): Promise<void> {
-  for (const tooltipText of ['Instant Detection Active', 'Updated to v']) {
-    const tooltip = frame.locator('div', { hasText: tooltipText }).first();
-    if (await tooltip.isVisible().catch(() => false)) {
-      const closeBtn = tooltip.locator('button', { hasText: 'x' }).first();
-      if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click().catch(() => {});
-      }
-    }
-  }
-}
-
 /** Enter edit mode and open the Pets tab; returns the carousel locator. */
-async function openPetsTab(frame: Frame): Promise<Locator> {
-  await dismissFirstRunTooltips(frame);
-  await frame.locator('button[title="Edit office layout"]').click();
-  await frame.locator('button[title="Place pets"]').click();
-  const carousel = frame.locator(PETS_CAROUSEL);
+async function openPetsTab(page: Page): Promise<Locator> {
+  await dismissFirstRunTooltips(page);
+  await page.locator('button[title="Edit office layout"]').click();
+  await page.locator('button[title="Place pets"]').click();
+  const carousel = page.locator(PETS_CAROUSEL);
   await expect(carousel).toBeVisible({ timeout: 15_000 });
   return carousel;
 }
 
 /** Point-in-time snapshot of every live pet, read from the test hook. */
-async function readPets(frame: Frame): Promise<PetSnapshot[]> {
-  return frame.evaluate(() => {
+async function readPets(page: Page): Promise<PetSnapshot[]> {
+  return page.evaluate(() => {
     const w = window as PetWindow;
     return w.__pixelAgentsTestHooks?.getPets?.() ?? [];
   });
 }
 
 /** Toggle a pet's heart bubble exactly as a canvas click would. */
-async function petClick(frame: Frame, petId: string): Promise<void> {
-  await frame.evaluate((id) => {
+async function petClick(page: Page, petId: string): Promise<void> {
+  await page.evaluate((id) => {
     (window as PetWindow).__pixelAgentsTestHooks?.petClick?.(id);
   }, petId);
 }
 
 test.describe('Pets', () => {
   test('pet sprites load, broadcast, and expose manifest names in the editor @area:pets', async ({
-    pixelAgents,
+    page,
+    standalone,
   }) => {
-    const { frame, narrator } = pixelAgents;
+    const { narrator } = standalone;
 
     // The petSpritesLoaded broadcast is sent once after webviewReady. Proven
     // delivered via the message log (records every received message type).
     narrator.step('waiting for the pet sprites to broadcast to the webview');
-    await frame.waitForFunction(() => {
+    await page.waitForFunction(() => {
       const w = window as PetWindow;
       const log = w.__pixelAgentsTestHooks?.messageLog ?? [];
       return log.some((m) => m.type === 'petSpritesLoaded');
@@ -106,7 +90,7 @@ test.describe('Pets', () => {
     // alphabetical order, each titled with its manifest `name`. Asserting the
     // count + both names covers "loaded" and "manifest names" together.
     narrator.step('opening the layout editor → Pets tab');
-    const carousel = await openPetsTab(frame);
+    const carousel = await openPetsTab(page);
     await expect(carousel.locator('button')).toHaveCount(2);
     narrator.check('carousel has exactly 2 pet thumbnails');
     await expect(carousel.locator('button[title="Claudio"]')).toBeVisible();
@@ -114,20 +98,21 @@ test.describe('Pets', () => {
     narrator.check('thumbnails titled "Claudio" and "Gitcat" — manifest names surfaced');
   });
 
-  test('placing a pet toggles it on/off and persists across a panel reload @area:pets', async ({
-    pixelAgents,
+  test('placing a pet toggles it on/off and persists across a page reload @area:pets', async ({
+    page,
+    standalone,
   }) => {
-    const { frame, window, tmpHome, narrator } = pixelAgents;
+    const { tmpHome, narrator } = standalone;
 
     narrator.step('opening the layout editor → Pets tab');
-    const carousel = await openPetsTab(frame);
+    const carousel = await openPetsTab(page);
     const claudio = carousel.locator('button[title="Claudio"]');
     const gitcat = carousel.locator('button[title="Gitcat"]');
 
     // Toggle ON: clicking the carousel button drives the real placement path.
     narrator.step('clicking Claudio — placing the pet');
     await claudio.click();
-    await frame.waitForFunction(() => {
+    await page.waitForFunction(() => {
       const pets = (window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? [];
       return pets.length === 1 && pets[0]?.petType === 0;
     });
@@ -136,7 +121,7 @@ test.describe('Pets', () => {
     // Toggle OFF: clicking the same (now-active) button removes it.
     narrator.step('clicking Claudio again — removing the pet');
     await claudio.click();
-    await frame.waitForFunction(
+    await page.waitForFunction(
       () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 0,
     );
     narrator.check('canvas empty again (getPets → 0)');
@@ -144,19 +129,17 @@ test.describe('Pets', () => {
     // Place both pets, then persist via the EditActionBar Save button.
     narrator.step('placing both pets — Claudio, then Gitcat');
     await claudio.click();
-    await frame.waitForFunction(
-      () =>
-        ((globalThis as unknown as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length ===
-        1,
+    await page.waitForFunction(
+      () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 1,
     );
     await gitcat.click();
-    await frame.waitForFunction(
+    await page.waitForFunction(
       () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 2,
     );
     narrator.check('two pets on the canvas (getPets → 2)');
 
     narrator.step('clicking Save — persisting the layout to disk');
-    const saveBtn = frame.locator('button', { hasText: 'Save' });
+    const saveBtn = page.locator('button', { hasText: 'Save' });
     await expect(saveBtn).toBeVisible({ timeout: 5_000 });
     await saveBtn.click();
 
@@ -181,47 +164,39 @@ test.describe('Pets', () => {
       .toBe(2);
     narrator.check('~/.pixel-agents/layout.json contains 2 pets');
 
-    // Reload the panel (webview is disposed + re-resolved since there is no
-    // retainContextWhenHidden) and confirm the pets rehydrate from disk.
-    // Reopen with the same ⌘J toggle rather than openPixelAgentsPanel: the
-    // chord restores the panel as it was, without the palette "Show Panel" /
-    // "Toggle Maximized Panel" overlays cluttering the end of the video.
-    narrator.step('closing the bottom panel — the webview is disposed');
-    await closeBottomPanel(window);
-    narrator.step('reopening the panel — pets must rehydrate from disk');
-    await reopenBottomPanel(window);
-    const freshFrame = await getPixelAgentsFrame(window);
-    await freshFrame.waitForFunction(
+    // Reload the page and confirm the pets rehydrate from disk.
+    narrator.step('reloading the page — pets must rehydrate from disk');
+    await standalone.reloadPage();
+    await page.waitForFunction(
       () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 2,
       undefined,
       { timeout: 15_000 },
     );
-    narrator.check('fresh webview shows 2 pets again — persisted across the reload');
+    narrator.check('fresh page shows 2 pets again — persisted across the reload');
   });
 
   test('clicking a pet shows a heart bubble that auto-dismisses and dismisses on re-click @area:pets', async ({
-    pixelAgents,
+    page,
+    standalone,
   }) => {
-    // `window` stays un-destructured here so the waitForFunction callbacks'
-    // `window` keeps resolving to the DOM global for TypeScript.
-    const { frame, narrator } = pixelAgents;
+    const { narrator } = standalone;
 
     // Place one pet through the editor, then read its id back (spawn tile is
     // random, so the id is the only stable handle).
     narrator.step('placing one pet (Claudio) via the editor');
-    const carousel = await openPetsTab(frame);
+    const carousel = await openPetsTab(page);
     await carousel.locator('button[title="Claudio"]').click();
-    await frame.waitForFunction(
+    await page.waitForFunction(
       () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 1,
     );
-    const pets = await readPets(frame);
+    const pets = await readPets(page);
     const petId = pets[0]!.id;
     narrator.check('pet placed (getPets → 1)');
 
     // Click → heart bubble appears.
     narrator.step('clicking the pet — heart bubble should appear');
-    await petClick(frame, petId);
-    await frame.waitForFunction((id) => {
+    await petClick(page, petId);
+    await page.waitForFunction((id) => {
       const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
         (x) => x.id === id,
       );
@@ -232,7 +207,7 @@ test.describe('Pets', () => {
     // It auto-dismisses after WAITING_BUBBLE_DURATION_SEC (2s); the rAF loop
     // nulls bubbleType once the timer elapses. Timeout sits above 2s.
     narrator.step('waiting for the 2s auto-dismiss timer, no clicks');
-    await frame.waitForFunction(
+    await page.waitForFunction(
       (id) => {
         const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
           (x) => x.id === id,
@@ -247,8 +222,8 @@ test.describe('Pets', () => {
     // The 1s assertion below completes before the 2s auto-dismiss timer, so
     // a cleared bubble can only be the click-dismiss path.
     narrator.step('clicking again — heart bubble re-appears');
-    await petClick(frame, petId);
-    await frame.waitForFunction((id) => {
+    await petClick(page, petId);
+    await page.waitForFunction((id) => {
       const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
         (x) => x.id === id,
       );
@@ -257,8 +232,8 @@ test.describe('Pets', () => {
     narrator.check('heart bubble showing again');
 
     narrator.step('clicking while showing — must dismiss fast, not wait out the 2s timer');
-    await petClick(frame, petId);
-    await frame.waitForFunction(
+    await petClick(page, petId);
+    await page.waitForFunction(
       (id) => {
         const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
           (x) => x.id === id,

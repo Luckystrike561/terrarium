@@ -122,7 +122,7 @@ Options:
 // First-run consent is asked IN THE APP, not here: the server sends a
 // hooksConsentRequest to privileged (tokened) connections during the
 // webviewReady handshake (clientMessageHandler.ts), and the browser renders
-// the dialog — the same UX the VS Code webview shows. The CLI itself never
+// the dialog. The CLI itself never
 // prompts; a headless run just starts without hooks until consent is granted
 // through the UI. The one exception that needs no dialog is the silent-grant
 // migration below (our hooks already installed by a pre-consent version).
@@ -199,10 +199,9 @@ async function main(): Promise<void> {
   const packageRoot = path.dirname(distRoot);
   const staticDir = path.join(distRoot, 'webview');
 
-  // ── Load assets on startup (same pipeline as VS Code extension) ──
+  // ── Load assets on startup ──
   // External asset directories are merged at startup too, so directories added
-  // in a previous session survive a restart. buildAssetCache is the shared
-  // loader used by both the standalone server and the VS Code adapter.
+  // in a previous session survive a restart.
   console.log('[Pixel Agents] Loading assets...');
   const assetCache: AssetCache = await buildAssetCache(
     distRoot,
@@ -217,7 +216,7 @@ async function main(): Promise<void> {
 
   // ── Store + adapter (shared settings + standalone-scoped agents/seats) ──
   const store = new AgentStateStore();
-  const adapter = new FileStateAdapter({ namespace: 'standalone' });
+  const adapter = new FileStateAdapter();
   store.setAdapter(adapter);
 
   // ── Create server ──
@@ -276,7 +275,7 @@ async function main(): Promise<void> {
     // place so already-open sockets (which captured the same reference) and
     // future webviewReady handshakes both observe the new assets. Only
     // characters/pets/furniture can come from external dirs, so only those three
-    // are reloaded and re-sent (mirrors the VS Code reload path).
+    // are reloaded and re-sent.
     const onReloadAssets: ReloadAssetsSideEffect = async (send): Promise<void> => {
       const externalDirs = readConfig().externalAssetDirectories;
       const [characters, pets, furniture] = await Promise.all([
@@ -310,7 +309,6 @@ async function main(): Promise<void> {
     const config = await server.start({
       store,
       runtime,
-      embedded: false,
       host: args.host,
       port: args.port,
       staticDir,

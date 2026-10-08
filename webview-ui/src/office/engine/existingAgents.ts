@@ -8,8 +8,8 @@
 // The webview must handle BOTH orders in which the two restore messages arrive:
 //   - existingAgents before layoutLoaded → buffer, flush on the next layoutLoaded
 //   - layoutLoaded before existingAgents → layout + seats already built, add now
-// Depending on layoutLoaded always arriving last stranded restored agents on any
-// surface that sends layout first (e.g. the VS Code no-assets path), issue #334.
+// Depending on layoutLoaded always arriving last stranded restored agents when
+// layout arrived first, issue #334.
 
 /** Per-agent seat metadata carried by the existingAgents message. */
 export interface ExistingAgentMeta {
@@ -25,7 +25,6 @@ export interface PendingAgent {
   hueShift?: number;
   seatId?: string;
   folderName?: string;
-  isHeadless?: boolean;
 }
 
 /** Minimal structural view of OfficeState this reconciler needs. */
@@ -39,7 +38,6 @@ export interface ExistingAgentsOffice {
     skipSpawnEffect?: boolean,
     folderName?: string,
   ) => void;
-  setHeadless: (id: number, headless: boolean) => void;
 }
 
 /**
@@ -56,7 +54,6 @@ export function reconcileExistingAgents(
   folderNames: Record<number, string>,
   layoutReady: boolean,
   pending: PendingAgent[],
-  headlessAgents: Record<number, boolean> = {},
 ): boolean {
   let addedDirectly = false;
   for (const id of incoming) {
@@ -67,12 +64,10 @@ export function reconcileExistingAgents(
       hueShift: m?.hueShift,
       seatId: m?.seatId,
       folderName: folderNames[id],
-      isHeadless: headlessAgents[id] === true,
     };
     if (layoutReady) {
       if (!os.characters.has(p.id)) {
         os.addAgent(p.id, p.palette, p.hueShift, p.seatId, true, p.folderName);
-        if (p.isHeadless) os.setHeadless(p.id, true);
         addedDirectly = true;
       }
     } else {

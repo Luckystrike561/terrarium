@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from '../../fixtures/pixel-agents';
+import { expect, test } from '../../fixtures/standalone';
 import { preToolUseBash, sessionStartStartup } from '../../helpers/hooks';
 import {
   claudeScenario,
@@ -28,31 +28,31 @@ function hookDrivenScenario(name: string, command: string) {
 }
 
 test.describe('Standalone / multi-server hooks', () => {
-  test('extension and standalone both stay hook-driven without cross-contamination @area:standalone', async ({
+  test('two standalone servers sharing one HOME stay hook-driven without cross-contamination @area:standalone', async ({
     page,
-    pixelAgents,
+    standalone,
   }) => {
-    const { frame, tmpHome, workspaceDir: extensionWorkspace, mockLogFile } = pixelAgents;
-
-    await setSettings(frame, {
+    await setSettings(page, {
       alwaysShowLabels: true,
       hooksEnabled: true,
       watchAllSessions: false,
       debugView: false,
     });
 
-    const standalone = await launchStandalone(page, { homeDir: tmpHome });
+    const page2 = await page.context().newPage();
+    const second = await launchStandalone(page2, { homeDir: standalone.tmpHome });
     try {
-      await setSettings(page, {
+      await setSettings(page2, {
         alwaysShowLabels: true,
         hooksEnabled: true,
         watchAllSessions: false,
         debugView: false,
       });
       await standalone.drainMessages();
-      await waitForClaudeHookSetup(tmpHome);
+      await second.drainMessages();
+      await waitForClaudeHookSetup(standalone.tmpHome);
 
-      const registryDir = path.join(tmpHome, '.pixel-agents', 'servers');
+      const registryDir = path.join(standalone.tmpHome, '.pixel-agents', 'servers');
       await expect
         .poll(
           () => {
@@ -62,42 +62,43 @@ test.describe('Standalone / multi-server hooks', () => {
               return 0;
             }
           },
-          { message: 'Expected one embedded and one standalone registry entry' },
+          { message: 'Expected two standalone registry entries' },
         )
         .toBe(2);
 
-      const extensionSessionId = 'multi-server-extension-owned';
-      const extensionCommand = 'npm run extension-owned';
+      const firstSessionId = 'multi-server-first-owned';
+      const firstCommand = 'npm run first-owned';
       await spawnExternalClaudeScenario({
-        tmpHome,
-        workspaceDir: extensionWorkspace,
-        mockLogFile,
-        sessionId: extensionSessionId,
-        scenario: hookDrivenScenario('multi-server extension-owned session', extensionCommand),
-      });
-
-      await expectOverlayVisible(frame, `Running: ${extensionCommand}`);
-      await page.waitForTimeout(500);
-      await expectNoOverlay(page, `Running: ${extensionCommand}`);
-
-      const standaloneSessionId = 'multi-server-standalone-owned';
-      const standaloneCommand = 'npm run standalone-owned';
-      await spawnExternalClaudeScenario({
-        tmpHome,
+        tmpHome: standalone.tmpHome,
         workspaceDir: standalone.workspaceDir,
-        mockLogFile,
-        sessionId: standaloneSessionId,
-        scenario: hookDrivenScenario('multi-server standalone-owned session', standaloneCommand),
+        mockLogFile: standalone.mockLogFile,
+        sessionId: firstSessionId,
+        scenario: hookDrivenScenario('multi-server first-owned session', firstCommand),
       });
 
-      await expectOverlayVisible(page, `Running: ${standaloneCommand}`);
-      await frame.waitForTimeout(500);
-      await expectNoOverlay(frame, `Running: ${standaloneCommand}`);
+      await expectOverlayVisible(page, `Running: ${firstCommand}`);
+      await page2.waitForTimeout(500);
+      await expectNoOverlay(page2, `Running: ${firstCommand}`);
 
-      await expectOverlayCount(frame, 1);
+      const secondSessionId = 'multi-server-second-owned';
+      const secondCommand = 'npm run second-owned';
+      await spawnExternalClaudeScenario({
+        tmpHome: standalone.tmpHome,
+        workspaceDir: second.workspaceDir,
+        mockLogFile: standalone.mockLogFile,
+        sessionId: secondSessionId,
+        scenario: hookDrivenScenario('multi-server second-owned session', secondCommand),
+      });
+
+      await expectOverlayVisible(page2, `Running: ${secondCommand}`);
+      await page.waitForTimeout(500);
+      await expectNoOverlay(page, `Running: ${secondCommand}`);
+
       await expectOverlayCount(page, 1);
+      await expectOverlayCount(page2, 1);
     } finally {
-      await standalone.cleanup();
+      await second.cleanup();
+      await page2.close();
     }
   });
 });

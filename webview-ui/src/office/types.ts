@@ -229,14 +229,10 @@ export interface Character {
   matrixEffectTimer: number;
   /** Per-column random seeds (16 values) for staggered rain timing */
   matrixEffectSeeds: number[];
-  /** Workspace folder name (only set for multi-root workspaces) */
+  /** Project folder name the agent's session belongs to (used for Areas mapping) */
   folderName?: string;
   /** Provider-reported one-line summary of what the agent is working on */
   task?: string;
-  /** Headless agent: adopted from outside the office, so there is no terminal to
-   *  focus. Rendered translucent. Teammates and sub-agents are never headless —
-   *  clicking them reaches their lead's / parent's terminal. */
-  isHeadless?: boolean;
   /** The first-run consent greeter. A MARKER, not a gate: the greeter lives in
    *  OfficeState.greeter, outside the agent map, so seat assignment, palette
    *  diversity, the FSM, hit-testing and seat persistence never see it — no

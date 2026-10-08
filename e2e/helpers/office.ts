@@ -1,14 +1,8 @@
-import type { Frame, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
+import type { TestHooksWindow } from './editor';
 import { narrate } from './test-narration';
-
-/**
- * Overlay helpers work the same against a VS Code webview iframe (Frame) and
- * a standalone browser page (Page). Both Playwright surfaces expose `locator`
- * with identical semantics for the queries used here.
- */
-type OverlaySurface = Frame | Page;
 
 const OVERLAY_TIMEOUT_MS = 15_000;
 
@@ -33,27 +27,27 @@ const OVERLAY_TIMEOUT_MS = 15_000;
  *    match, not after the state holds for N seconds.
  */
 
-export function getAgentOverlays(frame: OverlaySurface): Locator {
+export function getAgentOverlays(frame: Page): Locator {
   return frame.locator('[data-testid="agent-overlay"]');
 }
 
-export function getOverlayByText(frame: OverlaySurface, text: string): Locator {
+export function getOverlayByText(frame: Page, text: string): Locator {
   return getAgentOverlays(frame).filter({ hasText: text });
 }
 
-export function getOverlayByTexts(frame: OverlaySurface, texts: string[]): Locator {
+export function getOverlayByTexts(frame: Page, texts: string[]): Locator {
   return texts.reduce<Locator>(
     (locator, text) => locator.filter({ hasText: text }),
     getAgentOverlays(frame),
   );
 }
 
-export function getOverlayByAgentId(frame: OverlaySurface, agentId: number): Locator {
+export function getOverlayByAgentId(frame: Page, agentId: number): Locator {
   return frame.locator(`[data-testid="agent-overlay"][data-agent-id="${agentId}"]`);
 }
 
 export async function expectOverlayCount(
-  frame: OverlaySurface,
+  frame: Page,
   count: number,
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
@@ -61,7 +55,7 @@ export async function expectOverlayCount(
 }
 
 export async function expectOverlayVisible(
-  frame: OverlaySurface,
+  frame: Page,
   text: string,
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
@@ -69,7 +63,7 @@ export async function expectOverlayVisible(
 }
 
 export async function expectOverlayVisibleWithTexts(
-  frame: OverlaySurface,
+  frame: Page,
   texts: string[],
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
@@ -77,7 +71,7 @@ export async function expectOverlayVisibleWithTexts(
 }
 
 export async function expectOverlayVisibleForAgent(
-  frame: OverlaySurface,
+  frame: Page,
   agentId: number,
   text: string,
   timeout = OVERLAY_TIMEOUT_MS,
@@ -87,16 +81,12 @@ export async function expectOverlayVisibleForAgent(
   });
 }
 
-export async function expectNoOverlay(
-  frame: OverlaySurface,
-  text: string,
-  timeout = 1_000,
-): Promise<void> {
+export async function expectNoOverlay(frame: Page, text: string, timeout = 1_000): Promise<void> {
   await expect(getOverlayByText(frame, text)).toHaveCount(0, { timeout });
 }
 
 export async function expectNoOverlayWithTexts(
-  frame: OverlaySurface,
+  frame: Page,
   texts: string[],
   timeout = 1_000,
 ): Promise<void> {
@@ -107,12 +97,12 @@ export async function expectNoOverlayWithTexts(
  * Context gauges. Every agent that has taken a turn shows one; sub-agents
  * never do, so the count doubles as an assertion about who owns a session.
  */
-export function getContextGauges(frame: OverlaySurface): Locator {
+export function getContextGauges(frame: Page): Locator {
   return frame.locator('[data-testid="context-gauge"]');
 }
 
 export async function expectContextGauge(
-  frame: OverlaySurface,
+  frame: Page,
   percent: number,
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
@@ -123,7 +113,7 @@ export async function expectContextGauge(
   );
 }
 
-export async function readAgentOverlayIds(frame: OverlaySurface): Promise<number[]> {
+export async function readAgentOverlayIds(frame: Page): Promise<number[]> {
   const rawIds = await getAgentOverlays(frame).evaluateAll((elements) =>
     elements.map((element) => element.getAttribute('data-agent-id')),
   );
@@ -135,7 +125,7 @@ export async function readAgentOverlayIds(frame: OverlaySurface): Promise<number
 }
 
 export async function readAgentOverlayTexts(
-  frame: OverlaySurface,
+  frame: Page,
 ): Promise<Array<{ id: number; text: string }>> {
   return getAgentOverlays(frame).evaluateAll((elements) =>
     elements.flatMap((element) => {
@@ -159,53 +149,20 @@ export async function readAgentOverlayTexts(
  *  time — the global 0-count window can be shorter than Playwright's poll
  *  interval on slow runners. */
 export async function expectAgentOverlayGone(
-  frame: OverlaySurface,
+  frame: Page,
   agentId: number,
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
   await expect(getOverlayByAgentId(frame, agentId)).toHaveCount(0, { timeout });
 }
 
-export async function expectSingleAgentOverlay(frame: OverlaySurface): Promise<number> {
+export async function expectSingleAgentOverlay(frame: Page): Promise<number> {
   await expectOverlayCount(frame, 1);
   const ids = await readAgentOverlayIds(frame);
   if (ids.length !== 1) {
     throw new Error(`Expected exactly one agent overlay id, got ${JSON.stringify(ids)}`);
   }
   return ids[0]!;
-}
-
-/**
- * Assert whether the office's single character is drawn as a ghost — the
- * translucent rendering a headless agent gets (adopted from outside, so there
- * is no terminal to focus) while "Display Headless as Ghosts" is on.
- *
- * Both inputs to that decision are canvas-only: the per-character flag and the
- * renderer's setting. So this reads them through the test hooks and combines
- * them the same way the renderer does — same rationale as getCharacters/getPets.
- */
-export async function expectCharacterGhosted(
-  frame: OverlaySurface,
-  ghosted: boolean,
-): Promise<void> {
-  await expect
-    .poll(
-      async () =>
-        await frame.evaluate(() => {
-          interface GhostHooks {
-            getCharacters?: () => Array<{ id: number; isHeadless?: boolean }>;
-            getGhostHeadlessAgents?: () => boolean;
-          }
-          const hooks = (window as { __pixelAgentsTestHooks?: GhostHooks }).__pixelAgentsTestHooks;
-          const characters = hooks?.getCharacters?.() ?? [];
-          if (characters.length !== 1) return `expected 1 character, got ${characters.length}`;
-          const setting = hooks?.getGhostHeadlessAgents?.() ?? false;
-          return characters[0]!.isHeadless === true && setting;
-        }),
-      { timeout: OVERLAY_TIMEOUT_MS },
-    )
-    .toBe(ghosted);
-  narrate.check(`character is drawn ${ghosted ? 'as a ghost (translucent)' : 'fully opaque'}`);
 }
 
 /**
@@ -219,7 +176,7 @@ export async function expectCharacterGhosted(
  * for the lead+teammate scenarios that call this).
  */
 export async function expectTeammateSeatedNextToLead(
-  frame: OverlaySurface,
+  frame: Page,
   teammateName: string,
 ): Promise<void> {
   const report = await frame.evaluate((name) => {
@@ -257,14 +214,14 @@ export async function expectTeammateSeatedNextToLead(
  *  — the same officeState.selectedAgentId a canvas click sets. Sub-agents use
  *  negative ids (first sub is -1). Selection is what reveals a sub-agent's
  *  live activity text in its overlay (hover shows only the subtask title). */
-export async function selectCharacter(frame: OverlaySurface, agentId: number): Promise<void> {
+export async function selectCharacter(frame: Page, agentId: number): Promise<void> {
   await frame.evaluate((id) => {
-    window.__pixelAgentsTestHooks?.selectAgent?.(id);
+    (window as TestHooksWindow).__pixelAgentsTestHooks?.selectAgent?.(id);
   }, agentId);
 }
 
 export async function closeAgentFromOverlay(
-  frame: OverlaySurface,
+  frame: Page,
   options: { agentId?: number; text?: string },
   timeout = OVERLAY_TIMEOUT_MS,
 ): Promise<void> {
@@ -285,7 +242,7 @@ export async function closeAgentFromOverlay(
   // data-agent-id, so the text-based lookup path resolves an id too.
   const agentId = options.agentId ?? Number(await overlay.getAttribute('data-agent-id'));
   await frame.evaluate((id) => {
-    window.__pixelAgentsTestHooks?.selectAgent?.(id);
+    (window as TestHooksWindow).__pixelAgentsTestHooks?.selectAgent?.(id);
   }, agentId);
 
   const closeButton = overlay.locator('button[title="Close agent"]');

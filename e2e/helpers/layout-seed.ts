@@ -1,8 +1,8 @@
 /**
  * Builders for seeded `~/.pixel-agents/{layout,config}.json`, passed to the
- * pixelAgents fixture via `test.use({ seedLayout, seedConfig })`. The fixture
- * writes them under the isolated HOME BEFORE VS Code launches (see
- * e2e/helpers/launch.ts), so the server reads them on startup.
+ * standalone fixture via `test.use({ seedLayout, seedConfig })`. The fixture
+ * writes them under the isolated HOME before the server starts (see
+ * e2e/helpers/standalone.ts), so the server reads them on startup.
  *
  * A seeded layout MUST carry a layoutRevision above the bundled default's (3),
  * or `loadLayout` resets it to the bundled default
@@ -14,6 +14,11 @@ export const SEED_LAYOUT_REVISION = 9999;
 
 /** Default floor TileType used to fill a seeded grid (FLOOR_1 = 1). */
 const FLOOR_1 = 1;
+
+/** The only hex literal an Areas spec needs; centralized here so the
+ *  `pixel-agents/no-inline-colors` rule has one declaration to allow. */
+// eslint-disable-next-line pixel-agents/no-inline-colors
+export const SEED_AREA_COLOR = '#ff6b6b';
 
 export interface SeedAreaTile {
   col: number;
@@ -83,8 +88,8 @@ export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, un
 /**
  * Mirrors server/src/configPersistence.ts DEFAULT_ADAPTER_SETTINGS, except
  * alwaysShowLabels — the e2e baseline turns labels on so overlay text is
- * assertable without hover (same default the launch-level seed applies when a
- * test passes no seedConfig; see e2e/helpers/launch.ts).
+ * assertable without hover (same default the fixture-level seed applies when a
+ * test passes no seedConfig; see e2e/helpers/standalone.ts).
  */
 const DEFAULT_ADAPTER_SETTINGS = {
   soundEnabled: true,
@@ -97,28 +102,30 @@ const DEFAULT_ADAPTER_SETTINGS = {
 };
 
 export interface SeedConfigOptions {
-  /** Folder name → Area labels (written into the vscode namespace). */
+  /** Folder name → Area labels. */
   areaMappings?: Record<string, string[]>;
-  /** Persisted Show Areas state for the vscode namespace. */
+  /** Persisted Show Areas state. */
   showAreas?: boolean;
+  /** Adopt external sessions outside the scanned workspace project dir —
+   *  needed to pick up an external session rooted in a subfolder. */
+  watchAllSessions?: boolean;
 }
 
 /**
  * Build a full PixelAgentsConfig for `test.use({ seedConfig })`, setting the
- * vscode namespace's areaMappings / showAreas. The standalone namespace keeps
- * defaults so there is no cross-namespace leak.
+ * standalone namespace's areaMappings / showAreas / watchAllSessions.
  */
 export function buildSeedConfig(opts: SeedConfigOptions = {}): Record<string, unknown> {
   return {
-    vscode: {
+    standalone: {
       ...DEFAULT_ADAPTER_SETTINGS,
       showAreas: opts.showAreas ?? false,
       areaMappings: opts.areaMappings ?? {},
+      watchAllSessions: opts.watchAllSessions ?? false,
     },
-    standalone: { ...DEFAULT_ADAPTER_SETTINGS },
     externalAssetDirectories: [],
-    // Same baseline as the launch-level seed: skip the first-run consent prompt
-    // so hook installation proceeds at startup (see e2e/helpers/launch.ts).
+    // Same baseline as the fixture-level seed: skip the first-run consent prompt
+    // so hook installation proceeds at startup (see e2e/helpers/standalone.ts).
     hooksConsent: { claude: 'granted' },
   };
 }

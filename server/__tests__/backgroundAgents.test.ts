@@ -31,8 +31,6 @@ function createLeadAgent(projectDir: string): AgentState {
   return {
     id: 1,
     sessionId: LEAD_SESSION,
-    terminalRef: undefined,
-    isExternal: false,
     projectDir,
     jsonlFile: path.join(projectDir, `${LEAD_SESSION}.jsonl`),
     fileOffset: 0,
@@ -729,8 +727,6 @@ describe('background spawn persistence & derived team lifecycle', () => {
       {
         id: 1,
         sessionId: LEAD_SESSION,
-        terminalName: '',
-        isExternal: true,
         jsonlFile: leadJsonl,
         projectDir: tmpRoot,
         backgroundAgentToolIds: [SPAWN_TOOL_ID],
@@ -740,8 +736,6 @@ describe('background spawn persistence & derived team lifecycle', () => {
         // must not resurrect as an immortal character.
         id: 2,
         sessionId: LEAD_SESSION,
-        terminalName: '',
-        isExternal: true,
         jsonlFile: childJsonl,
         projectDir: tmpRoot,
         agentName: 'Say hello',

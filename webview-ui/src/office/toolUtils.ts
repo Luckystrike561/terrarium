@@ -20,7 +20,7 @@ export function extractToolName(status: string): string | null {
 }
 
 // ── Provider capabilities (tool taxonomy for rendering decisions) ────────────
-// Populated once by the `providerCapabilities` postMessage after `webviewReady`.
+// Populated once by the `providerCapabilities` message after `webviewReady`.
 // Modules classifying tools (character animation, subagent creation gate) read
 // from here instead of hardcoding Claude-specific tool names. Characters do not
 // carry their agent module, so every enabled module's names are merged.

@@ -14,17 +14,16 @@ export type TransportState =
   | typeof TRANSPORT_STATE_DISCONNECTED;
 
 /**
- * Transport-agnostic message layer between webview and extension/server.
+ * Transport-agnostic message layer between the webview and the server.
  *
- * Implementations:
- * - PostMessageTransport: VS Code webview (acquireVsCodeApi); permanently `connected`.
+ * Implementation:
  * - WebSocketTransport: standalone browser; reports connecting/reconnecting/disconnected
  *   as the socket comes and goes.
  */
 export interface MessageTransport {
-  /** Send a message to the extension/server. */
+  /** Send a message to the server. */
   send(message: ClientMessage): void;
-  /** Subscribe to messages from the extension/server. Returns unsubscribe function. */
+  /** Subscribe to messages from the server. Returns unsubscribe function. */
   onMessage(handler: (message: ServerMessage) => void): () => void;
   /** Resolves once the transport has connected for the first time. */
   readonly ready: Promise<void>;

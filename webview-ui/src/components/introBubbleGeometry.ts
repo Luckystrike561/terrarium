@@ -4,7 +4,7 @@
  * box. IntroBubble calls it every frame and renders the result verbatim.
  *
  * Split out of the component because this is the half most likely to be wrong
- * on a narrow VS Code side panel — edge clamping, the tail chasing a clamped
+ * on a narrow viewport — edge clamping, the tail chasing a clamped
  * bubble, the camera caps — and none of it needs a DOM to verify. `dpr` is a
  * parameter for the same reason.
  */

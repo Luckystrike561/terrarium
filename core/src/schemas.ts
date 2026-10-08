@@ -1,5 +1,5 @@
 /**
- * Shared data types used across extension, server, and webview.
+ * Shared data types used across the server and webview.
  * Extracted from src/types.ts, webview-ui/src/office/types.ts, shared/assets/types.ts.
  *
  * This is the core package's public contract, so every type here is exported whether or
@@ -15,8 +15,6 @@
 export interface PersistedAgent {
   id: number;
   sessionId?: string;
-  terminalName: string;
-  isExternal?: boolean;
   jsonlFile: string;
   projectDir: string;
   folderName?: string;
@@ -136,7 +134,7 @@ export interface HookEvent {
 
 // ── Disposable ───────────────────────────────────────────────
 
-/** Generic disposable pattern (matches VS Code's Disposable)
+/** Generic disposable pattern.
  *
  * @public
  */

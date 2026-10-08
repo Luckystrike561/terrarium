@@ -10,13 +10,13 @@
 
 Terrarium watches the agents running on your machine and turns each one into a character. A character sits at a desk and types while its agent edits files or runs commands, and reads while it searches. When the agent needs you, the character walks to the CTO's office and waits in line. When it finishes, it goes to the lounge.
 
-Terrarium is a fork of [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) v1.4.1. It keeps the Pixel Agents server, protocol and VS Code adapter, and changes three things:
+Terrarium is a fork of [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) v1.4.1. It keeps the Pixel Agents server and protocol, and changes three things:
 
 - **herdr support.** A provider for the [herdr](https://github.com/herdrdev/herdr) terminal multiplexer shows every agent herdr manages, with tool activity for omp agents.
 - **A new office.** The renderer is now PixiJS, drawing 2:1 isometric pixel art with glass-walled rooms, a CTO who works through an approval queue, a lounge and a kitchen.
 - **Status badges.** Every character carries a badge for its state: working, needs approval, waiting for input, done, or idle.
 
-The code and the CLI are still named `pixel-agents`, and nothing from this fork is published to npm or the VS Code Marketplace. `npx pixel-agents` and the Marketplace extension install upstream Pixel Agents, which has no herdr support. Run Terrarium from source (see [Getting started](#getting-started)).
+The code and the CLI are still named `pixel-agents`, and nothing from this fork is published to npm. `npx pixel-agents` installs upstream Pixel Agents, which has no herdr support. Run Terrarium from source (see [Getting started](#getting-started)).
 
 ## Features
 
@@ -84,10 +84,6 @@ Binding to `0.0.0.0` exposes the office and its WebSocket to your network. Do it
 
 Anyone who can reach the server can watch the office. Changing hook installation (which edits your agent's own settings file, such as `~/.claude/settings.json`) is only allowed for a browser that opened the URL with its `?token=`. Treat that URL as a secret: the token works from anywhere the server is reachable, and it also lands in your browser history and the server's request log.
 
-### VS Code extension
-
-The VS Code extension from Pixel Agents still builds from this tree (press **F5** to launch an Extension Development Host) and renders the same office. It launches Claude Code terminals, and it runs the same saved set of provider modules as the standalone server.
-
 ## Customizing the office
 
 Click **Layout** to edit the office:
@@ -129,8 +125,7 @@ Terrarium never modifies your agents. Its own data lives in `~/.pixel-agents/`, 
 
 - **`core/`**: provider, transport and schema interfaces, plus the AsyncAPI message contract. No runtime side effects.
 - **`server/`**: Fastify server, agent runtime, persistence, the provider modules (`server/src/providers/<id>/`) and their registry, and the standalone CLI.
-- **`webview-ui/`**: React 19 and PixiJS front end, served by the standalone server or embedded in VS Code.
-- **`adapters/vscode/`**: the VS Code extension.
+- **`webview-ui/`**: React 19 and PixiJS front end, served by the standalone server.
 
 [CLAUDE.md](CLAUDE.md) is the detailed architecture reference and [CONTEXT.md](CONTEXT.md) the glossary.
 
@@ -142,7 +137,7 @@ npm run build          # generate protocol types, type-check, lint, bundle
 npm run check-types
 npm run lint
 npm test               # server and webview unit tests
-npm run e2e            # Playwright, against VS Code and the standalone server
+npm run e2e            # Playwright, against the standalone server
 ```
 
 `npm run demo:record` re-records the GIF at the top of this page. It plays a scripted herdr session through the real standalone server (needs `npm run build` and `ffmpeg`) and writes `docs/media/demo.gif`.

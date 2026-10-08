@@ -1,7 +1,7 @@
 /**
  * Unit tests for the consent bubble's geometry — the pure half IntroBubble
  * renders verbatim. This is the code most likely to be wrong on a narrow
- * VS Code side panel (edge clamping, the tail chasing a clamped bubble, the
+ * viewport (edge clamping, the tail chasing a clamped bubble, the
  * camera caps), and none of it needs a DOM to verify.
  *
  * Run with: npm test

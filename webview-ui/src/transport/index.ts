@@ -1,14 +1,9 @@
 import type { ServerMessage } from '../../../core/src/messages.js';
-import { isBrowserRuntime } from '../runtime.js';
-import { PostMessageTransport } from './postMessageTransport.js';
 import type { MessageTransport } from './types.js';
 import { WebSocketTransport } from './webSocketTransport.js';
 
 function createTransport(): MessageTransport {
-  if (!isBrowserRuntime) {
-    return new PostMessageTransport();
-  }
-  // Standalone browser: connect via WebSocket to the same host serving the SPA.
+  // Connect via WebSocket to the same host serving the SPA.
   // The server token rides the handshake query when this page was opened from
   // the tokened URL the CLI printed — that is what makes the session privileged
   // enough to approve a hook install (server/src/httpServer.ts). Without it the
@@ -41,6 +36,6 @@ function createTransport(): MessageTransport {
   return ws;
 }
 
-/** Singleton transport instance. Import this everywhere instead of vscodeApi. */
+/** Singleton transport instance. */
 export const transport: MessageTransport = createTransport();
 export type { MessageTransport } from './types.js';

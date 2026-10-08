@@ -25,9 +25,9 @@
  *   containers rebuild only then.
  */
 
-// VS Code webviews run under a strict CSP that forbids `new Function`/eval.
-// This registers Pixi's non-eval fallback for its uniform-buffer sync path
-// before any renderer is created.
+// Registers Pixi's non-eval fallback for its uniform-buffer sync path before
+// any renderer is created, so the app never depends on `new Function`/eval
+// being available.
 import 'pixi.js/unsafe-eval';
 
 import type { Renderer } from 'pixi.js';
@@ -67,7 +67,6 @@ import {
   GHOST_PREVIEW_TINT_ALPHA,
   GHOST_VALID_TINT,
   GRID_LINE_COLOR,
-  HEADLESS_CHARACTER_ALPHA,
   HOVERED_OUTLINE_ALPHA,
   ROTATE_BUTTON_BG,
   SEAT_AVAILABLE_COLOR,
@@ -135,21 +134,6 @@ TextureStyle.defaultOptions.scaleMode = 'nearest';
 
 /** Half-extent (tiles) of a character's or pet's sort box around its feet. */
 const ACTOR_SORT_HALF = 0.01;
-// ── Settings ────────────────────────────────────────────────────
-
-/**
- * "Display headless as ghosts": whether headless agents render translucent.
- * Module state rather than a render param: the rAF loop reads it every frame.
- */
-let ghostHeadlessAgents = false;
-
-export function setGhostHeadlessAgents(enabled: boolean): void {
-  ghostHeadlessAgents = enabled;
-}
-
-export function isGhostHeadlessAgentsEnabled(): boolean {
-  return ghostHeadlessAgents;
-}
 
 // ── Public types ────────────────────────────────────────────────
 
@@ -815,14 +799,13 @@ export class OfficeSceneRenderer {
       const anchor = worldToIso(ch.x, ch.y);
       const localX = Math.round(anchor.x - texture.width / 2);
       const localY = Math.round(anchor.y + sittingOffset - texture.height);
-      const alpha = ch.isHeadless && ghostHeadlessAgents ? HEADLESS_CHARACTER_ALPHA : 1;
       const box = actorBox(ch.x, ch.y);
 
       if (ch.matrixEffect) {
         liveMatrix.add(ch.id);
         const gfx = getOrCreateGraphics(this.matrixPool, ch.id, this.entityContainer);
         gfx.clear();
-        gfx.alpha = alpha;
+        gfx.alpha = 1;
         gfx.visible = true;
         drawMatrixEffect(gfx, ch, spriteData, localX, localY, 1);
         drawables.push({ box, nodes: [gfx] });
@@ -834,7 +817,7 @@ export class OfficeSceneRenderer {
       body.texture = texture;
       body.position.set(localX, localY);
       body.scale.set(1, 1);
-      body.alpha = alpha;
+      body.alpha = 1;
       body.visible = true;
       const nodes: Container[] = [body];
 

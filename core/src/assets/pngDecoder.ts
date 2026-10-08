@@ -1,8 +1,7 @@
 /**
- * Pure PNG decoding utilities — shared between the extension host, Vite build
- * scripts, and future standalone backend.
+ * Pure PNG decoding utilities — shared between the server and Vite build scripts.
  *
- * No VS Code dependency. Only uses pngjs and shared constants.
+ * Only uses pngjs and shared constants.
  */
 
 import { PNG } from 'pngjs';

@@ -86,13 +86,9 @@ const ANSI_YELLOW = '\u001b[33m';
 const ANSI_MAGENTA = '\u001b[35m';
 const ANSI_RESET = '\u001b[0m';
 
-// External sessions (spawned detached by the e2e harness so Pixel Agents
-// ADOPTS them instead of launching them) narrate into a shared per-test log
-// that a monitor terminal tails. The magenta prefix keeps their lines
-// visually distinct from internal-terminal narration, and the short
-// per-session tag keeps interleaved external sessions tellable apart.
-const IS_EXTERNAL = process.env.PIXEL_AGENTS_MOCK_EXTERNAL === '1';
-let externalTag = '';
+// Every session's stdout lands in one shared per-test log, so each line
+// carries a short per-session tag to keep interleaved sessions tellable apart.
+let sessionTag = '';
 
 function tinySessionTag(value) {
   let hash = 0;
@@ -106,16 +102,14 @@ function shortId(value) {
 }
 
 /**
- * Human-readable narration to stdout. Pixel Agents never reads the terminal
- * (its inputs are JSONL transcripts and hook POSTs), so this changes nothing
- * about what tests exercise — it exists purely so run recordings show WHAT
- * the mock is simulating and WHEN, where real claude would render its TUI.
+ * Human-readable narration to stdout. Pixel Agents never reads it (its inputs
+ * are JSONL transcripts and hook POSTs), so this changes nothing about what
+ * tests exercise. It exists so a failing test's attached log shows WHAT the
+ * mock simulated and WHEN, where real claude would render its TUI.
  */
 function echo(atMs, message) {
   const stamp = typeof atMs === 'number' ? `t+${(atMs / 1000).toFixed(1)}s`.padStart(7) : '       ';
-  const prefix = IS_EXTERNAL
-    ? `${ANSI_MAGENTA}[external·${externalTag}]${ANSI_DIM}${stamp}${ANSI_RESET}`
-    : `${ANSI_DIM}[mock-claude]${stamp}${ANSI_RESET}`;
+  const prefix = `${ANSI_MAGENTA}[session·${sessionTag}]${ANSI_DIM}${stamp}${ANSI_RESET}`;
   process.stdout.write(`${prefix} ${message}\n`);
 }
 
@@ -215,9 +209,7 @@ function isPixelAgentsHookCommand(homeDir, command) {
     path.join(homeDir, '.pixel-agents', 'hooks', 'claude-hook.js'),
   );
 
-  return (
-    normalizedCommand.includes(currentHookPath)
-  );
+  return normalizedCommand.includes(currentHookPath);
 }
 
 function resolveTemplateString(template, context) {
@@ -277,10 +269,7 @@ function buildContext(homeDir, scenario, sessionId, cwd) {
 
   for (const sessionDefinition of scenario.sessions || []) {
     const resolvedSessionId = resolveTemplateString(sessionDefinition.sessionIdTemplate, context);
-    const resolvedCwd = resolveTemplateString(
-      sessionDefinition.cwdTemplate || '{{cwd}}',
-      context,
-    );
+    const resolvedCwd = resolveTemplateString(sessionDefinition.cwdTemplate || '{{cwd}}', context);
     const resolvedTranscriptPath = sessionDefinition.transcriptPathTemplate
       ? resolveTemplateString(sessionDefinition.transcriptPathTemplate, context)
       : undefined;
@@ -320,15 +309,12 @@ function buildContext(homeDir, scenario, sessionId, cwd) {
 }
 
 function runHookCommand(command, payload, env, cwd) {
-  // The hook command in settings.json is `node "<script>"` (bare `node`). On
-  // macOS the VS Code integrated-terminal e2e profile sets a hardcoded PATH
-  // (mockBin:/usr/local/bin:/usr/bin:/bin) with inheritEnv:false, which on CI
-  // runners does NOT include the toolcache node dir — so bare `node` exits 127
-  // and the hook never POSTs. The mock itself survives because its wrapper uses
-  // the absolute PIXEL_AGENTS_NODE_BIN, but the spawned hook uses bare `node`.
-  // Prepend the running node's bin dir to PATH so the hook resolves it, on any
-  // spawn path. (Real Claude Code spawns hooks with the user's real PATH, so
-  // this is purely a test-harness fix.)
+  // The hook command in settings.json is `node "<script>"` (bare `node`), but
+  // the node running this mock may not be on the inherited PATH (CI toolcache
+  // installs are not), in which case bare `node` exits 127 and the hook never
+  // POSTs. Prepend the running node's bin dir so the hook resolves it. Real
+  // Claude Code spawns hooks with the user's real PATH, so this is purely a
+  // test-harness fix.
   const nodeDir = path.dirname(process.execPath);
   const sep = process.platform === 'win32' ? ';' : ':';
   const hookEnv = {
@@ -365,7 +351,11 @@ async function emitHook(homeDir, context, payload) {
   for (const entry of entries) {
     const hooks = Array.isArray(entry?.hooks) ? entry.hooks : [];
     for (const hook of hooks) {
-      if (hook?.type !== 'command' || typeof hook.command !== 'string' || hook.command.length === 0) {
+      if (
+        hook?.type !== 'command' ||
+        typeof hook.command !== 'string' ||
+        hook.command.length === 0
+      ) {
         continue;
       }
       if (!isPixelAgentsHookCommand(homeDir, hook.command)) {
@@ -505,12 +495,7 @@ async function main() {
   };
 
   logInvocation(homeDir, sessionId, cwd, process.argv.slice(2));
-  if (IS_EXTERNAL) {
-    externalTag = tinySessionTag(sessionId);
-    process.stdout.write(
-      `${ANSI_MAGENTA}══ EXTERNAL session ·${externalTag} — adopted by Pixel Agents, not launched ══${ANSI_RESET}\n`,
-    );
-  }
+  sessionTag = tinySessionTag(sessionId);
   echo(
     null,
     `mock claude session ${shortId(sessionId)}${scenario.name ? ` — scenario: ${scenario.name}` : ''}`,
@@ -520,12 +505,11 @@ async function main() {
   await playScenario(homeDir, scenario, context);
 }
 
-main()
-  .catch((error) => {
-    const homeDir = os.homedir();
-    logAction(
-      homeDir,
-      `error ${error instanceof Error ? error.stack || error.message : String(error)}`,
-    );
-    process.exitCode = 1;
-  });
+main().catch((error) => {
+  const homeDir = os.homedir();
+  logAction(
+    homeDir,
+    `error ${error instanceof Error ? error.stack || error.message : String(error)}`,
+  );
+  process.exitCode = 1;
+});

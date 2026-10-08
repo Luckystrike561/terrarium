@@ -19,8 +19,6 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 1,
     sessionId: 'sess-1',
-    terminalRef: undefined,
-    isExternal: false,
     projectDir: '/test',
     jsonlFile: '/test/session.jsonl',
     fileOffset: 0,
@@ -162,7 +160,6 @@ describe('AgentStateStore', () => {
       expect(saved).toHaveLength(1);
       expect(saved[0].id).toBe(1);
       expect(saved[0].sessionId).toBe('sess-1');
-      expect(saved[0].terminalName).toBe('');
       expect(saved[0].projectDir).toBe('/proj');
       expect(saved[0].jsonlFile).toBe('/proj/sess-1.jsonl');
       expect(saved[0].folderName).toBe('my-folder');
@@ -179,8 +176,8 @@ describe('AgentStateStore', () => {
     it('loadPersistedAgents returns data from adapter', () => {
       const adapter = createMockAdapter();
       const persisted: PersistedAgent[] = [
-        { id: 1, terminalName: 'term-1', jsonlFile: '/a.jsonl', projectDir: '/proj' },
-        { id: 2, terminalName: 'term-2', jsonlFile: '/b.jsonl', projectDir: '/proj' },
+        { id: 1, jsonlFile: '/a.jsonl', projectDir: '/proj' },
+        { id: 2, jsonlFile: '/b.jsonl', projectDir: '/proj' },
       ];
       (adapter.loadAgents as ReturnType<typeof vi.fn>).mockReturnValue(persisted);
       store.setAdapter(adapter);
@@ -208,13 +205,6 @@ describe('AgentStateStore', () => {
       expect(ref.current).toBe(1);
       ref.current = 10;
       expect(store.nextAgentId.current).toBe(10);
-    });
-
-    it('nextTerminalIndex is a shared ref', () => {
-      const ref = store.nextTerminalIndex;
-      expect(ref.current).toBe(1);
-      ref.current = 5;
-      expect(store.nextTerminalIndex.current).toBe(5);
     });
   });
 
