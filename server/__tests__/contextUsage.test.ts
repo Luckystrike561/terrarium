@@ -11,7 +11,7 @@ import {
   updateContextUsage,
   widenContextWindow,
 } from '../src/contextUsage.js';
-import { claudeProvider, contextWindowForModel } from '../src/providers/hook/claude/claude.js';
+import { claudeModule, contextWindowForModel } from '../src/providers/claude/claude.js';
 import type { AgentState } from '../src/types.js';
 
 function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
@@ -92,7 +92,7 @@ describe('extractContextTokens', () => {
   });
 });
 
-describe('claudeProvider.contextWindowForModel', () => {
+describe('claudeModule.contextWindowForModel', () => {
   it('gives the current models their large window', () => {
     for (const model of ['claude-opus-5', 'claude-sonnet-5', 'claude-fable-5', 'claude-opus-4-8']) {
       expect(contextWindowForModel(model)).toBe(1_000_000);
@@ -194,7 +194,7 @@ describe('updateContextUsage', () => {
       agent,
       agents,
       assistantRecord({ input: 2, cacheCreation: 12_753, cacheRead: 20_623, output: 226 }),
-      claudeProvider,
+      claudeModule,
     );
 
     expect(agent.contextTokens).toBe(33_604);
@@ -202,7 +202,7 @@ describe('updateContextUsage', () => {
   });
 
   it('follows the window down when the session switches to a smaller model', () => {
-    updateContextUsage(1, agent, agents, assistantRecord({ cacheRead: 50_000 }), claudeProvider);
+    updateContextUsage(1, agent, agents, assistantRecord({ cacheRead: 50_000 }), claudeModule);
     expect(agent.maxContextTokens).toBe(1_000_000);
 
     updateContextUsage(
@@ -213,7 +213,7 @@ describe('updateContextUsage', () => {
         ...assistantRecord({ cacheRead: 50_000 }),
         message: { model: 'claude-haiku-4-5-20251001', usage: { cache_read_input_tokens: 50_000 } },
       },
-      claudeProvider,
+      claudeModule,
     );
     expect(agent.maxContextTokens).toBe(200_000);
   });
@@ -230,7 +230,7 @@ describe('updateContextUsage', () => {
           usage: { cache_read_input_tokens: 260_000 },
         },
       },
-      claudeProvider,
+      claudeModule,
     );
 
     expect(agent.maxContextTokens).toBe(1_000_000);

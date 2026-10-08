@@ -8,18 +8,18 @@ import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
 import {
   scanForBackgroundAgentFiles,
-  setHookProvider as setFileWatcherHookProvider,
   setSubagentWatch,
   setTeamProvider,
+  setTranscriptModule as setFileWatcherTranscriptModule,
 } from '../src/fileWatcher.js';
-import { claudeProvider } from '../src/providers/hook/claude/claude.js';
-import { claudeTeamProvider } from '../src/providers/hook/claude/claudeTeamProvider.js';
+import { claudeModule } from '../src/providers/claude/claude.js';
+import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
 import { SubagentWatch } from '../src/subagentWatch.js';
 import {
   processTranscriptLine,
   setBackgroundAgentCompletedCallback,
   setBackgroundAgentDetectedCallback,
-  setHookProvider,
+  setTranscriptModule,
 } from '../src/transcriptParser.js';
 import type { AgentState } from '../src/types.js';
 
@@ -208,8 +208,8 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
 
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-bg-'));
-    setHookProvider(claudeProvider);
-    setFileWatcherHookProvider(claudeProvider);
+    setTranscriptModule(claudeModule);
+    setFileWatcherTranscriptModule(claudeModule);
     setTeamProvider(claudeTeamProvider);
     agents = new AgentStateStore();
     watch = new SubagentWatch(agents);
@@ -663,7 +663,7 @@ describe('background spawn persistence & derived team lifecycle', () => {
 
   it('drops the LEAD badge when the last teammate leaves', () => {
     const store = new AgentStateStore();
-    const runtime = new AgentRuntime(store, claudeProvider);
+    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
     try {
       const lead = createLeadAgent('/tmp/proj');
       lead.isTeamLead = true;
@@ -691,7 +691,7 @@ describe('background spawn persistence & derived team lifecycle', () => {
 
   it('keeps the LEAD badge while other teammates remain', () => {
     const store = new AgentStateStore();
-    const runtime = new AgentRuntime(store, claudeProvider);
+    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
     try {
       const lead = createLeadAgent('/tmp/proj');
       lead.isTeamLead = true;
@@ -745,7 +745,7 @@ describe('background spawn persistence & derived team lifecycle', () => {
 
     const store = new AgentStateStore();
     store.setAdapter(adapter);
-    const runtime = new AgentRuntime(store, claudeProvider);
+    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
     try {
       runtime.restoreExternalAgents();
 

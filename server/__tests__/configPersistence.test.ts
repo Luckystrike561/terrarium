@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   clearHooksAnswer,
   clearHooksEnabled,
+  getEnabledModuleIds,
   getHooksConsent,
   getHooksEnabled,
   grantHooksConsent,
@@ -13,6 +14,7 @@ import {
   readConfig,
   recordHooksDecline,
   resetHooksConfig,
+  setEnabledModuleIds,
   setHooksEnabled,
   writeConfig,
 } from '../src/configPersistence.js';
@@ -212,6 +214,47 @@ describe('configPersistence: areas', () => {
       expect(getHooksEnabled('other')).toBe(true);
       const reset = readConfig();
       expect(reset.standalone.hooksInfoShown).toBe(false);
+    });
+  });
+
+  // ── enabled provider module ids ───────────────────────────────
+
+  describe('modules (enabled provider module ids)', () => {
+    it('is undefined when this machine has never chosen a set', () => {
+      expect(getEnabledModuleIds()).toBeUndefined();
+    });
+
+    it('round-trips the chosen ids through config.json', () => {
+      setEnabledModuleIds(['omp', 'herdr']);
+      expect(getEnabledModuleIds()).toEqual(['omp', 'herdr']);
+      const raw = JSON.parse(
+        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+      );
+      expect(raw.modules).toEqual(['omp', 'herdr']);
+    });
+
+    it('overwrites a previously chosen set rather than merging with it', () => {
+      setEnabledModuleIds(['claude', 'omp']);
+      setEnabledModuleIds(['herdr']);
+      expect(getEnabledModuleIds()).toEqual(['herdr']);
+    });
+
+    it('treats a non-array modules value as never chosen rather than crashing', () => {
+      fs.mkdirSync(path.join(tempHome, '.pixel-agents'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempHome, '.pixel-agents', 'config.json'),
+        JSON.stringify({ modules: 'claude' }),
+      );
+      expect(getEnabledModuleIds()).toBeUndefined();
+    });
+
+    it('filters non-string entries out of a hand-edited modules array', () => {
+      fs.mkdirSync(path.join(tempHome, '.pixel-agents'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempHome, '.pixel-agents', 'config.json'),
+        JSON.stringify({ modules: ['claude', 42, null, 'omp', { bogus: true }] }),
+      );
+      expect(getEnabledModuleIds()).toEqual(['claude', 'omp']);
     });
   });
 

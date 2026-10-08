@@ -32,16 +32,38 @@ interface HerdrFixture {
   standalone: StandaloneSession;
 }
 
-async function launchHerdrStandalone(page: Page): Promise<HerdrFixture> {
+/** One record per line, as omp appends them to a session transcript. */
+function jsonl(...records: object[]): string {
+  return records.map((record) => `${JSON.stringify(record)}\n`).join('');
+}
+
+const ompToolStart = (toolCallId: string): object => ({
+  type: 'custom',
+  customType: 'tool_execution_start',
+  data: { toolCallId, toolName: 'bash', intent: `Running ${toolCallId}` },
+});
+const ompTurnEnded = { type: 'message', message: { role: 'assistant', stopReason: 'stop' } };
+const ompPrompt = { type: 'message', message: { role: 'user' } };
+
+/** Write an omp transcript into omp's own session store, where the omp module discovers it. */
+function ompStoreSession(tmpHome: string, cwd: string, ...records: object[]): string {
+  const dir = path.join(tmpHome, '.omp', 'agent', 'sessions', `-${path.basename(cwd)}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'session.jsonl');
+  fs.writeFileSync(file, jsonl({ type: 'session', cwd }, ...records));
+  return file;
+}
+
+async function launchHerdrStandalone(page: Page, provider = 'herdr'): Promise<HerdrFixture> {
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-herdr-e2e-home-'));
   const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-herdr-e2e-workspace-'));
-  // The herdr provider needs no Claude hooks consent (it is a different
-  // provider id entirely); seed it anyway so no unrelated first-run dialog
-  // from the Claude provider can cover the office.
+  // Neither herdr nor omp installs anything, so neither has a consent ask. The
+  // Claude grant keeps an unrelated first-run dialog off the office in case a
+  // spec enables Claude too.
   fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
   fs.writeFileSync(
     path.join(tmpHome, '.pixel-agents', 'config.json'),
-    JSON.stringify({ hooksConsent: { claude: 'granted', herdr: 'granted' } }, null, 2),
+    JSON.stringify({ hooksConsent: { claude: 'granted' } }, null, 2),
   );
 
   // Must exist before the CLI spawns: HerdrBridge's connect-failure path only
@@ -51,7 +73,7 @@ async function launchHerdrStandalone(page: Page): Promise<HerdrFixture> {
   const standalone = await launchStandalone(page, {
     homeDir: tmpHome,
     workspaceDir,
-    provider: 'herdr',
+    provider,
   });
   await setSettings(page, { alwaysShowLabels: true });
   await standalone.drainMessages();
@@ -226,19 +248,16 @@ test.describe('Standalone / herdr provider', () => {
     }
   });
 
-  test('herdr: an agent herdr reports idle goes back to idle after a late tool event, and old transcript lines never wake it @area:standalone', async ({
+  test('herdr + omp: a pane running omp shows omp tool activity, never replays history, and goes idle at turn end @area:standalone', async ({
     page,
   }) => {
-    const fixture = await launchHerdrStandalone(page);
+    const fixture = await launchHerdrStandalone(page, 'herdr,omp');
     try {
       const sessionFile = path.join(fixture.workspaceDir, 'session.jsonl');
-      const toolStart = (toolCallId: string): string =>
-        `${JSON.stringify({
-          type: 'custom',
-          customType: 'tool_execution_start',
-          data: { toolCallId, toolName: 'bash', intent: `Running ${toolCallId}` },
-        })}\n`;
-      fs.writeFileSync(sessionFile, toolStart('old-call'));
+      fs.writeFileSync(
+        sessionFile,
+        jsonl({ type: 'session', cwd: '/work/delta' }, ompToolStart('old-call'), ompTurnEnded),
+      );
 
       fixture.fakeHerdr.setWorkspaces([{ workspace_id: 'ws-delta', label: 'delta' }]);
       fixture.fakeHerdr.setAgents([
@@ -255,6 +274,7 @@ test.describe('Standalone / herdr provider', () => {
       ]);
 
       await expectOverlayCount(page, 1);
+      await expectOverlayVisible(page, 'delta');
       const seen: RecordedServerMessage[] = [];
       const statusesOf = async (): Promise<string[]> => {
         seen.push(...(await fixture.standalone.drainMessages()));
@@ -266,12 +286,14 @@ test.describe('Standalone / herdr provider', () => {
       };
 
       await expect.poll(statusesOf, { timeout: 10_000 }).toContain('waiting');
-      // Two JSONL polls without the historical line being replayed.
+      // Several transcript polls without the historical line being replayed.
       await page.waitForTimeout(3000);
       expect(await statusesOf()).not.toContain('tool:Running old-call');
 
-      fs.appendFileSync(sessionFile, toolStart('late-call'));
+      fs.appendFileSync(sessionFile, jsonl(ompPrompt, ompToolStart('late-call')));
       await expect.poll(statusesOf, { timeout: 10_000 }).toContain('tool:Running late-call');
+
+      fs.appendFileSync(sessionFile, jsonl(ompTurnEnded));
       await expect
         .poll(
           async () => {
@@ -281,6 +303,51 @@ test.describe('Standalone / herdr provider', () => {
           { timeout: 10_000 },
         )
         .toBe(true);
+    } finally {
+      await cleanup(fixture);
+    }
+  });
+
+  test('herdr + omp: an omp session omp and herdr both report is one character, and one outside herdr renders too @area:standalone', async ({
+    page,
+  }) => {
+    const fixture = await launchHerdrStandalone(page, 'herdr,omp');
+    try {
+      // Both transcripts sit in omp's own store, where omp's discovery finds them.
+      // herdr reports the first one in a pane as well.
+      const paneSession = ompStoreSession(fixture.tmpHome, '/work/epsilon', ompPrompt);
+      ompStoreSession(fixture.tmpHome, '/work/outside', ompTurnEnded);
+
+      fixture.fakeHerdr.setWorkspaces([{ workspace_id: 'ws-epsilon', label: 'epsilon-pane' }]);
+      fixture.fakeHerdr.setAgents([
+        {
+          pane_id: 'pane-epsilon',
+          workspace_id: 'ws-epsilon',
+          agent: 'omp',
+          agent_status: 'working',
+          cwd: '/work/epsilon',
+          foreground_cwd: '/work/epsilon',
+          terminal_title_stripped: 'π ⠋ Cut the release branch',
+          agent_session: { kind: 'path', value: paneSession },
+        },
+      ]);
+
+      await expectOverlayVisible(page, 'epsilon-pane');
+      await expectOverlayVisible(page, 'outside');
+      // Settle past several discovery scans and snapshot polls before the count.
+      await page.waitForTimeout(4000);
+      await expectOverlayCount(page, 2);
+
+      const messages = await fixture.standalone.drainMessages();
+      const paneAgent = messages.find(
+        (message): message is RecordedServerMessage & { id: number } =>
+          message.type === 'agentInfo' && message['name'] === 'epsilon-pane',
+      );
+      expect(paneAgent).toBeTruthy();
+
+      fs.appendFileSync(paneSession, jsonl(ompToolStart('pane-call')));
+      await selectCharacter(page, paneAgent!.id);
+      await expectOverlayVisibleForAgent(page, paneAgent!.id, 'Running pane-call');
     } finally {
       await cleanup(fixture);
     }

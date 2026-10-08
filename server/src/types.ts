@@ -28,8 +28,12 @@ export interface AgentState {
   hookDelivered: boolean;
   /** True when agent has no transcript file (provider doesn't use JSONL). All state from hooks. */
   hooksOnly?: boolean;
-  /** Provider that created this agent (defaults to 'claude') */
+  /** Module that reports this agent: the agent module whose vocabulary it speaks once one has reported it, else the
+   *  multiplexer that found it. Undefined = the runtime's transcript module (agents its own scanners adopted). */
   providerId?: string;
+  /** Session ref a module announced for this agent (transcript path or the CLI's session id): the identity that lets
+   *  a multiplexer pane and an agent module reporting the same session share this one character. */
+  sessionRef?: string;
   /** Set when SessionEnd(reason=clear) fires; cleared when SessionStart(source=clear) reassigns */
   pendingClear?: boolean;
   /** Hook-generated tool ID for PreToolUse/PostToolUse correlation */

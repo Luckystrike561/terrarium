@@ -11,7 +11,7 @@ import {
 } from '../src/clientMessageHandler.js';
 import { getHooksEnabled, readConfig, setHooksEnabled } from '../src/configPersistence.js';
 import { FileStateAdapter } from '../src/fileStateAdapter.js';
-import { CLAUDE_HOOK_EVENTS } from '../src/providers/hook/claude/constants.js';
+import { CLAUDE_HOOK_EVENTS } from '../src/providers/claude/constants.js';
 import type { AgentState } from '../src/types.js';
 
 /** Let the setHooksEnabled dispatch's async chain (side effect →

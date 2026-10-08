@@ -66,9 +66,9 @@ export interface LaunchStandaloneOptions {
   /** `~/.claude/settings.json` to seed before the server starts. A string is
    *  written verbatim so a spec can seed a deliberately unparseable file. */
   seedClaudeSettings?: unknown;
-  /** Agent provider id forwarded as `--provider <id>` (default: the CLI's own
-   *  default, 'claude'). Herdr specs pass 'herdr' so the standalone host
-   *  connects to a local Herdr socket instead of installing Claude hooks. */
+  /** Provider modules forwarded as `--provider <ids>` (comma-separated, default: the CLI's own default, 'claude').
+   *  Herdr specs pass 'herdr' (or 'herdr,omp') so the standalone host connects to a local Herdr socket instead of
+   *  installing Claude hooks. */
   provider?: string;
 }
 

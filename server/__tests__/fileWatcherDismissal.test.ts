@@ -19,7 +19,7 @@ import {
   startExternalSessionScanning,
 } from '../src/fileWatcher.js';
 import { PathSet } from '../src/pathKey.js';
-import { claudeTeamProvider } from '../src/providers/hook/claude/claudeTeamProvider.js';
+import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
 import type { AgentState } from '../src/types.js';
 
 /**

@@ -1265,7 +1265,7 @@ test.describe('Hooks ON / lifecycle', () => {
   // verify formatToolStatus produces the right overlay text for every
   // PreToolUse'd tool, not just Bash. Every other e2e test fires Bash and
   // asserts "Running: npm test"; the 9 other tool-name branches in
-  // claudeProvider.formatToolStatus had zero direct coverage prior to this.
+  // claudeModule.formatToolStatus had zero direct coverage prior to this.
   //
   // Each entry below maps a hook payload (tool_name + tool_input) to the
   // expected overlay text. If formatToolStatus regresses, this test catches

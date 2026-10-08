@@ -2,7 +2,7 @@
 
 Research note investigating two claims about how the current Claude Code CLI spawns
 sub-agents and teammates, and what it writes to disk. Relevant to this repo because
-`server/src/providers/hook/claude/` and the transcript-fallback parser key off these
+`server/src/providers/claude/` and the transcript-fallback parser key off these
 formats.
 
 **Investigated:** 2026-07-29

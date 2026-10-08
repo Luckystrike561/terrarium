@@ -6,7 +6,7 @@ sends its `hooksConsentResponse` the moment it happens (no deferred commit on "L
 Go"), and the server therefore reads every choice as a statement of the state the user
 wants _now_, against everything an earlier answer left behind.
 
-Everything below is keyed by `HookProvider.id`. Consent is per-human per-provider
+Everything below is keyed by `AgentModule.id`. Consent is per-human per-provider
 (`hooksConsent` / `hooksEnabled` maps at the top level of `config.json`), every
 consent-bearing wire message carries a `providerId` the client only ever echoes, and
 one process-wide queue serializes answers across all providers because they share one
@@ -31,14 +31,14 @@ a TRI-STATE (`'granted' | 'declined'`, absent = unanswered) rather than a boolea
 
 ## The choice→action rule
 
-`consentActionFor(choice, { installed, consent })`, in `server/src/providers/hook/`:
+`consentActionFor(choice, { installed, consent })`, in `server/src/providers/`:
 
-| choice | nothing left | grant (installed or not) | decline |
-| --- | --- | --- | --- |
-| `install` | `install` | `install` | `install` |
-| `never` | `persistOff` | `disable` if installed, else `persistOff` | `persistOff` |
-| `notNow` | `none` | `revert` | `revertDecline` |
-| anything else | `none` | `none` | `none` |
+| choice        | nothing left | grant (installed or not)                  | decline         |
+| ------------- | ------------ | ----------------------------------------- | --------------- |
+| `install`     | `install`    | `install`                                 | `install`       |
+| `never`       | `persistOff` | `disable` if installed, else `persistOff` | `persistOff`    |
+| `notNow`      | `none`       | `revert`                                  | `revertDecline` |
+| anything else | `none`       | `none`                                    | `none`          |
 
 - `install` grants and installs through the same path as the Settings toggle. A grant
   REPLACING a decline also deletes that decline's hooks-off remnant in the same write:

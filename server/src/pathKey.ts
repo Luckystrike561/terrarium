@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as path from 'path';
 
 /**
@@ -25,6 +26,19 @@ export function toPathKey(p: string): string {
 /** True when both paths point at the same file/directory (case-insensitive on Windows). */
 export function pathsMatch(left: string, right: string): boolean {
   return toPathKey(left) === toPathKey(right);
+}
+
+/**
+ * The session-file identity two modules compare: the file's real path when it exists. A multiplexer reports the path
+ * the agent CLI resolved from its own HOME, while an agent module scans its store under this process's HOME. Through
+ * a symlinked home or store the two spell one file differently, and only the real path makes them one agent.
+ */
+export function canonicalSessionFile(file: string): string {
+  try {
+    return fs.realpathSync(file);
+  } catch {
+    return path.resolve(file); // not written yet
+  }
 }
 
 /**

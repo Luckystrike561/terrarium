@@ -59,6 +59,11 @@ export type ClientMessage =
 
 export interface ProviderCapabilities {
   type: 'providerCapabilities';
+  providers: ProviderToolTaxonomy[];
+}
+
+export interface ProviderToolTaxonomy {
+  providerId: string;
   readingTools: string[];
   subagentToolNames: string[];
 }

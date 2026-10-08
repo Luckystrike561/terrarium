@@ -178,8 +178,17 @@ _Avoid_: file fallback, transcript mode, polling mode
 ## Integration Boundary
 
 **Provider**:
-The integration that connects one coding-agent CLI — Claude Code, Codex, Pi, Antigravity, OpenClaw, and the like — to Pixel Agents. A provider normalizes its CLI's raw activity into agent events and knows how to install that CLI's hooks. One provider per CLI; Claude Code is the reference implementation.
+Any module that feeds the runtime: an agent module or a multiplexer module. Several run side by side in one process, and each event is routed by the module it came from. Adding a CLI or a multiplexer is one more module, never a new mode.
 _Avoid_: plugin, connector
+
+**Agent module**:
+The provider for one coding-agent CLI — Claude Code, omp, Codex, Pi, and the like. It knows that CLI's vocabulary and how to read what the CLI reports (installed hooks, transcripts, or both), so it can find the CLI's sessions with no multiplexer around it. Claude Code is the reference implementation.
+
+**Multiplexer module**:
+The provider for one terminal multiplexer — herdr, and the like — that hosts agents in panes. It knows which agents are alive, their kind, status, name and task, never what they are doing: for that it hands each agent to the agent module for its kind, and reports status alone when none is running.
+
+**Session ref**:
+A session's identity as two modules report it: its transcript path, or the CLI's own session id when that is what the CLI's multiplexer integration reports. A multiplexer and an agent module that report the same session ref are reporting the same agent, which stays one character.
 
 **Agent event**:
 The canonical, CLI-agnostic description of something happening in a session: a tool started, a turn ended, a teammate went idle. Providers produce agent events; everything downstream consumes only these, never CLI-specific names.

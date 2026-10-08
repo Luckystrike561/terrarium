@@ -6,7 +6,7 @@ import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { CliArgsError, parseArgs } from '../src/cli.js';
-import { CLAUDE_HOOK_EVENTS } from '../src/providers/hook/claude/constants.js';
+import { CLAUDE_HOOK_EVENTS } from '../src/providers/claude/constants.js';
 
 const CLI_BUNDLE = path.join(__dirname, '../../dist/cli.js');
 const CLI_START_TIMEOUT_MS = 10_000;
@@ -119,6 +119,32 @@ describe('parseArgs', () => {
   it('parses --host', () => {
     expect(parseArgs(['--host', '0.0.0.0']).host).toBe('0.0.0.0');
   });
+
+  // 13. --provider accepts a single registered id
+  it('parses a single --provider id', () => {
+    expect(parseArgs(['--provider', 'omp']).moduleIds).toEqual(['omp']);
+  });
+
+  // 14. --provider trims whitespace and dedupes a comma-separated list
+  it('parses a comma-separated --provider list, trimming and deduping', () => {
+    expect(parseArgs(['--provider', ' omp, herdr ,omp']).moduleIds).toEqual(['omp', 'herdr']);
+  });
+
+  // 15. An unknown id names itself in the error, so the operator knows which one was wrong
+  it('rejects an unknown --provider id, naming it', () => {
+    expect(() => parseArgs(['--provider', 'not-a-real-module'])).toThrow(CliArgsError);
+    expect(() => parseArgs(['--provider', 'omp,not-a-real-module'])).toThrow(/not-a-real-module/);
+  });
+
+  // 16. All-empty (blank/comma-only) --provider is rejected rather than silently selecting nothing
+  it('rejects a --provider value with no ids', () => {
+    expect(() => parseArgs(['--provider', ' , , '])).toThrow(CliArgsError);
+  });
+
+  // 17. --provider without its required operand is rejected
+  it('rejects --provider when its value is missing', () => {
+    expect(() => parseArgs(['--provider'])).toThrow(/Missing value/);
+  });
 });
 
 // The TTY consent prompt is gone: first-run consent is asked in the app, as
@@ -170,14 +196,19 @@ describe('dist/cli.js entry-point guard', () => {
     tmpHome: string,
     body: (ctx: { output: () => string; port: number }) => Promise<void>,
     host = '127.0.0.1',
+    extraArgs: string[] = [],
   ): Promise<void> {
     const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-workspace-'));
     const port = await getFreePort();
-    const child = spawn(process.execPath, [CLI_BUNDLE, '--port', port.toString(), '--host', host], {
-      cwd: workspaceDir,
-      env: { ...process.env, HOME: tmpHome, USERPROFILE: tmpHome },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      process.execPath,
+      [CLI_BUNDLE, '--port', port.toString(), '--host', host, ...extraArgs],
+      {
+        cwd: workspaceDir,
+        env: { ...process.env, HOME: tmpHome, USERPROFILE: tmpHome },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let output = '';
     child.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()));
     child.stderr.on('data', (chunk: Buffer) => (output += chunk.toString()));
@@ -427,5 +458,45 @@ describe('dist/cli.js entry-point guard', () => {
       fs.rmSync(tmpHome, { recursive: true, force: true });
       fs.rmSync(workspaceDir, { recursive: true, force: true });
     }
+  });
+
+  // Unknown --provider never reaches main()'s try block: parseArgs throws before any
+  // asset loading or server start, so this is a plain exit-1, no tmpHome required.
+  itBuilt('exits 1 naming the unknown id when --provider names no registered module', async () => {
+    const { code, stderr } = await runCli(['--provider', 'not-a-real-module']);
+    expect(code).toBe(1);
+    expect(stderr).toContain('not-a-real-module');
+  });
+
+  // --provider omp,herdr: neither module writes hooks, so this exercises module selection
+  // without the consent gate. The chosen set must both be ANNOUNCED (the startup log line)
+  // and PERSISTED (config.json), and a second run with no --provider must reuse it.
+  itBuilt('persists --provider and runs the chosen modules, reused on the next start', async () => {
+    const firstHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-provider-'));
+    let persistedConfig = '';
+    await runCliServer(
+      firstHome,
+      async ({ output }) => {
+        await waitForCondition(() => output().includes('[Pixel Agents] Provider modules:'));
+        expect(output()).toContain('[Pixel Agents] Provider modules: omp, herdr');
+        const configPath = path.join(firstHome, '.pixel-agents', 'config.json');
+        persistedConfig = fs.readFileSync(configPath, 'utf-8');
+        const parsedConfig = JSON.parse(persistedConfig) as { modules?: string[] };
+        expect(parsedConfig.modules).toEqual(['omp', 'herdr']);
+      },
+      '127.0.0.1',
+      ['--provider', 'omp,herdr'],
+    );
+
+    // runCliServer deletes its tmpHome on the way out (each test normally owns one run), so
+    // a second start that reuses the persisted choice needs that choice carried over by hand
+    // into a fresh home -- the point under test is config.json, not the directory identity.
+    const secondHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-provider-reuse-'));
+    fs.mkdirSync(path.join(secondHome, '.pixel-agents'), { recursive: true });
+    fs.writeFileSync(path.join(secondHome, '.pixel-agents', 'config.json'), persistedConfig);
+    await runCliServer(secondHome, async ({ output }) => {
+      await waitForCondition(() => output().includes('[Pixel Agents] Provider modules:'));
+      expect(output()).toContain('[Pixel Agents] Provider modules: omp, herdr');
+    });
   });
 });

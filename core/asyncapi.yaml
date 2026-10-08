@@ -143,25 +143,20 @@ components:
 
     ProviderCapabilities:
       description: |
-        Sent once after `webviewReady`, before any agent messages. Tells the client
-        which tool names should render with the "reading" animation and which spawn
-        sub-agent characters.
+        Sent once after `webviewReady`, before any agent messages. Lists the tool
+        taxonomy of every enabled agent module: which tool names render with the
+        "reading" animation and which spawn sub-agent characters. Characters do not
+        carry their module, so the client classifies a tool name against all of them.
       type: object
       additionalProperties: false
-      required: [type, readingTools, subagentToolNames]
+      required: [type, providers]
       properties:
         type:
           const: providerCapabilities
-        readingTools:
+        providers:
           type: array
           items:
-            type: string
-          description: Tool names that should render the reading animation (vs typing).
-        subagentToolNames:
-          type: array
-          items:
-            type: string
-          description: Tool names that spawn sub-agent characters (e.g. Task, Agent).
+            $ref: '#/components/schemas/ProviderToolTaxonomy'
 
     AgentCreated:
       description: A new agent has appeared in the office.
@@ -1006,6 +1001,25 @@ components:
           type: integer
         seatId:
           type: [string, 'null']
+
+    ProviderToolTaxonomy:
+      description: One agent module's tool taxonomy, carried in `providerCapabilities`.
+      type: object
+      additionalProperties: false
+      required: [providerId, readingTools, subagentToolNames]
+      properties:
+        providerId:
+          type: string
+        readingTools:
+          type: array
+          items:
+            type: string
+          description: Tool names that should render the reading animation (vs typing).
+        subagentToolNames:
+          type: array
+          items:
+            type: string
+          description: Tool names that spawn sub-agent characters (e.g. Task, Agent).
 
     CharacterSpriteSet:
       description: |

@@ -22,7 +22,8 @@ export function extractToolName(status: string): string | null {
 // ── Provider capabilities (tool taxonomy for rendering decisions) ────────────
 // Populated once by the `providerCapabilities` message after `webviewReady`.
 // Modules classifying tools (character animation, subagent creation gate) read
-// from here instead of hardcoding Claude-specific tool names.
+// from here instead of hardcoding Claude-specific tool names. Characters do not
+// carry their agent module, so every enabled module's names are merged.
 
 const providerCaps: {
   readingTools: Set<string>;
@@ -32,12 +33,11 @@ const providerCaps: {
   subagentToolNames: new Set(),
 };
 
-export function setProviderCapabilities(caps: {
-  readingTools: string[];
-  subagentToolNames: string[];
-}): void {
-  providerCaps.readingTools = new Set(caps.readingTools);
-  providerCaps.subagentToolNames = new Set(caps.subagentToolNames);
+export function setProviderCapabilities(
+  providers: ReadonlyArray<{ readingTools: string[]; subagentToolNames: string[] }>,
+): void {
+  providerCaps.readingTools = new Set(providers.flatMap((p) => p.readingTools));
+  providerCaps.subagentToolNames = new Set(providers.flatMap((p) => p.subagentToolNames));
 }
 
 export function isReadingToolName(name: string | null | undefined): boolean {

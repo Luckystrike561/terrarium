@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import type { HookProvider } from '../../core/src/provider.js';
+import type { AgentModule } from '../../core/src/provider.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import {
   CONTEXT_SEED_TAIL_BYTES,
@@ -54,7 +54,7 @@ export function extractContextTokens(record: unknown): number {
  * Window an observed context has to fit in, when nobody can name it.
  *
  * The provider's answer for the model is the real source (see
- * `HookProvider.contextWindowForModel`); this is the backstop for unrecognized
+ * `AgentModule.contextWindowForModel`); this is the backstop for unrecognized
  * models and for windows larger than anything we know about. It only ever
  * widens: a context that doesn't fit proves the assumption too small, while a
  * context that shrinks proves nothing (a 900k session compacted to 20k is
@@ -106,7 +106,7 @@ export function updateContextUsage(
   agent: AgentState,
   agents: AgentStateStore,
   record: unknown,
-  provider?: HookProvider | null,
+  provider?: AgentModule | null,
 ): void {
   const tokens = extractContextTokens(record);
   if (tokens <= 0) return;
@@ -116,7 +116,7 @@ export function updateContextUsage(
 }
 
 /** The provider's window for whichever model wrote this record. */
-function windowFor(record: unknown, provider?: HookProvider | null): number | undefined {
+function windowFor(record: unknown, provider?: AgentModule | null): number | undefined {
   return provider?.contextWindowForModel?.((record as TranscriptRecord | null)?.message?.model);
 }
 
@@ -131,7 +131,7 @@ function windowFor(record: unknown, provider?: HookProvider | null): number | un
 export function seedContextUsage(
   agentId: number,
   agents: AgentStateStore,
-  provider?: HookProvider | null,
+  provider?: AgentModule | null,
 ): void {
   const agent = agents.get(agentId);
   if (!agent || agent.contextTokens > 0 || !agent.jsonlFile) return;
