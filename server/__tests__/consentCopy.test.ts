@@ -3,11 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CONSENT_DISCLOSURE,
   CONSENT_INSTALL_HEADLINE,
-} from '../src/providers/hook/claude/consentCopy.js';
-import {
-  CLAUDE_HOOK_EVENTS,
-  SETTINGS_BACKUP_SUFFIX,
-} from '../src/providers/hook/claude/constants.js';
+} from '../src/providers/claude/consentCopy.js';
+import { CLAUDE_HOOK_EVENTS, SETTINGS_BACKUP_SUFFIX } from '../src/providers/claude/constants.js';
 
 /**
  * The consent copy is two pieces: the HEADLINE is the greeter's welcome line

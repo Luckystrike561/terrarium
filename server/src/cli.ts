@@ -24,15 +24,17 @@ import {
   getHooksEnabled,
   grantHooksConsent,
   readConfig,
+  setEnabledModuleIds,
 } from './configPersistence.js';
 import { MAX_PORT, MIN_PORT } from './constants.js';
 import { FileStateAdapter } from './fileStateAdapter.js';
+import type { HookModule } from './providers/index.js';
 import {
-  claudeProvider,
-  copyHookScript,
-  HerdrBridge,
-  herdrProvider,
-  hookProviderById,
+  findHookModule,
+  hookModules,
+  loadEnabledModules,
+  registeredModuleIds,
+  unknownModuleIds,
 } from './providers/index.js';
 import { PixelAgentsServer } from './server.js';
 
@@ -43,18 +45,36 @@ export interface CliArgs {
    *  can run at once without a collision. --port picks a fixed one. */
   port?: number;
   host: string;
-  /** Active agent provider id. 'claude' (default) uses Claude Code hooks;
-   *  'herdr' shows the agents a local Herdr instance manages, via HerdrBridge. */
-  provider: string;
+  /** Provider modules chosen with --provider. Unset -> the set saved by the last --provider, else the default. */
+  moduleIds?: string[];
 }
 
-/** Thrown by parseArgs on an invalid --port. Kept separate from process.exit so
+/** Thrown by parseArgs on an invalid argument. Kept separate from process.exit so
  *  the parsing logic stays a pure, unit-testable function -- main() is the only
  *  place that turns a bad argument into an exit code. */
 export class CliArgsError extends Error {}
 
+function parseModuleIds(raw: string): string[] {
+  const ids = raw
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  if (ids.length === 0) {
+    throw new CliArgsError(
+      `Empty --provider: name at least one of ${registeredModuleIds.join(', ')}.`,
+    );
+  }
+  const unknown = unknownModuleIds(ids);
+  if (unknown.length > 0) {
+    throw new CliArgsError(
+      `Unknown provider ${unknown.map((id) => `"${id}"`).join(', ')} in --provider. Available: ${registeredModuleIds.join(', ')}.`,
+    );
+  }
+  return [...new Set(ids)];
+}
+
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { host: '127.0.0.1', provider: 'claude' };
+  const args: CliArgs = { host: '127.0.0.1' };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--port' || argv[i] === '-p') {
       const raw = argv[i + 1];
@@ -74,8 +94,14 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (argv[i] === '--host' && argv[i + 1]) {
       args.host = argv[i + 1];
       i++;
-    } else if (argv[i] === '--provider' && argv[i + 1]) {
-      args.provider = argv[i + 1];
+    } else if (argv[i] === '--provider') {
+      const raw = argv[i + 1];
+      if (raw === undefined) {
+        throw new CliArgsError(
+          `Missing value for --provider: expected a comma-separated list of ${registeredModuleIds.join(', ')}.`,
+        );
+      }
+      args.moduleIds = parseModuleIds(raw);
       i++;
     } else if (argv[i] === '--help') {
       console.log(`Usage: pixel-agents [options]
@@ -83,7 +109,8 @@ export function parseArgs(argv: string[]): CliArgs {
 Options:
   --port, -p <number>   Port to listen on (default: OS-assigned ephemeral port)
   --host <string>       Host to bind to (default: 127.0.0.1)
-  --provider <id>       Agent provider: "claude" (default) or "herdr"
+  --provider <ids>      Provider modules to run, comma-separated: ${registeredModuleIds.join(', ')}.
+                        Saved for later runs (default: the last saved set, else "claude")
   --help                Show this help message`);
       process.exit(0);
     }
@@ -101,17 +128,59 @@ Options:
 // migration below (our hooks already installed by a pre-consent version).
 
 /**
- * Copy the bundled hook script into ~/.pixel-agents/hooks/, reporting failure.
+ * Stage the files a module's hook entries run, reporting failure.
  *
- * Callers run this BEFORE installing the settings.json entries and abort when
- * it returns false: an entry whose command points at a missing script makes
- * Claude Code spawn a dead `node` process for every event, which is strictly
- * worse than no hooks at all.
+ * Callers run this BEFORE installing the entries and abort when it returns
+ * false: an entry whose command points at a missing script makes the CLI
+ * spawn a dead process for every event, which is strictly worse than no hooks
+ * at all.
  */
-function copyHookScriptOrReport(packageRoot: string, context = ''): boolean {
-  if (copyHookScript(packageRoot)) return true;
+function stageHookFilesOrReport(module: HookModule, packageRoot: string, context = ''): boolean {
+  if (module.hooks.stageHookFiles?.(packageRoot) ?? true) return true;
   console.error(`[Pixel Agents] Hooks NOT installed${context}: hook script missing.`);
   return false;
+}
+
+/** Install a module's hooks at startup when its persisted preference is on, gated on its one-time consent. */
+async function installHooksOnStartup(
+  module: HookModule,
+  packageRoot: string,
+  serverUrl: string,
+  token: string,
+): Promise<void> {
+  if (!getHooksEnabled(module.id)) {
+    // Without this line, a persisted hooks-off makes startup skip the entire
+    // consent/install flow with zero output: indistinguishable from a bug.
+    console.log(
+      `[Pixel Agents] Hooks disabled for ${module.displayName} — enable "Instant Detection (Hooks)" in the UI settings to install them.`,
+    );
+    return;
+  }
+  let consent = getHooksConsent(module.id) === 'granted';
+  if (!consent && (await module.hooks.areHooksInstalled())) {
+    // Our hooks are already installed and already firing (a pre-consent
+    // version put them there). Grant and continue with NO prompt: the install
+    // below only ever REDUCES scope (Claude's 14 -> 12 migration drops the two
+    // events that forwarded prompt text and were consumed by nothing). Asking
+    // would buy this user no protection they do not already have. A fresh
+    // install still is asked, in full, in the browser UI, when a tokened
+    // client connects (clientMessageHandler's webviewReady).
+    grantHooksConsent(module.id);
+    consent = true;
+  }
+  if (!consent) {
+    console.log(
+      `[Pixel Agents] Hooks not installed: writing ${module.displayName}'s settings needs one-time approval — open the URL below to review and approve it.`,
+    );
+    return;
+  }
+  if (!stageHookFilesOrReport(module, packageRoot)) return;
+  try {
+    await module.hooks.installHooks(serverUrl, token);
+    console.log('[Pixel Agents] Hooks installed');
+  } catch (err) {
+    console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────
@@ -155,42 +224,34 @@ async function main(): Promise<void> {
   const server = new PixelAgentsServer();
 
   try {
+    if (args.moduleIds) setEnabledModuleIds(args.moduleIds);
+    const modules = loadEnabledModules();
+    const moduleIds = [...modules.agents, ...modules.multiplexers].map((m) => m.id);
+    console.log(`[Pixel Agents] Provider modules: ${moduleIds.join(', ') || 'none'}`);
+
     // Create runtime first (before server.start, so we can pass it in)
-    const provider = hookProviderById(args.provider) ?? claudeProvider;
-    if (args.provider !== provider.id) {
-      console.log(
-        `[Pixel Agents] Unknown provider "${args.provider}" - falling back to "${provider.id}"`,
-      );
-    }
-    const runtime = new AgentRuntime(store, provider);
+    const runtime = new AgentRuntime(store, modules);
 
     // Wire hook events: HTTP POST -> runtime -> hookEventHandler -> agents
     server.onHookEvent((providerId, event) => {
       runtime.handleHookEvent(providerId, event);
     });
 
-    // onSetHooksEnabled side effect: install/uninstall the named provider's
+    // onSetHooksEnabled side effect: install/uninstall the named module's
     // hooks when the user toggles in the UI (or answers the consent ask).
     // Captures config from the outer scope after server.start().
     let currentConfig: { port: number; token: string } | null = null;
     const onSetHooksEnabled = async (providerId: string, enabled: boolean): Promise<void> => {
       if (!currentConfig) return;
-      const provider = hookProviderById(providerId);
-      if (!provider) return; // unknown id: nothing to install into
+      const module = findHookModule(modules, providerId);
+      if (!module) return; // unknown id: nothing to install into
       if (enabled) {
-        // An explicit toggle in the UI IS the consent to modify the
-        // provider's settings file. The bundled claude-hook.js script belongs
-        // to the Claude provider alone; another provider's install must
-        // neither copy it nor be blocked by it.
-        grantHooksConsent(provider.id);
-        if (
-          provider.id === claudeProvider.id &&
-          !copyHookScriptOrReport(packageRoot, ' (user toggle)')
-        ) {
-          return;
-        }
+        // An explicit toggle in the UI IS the consent to modify the module's
+        // settings file.
+        grantHooksConsent(module.id);
+        if (!stageHookFilesOrReport(module, packageRoot, ' (user toggle)')) return;
         try {
-          await provider.installHooks(
+          await module.hooks.installHooks(
             `http://127.0.0.1:${currentConfig.port}`,
             currentConfig.token,
           );
@@ -201,7 +262,7 @@ async function main(): Promise<void> {
         console.log('[Pixel Agents] Hooks installed (user toggle)');
       } else {
         try {
-          await provider.uninstallHooks();
+          await module.hooks.uninstallHooks();
           console.log('[Pixel Agents] Hooks uninstalled (user toggle)');
         } catch (err) {
           console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
@@ -259,71 +320,25 @@ async function main(): Promise<void> {
     });
     currentConfig = { port: config.port, token: config.token };
 
-    // Herdr mode: connect to the local Herdr instance and push its live agent
-    // state into the office. No Claude hooks are installed in this mode.
-    let herdrBridge: HerdrBridge | null = null;
-    if (provider.id === herdrProvider.id) {
-      herdrBridge = new HerdrBridge({ port: config.port, token: config.token });
-      const herdrReady = await herdrBridge.start();
-      console.log(
-        herdrReady
-          ? '[Pixel Agents] Herdr bridge connected - office reflects live Herdr agents'
-          : '[Pixel Agents] Herdr not reachable (is herdr running?) - retrying in the background',
-      );
+    // Sync runtime refs with persisted settings BEFORE the first scan tick.
+    for (const module of hookModules(modules)) {
+      runtime.setHooksEnabled(module.id, getHooksEnabled(module.id));
     }
-
-    // Sync runtime refs with persisted settings BEFORE first scan tick. The
-    // runtime's single hooksEnabled ref follows the Claude provider until the
-    // scanners grow per-provider awareness alongside the Settings UI.
-    runtime.hooksEnabled.current = getHooksEnabled(provider.id);
     runtime.watchAllSessions.current = adapter.getSetting('pixel-agents.watchAllSessions', false);
-    // herdr agents live in arbitrary worktrees, never 'tracked project dirs'.
-    // A runtime flag rather than forcing watchAllSessions: every webviewReady
-    // re-syncs that ref from the persisted setting.
-    runtime.adoptAllExternalSessions = provider.id === herdrProvider.id;
 
-    // Install hooks on startup if the persisted setting says so — gated on the
-    // one-time consent to modify ~/.claude/settings.json.
-    if (provider.id === claudeProvider.id && runtime.hooksEnabled.current) {
-      let consent = getHooksConsent(claudeProvider.id) === 'granted';
-      if (!consent && (await claudeProvider.areHooksInstalled())) {
-        // Our hooks are already installed and already firing — a pre-consent
-        // version put them there. Grant and continue with NO prompt: the
-        // install below is the 14 -> 12 migration, and it only ever REDUCES
-        // scope (it drops UserPromptSubmit and TaskCreated, the two events that
-        // forwarded prompt text and were consumed by nothing). Asking would buy
-        // this user no protection they do not already have, so they are not
-        // asked. A fresh install still is, in full — in the browser UI, when a
-        // tokened client connects (clientMessageHandler's webviewReady).
-        grantHooksConsent(claudeProvider.id);
-        consent = true;
-      }
-      if (!consent) {
-        console.log(
-          '[Pixel Agents] Hooks not installed: modifying ~/.claude/settings.json needs one-time approval — open the URL below to review and approve it.',
-        );
-      } else if (copyHookScriptOrReport(packageRoot)) {
-        try {
-          await claudeProvider.installHooks(`http://127.0.0.1:${config.port}`, config.token);
-          console.log('[Pixel Agents] Hooks installed');
-        } catch (err) {
-          console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
-    } else if (provider.id === claudeProvider.id) {
-      // Without this line, a persisted hooks-off makes startup skip the entire
-      // consent/install flow with zero output — indistinguishable from a bug.
-      console.log(
-        '[Pixel Agents] Hooks disabled — enable "Instant Detection (Hooks)" in the UI settings to install them.',
+    runtime.startModules();
+
+    for (const module of hookModules(modules)) {
+      await installHooksOnStartup(
+        module,
+        packageRoot,
+        `http://127.0.0.1:${config.port}`,
+        config.token,
       );
     }
 
-    // Start scanning for external sessions (Claude running in user's terminal)
-    const cwd = process.cwd();
-    const dirs =
-      provider.id === claudeProvider.id ? claudeProvider.getSessionDirs?.(cwd) : undefined;
-    if (dirs && dirs[0]) {
-      const projectDir = dirs[0];
+    const projectDir = runtime.transcriptModule?.getSessionDirs?.(process.cwd())[0];
+    if (projectDir) {
       console.log(`[Pixel Agents] Scanning project dir: ${projectDir}`);
       runtime.startProjectScan(projectDir);
       runtime.startExternalScanning(projectDir);
@@ -346,7 +361,6 @@ async function main(): Promise<void> {
     // ── Graceful shutdown ──
     function shutdown(): void {
       console.log('\nShutting down...');
-      herdrBridge?.stop();
       runtime.dispose();
       server.stop();
       process.exit(0);

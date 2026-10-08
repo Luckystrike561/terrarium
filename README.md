@@ -31,18 +31,19 @@ The code and the CLI are still named `pixel-agents`, and nothing from this fork 
 
 ## Providers
 
-The standalone server runs one provider per process, picked with `--provider`:
+What the office shows comes from provider modules, and any combination of them can run in one server. There are two kinds: a **multiplexer** module knows which agents a terminal multiplexer hosts, and an **agent** module knows what one agent CLI is doing. Pick them with `--provider`, comma-separated. The choice is saved in `~/.pixel-agents/config.json` and reused by later runs:
 
-| Provider           | What you see                                                                                                                           | How it works                                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `herdr`            | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task. omp agents also show tool activity. | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock` and tails each omp agent's session file. Writes nothing outside `~/.pixel-agents/`. |
-| `claude` (default) | Claude Code sessions in the current workspace, or every session with **Watch All Sessions**.                                           | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.              |
+| Module             | Kind        | What you see                                                                                                | How it works                                                                                                                                                   |
+| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `herdr`            | multiplexer | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task.          | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock`. Hands each pane to the agent module for its kind, when that module runs, for the tool activity. |
+| `omp`              | agent       | omp sessions with their tool activity ("Reading PLAN.md"), working while a turn runs and idle when it ends. | Tails the transcripts in omp's session store (`~/.omp/agent/sessions/`), with or without herdr.                                                                |
+| `claude` (default) | agent       | Claude Code sessions in the current workspace, or every session with **Watch All Sessions**.                | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                           |
 
-Agents in herdr panes other than omp show status only for now. A modular provider system, where multiplexers and agents are separate modules that can run together, is tracked in [#7](https://github.com/Luckystrike561/terrarium/issues/7).
+With `herdr,omp`, an omp session running in a herdr pane is one character: omp supplies what it is doing, herdr its name, its task and any pending approval. omp sessions outside herdr show up too. Agents in herdr panes whose CLI has no running agent module show their status only. Only the Claude module writes anything outside `~/.pixel-agents/`.
 
 ## Getting started
 
-Requirements: Node.js 20 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Requirements: Node.js 22.13 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
 
 ```bash
 git clone https://github.com/Luckystrike561/terrarium.git
@@ -51,10 +52,10 @@ npm install
 npm run build
 ```
 
-With herdr:
+With herdr and omp:
 
 ```bash
-node dist/cli.js --provider herdr
+node dist/cli.js --provider herdr,omp
 ```
 
 With Claude Code, run it from the workspace whose sessions you want to see:
@@ -66,12 +67,12 @@ node /path/to/terrarium/dist/cli.js
 
 The server picks a free port and prints a URL like `http://127.0.0.1:43123/?token=…`. Open it in a browser. If herdr is not running yet, the server keeps retrying in the background and the office fills in once herdr is up.
 
-With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr provider on `127.0.0.1:8790`.
+With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr and omp modules on `127.0.0.1:8790`.
 
 ### Options
 
 ```bash
-node dist/cli.js --provider herdr      # or claude (the default)
+node dist/cli.js --provider herdr,omp  # herdr, claude, or any agent module (omp, pi, codex, copilot, cursor, opencode, kilo, kimi, droid, devin, hermes, qodercli, qwen, letta, mastracode, agy, grok, kiro, maki, gemini, cline); saved for later runs
 node dist/cli.js --port 3100           # fixed port instead of a free one
 node dist/cli.js --host 127.0.0.1      # bind address (default 127.0.0.1)
 node dist/cli.js --help
@@ -85,7 +86,7 @@ Anyone who can reach the server can watch the office. Changing hook installation
 
 ### VS Code extension
 
-The VS Code extension from Pixel Agents still builds from this tree (press **F5** to launch an Extension Development Host) and renders the same office. It supports Claude Code only: the herdr provider runs in the standalone server.
+The VS Code extension from Pixel Agents still builds from this tree (press **F5** to launch an Extension Development Host) and renders the same office. It launches Claude Code terminals, and it runs the same saved set of provider modules as the standalone server.
 
 ## Customizing the office
 
@@ -107,25 +108,27 @@ The bundled furniture, characters and default office are generated from code: `n
 
 ```mermaid
 flowchart LR
-  herdr[herdr socket] --> bridge[HerdrBridge]
-  omp[omp session files] --> bridge
+  herdr[herdr socket] --> feed[MultiplexerFeed]
+  feed -- hands each pane over --> ompmod[omp module]
+  omp[omp session files] --> ompmod
   hooks[Claude hooks] --> api["POST /api/hooks/:provider"]
-  bridge --> api
-  jsonl[Claude transcripts] --> runtime
   api --> runtime[AgentRuntime]
+  feed --> runtime
+  ompmod --> runtime
+  jsonl[Claude transcripts] --> runtime
   runtime --> store[AgentStateStore]
   store --> ws[WebSocket]
   ws --> office[PixiJS office in the browser]
 ```
 
-Each provider turns its source into a shared `AgentEvent` model (tool started, permission requested, turn ended, …). `AgentRuntime` updates the state store, and the server pushes typed messages over a WebSocket to the React and PixiJS front end. The wire protocol is defined in [`core/asyncapi.yaml`](core/asyncapi.yaml).
+Each module turns its source into a shared `AgentEvent` model (tool started, permission requested, turn ended, …), and the runtime routes every event by the module it came from. `AgentRuntime` updates the state store, and the server pushes typed messages over a WebSocket to the React and PixiJS front end. The wire protocol is defined in [`core/asyncapi.yaml`](core/asyncapi.yaml).
 
 Terrarium never modifies your agents. Its own data lives in `~/.pixel-agents/`, and the only file it writes elsewhere is `~/.claude/settings.json`, when you approve Claude hooks.
 
 ### Repository layout
 
 - **`core/`**: provider, transport and schema interfaces, plus the AsyncAPI message contract. No runtime side effects.
-- **`server/`**: Fastify server, agent runtime, persistence, the Claude and herdr providers, and the standalone CLI.
+- **`server/`**: Fastify server, agent runtime, persistence, the provider modules (`server/src/providers/<id>/`) and their registry, and the standalone CLI.
 - **`webview-ui/`**: React 19 and PixiJS front end, served by the standalone server or embedded in VS Code.
 - **`adapters/vscode/`**: the VS Code extension.
 
@@ -149,7 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/
 ## Troubleshooting
 
 - **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. The server logs `Herdr not reachable` until it can connect.
-- **An omp agent shows a status but never a tool.** herdr has not reported a session file for that pane yet. Tool activity starts with the next tool call after it does.
+- **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
 - **A Claude session is missing.** Check that **Settings → Instant Detection (Hooks)** is on and that the session belongs to the current workspace, or turn on **Watch All Sessions**.
 - **The office looks disconnected.** **Settings → Debug View** shows the server connection and the latest data for each agent.
 

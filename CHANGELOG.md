@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+
+- - **Removed obsolete OMP session handling**
+
 ## v1.4.1
 
 ### Features

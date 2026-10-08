@@ -1,5 +1,5 @@
 /**
- * TeamProvider: optional extension on HookProvider for CLIs that support the
+ * TeamProvider: optional extension on AgentModule for CLIs that support the
  * Lead + Teammates pattern (Claude Agent Teams today; hypothetical future CLIs).
  *
  * Semantic-level interface: the host asks *what* (who's on this team? what
@@ -7,7 +7,7 @@
  * path? what's the JSON field name?). Providers choose their own storage
  * (filesystem, API, database) and expose only the queries.
  *
- * Providers without team support simply don't set `HookProvider.team`. No team-
+ * Providers without team support simply don't set `AgentModule.team`. No team-
  * gated code runs for them -- no stubs, no dead branches.
  */
 export interface TeamProvider {

@@ -27,7 +27,7 @@ import type * as vscode from 'vscode';
 
 const debug = process.env.PIXEL_AGENTS_DEBUG !== '0';
 
-import type { HookProvider } from '../../core/src/provider.js';
+import type { AgentModule } from '../../core/src/provider.js';
 import type { TeamProvider } from '../../core/src/teamProvider.js';
 import type { ITerminalAdapter } from '../../core/src/terminalAdapter.js';
 import type { AgentStateStore } from './agentStateStore.js';
@@ -48,7 +48,7 @@ import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import { pathsMatch } from './pathKey.js';
 import type { SubagentWatch } from './subagentWatch.js';
 import { cancelPermissionTimer, cancelWaitingTimer, clearAgentActivity } from './timerManager.js';
-import { getHookProvider, processTranscriptLine } from './transcriptParser.js';
+import { getTranscriptModule, processTranscriptLine } from './transcriptParser.js';
 import type { AgentState } from './types.js';
 
 /** Dismissal tracker instance. Set once at startup via setDismissalTracker().
@@ -112,7 +112,7 @@ export function startFileWatching(
   // Every watched agent passes through here, so this is the one place that can
   // give an agent adopted or restored mid-session a context gauge without
   // replaying its whole transcript.
-  seedContextUsage(agentId, agents, getHookProvider());
+  seedContextUsage(agentId, agents, getTranscriptModule());
 
   // Single polling approach: reliable on all platforms (macOS, Linux, WSL2, Windows).
   // Previously used triple-redundant fs.watch + fs.watchFile + setInterval, but
@@ -405,8 +405,8 @@ export function scanForNewJsonlFiles(
     const activeTerminal = terminalAdapter?.activeTerminal() as vscode.Terminal | undefined;
     if (
       activeTerminal &&
-      hookProvider?.terminalNamePrefix &&
-      activeTerminal.name.startsWith(hookProvider.terminalNamePrefix)
+      transcriptModule?.terminalNamePrefix &&
+      activeTerminal.name.startsWith(transcriptModule.terminalNamePrefix)
     ) {
       let owned = false;
       for (const agent of agents.values()) {
@@ -436,8 +436,8 @@ export function scanForNewJsonlFiles(
         // pre-existing shells ("zsh", "bash") for /clear files.
         for (const terminal of (terminalAdapter?.allTerminals() ?? []) as vscode.Terminal[]) {
           if (
-            !hookProvider?.terminalNamePrefix ||
-            !terminal.name.startsWith(hookProvider.terminalNamePrefix)
+            !transcriptModule?.terminalNamePrefix ||
+            !terminal.name.startsWith(transcriptModule.terminalNamePrefix)
           )
             continue;
           let owned = false;
@@ -566,9 +566,9 @@ let teammateRemovalCallback: ((teammateAgentId: number) => void) | null = null;
  *  by the time they're called. */
 let teamProvider: TeamProvider | null = null;
 
-/** Hook provider: supplies non-team capabilities fileWatcher needs (all-session
+/** Transcript module: supplies non-team capabilities fileWatcher needs (all-session
  *  roots for global discovery, launch command, etc.). Set once at startup. */
-let hookProvider: HookProvider | null = null;
+let transcriptModule: AgentModule | null = null;
 
 /** Register the callback used to remove teammates detected as dismissed via team config polling. */
 export function setTeammateRemovalCallback(cb: (teammateAgentId: number) => void): void {
@@ -602,9 +602,9 @@ export function setSubagentWatch(watch: SubagentWatch | null): void {
   subagentWatch = watch;
 }
 
-/** Register the active HookProvider for non-team capabilities (session roots, etc.). */
-export function setHookProvider(provider: HookProvider): void {
-  hookProvider = provider;
+/** Register the transcript module for non-team capabilities (session roots, etc.), or null when none is enabled. */
+export function setTranscriptModule(module: AgentModule | null): void {
+  transcriptModule = module;
 }
 
 /**
@@ -794,7 +794,7 @@ function liveSpawnToolIds(lead: AgentState): Set<string> {
   const ids = new Set(lead.backgroundAgentToolIds);
   for (const toolId of lead.activeToolIds) {
     const toolName = lead.activeToolNames.get(toolId);
-    if (toolName && hookProvider?.subagentToolNames.has(toolName)) {
+    if (toolName && transcriptModule?.subagentToolNames.has(toolName)) {
       ids.add(toolId);
     }
   }
@@ -1484,7 +1484,7 @@ function scanGlobalProjectDirs(
 
   persistAgents: () => void,
 ): void {
-  const roots = hookProvider?.getAllSessionRoots?.() ?? [];
+  const roots = transcriptModule?.getAllSessionRoots?.() ?? [];
   if (roots.length === 0) return;
 
   const projectDirs: string[] = [];

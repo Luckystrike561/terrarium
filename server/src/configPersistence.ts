@@ -53,6 +53,9 @@ export interface PixelAgentsConfig {
   /** Per-provider hooks preference, machine-global for the same reason as the
    *  consent above. A provider absent from the map takes the default (true). */
   hooksEnabled: Record<string, boolean>;
+  /** Ids of the provider modules this machine runs, as last chosen with `--provider`. Absent = never chosen: the
+   *  registry's default set runs. Shared across surfaces, like the hooks maps above. */
+  modules?: string[];
 }
 
 const DEFAULT_ADAPTER_SETTINGS: AdapterSettings = {
@@ -170,6 +173,9 @@ export function readConfig(): PixelAgentsConfig {
         : [],
       hooksConsent: parseHooksConsent(parsed.hooksConsent),
       hooksEnabled: parseHooksEnabled(parsed.hooksEnabled),
+      modules: Array.isArray(parsed.modules)
+        ? parsed.modules.filter((id): id is string => typeof id === 'string')
+        : undefined,
     };
   } catch (err) {
     console.error('[Pixel Agents] Failed to read config file:', err);
@@ -183,8 +189,21 @@ export function readConfig(): PixelAgentsConfig {
   }
 }
 
+// ── Enabled provider modules ────────────────────────────────
+
+/** The module ids last chosen for this machine, or undefined when none ever were. */
+export function getEnabledModuleIds(): string[] | undefined {
+  return readConfig().modules;
+}
+
+export function setEnabledModuleIds(ids: readonly string[]): void {
+  const cfg = readConfig();
+  cfg.modules = [...ids];
+  writeConfig(cfg);
+}
+
 // ── Per-provider hooks consent + preference ─────────────────
-// The provider id keys these maps (HookProvider.id — 'claude' today). All
+// The provider id keys these maps (AgentModule.id — 'claude' today). All
 // writers go through readConfig→writeConfig, so a hand-edited or older file
 // degrades to "unanswered"/default rather than crashing.
 

@@ -75,13 +75,16 @@ function ompPane(
   };
 }
 
+function appendRecord(sessionFile: string, record: object): void {
+  fs.appendFileSync(sessionFile, `${JSON.stringify(record)}\n`);
+}
+
 function appendToolStart(sessionFile: string, callId: string, tool: ToolCall): void {
-  const record = {
+  appendRecord(sessionFile, {
     type: 'custom',
     customType: 'tool_execution_start',
     data: { toolCallId: callId, toolName: tool.toolName, intent: tool.intent },
-  };
-  fs.appendFileSync(sessionFile, `${JSON.stringify(record)}\n`);
+  });
 }
 
 class Scene {
@@ -103,10 +106,21 @@ class Scene {
     }
   }
 
+  /** herdr's status level, plus the record omp itself appends when a turn starts or ends: with the omp module on,
+   *  the transcript decides working vs idle and herdr adds only the pending approval. */
   setStatus(paneId: string, status: 'working' | 'blocked' | 'idle'): void {
     const agent = this.agents.get(paneId)!;
     agent.pane.agent_status = status;
     this.herdr.updateAgent(paneId, { agent_status: status });
+    const sessionFile = agent.pane.agent_session!.value;
+    if (status === 'working') {
+      appendRecord(sessionFile, { type: 'message', message: { role: 'user' } });
+    } else if (status === 'idle') {
+      appendRecord(sessionFile, {
+        type: 'message',
+        message: { role: 'assistant', stopReason: 'stop' },
+      });
+    }
   }
 
   publish(): void {
@@ -125,7 +139,7 @@ test('record the README demo', async ({ page }) => {
     JSON.stringify({
       // Without it the "Updated to …" toast covers a corner of the footage.
       standalone: { alwaysShowLabels: true, lastSeenVersion: CURRENT_MAJOR_MINOR },
-      hooksConsent: { claude: 'granted', herdr: 'granted' },
+      hooksConsent: { claude: 'granted' },
     }),
   );
 
@@ -203,7 +217,7 @@ test('record the README demo', async ({ page }) => {
   const standalone = await launchStandalone(page, {
     homeDir: tmpHome,
     workspaceDir,
-    provider: 'herdr',
+    provider: 'herdr,omp',
   });
   const scene = new Scene(fakeHerdr, agents);
 
