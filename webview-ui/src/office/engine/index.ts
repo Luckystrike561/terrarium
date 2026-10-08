@@ -7,10 +7,5 @@ export {
 export type { GameLoopCallbacks } from './gameLoop.js';
 export { startGameLoop } from './gameLoop.js';
 export { OfficeState } from './officeState.js';
-export type {
-  DeleteButtonBounds,
-  EditorRenderState,
-  SelectionRenderState,
-  WorldRenderState,
-} from './sceneRenderer.js';
+export type { SelectionRenderState, WorldRenderState } from './sceneRenderer.js';
 export { OfficeSceneRenderer } from './sceneRenderer.js';

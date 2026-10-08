@@ -1,38 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { toMajorMinor } from './changelogData.js';
 import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { ConnectionIndicator } from './components/ConnectionIndicator.js';
 import { DebugView } from './components/DebugView.js';
-import { EditActionBar } from './components/EditActionBar.js';
 import { IntroBubble } from './components/IntroBubble.js';
 import { MigrationNotice } from './components/MigrationNotice.js';
 import { SettingsModal } from './components/SettingsModal.js';
 import { Tooltip } from './components/Tooltip.js';
 import { Modal } from './components/ui/Modal.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
-import { useEditorActions } from './hooks/useEditorActions.js';
-import { useEditorKeyboard } from './hooks/useEditorKeyboard.js';
+import { ZOOM_MIN } from './constants.js';
 import { useExtensionMessages } from './hooks/useExtensionMessages.js';
 import { useIntroTour } from './hooks/useIntroTour.js';
 import { OfficeCanvas } from './office/components/OfficeCanvas.js';
 import { ToolOverlay } from './office/components/ToolOverlay.js';
-import { EditorState } from './office/editor/editorState.js';
-import { EditorToolbar } from './office/editor/EditorToolbar.js';
 import { OfficeState } from './office/engine/officeState.js';
-import { exportLayoutToFile } from './office/layout/exportLayout.js';
-import { isRotatable } from './office/layout/furnitureCatalog.js';
-import { migrateLayoutColors } from './office/layout/layoutSerializer.js';
-import { getPetCount } from './office/sprites/petSpriteData.js';
-import { EditTool, type OfficeLayout } from './office/types.js';
 import { isE2E } from './runtime.js';
 import { installTestHooks } from './testHooks.js';
 import { transport } from './transport/index.js';
 
 // Game state lives outside React — updated imperatively by message handlers
 const officeStateRef = { current: null as OfficeState | null };
-const editorState = new EditorState();
 
 // Test-only observability hooks (message/sound logs, addAgent wrapper, selectAgent).
 // Installed only under the e2e harness so they never patch prototypes or grow
@@ -57,12 +47,8 @@ function App() {
     }
   }, []);
 
-  const editor = useEditorActions(getOfficeState, editorState);
-
-  const isEditDirty = useCallback(
-    () => editor.isEditMode && editor.isDirty,
-    [editor.isEditMode, editor.isDirty],
-  );
+  const [zoom, setZoom] = useState(ZOOM_MIN);
+  const panRef = useRef({ x: 0, y: 0 });
 
   const {
     agents,
@@ -74,8 +60,6 @@ function App() {
     subagentCharacters,
     layoutReady,
     layoutWasReset,
-    loadedAssets,
-    agentFolderNames,
     externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
@@ -88,11 +72,9 @@ function App() {
     hooksInfoShown,
     consentRequest,
     dismissConsentRequest,
-    areaMappings,
-    setAreaMappings,
     showAreas,
     setShowAreas,
-  } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty);
+  } = useExtensionMessages(getOfficeState);
 
   // Show migration notice once layout reset is detected
   const [migrationNoticeDismissed, setMigrationNoticeDismissed] = useState(false);
@@ -152,31 +134,6 @@ function App() {
   // the Claude row of the per-provider install-state map.
   const claudeHooksInstalled = hooksInstalled['claude'] === true;
 
-  // Mutate folder→Area mappings locally + send to server. Updates OfficeState in
-  // the same tick so a follow-up agentCreated picks up the new mapping.
-  const handleAreaMappingChange = useCallback(
-    (folderName: string, areaLabel: string, action: 'add' | 'remove') => {
-      const current = areaMappings[folderName] ?? [];
-      let nextLabels: string[];
-      if (action === 'add') {
-        if (current.includes(areaLabel)) return;
-        nextLabels = [...current, areaLabel];
-      } else {
-        nextLabels = current.filter((l) => l !== areaLabel);
-      }
-      const next = { ...areaMappings };
-      if (nextLabels.length === 0) {
-        delete next[folderName];
-      } else {
-        next[folderName] = nextLabels;
-      }
-      setAreaMappings(next);
-      getOfficeState().setAreaMappings(next);
-      transport.send({ type: 'saveAreaMappings', mappings: next });
-    },
-    [areaMappings, setAreaMappings],
-  );
-
   // Toggle global Show Areas — persisted via setShowAreas message; runs server-
   // side through configPersistence.
   const onToggleShowAreas = useCallback(() => {
@@ -185,39 +142,15 @@ function App() {
     transport.send({ type: 'setShowAreas', enabled: next });
   }, [showAreas, setShowAreas]);
 
-  // When AREA_PAINT is active in the editor, force the overlay on even if the
-  // user has toggled Show Areas off globally — they need to see what they're
-  // editing. The selected area's overlay is alpha-bumped via activeAreaLabel.
-  const isEditingAreas = editor.isEditMode && editorState.activeTool === EditTool.AREA_PAINT;
-  const effectiveShowAreas = isEditingAreas || showAreas;
-  const activeAreaLabel = isEditingAreas ? editor.selectedAreaLabel : null;
-
-  // e2e: register the component-scoped editor-action drivers + the effective
-  // show-areas gate on the test-hooks namespace (module-load installTestHooks
-  // can't reach these React callbacks). Bypasses only canvas pixel→tile
-  // geometry — the handlers still own undo/dirty/rebuild. Guarded on isE2E.
+  // e2e: register the show-areas gate on the test-hooks namespace (module-load
+  // installTestHooks can't reach React state). Guarded on isE2E.
   useEffect(() => {
     if (!isE2E || typeof window === 'undefined') return;
     const hooks = (window.__pixelAgentsTestHooks ??= {});
-    hooks.editorTileAction = (col, row) => editor.handleEditorTileAction(col, row);
-    hooks.editorEraseAction = (col, row) => editor.handleEditorEraseAction(col, row);
-    hooks.getShowAreas = () => effectiveShowAreas;
-  }, [editor.handleEditorTileAction, editor.handleEditorEraseAction, effectiveShowAreas]);
+    hooks.getShowAreas = () => showAreas;
+  }, [showAreas]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const [editorTickForKeyboard, setEditorTickForKeyboard] = useState(0);
-  useEditorKeyboard(
-    editor.isEditMode,
-    editorState,
-    editor.handleDeleteSelected,
-    editor.handleRotateSelected,
-    editor.handleToggleState,
-    editor.handleUndo,
-    editor.handleRedo,
-    useCallback(() => setEditorTickForKeyboard((n) => n + 1), []),
-    editor.handleToggleEditMode,
-  );
 
   const handleCloseAgent = useCallback((id: number) => {
     transport.send({ type: 'closeAgent', id });
@@ -235,85 +168,7 @@ function App() {
   );
 
   const officeState = getOfficeState();
-
-  // Areas dropdown folder list: every distinct folder an agent has run in
-  // this session (deduped by name; name is the areaMappings key / seat-bias
-  // identity, path is only the React list key).
-  const areaFolders = useMemo(
-    () => agentFolderNames.map((name) => ({ name, path: name })),
-    [agentFolderNames],
-  );
-
-  // Areas authoring is available when the layout already defines areas, or when
-  // there is at least one mappable folder.
-  const areasAvailable = (officeState.getLayout().areas?.length ?? 0) > 0 || areaFolders.length > 0;
-
-  const handleExportLayout = useCallback(() => {
-    exportLayoutToFile(getOfficeState().getLayout());
-  }, []);
-
-  const handleImportLayout = useCallback(
-    (file: File) => {
-      // Browser-native import (standalone): read + validate + apply directly,
-      // bypassing the layoutLoaded message whose dirty guard would skip it.
-      if (
-        isEditDirty() &&
-        !window.confirm('Replace the current layout? Unsaved edits will be lost.')
-      ) {
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const imported = JSON.parse(String(reader.result)) as Record<string, unknown>;
-          // The layout version plus the furniture-array check: migrate + rebuild
-          // iterate furniture and would throw on a non-array.
-          if (
-            imported.version !== 1 ||
-            !Array.isArray(imported.tiles) ||
-            !Array.isArray(imported.furniture)
-          ) {
-            window.alert('Invalid layout file.');
-            return;
-          }
-          const migrated = migrateLayoutColors(imported as unknown as OfficeLayout);
-          getOfficeState().rebuildFromLayout(migrated);
-          editor.setLastSavedLayout(migrated);
-          transport.send({
-            type: 'saveLayout',
-            layout: migrated as unknown as Record<string, unknown>,
-          });
-          editor.markClean();
-        } catch {
-          window.alert('Failed to read or parse layout file.');
-        }
-      };
-      reader.readAsText(file);
-    },
-    [isEditDirty, editor],
-  );
-
-  // Force dependency on editorTickForKeyboard to propagate keyboard-triggered re-renders
-  void editorTickForKeyboard;
-
-  // Show "Press R to rotate" hint when a rotatable item is selected or being placed
-  const showRotateHint =
-    editor.isEditMode &&
-    (() => {
-      if (editorState.selectedFurnitureUid) {
-        const item = officeState
-          .getLayout()
-          .furniture.find((f) => f.uid === editorState.selectedFurnitureUid);
-        if (item && isRotatable(item.type)) return true;
-      }
-      if (
-        editorState.activeTool === EditTool.FURNITURE_PLACE &&
-        isRotatable(editorState.selectedFurnitureType)
-      ) {
-        return true;
-      }
-      return false;
-    })();
+  const layoutHasAreas = (officeState.getLayout().areas?.length ?? 0) > 0;
 
   if (!layoutReady) {
     return <div className="w-full h-full flex items-center justify-center ">Loading...</div>;
@@ -324,19 +179,9 @@ function App() {
       <OfficeCanvas
         officeState={officeState}
         onClick={handleClick}
-        isEditMode={editor.isEditMode}
-        editorState={editorState}
-        onEditorTileAction={editor.handleEditorTileAction}
-        onEditorEraseAction={editor.handleEditorEraseAction}
-        onEditorSelectionChange={editor.handleEditorSelectionChange}
-        onDeleteSelected={editor.handleDeleteSelected}
-        onRotateSelected={editor.handleRotateSelected}
-        onDragMove={editor.handleDragMove}
-        editorTick={editor.editorTick}
-        onZoomChange={editor.handleZoomChange}
-        panRef={editor.panRef}
-        showAreas={effectiveShowAreas}
-        activeAreaLabel={activeAreaLabel}
+        onZoomChange={setZoom}
+        panRef={panRef}
+        showAreas={showAreas}
       />
 
       {!isDebugMode ? (
@@ -347,69 +192,6 @@ function App() {
             style={{ background: 'var(--vignette)' }}
           />
 
-          {editor.isEditMode && editor.isDirty && (
-            <EditActionBar editor={editor} editorState={editorState} />
-          )}
-
-          {showRotateHint && (
-            <div
-              className="absolute left-1/2 -translate-x-1/2 z-11 bg-accent-bright text-white text-sm py-3 px-8 rounded-none border-2 border-accent shadow-pixel pointer-events-none whitespace-nowrap"
-              style={{ top: editor.isDirty ? 64 : 8 }}
-            >
-              Rotate (R)
-            </div>
-          )}
-
-          {editor.isEditMode &&
-            (() => {
-              const selUid = editorState.selectedFurnitureUid;
-              const selColor = selUid
-                ? (officeState.getLayout().furniture.find((f) => f.uid === selUid)?.color ?? null)
-                : null;
-              return (
-                <EditorToolbar
-                  activeTool={editorState.activeTool}
-                  selectedTileType={editorState.selectedTileType}
-                  selectedFurnitureType={editorState.selectedFurnitureType}
-                  selectedFurnitureUid={selUid}
-                  selectedFurnitureColor={selColor}
-                  floorColor={editorState.floorColor}
-                  wallColor={editorState.wallColor}
-                  selectedWallSet={editorState.selectedWallSet}
-                  onToolChange={editor.handleToolChange}
-                  onTileTypeChange={editor.handleTileTypeChange}
-                  onFloorColorChange={editor.handleFloorColorChange}
-                  onWallColorChange={editor.handleWallColorChange}
-                  onWallSetChange={editor.handleWallSetChange}
-                  onSelectedFurnitureColorChange={editor.handleSelectedFurnitureColorChange}
-                  pickedFurnitureColor={editorState.pickedFurnitureColor}
-                  onPickedFurnitureColorChange={editor.handlePickedFurnitureColorChange}
-                  onFurnitureTypeChange={editor.handleFurnitureTypeChange}
-                  loadedAssets={loadedAssets}
-                  activePetTypes={officeState.getActivePetTypes()}
-                  petCount={getPetCount()}
-                  onPetToggle={editor.handlePetToggle}
-                  carpetVariant={editor.carpetVariant}
-                  carpetColor={editor.carpetColor}
-                  carpetAccentColor={editor.carpetAccentColor}
-                  onCarpetVariantChange={editor.handleCarpetVariantChange}
-                  onCarpetColorChange={editor.handleCarpetColorChange}
-                  onCarpetAccentColorChange={editor.handleCarpetAccentColorChange}
-                  areas={officeState.getLayout().areas ?? []}
-                  selectedAreaLabel={editor.selectedAreaLabel}
-                  workspaceFolders={areaFolders}
-                  areasAvailable={areasAvailable}
-                  areaMappings={areaMappings}
-                  onSelectArea={editor.handleSelectArea}
-                  onAddArea={editor.handleAddArea}
-                  onRemoveArea={editor.handleRemoveArea}
-                  onRenameArea={editor.handleRenameArea}
-                  onAreaColorChange={editor.handleAreaColorChange}
-                  onAreaMappingChange={handleAreaMappingChange}
-                />
-              );
-            })()}
-
           <ToolOverlay
             officeState={officeState}
             agents={agents}
@@ -417,8 +199,8 @@ function App() {
             subagentTools={subagentTools}
             subagentCharacters={subagentCharacters}
             containerRef={containerRef}
-            zoom={editor.zoom}
-            panRef={editor.panRef}
+            zoom={zoom}
+            panRef={panRef}
             onCloseAgent={handleCloseAgent}
             alwaysShowOverlay={alwaysShowOverlay}
           />
@@ -497,8 +279,6 @@ function App() {
       </Modal>
 
       <BottomToolbar
-        isEditMode={editor.isEditMode}
-        onToggleEditMode={editor.handleToggleEditMode}
         isSettingsOpen={isSettingsOpen}
         onToggleSettings={() => setIsSettingsOpen((v) => !v)}
       />
@@ -551,9 +331,7 @@ function App() {
         }}
         showAreas={showAreas}
         onToggleShowAreas={onToggleShowAreas}
-        showAreasAvailable={areasAvailable}
-        onExportLayout={handleExportLayout}
-        onImportLayout={handleImportLayout}
+        showAreasAvailable={layoutHasAreas}
       />
 
       {showMigrationNotice && (
@@ -566,18 +344,14 @@ function App() {
           headline={intro.headline}
           disclosure={intro.disclosure}
           containerRef={containerRef}
-          zoom={editor.zoom}
-          panRef={editor.panRef}
+          zoom={zoom}
+          panRef={panRef}
           installFailed={installFailed}
           installPending={installPending}
           onChoice={handleConsentChoice}
           onClose={handleIntroClose}
           escapeSuppressed={
-            isSettingsOpen ||
-            isChangelogOpen ||
-            isHooksInfoOpen ||
-            showMigrationNotice ||
-            editor.isEditMode
+            isSettingsOpen || isChangelogOpen || isHooksInfoOpen || showMigrationNotice
           }
         />
       )}

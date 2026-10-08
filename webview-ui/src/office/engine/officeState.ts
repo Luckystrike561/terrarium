@@ -156,16 +156,15 @@ export class OfficeState {
     this.rebuildPetsFromLayout(this.layout);
   }
 
-  /** Rebuild all derived state from a new layout. Reassigns existing characters.
-   *  @param shift Optional pixel shift to apply when grid expands left/up */
-  rebuildFromLayout(layout: OfficeLayout, shift?: { col: number; row: number }): void {
+  /** Rebuild all derived state from a new layout. Reassigns existing characters. */
+  rebuildFromLayout(layout: OfficeLayout): void {
     this.layout = layout;
     this.tileMap = layoutToTileMap(layout);
     this.seats = layoutToSeats(layout.furniture);
     this.blockedTiles = getBlockedTiles(layout.furniture);
     this.restSeatUids = this.computeRestSeats();
     // Drop claims (and the claiming character's pointer to them) for rest seats the
-    // layout edit removed or turned into a desk — stale ids would otherwise wedge the
+    // new layout removed or turned into a desk — stale ids would otherwise wedge the
     // claimant in CharacterState.TYPE forever since nothing else clears restSeatId.
     for (const [uid, charId] of this.restSeatClaims) {
       if (this.restSeatUids.has(uid)) continue;
@@ -175,31 +174,6 @@ export class OfficeState {
     }
     this.rebuildFurnitureInstances();
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
-
-    // Shift character positions when grid expands left/up
-    if (shift && (shift.col !== 0 || shift.row !== 0)) {
-      for (const ch of this.characters.values()) {
-        ch.tileCol += shift.col;
-        ch.tileRow += shift.row;
-        ch.x += shift.col * TILE_SIZE;
-        ch.y += shift.row * TILE_SIZE;
-        // Clear path since tile coords changed
-        ch.path = [];
-        ch.moveProgress = 0;
-      }
-    }
-
-    // Shift pet positions when grid expands left/up
-    if (shift && (shift.col !== 0 || shift.row !== 0)) {
-      for (const pet of this.pets) {
-        pet.tileCol += shift.col;
-        pet.tileRow += shift.row;
-        pet.x += shift.col * TILE_SIZE;
-        pet.y += shift.row * TILE_SIZE;
-        pet.path = [];
-        pet.moveProgress = 0;
-      }
-    }
 
     // Reassign characters to new seats, preserving existing assignments when possible
     for (const seat of this.seats.values()) {
@@ -286,7 +260,7 @@ export class OfficeState {
       }
     }
 
-    // Reconcile pets against the layout roster (handles editor add/remove)
+    // Reconcile pets against the new layout's roster
     this.rebuildPetsFromLayout(layout);
   }
 
@@ -1295,11 +1269,10 @@ export class OfficeState {
   // ── Pets ──────────────────────────────────────────────────────
 
   /**
-   * Add a pet to the live runtime. Spawns at a uniformly-random walkable tile.
-   * Mirror in `this.layout.pets` so debounced saveLayout serialises the roster.
-   * Bounds-checks petType against the loaded sprite count to defend against stale layouts.
+   * Spawn a placed pet at a uniformly-random walkable tile. Bounds-checks
+   * petType against the loaded sprite count to defend against stale layouts.
    */
-  addPet(placedPet: PlacedPet): void {
+  private spawnPet(placedPet: PlacedPet): void {
     // Defensive guards (upstream 5e6c0a0)
     if (
       typeof placedPet.id !== 'string' ||
@@ -1322,28 +1295,11 @@ export class OfficeState {
     const pet = createPet(placedPet.id, placedPet.petType, spawn.col, spawn.row);
     pet.name = getPetName(placedPet.petType);
     this.pets.push(pet);
-    this.syncLayoutPets();
-  }
-
-  /** Remove a pet by id. Idempotent. */
-  removePet(id: string): void {
-    const before = this.pets.length;
-    this.pets = this.pets.filter((p) => p.id !== id);
-    if (this.pets.length !== before) {
-      this.syncLayoutPets();
-    }
   }
 
   /** Shallow snapshot for external consumers (renderer, hooks). */
   getPets(): Pet[] {
     return this.pets.slice();
-  }
-
-  /** Unique petType values currently placed. Used by the Pets toolbar to mark active rows. */
-  getActivePetTypes(): number[] {
-    const seen = new Set<number>();
-    for (const p of this.pets) seen.add(p.petType);
-    return Array.from(seen);
   }
 
   /**
@@ -1383,7 +1339,7 @@ export class OfficeState {
 
   /**
    * Reconcile `this.pets` to match the layout's placed-pet roster.
-   * - Pets in layout but not in runtime → spawn via addPet().
+   * - Pets in layout but not in runtime → spawn via spawnPet().
    * - Pets in runtime but not in layout → remove.
    * - Pets in both → keep existing runtime state (position, FSM).
    *
@@ -1401,20 +1357,8 @@ export class OfficeState {
     const existingIds = new Set(this.pets.map((p) => p.id));
     for (const p of placed) {
       if (existingIds.has(p.id)) continue;
-      this.addPet(p); // pushes onto this.pets, calls syncLayoutPets()
+      this.spawnPet(p);
     }
-    // syncLayoutPets() inside addPet keeps this.layout.pets coherent; one final
-    // sync handles the removal-only branch where addPet was never called.
-    this.syncLayoutPets();
-  }
-
-  /**
-   * Re-export the current pet roster into `this.layout.pets`. Called only from
-   * mutating methods (addPet / removePet / rebuildPetsFromLayout) — NEVER from
-   * getLayout(), which runs on every render frame.
-   */
-  private syncLayoutPets(): void {
-    this.layout.pets = this.pets.map((p) => ({ id: p.id, petType: p.petType }));
   }
 
   setTeamInfo(

@@ -1,12 +1,10 @@
 /**
  * SpriteData → PIXI.Texture, for the Pixi world renderer.
  *
- * Unlike the old canvas-based cache (sprites/spriteCache.ts, still used by the
- * 2D widget previews), a sprite needs exactly one texture regardless of zoom:
- * it's built at 1 texture-pixel-per-sprite-pixel with nearest-neighbor
- * sampling (set globally in sceneRenderer.ts via TextureStyle.defaultOptions),
- * and Pixi scales it crisply by setting `sprite.scale`. That drops the old
- * per-zoom WeakMap entirely.
+ * A sprite needs exactly one texture regardless of zoom: it's built at 1
+ * texture-pixel-per-sprite-pixel with nearest-neighbor sampling (set globally
+ * in sceneRenderer.ts via TextureStyle.defaultOptions), and Pixi scales it
+ * crisply by setting `sprite.scale`.
  *
  * A plain Map (not WeakMap) so `destroyAllTextures` can walk every entry and
  * free its GPU-side resource on asset reload. JS GC alone only reclaims the
@@ -57,8 +55,7 @@ export function destroyAllTextures(): void {
   textureCache.clear();
 }
 
-/** Generate a 1px white outline SpriteData (2px larger in each dimension),
- *  mirroring sprites/spriteCache.ts's version for the 2D preview path. */
+/** Generate a 1px white outline SpriteData (2px larger in each dimension). */
 export function getOutlineSprite(sprite: SpriteData): SpriteData {
   const cached = outlineSpriteCache.get(sprite);
   if (cached) return cached;

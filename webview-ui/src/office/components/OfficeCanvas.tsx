@@ -3,70 +3,39 @@ import { useCallback, useEffect, useRef } from 'react';
 import { CAMERA_FOLLOW_LERP, CAMERA_FOLLOW_SNAP_THRESHOLD, ZOOM_MIN } from '../../constants.js';
 import { unlockAudio } from '../../notificationSound.js';
 import { transport } from '../../transport/index.js';
-import { getColorizedSprite } from '../colorize.js';
-import { canPlaceFurniture } from '../editor/editorActions.js';
-import type { EditorState } from '../editor/editorState.js';
 import { startGameLoop } from '../engine/gameLoop.js';
 import type { OfficeState } from '../engine/officeState.js';
-import type {
-  DeleteButtonBounds,
-  EditorRenderState,
-  RotateButtonBounds,
-  SelectionRenderState,
-  WorldRenderState,
-} from '../engine/sceneRenderer.js';
+import type { SelectionRenderState, WorldRenderState } from '../engine/sceneRenderer.js';
 import { OfficeSceneRenderer } from '../engine/sceneRenderer.js';
 import { isoToWorld, worldToIso } from '../iso.js';
-import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js';
 import {
   boundsRect,
   centeredPan,
   clampPan,
   contentBounds,
-  editBounds,
   fitZoom,
   gridRect,
   panToCenter,
 } from '../projection.js';
-import { EditTool, TILE_SIZE } from '../types.js';
+import { TILE_SIZE } from '../types.js';
 import { computeNormalModeCursor } from './officeCanvasCursor.js';
 
 interface OfficeCanvasProps {
   officeState: OfficeState;
   onClick: (agentId: number) => void;
-  isEditMode: boolean;
-  editorState: EditorState;
-  onEditorTileAction: (col: number, row: number) => void;
-  onEditorEraseAction: (col: number, row: number) => void;
-  onEditorSelectionChange: () => void;
-  onDeleteSelected: () => void;
-  onRotateSelected: () => void;
-  onDragMove: (uid: string, newCol: number, newRow: number) => void;
-  editorTick: number;
   /** Reports the fit zoom the canvas derived from the viewport and layout. */
   onZoomChange: (zoom: number) => void;
   panRef: React.MutableRefObject<{ x: number; y: number }>;
-  /** Whether the area overlay + labels should render (settings toggle OR active edit). */
+  /** Whether the area overlay + labels render (the Show Areas setting). */
   showAreas: boolean;
-  /** Currently-selected area label in the editor (alpha-bumped overlay). null otherwise. */
-  activeAreaLabel: string | null;
 }
 
 export function OfficeCanvas({
   officeState,
   onClick,
-  isEditMode,
-  editorState,
-  onEditorTileAction,
-  onEditorEraseAction,
-  onEditorSelectionChange,
-  onDeleteSelected,
-  onRotateSelected,
-  onDragMove,
   onZoomChange,
   panRef,
   showAreas,
-  activeAreaLabel,
 }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const officeRendererRef = useRef<OfficeSceneRenderer | null>(null);
@@ -75,11 +44,7 @@ export function OfficeCanvas({
   // Middle-mouse pan state (imperative, no re-renders)
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ mouseX: 0, mouseY: 0, panX: 0, panY: 0 });
-  // Delete/rotate button bounds (updated each frame by renderer)
-  const deleteButtonBoundsRef = useRef<DeleteButtonBounds | null>(null);
-  const rotateButtonBoundsRef = useRef<RotateButtonBounds | null>(null);
-  // Right-click erase dragging
-  const isEraseDraggingRef = useRef(false);
+
   // Zoom the canvas renders at. Derived every frame from the viewport, so the
   // render loop and hit-testing read it here instead of waiting a React render.
   const viewZoomRef = useRef(ZOOM_MIN);
@@ -104,31 +69,17 @@ export function OfficeCanvas({
 
   // Snapshot of the props the persistent render loop reads every frame. The
   // mount effect below creates the Pixi Application exactly once; recreating
-  // it on every zoom/editor-tool change would tear down and rebuild the
-  // WebGL context (and every retained sprite) on each scroll-wheel zoom
-  // step, so the loop reads these through a ref instead of closing over
-  // props and re-running the effect when they change.
-  const frameParamsRef = useRef({
-    officeState,
-    isEditMode,
-    editorState,
-    showAreas,
-    activeAreaLabel,
-  });
-  frameParamsRef.current = {
-    officeState,
-    isEditMode,
-    editorState,
-    showAreas,
-    activeAreaLabel,
-  };
+  // it on every prop change would tear down and rebuild the WebGL context (and
+  // every retained sprite), so the loop reads these through a ref instead of
+  // closing over props and re-running the effect when they change.
+  const frameParamsRef = useRef({ officeState, showAreas });
+  frameParamsRef.current = { officeState, showAreas };
 
   const clampToView = useCallback((pan: { x: number; y: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return pan;
-    const { officeState, isEditMode } = frameParamsRef.current;
-    const layout = officeState.getLayout();
-    const view = boundsRect(isEditMode ? editBounds(layout) : contentBounds(layout));
+    const layout = frameParamsRef.current.officeState.getLayout();
+    const view = boundsRect(contentBounds(layout));
     return clampPan(pan, gridRect(layout), view, viewZoomRef.current, canvas.width, canvas.height);
   }, []);
 
@@ -160,13 +111,10 @@ export function OfficeCanvas({
         frameParamsRef.current.officeState.update(dt);
       },
       render: () => {
-        const { officeState, isEditMode, editorState, showAreas, activeAreaLabel } =
-          frameParamsRef.current;
+        const { officeState, showAreas } = frameParamsRef.current;
         const layout = officeState.getLayout();
 
-        // The editor keeps the zoom it entered with: re-fitting as tiles are
-        // painted or erased would rescale the grid under the cursor mid-stroke.
-        if (!isEditMode && canvas.width > 0 && canvas.height > 0) {
+        if (canvas.width > 0 && canvas.height > 0) {
           const view = boundsRect(contentBounds(layout));
           const target = fitZoom(view, canvas.width, canvas.height);
           if (!hasViewRef.current) {
@@ -190,107 +138,6 @@ export function OfficeCanvas({
           }
         }
         const zoom = viewZoomRef.current;
-
-        // Build editor render state
-        let editorRender: EditorRenderState | undefined;
-        if (isEditMode) {
-          const showGhostBorder =
-            editorState.activeTool === EditTool.TILE_PAINT ||
-            editorState.activeTool === EditTool.WALL_PAINT ||
-            editorState.activeTool === EditTool.ERASE;
-          editorRender = {
-            showGrid: true,
-            ghostSprite: null,
-            ghostFootprintW: 1,
-            ghostFootprintH: 1,
-            ghostMirrored: false,
-            ghostCol: editorState.ghostCol,
-            ghostRow: editorState.ghostRow,
-            ghostValid: editorState.ghostValid,
-            selectedCol: 0,
-            selectedRow: 0,
-            selectedW: 0,
-            selectedH: 0,
-            hasSelection: false,
-            isRotatable: false,
-            deleteButtonBounds: null,
-            rotateButtonBounds: null,
-            showGhostBorder,
-            ghostBorderHoverCol: showGhostBorder ? editorState.ghostCol : -999,
-            ghostBorderHoverRow: showGhostBorder ? editorState.ghostRow : -999,
-          };
-
-          // Ghost preview for furniture placement
-          if (editorState.activeTool === EditTool.FURNITURE_PLACE && editorState.ghostCol >= 0) {
-            const entry = getCatalogEntry(editorState.selectedFurnitureType);
-            if (entry) {
-              const pickedColor = editorState.pickedFurnitureColor;
-              editorRender.ghostSprite = pickedColor
-                ? getColorizedSprite(
-                    `ghost-${editorState.selectedFurnitureType}-${pickedColor.h}-${pickedColor.s}-${pickedColor.b}-${pickedColor.c}-${pickedColor.colorize ?? ''}`,
-                    entry.sprite,
-                    pickedColor,
-                  )
-                : entry.sprite;
-              editorRender.ghostFootprintW = entry.footprintW;
-              editorRender.ghostFootprintH = entry.footprintH;
-              editorRender.ghostMirrored =
-                !!entry.mirrorSide && editorState.selectedFurnitureType.endsWith(':left');
-              editorRender.ghostValid = canPlaceFurniture(
-                officeState.getLayout(),
-                editorState.selectedFurnitureType,
-                editorState.ghostCol,
-                editorState.ghostRow,
-              );
-            }
-          }
-
-          // Ghost preview for drag-to-move
-          if (editorState.isDragMoving && editorState.dragUid && editorState.ghostCol >= 0) {
-            const draggedItem = officeState
-              .getLayout()
-              .furniture.find((f) => f.uid === editorState.dragUid);
-            if (draggedItem) {
-              const entry = getCatalogEntry(draggedItem.type);
-              if (entry) {
-                const ghostCol = editorState.ghostCol - editorState.dragOffsetCol;
-                const ghostRow = editorState.ghostRow - editorState.dragOffsetRow;
-                editorRender.ghostSprite = entry.sprite;
-                editorRender.ghostFootprintW = entry.footprintW;
-                editorRender.ghostFootprintH = entry.footprintH;
-                editorRender.ghostCol = ghostCol;
-                editorRender.ghostRow = ghostRow;
-                editorRender.ghostMirrored =
-                  !!entry.mirrorSide && draggedItem.type.endsWith(':left');
-                editorRender.ghostValid = canPlaceFurniture(
-                  officeState.getLayout(),
-                  draggedItem.type,
-                  ghostCol,
-                  ghostRow,
-                  editorState.dragUid,
-                );
-              }
-            }
-          }
-
-          // Selection highlight
-          if (editorState.selectedFurnitureUid && !editorState.isDragMoving) {
-            const item = officeState
-              .getLayout()
-              .furniture.find((f) => f.uid === editorState.selectedFurnitureUid);
-            if (item) {
-              const entry = getCatalogEntry(item.type);
-              if (entry) {
-                editorRender.hasSelection = true;
-                editorRender.selectedCol = item.col;
-                editorRender.selectedRow = item.row;
-                editorRender.selectedW = entry.footprintW;
-                editorRender.selectedH = entry.footprintH;
-                editorRender.isRotatable = isRotatable(item.type);
-              }
-            }
-          }
-        }
 
         // Camera: smoothly center on the followed agent, or while the greeter
         // is speaking the Intro, on the character+bubble center the IntroBubble
@@ -347,7 +194,6 @@ export function OfficeCanvas({
           panX: panRef.current.x,
           panY: panRef.current.y,
           selection: selectionRender,
-          editor: editorRender,
           tileColors: layout.tileColors,
           layoutCols: layout.cols,
           layoutRows: layout.rows,
@@ -355,15 +201,10 @@ export function OfficeCanvas({
           areas: layout.areas,
           areaTiles: layout.areaTiles,
           showAreas,
-          activeAreaLabel,
           pets: officeState.pets,
         };
         const { offsetX, offsetY } = officeRenderer.renderFrame(worldState);
         offsetRef.current = { x: offsetX, y: offsetY };
-
-        // Store delete/rotate button bounds for hit-testing
-        deleteButtonBoundsRef.current = editorRender?.deleteButtonBounds ?? null;
-        rotateButtonBoundsRef.current = editorRender?.rotateButtonBounds ?? null;
       },
     });
 
@@ -412,39 +253,11 @@ export function OfficeCanvas({
       const col = Math.floor(pos.worldX / TILE_SIZE);
       const row = Math.floor(pos.worldY / TILE_SIZE);
       const layout = officeState.getLayout();
-      // In edit mode with floor/wall/erase tool, extend valid range by 1 for ghost border
-      if (
-        isEditMode &&
-        (editorState.activeTool === EditTool.TILE_PAINT ||
-          editorState.activeTool === EditTool.WALL_PAINT ||
-          editorState.activeTool === EditTool.ERASE)
-      ) {
-        if (col < -1 || col > layout.cols || row < -1 || row > layout.rows) return null;
-        return { col, row };
-      }
       if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return null;
       return { col, row };
     },
-    [screenToWorld, officeState, isEditMode, editorState],
+    [screenToWorld, officeState],
   );
-
-  // Check if device-pixel coords hit the delete button
-  const hitTestDeleteButton = useCallback((deviceX: number, deviceY: number): boolean => {
-    const bounds = deleteButtonBoundsRef.current;
-    if (!bounds) return false;
-    const dx = deviceX - bounds.cx;
-    const dy = deviceY - bounds.cy;
-    return dx * dx + dy * dy <= (bounds.radius + 2) * (bounds.radius + 2); // small padding
-  }, []);
-
-  // Check if device-pixel coords hit the rotate button
-  const hitTestRotateButton = useCallback((deviceX: number, deviceY: number): boolean => {
-    const bounds = rotateButtonBoundsRef.current;
-    if (!bounds) return false;
-    const dx = deviceX - bounds.cx;
-    const dy = deviceY - bounds.cy;
-    return dx * dx + dy * dy <= (bounds.radius + 2) * (bounds.radius + 2);
-  }, []);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
@@ -457,101 +270,6 @@ export function OfficeCanvas({
           x: panStartRef.current.panX + dx,
           y: panStartRef.current.panY + dy,
         });
-        return;
-      }
-
-      if (isEditMode) {
-        const tile = screenToTile(e.clientX, e.clientY);
-        if (tile) {
-          editorState.ghostCol = tile.col;
-          editorState.ghostRow = tile.row;
-
-          // Drag-to-move: check if cursor moved to different tile
-          if (editorState.dragUid && !editorState.isDragMoving) {
-            if (tile.col !== editorState.dragStartCol || tile.row !== editorState.dragStartRow) {
-              editorState.isDragMoving = true;
-            }
-          }
-
-          // Paint on drag (paint-style tools only, not during furniture drag).
-          // Carpet + Area paint join the drag set so a single click-drag stamps
-          // every tile under the cursor — stroke-based undo lives in
-          // useEditorActions for carpet, per-tile undo for area.
-          if (
-            editorState.isDragging &&
-            (editorState.activeTool === EditTool.TILE_PAINT ||
-              editorState.activeTool === EditTool.WALL_PAINT ||
-              editorState.activeTool === EditTool.ERASE ||
-              editorState.activeTool === EditTool.CARPET_PAINT ||
-              editorState.activeTool === EditTool.AREA_PAINT) &&
-            !editorState.dragUid
-          ) {
-            onEditorTileAction(tile.col, tile.row);
-          }
-          // Right-click erase drag — also extends over carpets/areas so right-
-          // drag wipes them just like floor/wall.
-          if (
-            isEraseDraggingRef.current &&
-            (editorState.activeTool === EditTool.TILE_PAINT ||
-              editorState.activeTool === EditTool.WALL_PAINT ||
-              editorState.activeTool === EditTool.ERASE ||
-              editorState.activeTool === EditTool.CARPET_PAINT ||
-              editorState.activeTool === EditTool.AREA_PAINT)
-          ) {
-            const layout = officeState.getLayout();
-            if (
-              tile.col >= 0 &&
-              tile.col < layout.cols &&
-              tile.row >= 0 &&
-              tile.row < layout.rows
-            ) {
-              onEditorEraseAction(tile.col, tile.row);
-            }
-          }
-        } else {
-          editorState.ghostCol = -1;
-          editorState.ghostRow = -1;
-        }
-
-        // Cursor: show grab during drag, pointer over delete button, crosshair otherwise
-        const canvas = canvasRef.current;
-        if (canvas) {
-          if (editorState.isDragMoving) {
-            canvas.style.cursor = 'grabbing';
-          } else {
-            const pos = screenToWorld(e.clientX, e.clientY);
-            if (
-              pos &&
-              (hitTestDeleteButton(pos.deviceX, pos.deviceY) ||
-                hitTestRotateButton(pos.deviceX, pos.deviceY))
-            ) {
-              canvas.style.cursor = 'pointer';
-            } else if (editorState.activeTool === EditTool.FURNITURE_PICK && tile) {
-              // Pick mode: show pointer over furniture, crosshair elsewhere
-              const layout = officeState.getLayout();
-              const hitFurniture = layout.furniture.find((f) => {
-                const entry = getCatalogEntry(f.type);
-                if (!entry) return false;
-                return (
-                  tile.col >= f.col &&
-                  tile.col < f.col + entry.footprintW &&
-                  tile.row >= f.row &&
-                  tile.row < f.row + entry.footprintH
-                );
-              });
-              canvas.style.cursor = hitFurniture ? 'pointer' : 'crosshair';
-            } else if (
-              editorState.activeTool === EditTool.SELECT ||
-              (editorState.activeTool === EditTool.FURNITURE_PLACE &&
-                editorState.selectedFurnitureType === '')
-            ) {
-              const overFurniture = pos !== null && officeState.getFurnitureAt(pos.isoX, pos.isoY);
-              canvas.style.cursor = overFurniture ? 'grab' : 'crosshair';
-            } else {
-              canvas.style.cursor = 'crosshair';
-            }
-          }
-        }
         return;
       }
 
@@ -576,210 +294,40 @@ export function OfficeCanvas({
       }
       officeState.hoveredAgentId = hitId;
     },
-    [
-      officeState,
-      screenToWorld,
-      screenToTile,
-      isEditMode,
-      editorState,
-      onEditorTileAction,
-      onEditorEraseAction,
-      panRef,
-      hitTestDeleteButton,
-      hitTestRotateButton,
-      clampToView,
-    ],
+    [officeState, screenToWorld, screenToTile, panRef, clampToView],
   );
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       unlockAudio();
-      // Middle mouse button (button 1) starts panning
-      if (e.button === 1) {
-        e.preventDefault();
-        // Break camera follow + greeter centering on manual pan
-        officeState.cameraFollowId = null;
-        officeState.cancelGreeterCamera();
-        isPanningRef.current = true;
-        panStartRef.current = {
-          mouseX: e.clientX,
-          mouseY: e.clientY,
-          panX: panRef.current.x,
-          panY: panRef.current.y,
-        };
-        const canvas = canvasRef.current;
-        if (canvas) canvas.style.cursor = 'grabbing';
-        return;
-      }
-
-      // Right-click in edit mode for erasing
-      if (e.button === 2 && isEditMode) {
-        const tile = screenToTile(e.clientX, e.clientY);
-        if (
-          tile &&
-          (editorState.activeTool === EditTool.TILE_PAINT ||
-            editorState.activeTool === EditTool.WALL_PAINT ||
-            editorState.activeTool === EditTool.ERASE ||
-            editorState.activeTool === EditTool.CARPET_PAINT ||
-            editorState.activeTool === EditTool.AREA_PAINT)
-        ) {
-          const layout = officeState.getLayout();
-          if (tile.col >= 0 && tile.col < layout.cols && tile.row >= 0 && tile.row < layout.rows) {
-            isEraseDraggingRef.current = true;
-            onEditorEraseAction(tile.col, tile.row);
-          }
-        }
-        return;
-      }
-
-      if (!isEditMode) return;
-
-      // Check rotate/delete button hit first
-      const pos = screenToWorld(e.clientX, e.clientY);
-      if (pos && hitTestRotateButton(pos.deviceX, pos.deviceY)) {
-        onRotateSelected();
-        return;
-      }
-      if (pos && hitTestDeleteButton(pos.deviceX, pos.deviceY)) {
-        onDeleteSelected();
-        return;
-      }
-
-      const tile = screenToTile(e.clientX, e.clientY);
-
-      // SELECT tool (or furniture tool with nothing selected): check for furniture hit to start drag
-      const actAsSelect =
-        editorState.activeTool === EditTool.SELECT ||
-        (editorState.activeTool === EditTool.FURNITURE_PLACE &&
-          editorState.selectedFurnitureType === '');
-      if (actAsSelect && tile) {
-        const layout = officeState.getLayout();
-        // Prefer the sprite under the cursor (tall pieces cover tiles behind
-        // their footprint), then any footprint on the tile, surface items first.
-        const spriteUid = pos ? officeState.getFurnitureAt(pos.isoX, pos.isoY) : null;
-        let hitFurniture = spriteUid
-          ? (layout.furniture.find((f) => f.uid === spriteUid) ?? null)
-          : null;
-        for (const f of hitFurniture ? [] : layout.furniture) {
-          const entry = getCatalogEntry(f.type);
-          if (!entry) continue;
-          if (
-            tile.col >= f.col &&
-            tile.col < f.col + entry.footprintW &&
-            tile.row >= f.row &&
-            tile.row < f.row + entry.footprintH
-          ) {
-            if (!hitFurniture || entry.canPlaceOnSurfaces) hitFurniture = f;
-          }
-        }
-        if (hitFurniture) {
-          // Start drag — record offset from furniture's top-left
-          editorState.startDrag(
-            hitFurniture.uid,
-            tile.col,
-            tile.row,
-            tile.col - hitFurniture.col,
-            tile.row - hitFurniture.row,
-          );
-          return;
-        } else {
-          // Clicked empty space — deselect
-          editorState.clearSelection();
-          onEditorSelectionChange();
-        }
-      }
-
-      // Non-select tools: start paint drag
-      editorState.isDragging = true;
-      if (tile) {
-        onEditorTileAction(tile.col, tile.row);
-      }
+      if (e.button !== 1) return;
+      // Middle mouse button starts panning
+      e.preventDefault();
+      // Break camera follow + greeter centering on manual pan
+      officeState.cameraFollowId = null;
+      officeState.cancelGreeterCamera();
+      isPanningRef.current = true;
+      panStartRef.current = {
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      };
+      const canvas = canvasRef.current;
+      if (canvas) canvas.style.cursor = 'grabbing';
     },
-    [
-      officeState,
-      isEditMode,
-      editorState,
-      screenToTile,
-      screenToWorld,
-      onEditorTileAction,
-      onEditorEraseAction,
-      onEditorSelectionChange,
-      onDeleteSelected,
-      onRotateSelected,
-      hitTestDeleteButton,
-      hitTestRotateButton,
-      panRef,
-    ],
+    [officeState, panRef],
   );
 
-  const handleMouseUp = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.button === 1) {
-        isPanningRef.current = false;
-        const canvas = canvasRef.current;
-        if (canvas) canvas.style.cursor = isEditMode ? 'crosshair' : 'default';
-        return;
-      }
-      if (e.button === 2) {
-        isEraseDraggingRef.current = false;
-        // Close any in-progress carpet / area stroke so the next stroke
-        // starts a fresh undo entry instead of bundling into this one.
-        editorState.carpetStrokeInitialLayout = null;
-        editorState.carpetDragErasing = null;
-        editorState.areaDragErasing = null;
-        return;
-      }
-
-      // Handle drag-to-move completion
-      if (editorState.dragUid) {
-        if (editorState.isDragMoving) {
-          // Compute target position
-          const ghostCol = editorState.ghostCol - editorState.dragOffsetCol;
-          const ghostRow = editorState.ghostRow - editorState.dragOffsetRow;
-          const draggedItem = officeState
-            .getLayout()
-            .furniture.find((f) => f.uid === editorState.dragUid);
-          if (draggedItem) {
-            const valid = canPlaceFurniture(
-              officeState.getLayout(),
-              draggedItem.type,
-              ghostCol,
-              ghostRow,
-              editorState.dragUid,
-            );
-            if (valid) {
-              onDragMove(editorState.dragUid, ghostCol, ghostRow);
-            }
-          }
-          editorState.clearSelection();
-        } else {
-          // Click (no movement) — toggle selection
-          if (editorState.selectedFurnitureUid === editorState.dragUid) {
-            editorState.clearSelection();
-          } else {
-            editorState.selectedFurnitureUid = editorState.dragUid;
-          }
-        }
-        editorState.clearDrag();
-        onEditorSelectionChange();
-        const canvas = canvasRef.current;
-        if (canvas) canvas.style.cursor = 'crosshair';
-        return;
-      }
-
-      editorState.isDragging = false;
-      editorState.wallDragAdding = null;
-      // Close the current carpet stroke so the next click starts a fresh undo entry.
-      editorState.carpetStrokeInitialLayout = null;
-      editorState.carpetDragErasing = null;
-      editorState.areaDragErasing = null;
-    },
-    [editorState, isEditMode, officeState, onDragMove, onEditorSelectionChange],
-  );
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 1) return;
+    isPanningRef.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) canvas.style.cursor = 'default';
+  }, []);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
-      if (isEditMode) return; // handled by mouseDown/mouseUp
       const pos = screenToWorld(e.clientX, e.clientY);
       if (!pos) return;
 
@@ -848,36 +396,23 @@ export function OfficeCanvas({
         officeState.cameraFollowId = null;
       }
     },
-    [officeState, onClick, screenToWorld, screenToTile, isEditMode],
+    [officeState, onClick, screenToWorld, screenToTile],
   );
 
   const handleMouseLeave = useCallback(() => {
     isPanningRef.current = false;
-    isEraseDraggingRef.current = false;
-    editorState.isDragging = false;
-    editorState.wallDragAdding = null;
-    editorState.carpetStrokeInitialLayout = null;
-    editorState.carpetDragErasing = null;
-    editorState.areaDragErasing = null;
-    editorState.clearDrag();
-    editorState.ghostCol = -1;
-    editorState.ghostRow = -1;
     officeState.hoveredAgentId = null;
     officeState.hoveredTile = null;
-
-    // Reset cursor in non-edit mode so pointer doesn't get stuck after hovering a pet.
-    if (!isEditMode) {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        canvas.style.cursor = 'default';
-      }
+    // Reset the cursor so it doesn't stay a pointer after hovering a pet.
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = 'default';
     }
-  }, [officeState, editorState, isEditMode]);
+  }, [officeState]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      if (isEditMode) return;
       // Right-click to walk selected agent to tile
       if (officeState.selectedAgentId !== null) {
         const tile = screenToTile(e.clientX, e.clientY);
@@ -886,7 +421,7 @@ export function OfficeCanvas({
         }
       }
     },
-    [isEditMode, officeState, screenToTile],
+    [officeState, screenToTile],
   );
 
   // Wheel / trackpad scrolls the office. Ctrl+wheel (trackpad pinch) is

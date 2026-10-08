@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { LAYOUT_ICON, SETTINGS_ICON } from './hudIcons.js';
+import { SETTINGS_ICON } from './hudIcons.js';
 import { PixelIcon } from './ui/PixelIcon.js';
 
 interface PlankButtonProps {
@@ -35,31 +35,17 @@ function PlankNail({ position }: { position: string }) {
 }
 
 interface BottomToolbarProps {
-  isEditMode: boolean;
-  onToggleEditMode: () => void;
   isSettingsOpen: boolean;
   onToggleSettings: () => void;
 }
 
-export function BottomToolbar({
-  isEditMode,
-  onToggleEditMode,
-  isSettingsOpen,
-  onToggleSettings,
-}: BottomToolbarProps) {
+export function BottomToolbar({ isSettingsOpen, onToggleSettings }: BottomToolbarProps) {
   return (
     <div className="absolute bottom-10 left-10 z-20 flex items-center gap-4 wood-plank py-6 px-14">
       <PlankNail position="top-3 left-3" />
       <PlankNail position="top-3 right-3" />
       <PlankNail position="bottom-3 left-3" />
       <PlankNail position="bottom-3 right-3" />
-      <PlankButton
-        icon={LAYOUT_ICON}
-        label="Layout"
-        pressed={isEditMode}
-        onClick={onToggleEditMode}
-        title="Edit office layout"
-      />
       <PlankButton
         icon={SETTINGS_ICON}
         label="Settings"

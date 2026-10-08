@@ -4,9 +4,11 @@
  * writes them under the isolated HOME before the server starts (see
  * e2e/helpers/standalone.ts), so the server reads them on startup.
  *
- * A seeded layout MUST carry a layoutRevision above the bundled default's (3),
- * or `loadLayout` resets it to the bundled default
- * (server/src/layoutPersistence.ts). SEED_LAYOUT_REVISION sits far above that.
+ * A seeded layout carries a high layoutRevision (SEED_LAYOUT_REVISION) purely
+ * as a marker a spec can assert against: the server never resets a layout by
+ * revision. It serves `layout.json` verbatim whenever the file exists
+ * (server/src/layoutPersistence.ts), falling back to the bundled default only
+ * when it is missing.
  */
 
 /** Far above the bundled default-layout revision so a seeded layout survives load. */
@@ -42,12 +44,18 @@ export interface SeedLayoutOptions {
   areaTiles?: SeedAreaTile[];
   /** Sparse carpet tiles; expanded to a full parallel array (default colors). */
   carpetTiles?: SeedCarpetTile[];
+  /** Chair coordinates; each becomes a WOODEN_CHAIR_FRONT furniture item, so
+   *  `layoutToSeats` derives a real seat there
+   *  (webview-ui/src/office/layout/layoutSerializer.ts). */
+  chairs?: Array<{ col: number; row: number }>;
+  /** Placed pets, round-tripped through `layout.pets` verbatim. */
+  pets?: Array<{ id: string; petType: number }>;
 }
 
 /**
- * Build a minimal valid OfficeLayout (version 1, all-floor, no furniture) with
- * optional carpet/area data, suitable for `test.use({ seedLayout })`. No chairs
- * means no seats — use the bundled default layout (don't seed) for seat tests.
+ * Build a minimal valid OfficeLayout (version 1, all-floor, no furniture by
+ * default) with optional carpet/area/chair/pet data, suitable for
+ * `test.use({ seedLayout })`.
  */
 export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, unknown> {
   const cols = opts.cols ?? 12;
@@ -60,7 +68,12 @@ export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, un
     cols,
     rows,
     tiles,
-    furniture: [],
+    furniture: (opts.chairs ?? []).map((seat, i) => ({
+      uid: `seed-chair-${i.toString()}`,
+      type: 'WOODEN_CHAIR_FRONT',
+      col: seat.col,
+      row: seat.row,
+    })),
     layoutRevision: SEED_LAYOUT_REVISION,
   };
 
@@ -80,6 +93,9 @@ export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, un
       carpetTiles[t.row * cols + t.col] = { variant: t.variant };
     }
     layout.carpetTiles = carpetTiles;
+  }
+  if (opts.pets) {
+    layout.pets = opts.pets;
   }
 
   return layout;

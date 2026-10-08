@@ -106,7 +106,7 @@ Before using it, copy `port` and `token` from `~/.pixel-agents/server.json` into
 
 - **Shared backend timing/scanning constants:** `server/src/constants.ts`
 - **Protocol-level constants:** `core/src/constants.ts`
-- **Webview:** `webview-ui/src/constants.ts` (grid, animation, rendering, camera, zoom, editor, canvas overlay rgba strings)
+- **Webview:** `webview-ui/src/constants.ts` (grid, animation, rendering, camera, zoom, canvas overlay rgba strings)
 - **CSS variables:** `webview-ui/src/index.css` `:root` block (`--pixel-*` properties for React inline styles and CSS)
 
 ### UI Styling

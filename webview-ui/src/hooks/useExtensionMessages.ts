@@ -18,7 +18,6 @@ import {
   setProviderCapabilities,
 } from '../office/toolUtils.js';
 import type { OfficeLayout, ToolActivity } from '../office/types.js';
-import { setWallSprites } from '../office/wallTiles.js';
 import { isE2E } from '../runtime.js';
 import { transport } from '../transport/index.js';
 
@@ -62,9 +61,6 @@ interface ExtensionMessageState {
   subagentCharacters: SubagentCharacter[];
   layoutReady: boolean;
   layoutWasReset: boolean;
-  loadedAssets?: { catalog: FurnitureAsset[]; sprites: Record<string, string[][]> };
-  /** Distinct folderNames seen across agents this session — source for the Areas folder dropdown. */
-  agentFolderNames: string[];
   externalAssetDirectories: string[];
   lastSeenVersion: string;
   extensionVersion: string;
@@ -88,8 +84,6 @@ interface ExtensionMessageState {
   consentRequest: HooksConsentRequest | null;
   dismissConsentRequest: (providerId: string | null) => void;
   // Areas
-  areaMappings: Record<string, string[]>;
-  setAreaMappings: (m: Record<string, string[]>) => void;
   showAreas: boolean;
   setShowAreas: (v: boolean) => void;
 }
@@ -98,11 +92,7 @@ function saveAgentSeats(os: OfficeState): void {
   transport.send({ type: 'saveAgentSeats', seats: os.getPersistableSeats() });
 }
 
-export function useExtensionMessages(
-  getOfficeState: () => OfficeState,
-  onLayoutLoaded?: (layout: OfficeLayout) => void,
-  isEditDirty?: () => boolean,
-): ExtensionMessageState {
+export function useExtensionMessages(getOfficeState: () => OfficeState): ExtensionMessageState {
   const [agents, setAgents] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [agentTools, setAgentTools] = useState<Record<number, ToolActivity[]>>({});
@@ -113,10 +103,6 @@ export function useExtensionMessages(
   const [subagentCharacters, setSubagentCharacters] = useState<SubagentCharacter[]>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const [layoutWasReset, setLayoutWasReset] = useState(false);
-  const [loadedAssets, setLoadedAssets] = useState<
-    { catalog: FurnitureAsset[]; sprites: Record<string, string[][]> } | undefined
-  >();
-  const [agentFolderNames, setAgentFolderNames] = useState<string[]>([]);
   const [externalAssetDirectories, setExternalAssetDirectories] = useState<string[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState('');
   const [extensionVersion, setExtensionVersion] = useState('');
@@ -131,7 +117,6 @@ export function useExtensionMessages(
   // than dropping it — the server sends one request per provider on the same handshake.
   const [consentQueue, setConsentQueue] = useState<HooksConsentRequest[]>([]);
   const consentRequest = consentQueue[0] ?? null;
-  const [areaMappings, setAreaMappings] = useState<Record<string, string[]>>({});
   const [showAreas, setShowAreas] = useState(false);
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
@@ -146,14 +131,6 @@ export function useExtensionMessages(
   useEffect(() => {
     // Buffer agents from existingAgents until layout is loaded
     let pendingAgents: PendingAgent[] = [];
-
-    // Accumulate distinct folderNames seen across agents (never removed during the
-    // session): the source for the Areas folder-mapping dropdown, so a folder stays
-    // editable even after its agents close.
-    const noteFolderName = (name?: string) => {
-      if (!name) return;
-      setAgentFolderNames((prev) => (prev.includes(name) ? prev : [...prev, name]));
-    };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = (msg: any) => {
@@ -185,19 +162,10 @@ export function useExtensionMessages(
       }
 
       if (msg.type === 'layoutLoaded') {
-        // Skip external layout updates while editor has unsaved changes
-        if (layoutReadyRef.current && isEditDirty?.()) {
-          console.log('[Webview] Skipping external layout update — editor has unsaved changes');
-          return;
-        }
         const rawLayout = msg.layout as OfficeLayout | null;
         const layout = rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null;
         if (layout) {
           os.rebuildFromLayout(layout);
-          onLayoutLoaded?.(layout);
-        } else {
-          // Default layout — snapshot whatever OfficeState built
-          onLayoutLoaded?.(os.getLayout());
         }
         // Add buffered agents now that layout (and seats) are correct
         for (const p of pendingAgents) {
@@ -240,7 +208,6 @@ export function useExtensionMessages(
             parentCh?.folderName,
             teammateParentId,
           );
-          noteFolderName(parentCh?.folderName);
           // Set team metadata on the character
           const ch = os.characters.get(id);
           if (ch) {
@@ -252,7 +219,6 @@ export function useExtensionMessages(
           const palette = msg.palette as number | undefined;
           const hueShift = msg.hueShift as number | undefined;
           os.addAgent(id, palette, hueShift, undefined, undefined, folderName);
-          noteFolderName(folderName);
         }
         saveAgentSeats(os);
       } else if (msg.type === 'agentClosed') {
@@ -289,9 +255,6 @@ export function useExtensionMessages(
         const incoming = msg.agents as number[];
         const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
         const folderNames = (msg.folderNames || {}) as Record<number, string>;
-        for (const id of incoming) {
-          noteFolderName(folderNames[id]);
-        }
         // Order-independent restore: add agents now if the layout (and its seats)
         // is already built, otherwise buffer them for the next layoutLoaded.
         // Depending on layoutLoaded always arriving last stranded restored agents
@@ -596,11 +559,6 @@ export function useExtensionMessages(
         console.log(`[Webview] Received ${sprites.length} floor tile patterns`);
         destroyAllTextures();
         setFloorSprites(sprites);
-      } else if (msg.type === 'wallTilesLoaded') {
-        const sets = msg.sets as string[][][][];
-        console.log(`[Webview] Received ${sets.length} wall tile set(s)`);
-        destroyAllTextures();
-        setWallSprites(sets);
       } else if (msg.type === 'carpetTilesLoaded') {
         const sets = msg.sets as string[][][][];
         console.log(`[Webview] Received ${sets.length} carpet variant(s)`);
@@ -608,7 +566,6 @@ export function useExtensionMessages(
         setCarpetSprites(sets);
       } else if (msg.type === 'areaMappingsLoaded') {
         const mappings = (msg.mappings ?? {}) as Record<string, string[]>;
-        setAreaMappings(mappings);
         os.setAreaMappings(mappings);
       } else if (msg.type === 'settingsLoaded') {
         const soundOn = msg.soundEnabled as boolean;
@@ -682,7 +639,6 @@ export function useExtensionMessages(
           // Build dynamic catalog immediately so getCatalogEntry() works when layoutLoaded arrives next
           buildDynamicCatalog({ catalog, sprites });
           destroyAllTextures();
-          setLoadedAssets({ catalog, sprites });
         } catch (err) {
           console.error(`❌ Webview: Error processing furnitureAssetsLoaded:`, err);
         }
@@ -710,7 +666,6 @@ export function useExtensionMessages(
     const unsubscribe = transport.onMessage(handler);
     transport.send({ type: 'webviewReady' });
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getOfficeState]);
 
   // Idle sub-agent characters between their turns: when every tracked tool row
@@ -738,8 +693,6 @@ export function useExtensionMessages(
     subagentCharacters,
     layoutReady,
     layoutWasReset,
-    loadedAssets,
-    agentFolderNames,
     externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
@@ -763,8 +716,6 @@ export function useExtensionMessages(
         ),
       [],
     ),
-    areaMappings,
-    setAreaMappings,
     showAreas,
     setShowAreas,
   };

@@ -60,8 +60,8 @@ export interface LaunchStandaloneOptions {
   seedHooksConsent?: boolean;
   /** Full `~/.pixel-agents/config.json` to seed instead of the baseline. */
   seedConfig?: unknown;
-  /** `~/.pixel-agents/layout.json` to seed (must carry a high layoutRevision to
-   *  survive the bundled-default reset). */
+  /** `~/.pixel-agents/layout.json` to seed. The server serves it verbatim
+   *  whenever the file exists and never resets it by revision. */
   seedLayout?: unknown;
   /** `~/.claude/settings.json` to seed before the server starts. A string is
    *  written verbatim so a spec can seed a deliberately unparseable file. */

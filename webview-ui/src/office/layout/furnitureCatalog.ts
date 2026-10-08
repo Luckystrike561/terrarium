@@ -24,8 +24,7 @@ export interface LoadedAssetData {
   sprites: Record<string, SpriteData>;
 }
 
-export type FurnitureCategory =
-  'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'misc';
+type FurnitureCategory = 'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'misc';
 
 /** @internal */
 export interface CatalogEntryWithCategory extends FurnitureCatalogEntry {
@@ -59,9 +58,8 @@ const animationGroups = new Map<string, string[]>();
 let internalCatalog: CatalogEntryWithCategory[] | null = null;
 
 // Dynamic catalog built from loaded assets (when available)
-// Only includes "front" variants for grouped items (shown in editor palette)
+// Only includes "front" variants for grouped items
 let dynamicCatalog: CatalogEntryWithCategory[] | null = null;
-let dynamicCategories: FurnitureCategory[] | null = null;
 
 /**
  * Build catalog from loaded assets. Returns true if successful.
@@ -295,9 +293,6 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
   }
 
   dynamicCatalog = visibleEntries;
-  dynamicCategories = Array.from(new Set(visibleEntries.map((e) => e.category)))
-    .filter((c): c is FurnitureCategory => !!c)
-    .sort();
 
   const rotGroupCount = new Set(Array.from(rotationGroups.values())).size;
   const animGroupCount = animationGroups.size;
@@ -315,51 +310,6 @@ export function getCatalogEntry(type: string): CatalogEntryWithCategory | undefi
   return dynamicCatalog?.find((e) => e.type === type);
 }
 
-export function getCatalogByCategory(category: FurnitureCategory): CatalogEntryWithCategory[] {
-  const catalog = dynamicCatalog ?? [];
-  return catalog.filter((e) => e.category === category);
-}
-
-/* Currently unused since the editor palette is organized by category. */
-// function getActiveCatalog(): CatalogEntryWithCategory[] {
-//   return dynamicCatalog ?? [];
-// }
-
-export function getActiveCategories(): Array<{ id: FurnitureCategory; label: string }> {
-  const categories = dynamicCategories ?? [];
-  return FURNITURE_CATEGORIES.filter((c) => categories.includes(c.id));
-}
-
-/** @internal */
-export const FURNITURE_CATEGORIES: Array<{ id: FurnitureCategory; label: string }> = [
-  { id: 'desks', label: 'Desks' },
-  { id: 'chairs', label: 'Chairs' },
-  { id: 'storage', label: 'Storage' },
-  { id: 'electronics', label: 'Tech' },
-  { id: 'decor', label: 'Decor' },
-  { id: 'wall', label: 'Wall' },
-  { id: 'misc', label: 'Misc' },
-];
-
-// ── Rotation helpers ─────────────────────────────────────────────
-
-/** Returns the next asset ID in the rotation group (cw or ccw), or null if not rotatable. */
-export function getRotatedType(currentType: string, direction: 'cw' | 'ccw'): string | null {
-  const group = rotationGroups.get(currentType);
-  if (!group) return null;
-  const order = group.orientations.map((o) => group.members[o]);
-  const idx = order.indexOf(currentType);
-  if (idx === -1) return null;
-  const step = direction === 'cw' ? 1 : -1;
-  const nextIdx = (idx + step + order.length) % order.length;
-  return order[nextIdx];
-}
-
-/** Returns the toggled state variant (on↔off), or null if no state variant exists. */
-export function getToggledType(currentType: string): string | null {
-  return stateGroups.get(currentType) ?? null;
-}
-
 /** Returns the "on" variant if this type has one, otherwise returns the type unchanged. */
 export function getOnStateType(currentType: string): string {
   return offToOn.get(currentType) ?? currentType;
@@ -369,11 +319,6 @@ export function getOnStateType(currentType: string): string {
 // function getOffStateType(currentType: string): string {
 //   return onToOff.get(currentType) ?? currentType;
 // }
-
-/** Returns true if the given furniture type is part of a rotation group. */
-export function isRotatable(type: string): boolean {
-  return rotationGroups.has(type);
-}
 
 /** Get ordered animation frame asset IDs for a given type, or null if not animated. */
 export function getAnimationFrames(type: string): string[] | null {

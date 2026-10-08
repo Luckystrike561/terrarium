@@ -112,7 +112,7 @@ The whole simulated world: the layout plus its inhabitants — characters and pe
 _Avoid_: map, scene, room, level
 
 **Layout**:
-The office's spatial arrangement: the tile grid, floors, walls, carpets, areas, and furniture. It is the part of the office that the editor edits and that can be exported and shared.
+The office's spatial arrangement: the tile grid, floors, walls, carpets, areas, and furniture. It is the static part of the office, generated in code or read from a saved layout file, while characters and pets move through it.
 _Avoid_: floor plan, blueprint, map
 
 **Tile**:

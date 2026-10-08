@@ -1,11 +1,7 @@
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { expect, test } from '../../fixtures/standalone';
-import type { TestHooksWindow } from '../../helpers/editor';
 import { sendHookEvent, sessionStartStartup } from '../../helpers/hooks';
-import { buildSeedLayout } from '../../helpers/layout-seed';
 import {
   closeAgentFromOverlay,
   expectOverlayCount,
@@ -120,56 +116,6 @@ test.describe('Standalone / UI', () => {
         { timeout: ASSET_RELOAD_TIMEOUT_MS },
       )
       .toBe(true);
-  });
-
-  test('browser Export Layout downloads the layout file @area:standalone', async ({
-    page,
-    standalone,
-  }) => {
-    await standalone.drainMessages();
-    const modal = await openSettingsModal(page);
-
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      modal.locator('button', { hasText: 'Export Layout' }).click(),
-    ]);
-
-    expect(download.suggestedFilename()).toBe('pixel-agents-layout.json');
-  });
-
-  test('browser Import Layout applies the chosen file @area:standalone', async ({
-    page,
-    standalone,
-  }) => {
-    await standalone.drainMessages();
-
-    const uniqueLabel = `Imported Area ${Date.now().toString()}`;
-    const layout = buildSeedLayout({
-      areas: [{ label: uniqueLabel, color: '#4287f5' }],
-      areaTiles: [{ col: 1, row: 1, label: uniqueLabel }],
-    });
-    const tmpFile = path.join(os.tmpdir(), `pixel-agents-import-${Date.now().toString()}.json`);
-    fs.writeFileSync(tmpFile, JSON.stringify(layout));
-
-    try {
-      const modal = await openSettingsModal(page);
-      // Set the hidden import input directly rather than clicking "Import
-      // Layout" (which would open the OS file dialog Playwright can't drive).
-      await page.setInputFiles('input[type="file"]', tmpFile);
-      await expect(modal).toBeHidden();
-
-      // saveLayout is client→server and unrecorded by drainMessages (Seam A),
-      // so assert the applied OfficeState instead of the wire message.
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreas?.() ?? [],
-          ),
-        )
-        .toContainEqual({ label: uniqueLabel, color: '#4287f5' });
-    } finally {
-      fs.rmSync(tmpFile, { force: true });
-    }
   });
 
   test('ConnectionIndicator appears when the WebSocket connection drops @area:standalone', async ({

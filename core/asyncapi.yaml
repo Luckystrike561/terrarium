@@ -14,7 +14,7 @@ info:
     (the standalone browser SPA, or future third-party clients). The server watches
     AI-coding-agent transcripts, parses tool activity, owns office layout, and streams
     events to all connected clients. Clients send commands to launch agents, save
-    layout, and toggle settings.
+    seat assignments, and toggle settings.
 
     The protocol is provider-agnostic: a HookProvider implementation defines how raw
     CLI events are normalized to the AgentEvent shape, which the server translates
@@ -124,7 +124,6 @@ components:
         - $ref: '#/components/schemas/WebviewReady'
         - $ref: '#/components/schemas/CloseAgent'
         - $ref: '#/components/schemas/SaveAgentSeats'
-        - $ref: '#/components/schemas/SaveLayout'
         - $ref: '#/components/schemas/SetSoundEnabled'
         - $ref: '#/components/schemas/SetLastSeenVersion'
         - $ref: '#/components/schemas/SetAlwaysShowLabels'
@@ -793,18 +792,6 @@ components:
           description: Map of agent ID (string) to seat assignment.
           additionalProperties:
             $ref: '#/components/schemas/SeatAssignment'
-
-    SaveLayout:
-      description: Save the office layout to ~/.pixel-agents/layout.json.
-      type: object
-      additionalProperties: false
-      required: [type, layout]
-      properties:
-        type:
-          const: saveLayout
-        layout:
-          type: object
-          description: Opaque layout object; format owned by the rendering layer.
 
     SetSoundEnabled:
       type: object

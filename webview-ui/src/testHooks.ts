@@ -14,7 +14,7 @@ declare global {
         waitingAwaitingInput?: boolean;
         isGreeter?: boolean;
       }>;
-      // ── Carpet + Areas observability (added for carpet/areas e2e) ──
+      // ── Carpet + Areas observability ──
       /** Sparse list of painted carpet tiles with their grid coords. */
       getCarpetTiles?: () => Array<{
         col: number;
@@ -33,7 +33,7 @@ declare global {
       getAreaTiles?: () => Array<{ col: number; row: number; label: string }>;
       /** Folder→Area mappings received by OfficeState. */
       getAreaMappings?: () => Record<string, string[]>;
-      /** Effective show-areas gate (settings toggle OR active area edit). */
+      /** The Show Areas setting the area overlay renders from. */
       getShowAreas?: () => boolean;
       /** Count of placed furniture instances — lets a spec assert furniture
        *  placed onto a carpet tile (surface placement) without it being blocked. */
@@ -45,8 +45,8 @@ declare global {
         areaLabel: string | null;
         folderName?: string;
       }>;
-      /** All seats with grid coords + the area their tile falls in — lets a spec
-       *  paint an Area over a known seat without hardcoding layout coordinates. */
+      /** All seats with grid coords + the area their tile falls in, so a spec
+       *  can find seats inside a seeded Area without hardcoding coordinates. */
       getSeats?: () => Array<{
         uid: string;
         col: number;
@@ -54,10 +54,6 @@ declare global {
         areaLabel: string | null;
         assigned: boolean;
       }>;
-      /** Drive the real edit-mode tile paint/erase handlers by (col,row),
-       *  bypassing only canvas pixel→tile geometry (mirrors petClick). */
-      editorTileAction?: (col: number, row: number) => void;
-      editorEraseAction?: (col: number, row: number) => void;
       getPets?: () => Array<{
         id: string;
         name: string;

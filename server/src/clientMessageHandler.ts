@@ -11,7 +11,7 @@ import {
   writeConfig,
 } from './configPersistence.js';
 import { HUE_SHIFT_MAX_DEG, PALETTE_COUNT } from './constants.js';
-import { readLayoutFromFile, writeLayoutToFile } from './layoutPersistence.js';
+import { readLayoutFromFile } from './layoutPersistence.js';
 import type { ConsentEffects } from './providers/consentExecutor.js';
 import { applyConsentChoice } from './providers/consentExecutor.js';
 import { hooksConsentRequest } from './providers/consentGate.js';
@@ -118,12 +118,6 @@ export function handleClientMessage(
     case 'requestDiagnostics':
       // Point-to-point reply to the requesting socket (NOT a broadcast).
       send({ type: 'agentDiagnostics', agents: buildAgentDiagnostics(store) });
-      break;
-
-    case 'saveLayout':
-      if (msg.layout) {
-        writeLayoutToFile(msg.layout as Record<string, unknown>);
-      }
       break;
 
     case 'saveAgentSeats':

@@ -7,11 +7,9 @@
  *   bubbles, badges) is built in LOCAL, unscaled iso pixel coordinates (see
  *   iso.ts: a tile is a 32×16 diamond). The simulation stays on the top-down
  *   grid; positions are projected here.
- * - Area labels and all editor-mode chrome (grid, ghost border, selection
- *   highlight, delete/rotate buttons) stay in DEVICE-PIXEL space as direct
- *   children of the stage instead: their stroke widths and the area label's
- *   minimum font size are deliberately constant-in-device-pixels, not
- *   proportional to zoom, so they can't live inside the scaled worldLayer.
+ * - Area labels stay in DEVICE-PIXEL space as direct children of the stage
+ *   instead: their minimum font size is deliberately constant-in-device-pixels,
+ *   not proportional to zoom, so they can't live inside the scaled worldLayer.
  * - Walls/furniture/characters/pets are retained Sprite pools keyed by a
  *   stable id (furniture uid, `row:col` for wall tiles, character id, pet id)
  *   and diffed every frame, then ordered with isoDrawOrder: a single depth
@@ -19,10 +17,8 @@
  *   because `OfficeState.furniture` gets a fresh array identity whenever
  *   auto-on electronics toggle, so the array reference alone isn't a valid
  *   "did anything change" signal. That's unlike the tile grid, whose
- *   `OfficeLayout` reference is only replaced on an actual edit
- *   (editorActions.ts always spreads into a new layout object before
- *   `rebuildFromLayout`), so floor / carpet / area-overlay / area-label
- *   containers rebuild only then.
+ *   `OfficeLayout` reference is only replaced when a new layout is loaded,
+ *   so floor / carpet / area-overlay / area-label containers rebuild only then.
  */
 
 // Registers Pixi's non-eval fallback for its uniform-buffer sync path before
@@ -35,7 +31,6 @@ import { Application, Container, Graphics, Sprite, Text, TextureStyle } from 'pi
 
 import type { ColorValue } from '../../components/ui/types.js';
 import {
-  AREA_ACTIVE_ALPHA_MULTIPLIER,
   AREA_LABEL_ALPHA,
   AREA_LABEL_FALLBACK_COLOR,
   AREA_LABEL_FONT_SIZE_PX,
@@ -46,50 +41,23 @@ import {
   BUBBLE_FADE_DURATION_SEC,
   BUBBLE_SITTING_OFFSET_PX,
   BUBBLE_VERTICAL_OFFSET_PX,
-  BUTTON_ICON_COLOR,
-  BUTTON_ICON_SIZE_FACTOR,
-  BUTTON_LINE_WIDTH_MIN,
-  BUTTON_LINE_WIDTH_ZOOM_FACTOR,
-  BUTTON_MIN_RADIUS,
-  BUTTON_RADIUS_ZOOM_FACTOR,
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
   CHARACTER_SITTING_OFFSET_PX,
-  DELETE_BUTTON_BG,
   FLOOR_SLAB_LEFT_COLOR,
   FLOOR_SLAB_PX,
   FLOOR_SLAB_RIGHT_COLOR,
-  GHOST_BORDER_HOVER_FILL,
-  GHOST_BORDER_HOVER_STROKE,
-  GHOST_BORDER_STROKE,
-  GHOST_INVALID_TINT,
-  GHOST_PREVIEW_SPRITE_ALPHA,
-  GHOST_PREVIEW_TINT_ALPHA,
-  GHOST_VALID_TINT,
-  GRID_LINE_COLOR,
   HOVERED_OUTLINE_ALPHA,
-  ROTATE_BUTTON_BG,
   SEAT_AVAILABLE_COLOR,
   SEAT_BUSY_COLOR,
   SEAT_OWN_COLOR,
   SELECTED_OUTLINE_ALPHA,
-  SELECTION_DASH_PATTERN,
-  SELECTION_HIGHLIGHT_COLOR,
   STATUS_BADGE_HORIZONTAL_OFFSET_PX,
   STATUS_BADGE_VERTICAL_OFFSET_PX,
-  VOID_TILE_DASH_PATTERN,
-  VOID_TILE_OUTLINE_COLOR,
 } from '../../constants.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
 import type { Point } from '../iso.js';
-import {
-  footprintSpriteOrigin,
-  ISO_TILE_H,
-  ISO_TILE_W,
-  projectToDiamond,
-  tileCorner,
-  worldToIso,
-} from '../iso.js';
+import { ISO_TILE_H, ISO_TILE_W, projectToDiamond, tileCorner, worldToIso } from '../iso.js';
 import { getWallSprite } from '../isoWalls.js';
 import { gridRect, mapOffset } from '../projection.js';
 import {
@@ -137,45 +105,6 @@ const ACTOR_SORT_HALF = 0.01;
 
 // ── Public types ────────────────────────────────────────────────
 
-export interface ButtonBounds {
-  /** Center X in device pixels */
-  cx: number;
-  /** Center Y in device pixels */
-  cy: number;
-  /** Radius in device pixels */
-  radius: number;
-}
-
-export type DeleteButtonBounds = ButtonBounds;
-export type RotateButtonBounds = ButtonBounds;
-
-export interface EditorRenderState {
-  showGrid: boolean;
-  ghostSprite: SpriteData | null;
-  ghostFootprintW: number;
-  ghostFootprintH: number;
-  ghostMirrored: boolean;
-  ghostCol: number;
-  ghostRow: number;
-  ghostValid: boolean;
-  selectedCol: number;
-  selectedRow: number;
-  selectedW: number;
-  selectedH: number;
-  hasSelection: boolean;
-  isRotatable: boolean;
-  /** Updated each frame by the delete-button draw step */
-  deleteButtonBounds: DeleteButtonBounds | null;
-  /** Updated each frame by the rotate-button draw step */
-  rotateButtonBounds: RotateButtonBounds | null;
-  /** Whether to show ghost border (expansion tiles outside grid) */
-  showGhostBorder: boolean;
-  /** Hovered ghost border tile col (-1 to cols) */
-  ghostBorderHoverCol: number;
-  /** Hovered ghost border tile row (-1 to rows) */
-  ghostBorderHoverRow: number;
-}
-
 export interface SelectionRenderState {
   selectedAgentId: number | null;
   hoveredAgentId: number | null;
@@ -194,7 +123,6 @@ export interface WorldRenderState {
   panX: number;
   panY: number;
   selection?: SelectionRenderState;
-  editor?: EditorRenderState;
   tileColors?: Array<ColorValue | null>;
   layoutCols?: number;
   layoutRows?: number;
@@ -202,7 +130,6 @@ export interface WorldRenderState {
   areas?: AreaDefinition[];
   areaTiles?: Array<string | null>;
   showAreas?: boolean;
-  activeAreaLabel?: string | null;
   pets?: Pet[];
 }
 
@@ -239,45 +166,6 @@ function pruneStale<K, V extends Container>(
     if (liveKeys.has(key)) continue;
     container.removeChild(child);
     pool.delete(key);
-  }
-}
-
-// ── Dashed-line drawing (Graphics has no native setLineDash) ────
-
-function dashLine(
-  gfx: Graphics,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  dash: number,
-  gap: number,
-): void {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return;
-  const ux = dx / len;
-  const uy = dy / len;
-  let pos = 0;
-  let drawing = true;
-  while (pos < len) {
-    const step = Math.min(drawing ? dash : gap, len - pos);
-    if (drawing) {
-      gfx.moveTo(x0 + ux * pos, y0 + uy * pos);
-      gfx.lineTo(x0 + ux * (pos + step), y0 + uy * (pos + step));
-    }
-    pos += step;
-    drawing = !drawing;
-  }
-}
-
-function dashPoly(gfx: Graphics, points: readonly Point[], dash: readonly [number, number]): void {
-  const [len, gap] = dash;
-  for (let i = 0; i < points.length; i++) {
-    const a = points[i];
-    const b = points[(i + 1) % points.length];
-    dashLine(gfx, a.x, a.y, b.x, b.y, len, gap);
   }
 }
 
@@ -335,7 +223,6 @@ export class OfficeSceneRenderer {
   private badgeContainer = new Container();
   private petBubbleContainer = new Container();
   private areaLabelContainer = new Container();
-  private editorContainer = new Container();
 
   private lastLayout: OfficeLayout | null = null;
   private lastAreaOverlayKey = '';
@@ -354,14 +241,6 @@ export class OfficeSceneRenderer {
     { shadow: Text; main: Text; localCx: number; localCy: number }
   >();
 
-  private ghostSpritePixi = new Sprite();
-  private ghostTintGfx = new Graphics();
-  private gridGfx = new Graphics();
-  private ghostBorderGfx = new Graphics();
-  private selectionGfx = new Graphics();
-  private deleteButtonGfx = new Graphics();
-  private rotateButtonGfx = new Graphics();
-
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.worldLayer.addChild(
@@ -375,16 +254,6 @@ export class OfficeSceneRenderer {
       this.petBubbleContainer,
     );
     this.entityContainer.sortableChildren = true;
-    this.editorContainer.addChild(
-      this.gridGfx,
-      this.ghostBorderGfx,
-      this.ghostSpritePixi,
-      this.ghostTintGfx,
-      this.selectionGfx,
-      this.deleteButtonGfx,
-      this.rotateButtonGfx,
-    );
-    this.ghostSpritePixi.roundPixels = true;
   }
 
   async init(): Promise<void> {
@@ -401,7 +270,7 @@ export class OfficeSceneRenderer {
       width: Math.max(1, this.canvas.width),
       height: Math.max(1, this.canvas.height),
     });
-    this.app.stage.addChild(this.worldLayer, this.areaLabelContainer, this.editorContainer);
+    this.app.stage.addChild(this.worldLayer, this.areaLabelContainer);
     this.ready = true;
   }
 
@@ -445,7 +314,7 @@ export class OfficeSceneRenderer {
       this.lastLayout = state.layout;
     }
 
-    const areaOverlayKey = `${state.showAreas ? 1 : 0}:${state.activeAreaLabel ?? ''}`;
+    const areaOverlayKey = state.showAreas ? 'shown' : 'hidden';
     if (areaOverlayKey !== this.lastAreaOverlayKey) {
       this.rebuildAreaOverlay(state, cols, rows);
       this.lastAreaOverlayKey = areaOverlayKey;
@@ -458,7 +327,6 @@ export class OfficeSceneRenderer {
     this.updateSeatIndicator(state);
     this.updateEntities(state);
     this.updateBubblesAndBadges(state);
-    this.updateEditorOverlay(state, offsetX, offsetY);
 
     this.app.renderer.render(this.app.stage);
     return { offsetX, offsetY };
@@ -618,13 +486,9 @@ export class OfficeSceneRenderer {
         if (!label) continue;
         const hex = colorMap.get(label);
         if (!hex) continue;
-        const alpha =
-          state.activeAreaLabel === label
-            ? AREA_OVERLAY_ALPHA * AREA_ACTIVE_ALPHA_MULTIPLIER
-            : AREA_OVERLAY_ALPHA;
         this.areaOverlayGfx
           .poly(polyCoords(footprintDiamond(c, r)))
-          .fill({ color: hexToNumber(hex), alpha });
+          .fill({ color: hexToNumber(hex), alpha: AREA_OVERLAY_ALPHA });
       }
     }
   }
@@ -934,190 +798,5 @@ export class OfficeSceneRenderer {
     pruneStale(this.bubblePool, this.bubbleContainer, liveBubbles);
     pruneStale(this.badgePool, this.badgeContainer, liveBadges);
     pruneStale(this.petBubblePool, this.petBubbleContainer, livePetBubbles);
-  }
-
-  // ── Editor overlays (device-pixel space, redrawn every frame) ──
-
-  private updateEditorOverlay(state: WorldRenderState, offsetX: number, offsetY: number): void {
-    this.gridGfx.clear();
-    this.ghostBorderGfx.clear();
-    this.ghostTintGfx.clear();
-    this.selectionGfx.clear();
-    this.deleteButtonGfx.clear();
-    this.rotateButtonGfx.clear();
-    this.ghostSpritePixi.visible = false;
-
-    const editor = state.editor;
-    if (!editor) return;
-
-    const cols = state.layoutCols ?? 0;
-    const rows = state.layoutRows ?? 0;
-    const zoom = state.zoom;
-    const toDevice = (p: Point): Point => ({ x: offsetX + p.x * zoom, y: offsetY + p.y * zoom });
-    const diamond = (c: number, r: number, w = 1, h = 1) =>
-      footprintDiamond(c, r, w, h).map(toDevice);
-
-    if (editor.showGrid) {
-      const { color: lineColor, alpha: lineAlpha } = rgbaToPixiColor(GRID_LINE_COLOR);
-      for (let c = 0; c <= cols; c++) {
-        const a = toDevice(tileCorner(c, 0));
-        const b = toDevice(tileCorner(c, rows));
-        this.gridGfx.moveTo(a.x, a.y).lineTo(b.x, b.y);
-      }
-      for (let r = 0; r <= rows; r++) {
-        const a = toDevice(tileCorner(0, r));
-        const b = toDevice(tileCorner(cols, r));
-        this.gridGfx.moveTo(a.x, a.y).lineTo(b.x, b.y);
-      }
-      this.gridGfx.stroke({ width: 1, color: lineColor, alpha: lineAlpha });
-
-      const { color: voidColor, alpha: voidAlpha } = rgbaToPixiColor(VOID_TILE_OUTLINE_COLOR);
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (state.tileMap[r]?.[c] === TileType.VOID) {
-            dashPoly(this.gridGfx, diamond(c, r), VOID_TILE_DASH_PATTERN);
-          }
-        }
-      }
-      this.gridGfx.stroke({ width: 1, color: voidColor, alpha: voidAlpha });
-    }
-
-    if (editor.showGhostBorder) {
-      const ghostTiles: Array<{ c: number; r: number }> = [];
-      for (let c = -1; c <= cols; c++) {
-        ghostTiles.push({ c, r: -1 });
-        ghostTiles.push({ c, r: rows });
-      }
-      for (let r = 0; r < rows; r++) {
-        ghostTiles.push({ c: -1, r });
-        ghostTiles.push({ c: cols, r });
-      }
-
-      const hoverFill = rgbaToPixiColor(GHOST_BORDER_HOVER_FILL);
-      const hoverStroke = rgbaToPixiColor(GHOST_BORDER_HOVER_STROKE);
-      const normalStroke = rgbaToPixiColor(GHOST_BORDER_STROKE);
-
-      for (const { c, r } of ghostTiles) {
-        const points = diamond(c, r);
-        const isHovered = c === editor.ghostBorderHoverCol && r === editor.ghostBorderHoverRow;
-        if (isHovered) {
-          this.ghostBorderGfx.poly(polyCoords(points)).fill(hoverFill);
-        }
-        dashPoly(this.ghostBorderGfx, points, VOID_TILE_DASH_PATTERN);
-        this.ghostBorderGfx.stroke({
-          width: 1,
-          color: isHovered ? hoverStroke.color : normalStroke.color,
-          alpha: isHovered ? hoverStroke.alpha : normalStroke.alpha,
-        });
-      }
-    }
-
-    if (editor.ghostSprite && editor.ghostCol >= 0) {
-      const texture = getTexture(editor.ghostSprite);
-      const origin = toDevice(
-        footprintSpriteOrigin(
-          editor.ghostCol,
-          editor.ghostRow,
-          editor.ghostFootprintW,
-          editor.ghostFootprintH,
-          texture.width,
-          texture.height,
-        ),
-      );
-      this.ghostSpritePixi.texture = texture;
-      this.ghostSpritePixi.alpha = GHOST_PREVIEW_SPRITE_ALPHA;
-      this.ghostSpritePixi.visible = true;
-      if (editor.ghostMirrored) {
-        this.ghostSpritePixi.scale.set(-zoom, zoom);
-        this.ghostSpritePixi.position.set(origin.x + texture.width * zoom, origin.y);
-      } else {
-        this.ghostSpritePixi.scale.set(zoom, zoom);
-        this.ghostSpritePixi.position.set(origin.x, origin.y);
-      }
-      const tintColor = hexToNumber(editor.ghostValid ? GHOST_VALID_TINT : GHOST_INVALID_TINT);
-      this.ghostTintGfx
-        .poly(
-          polyCoords(
-            diamond(
-              editor.ghostCol,
-              editor.ghostRow,
-              editor.ghostFootprintW,
-              editor.ghostFootprintH,
-            ),
-          ),
-        )
-        .fill({ color: tintColor, alpha: GHOST_PREVIEW_TINT_ALPHA });
-    }
-
-    if (editor.hasSelection) {
-      const { selectedCol: col, selectedRow: row, selectedW: w, selectedH: h } = editor;
-      dashPoly(this.selectionGfx, diamond(col, row, w, h), SELECTION_DASH_PATTERN);
-      this.selectionGfx.stroke({ width: 2, color: hexToNumber(SELECTION_HIGHLIGHT_COLOR) });
-
-      const rightVertex = toDevice(tileCorner(col + w, row));
-      editor.deleteButtonBounds = this.drawRoundButton(
-        this.deleteButtonGfx,
-        rightVertex.x,
-        rightVertex.y,
-        zoom,
-        rgbaToPixiColor(DELETE_BUTTON_BG),
-        'x',
-      );
-
-      if (editor.isRotatable) {
-        const leftVertex = toDevice(tileCorner(col, row + h));
-        editor.rotateButtonBounds = this.drawRoundButton(
-          this.rotateButtonGfx,
-          leftVertex.x,
-          leftVertex.y,
-          zoom,
-          rgbaToPixiColor(ROTATE_BUTTON_BG),
-          'rotate',
-        );
-      } else {
-        editor.rotateButtonBounds = null;
-      }
-    } else {
-      editor.deleteButtonBounds = null;
-      editor.rotateButtonBounds = null;
-    }
-  }
-
-  private drawRoundButton(
-    gfx: Graphics,
-    cx: number,
-    cy: number,
-    zoom: number,
-    bg: { color: number; alpha: number },
-    icon: 'x' | 'rotate',
-  ): ButtonBounds {
-    const radius = Math.max(BUTTON_MIN_RADIUS, zoom * BUTTON_RADIUS_ZOOM_FACTOR);
-    const lineWidth = Math.max(BUTTON_LINE_WIDTH_MIN, zoom * BUTTON_LINE_WIDTH_ZOOM_FACTOR);
-    const iconColor = hexToNumber(BUTTON_ICON_COLOR);
-
-    gfx.circle(cx, cy, radius).fill(bg);
-
-    if (icon === 'x') {
-      const xSize = radius * BUTTON_ICON_SIZE_FACTOR;
-      gfx.moveTo(cx - xSize, cy - xSize).lineTo(cx + xSize, cy + xSize);
-      gfx.moveTo(cx + xSize, cy - xSize).lineTo(cx - xSize, cy + xSize);
-      gfx.stroke({ width: lineWidth, color: iconColor, cap: 'round' });
-    } else {
-      const arcR = radius * BUTTON_ICON_SIZE_FACTOR;
-      const startAngle = -Math.PI * 0.8;
-      gfx.moveTo(cx + arcR * Math.cos(startAngle), cy + arcR * Math.sin(startAngle));
-      gfx.arc(cx, cy, arcR, startAngle, Math.PI * 0.7);
-      gfx.stroke({ width: lineWidth, color: iconColor, cap: 'round' });
-      const endAngle = Math.PI * 0.7;
-      const endX = cx + arcR * Math.cos(endAngle);
-      const endY = cy + arcR * Math.sin(endAngle);
-      const arrowSize = radius * 0.35;
-      gfx.moveTo(endX + arrowSize * 0.6, endY - arrowSize * 0.3);
-      gfx.lineTo(endX, endY);
-      gfx.lineTo(endX + arrowSize * 0.7, endY + arrowSize * 0.5);
-      gfx.stroke({ width: lineWidth, color: iconColor, cap: 'round' });
-    }
-
-    return { cx, cy, radius };
   }
 }

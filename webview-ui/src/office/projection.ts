@@ -70,11 +70,6 @@ export function contentBounds(layout: LayoutGrid): ViewBounds {
   return bounds;
 }
 
-/** The whole grid plus the one-tile ghost border the editor expands into. */
-export function editBounds(layout: { cols: number; rows: number }): ViewBounds {
-  return { minCol: -1, minRow: -1, maxCol: layout.cols + 1, maxRow: layout.rows + 1 };
-}
-
 /** Screen-space box of a tile rectangle: its iso diamond, raised by a back
  *  wall's height so the walls along the far edges fit. */
 export function boundsRect(bounds: ViewBounds): LocalRect {

@@ -26,7 +26,6 @@ The code and the CLI are still named `pixel-agents`, and nothing from this fork 
 - **Lounge.** Idle agents leave their desks and sit on the sofas around the coffee table.
 - **Status badges and context gauge.** A badge above every character shows its state. For Claude Code agents, a gauge shows how full the context window is.
 - **Sub-agents and Agent Teams** (Claude Code). Sub-agents and teammates appear as their own characters next to the agent that spawned them.
-- **Office editor.** Paint floors, walls and carpets, place and recolor furniture, add pets, and paint named areas that new agents sit in.
 - **Sound notifications.** An optional chime when an agent finishes its turn or asks for permission.
 
 ## Providers
@@ -86,15 +85,9 @@ Anyone who can reach the server can watch the office. Changing hook installation
 
 ## Customizing the office
 
-Click **Layout** to edit the office:
+The office comes from the bundled default layout. There is no in-app layout editor for now: the previous one was removed and will be redesigned. If `~/.pixel-agents/layout.json` exists (for example one saved by an older version), the server loads it instead, including its carpets, pets and named areas. Map workspace folders to those areas under `standalone.areaMappings` in `~/.pixel-agents/config.json` (`{ "folder-name": ["Area label"] }`) so new agents sit in their area.
 
-- Paint floors, walls and carpets, with color controls.
-- Place, rotate, recolor and remove furniture. Desks with an agent at them switch their electronics on.
-- Add pets and click them to interact.
-- Paint named **Areas** and map workspace folders to them, so new agents sit in their area.
-- Undo and redo, then save, or import and export the layout as JSON.
-
-Layouts grow up to 64×64 tiles by clicking the ghost border around the grid. The layout is saved to `~/.pixel-agents/layout.json`.
+Click a character, then a free seat, to move it there. Desks with an agent at them switch their electronics on.
 
 Use **Settings → Add Asset Directory** to load external characters, pets and furniture. See [docs/external-assets.md](docs/external-assets.md) for the furniture manifest format.
 
