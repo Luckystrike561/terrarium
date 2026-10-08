@@ -66,7 +66,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server
     teamUtils.ts                     isInlineTeammateOf, getInlineTeammates, hasInlineTeammates
     types.ts                         ServerAgentState
     constants.ts                     All timing/scanning constants
-  __tests__/                         30 Vitest files (providerModules.test.ts: the three module configurations end to end)
+  __tests__/                         60 Vitest files (providerModules.test.ts: the three module configurations end to end)
   manual-hook-events.http            Manual hook testing helper (REST-Client format)
 
 adapters/vscode/                     VS Code surface — composes core + server

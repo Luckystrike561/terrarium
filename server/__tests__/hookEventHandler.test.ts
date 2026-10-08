@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { AgentModule, MultiplexerModule } from '../../core/src/provider.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
 import { HookEventHandler } from '../src/hookEventHandler.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
@@ -861,5 +862,148 @@ describe('HookEventHandler', () => {
         }
       }
     });
+  });
+});
+
+describe('HookEventHandler — claimBySessionRef (one agent, one character)', () => {
+  let agents: AgentStateStore;
+  let waitingTimers: Map<number, NodeJS.Timeout>;
+  let permissionTimers: Map<number, NodeJS.Timeout>;
+  let mockWebview: {
+    postMessage: (message: Record<string, unknown>) => Promise<boolean>;
+    messages: Array<Record<string, unknown>>;
+  };
+  let sessionRouter: SessionRouter;
+  let handler: HookEventHandler;
+
+  const fakeAgentModule: AgentModule = {
+    kind: 'agent',
+    id: 'fake-cli',
+    displayName: 'Fake CLI',
+    protocolVersion: 1,
+    formatToolStatus: (toolName) => toolName,
+    permissionExemptTools: new Set(),
+    subagentToolNames: new Set(),
+    readingTools: new Set(),
+  };
+  const fakeMultiplexerModule: MultiplexerModule = {
+    kind: 'multiplexer',
+    id: 'fake-mux',
+    displayName: 'Fake Multiplexer',
+    connect: () => ({ connected: Promise.resolve(true), stop: () => {} }),
+  };
+
+  beforeEach(() => {
+    agents = new AgentStateStore();
+    waitingTimers = new Map();
+    permissionTimers = new Map();
+    mockWebview = createMockWebview();
+    agents.on('broadcast', (msg) => mockWebview.postMessage(msg));
+    sessionRouter = new SessionRouter();
+    handler = new HookEventHandler(
+      agents,
+      waitingTimers,
+      permissionTimers,
+      { agents: [claudeModule, fakeAgentModule], multiplexers: [fakeMultiplexerModule] },
+      sessionRouter,
+    );
+  });
+
+  it('a sessionStart whose sessionRef an existing agent already reports joins that agent immediately, never becoming an external session', () => {
+    const onExternalSessionDetected = vi.fn();
+    handler.setLifecycleCallbacks({ onExternalSessionDetected });
+    const agent = createTestAgent({
+      id: 1,
+      sessionId: 'herdr-sess-1',
+      sessionRef: '/work/alpha/session.jsonl',
+    });
+    agents.set(1, agent);
+    handler.registerAgent('herdr-sess-1', 1);
+
+    handler.handleAgentEvent('fake-cli', 'claude-sess-2', {
+      kind: 'sessionStart',
+      sessionRef: '/work/alpha/session.jsonl',
+      cwd: '/work/alpha',
+    });
+
+    expect(sessionRouter.resolve('claude-sess-2')).toBe(1);
+    expect(onExternalSessionDetected).not.toHaveBeenCalled();
+
+    handler.handleAgentEvent('fake-cli', 'claude-sess-2', { kind: 'working' });
+    expect(mockWebview.messages).toContainEqual(
+      expect.objectContaining({ type: 'agentStatus', id: 1, status: 'active' }),
+    );
+  });
+
+  it('a sessionStart with a different sessionRef does not join the existing agent, and becomes a new external session once confirmed', () => {
+    const onExternalSessionDetected = vi.fn();
+    handler.setLifecycleCallbacks({ onExternalSessionDetected });
+    const agent = createTestAgent({
+      id: 1,
+      sessionId: 'herdr-sess-1',
+      sessionRef: '/work/alpha/session.jsonl',
+    });
+    agents.set(1, agent);
+    handler.registerAgent('herdr-sess-1', 1);
+
+    handler.handleAgentEvent('fake-cli', 'claude-sess-3', {
+      kind: 'sessionStart',
+      sessionRef: '/work/beta/session.jsonl',
+      cwd: '/work/beta',
+    });
+    expect(sessionRouter.resolve('claude-sess-3')).toBeUndefined();
+    expect(sessionRouter.hasPending('claude-sess-3')).toBe(true);
+
+    handler.handleAgentEvent('fake-cli', 'claude-sess-3', { kind: 'working' });
+    expect(onExternalSessionDetected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'claude-sess-3',
+        sessionRef: '/work/beta/session.jsonl',
+      }),
+    );
+  });
+
+  it('a bare Claude transcriptPath only matches an agent a module announced, so two Claude sessions on one transcript stay separate', () => {
+    const onExternalSessionDetected = vi.fn();
+    handler.setLifecycleCallbacks({ onExternalSessionDetected });
+    // Adopted by the runtime's own scanner, never by a module announcement: sessionRef stays unset.
+    const agent = createTestAgent({
+      id: 1,
+      sessionId: 'claude-sess-a',
+      jsonlFile: '/project/session-a.jsonl',
+    });
+    agents.set(1, agent);
+    handler.registerAgent('claude-sess-a', 1);
+
+    handler.handleEvent('claude', {
+      hook_event_name: 'SessionStart',
+      session_id: 'claude-sess-b',
+      transcript_path: '/project/session-a.jsonl',
+      cwd: '/project',
+      source: 'startup',
+    });
+    expect(sessionRouter.resolve('claude-sess-b')).toBeUndefined();
+    expect(sessionRouter.hasPending('claude-sess-b')).toBe(true);
+
+    handler.handleEvent('claude', { hook_event_name: 'Stop', session_id: 'claude-sess-b' });
+    expect(onExternalSessionDetected).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'claude-sess-b',
+        transcriptPath: '/project/session-a.jsonl',
+      }),
+    );
+  });
+
+  it('providerId is set by the first agent-module event and is not overwritten by a later multiplexer event', () => {
+    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' });
+    agents.set(1, agent);
+    handler.registerAgent('sess-1', 1);
+
+    handler.handleAgentEvent('fake-cli', 'sess-1', { kind: 'working' });
+    expect(agent.providerId).toBe('fake-cli');
+    expect(agent.hookDelivered).toBe(true);
+
+    handler.handleAgentEvent('fake-mux', 'sess-1', { kind: 'working' });
+    expect(agent.providerId).toBe('fake-cli');
   });
 });
