@@ -1,5 +1,5 @@
 /**
- * Herdr bridge — reads which agents a local Herdr instance hosts.
+ * Herdr bridge: reads which agents a local Herdr instance hosts.
  *
  * Herdr exposes a JSON-RPC 2.0 API over a Unix domain socket
  * (`~/.config/herdr/herdr.sock`). Two capabilities matter here:
@@ -11,9 +11,9 @@
  * Each snapshot is reduced to MultiplexedAgents (name, task, status level, session file) and handed to the caller.
  * The bridge never reads a transcript: what an agent is doing comes from the agent module for its kind.
  *
- * Uses only node built-ins (net) — no dependency added to the repo.
+ * Uses only node built-ins (net): no dependency added to the repo.
  *
- * Protocol notes (protocol 22, learned the hard way):
+ * Protocol notes (protocol 22):
  *   - Connection semantics differ by request type. A connection that carries a
  *     plain request (`agent.list`, ...) is **closed by herdr right after the
  *     reply** (one-shot), while a connection that carries `events.subscribe`
@@ -21,8 +21,8 @@
  *     we keep a dedicated long-lived socket for events and open a throwaway
  *     socket per snapshot poll.
  *   - Subscription variants are dotted (`pane.agent_detected`, `pane.exited`).
- *     `pane.agent_status_changed` additionally requires a `pane_id`; we never
- *     subscribe to it, status transitions come from the snapshot poll.
+ *     `pane.agent_status_changed` additionally requires a `pane_id`, and we never
+ *     subscribe to it: status transitions come from the snapshot poll.
  */
 
 import * as net from 'node:net';
@@ -30,14 +30,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { MultiplexedAgent, MultiplexedAgentStatus } from '../../../../core/src/provider.js';
+import { canonicalSessionFile } from '../../pathKey.js';
 import {
   HERDR_EVENT_RECONNECT_MS,
   HERDR_RPC_TIMEOUT_MS,
+  HERDR_SESSION_KIND_PATH,
   HERDR_SNAPSHOT_INTERVAL_MS,
   HERDR_SOCKET_PATH_SEGMENTS,
 } from './constants.js';
-
-// ── Herdr shapes (subset we rely on) ─────────────────────────
 
 interface HerdrAgentSession {
   source?: string;
@@ -66,7 +66,7 @@ interface HerdrLabeled {
   label?: string;
 }
 
-/** herdr's status levels. `done` (finished, waiting on the user) reads as idle; `unknown` panes are not agents. */
+/** herdr's status levels. `done` (finished, waiting on the user) reads as idle, `unknown` panes are not agents. */
 const STATUS_LEVELS: Record<string, MultiplexedAgentStatus> = {
   working: 'working',
   blocked: 'blocked',
@@ -74,7 +74,7 @@ const STATUS_LEVELS: Record<string, MultiplexedAgentStatus> = {
   done: 'idle',
 };
 
-/** omp titles its terminal `π <spinner|>> <task>`; other agents prefix a status glyph. */
+/** omp titles its terminal `π <spinner|>> <task>`, other agents prefix a status glyph. */
 function taskFromTerminalTitle(title: string | undefined): string {
   return (title ?? '')
     .trim()
@@ -111,7 +111,7 @@ export class HerdrBridge {
   }
 
   /** Connect once. Resolves true when herdr is reachable, false when it is not
-   *  (the caller keeps running; we retry in the background). */
+   *  (the caller keeps running, we retry in the background). */
   async start(): Promise<boolean> {
     return await this.connectEvents();
   }
@@ -124,8 +124,6 @@ export class HerdrBridge {
     this.eventsSock = null;
   }
 
-  // ── Long-lived event socket ────────────────────────────────
-
   private connectEvents(): Promise<boolean> {
     return new Promise((resolve) => {
       let settled = false;
@@ -135,7 +133,7 @@ export class HerdrBridge {
       sock.setEncoding('utf8');
 
       sock.on('connect', () => {
-        // Only ever a subscription on this socket — see protocol notes.
+        // Only ever a subscription on this socket: other request types close after replying.
         sock.write(
           `${JSON.stringify({
             jsonrpc: '2.0',
@@ -195,8 +193,6 @@ export class HerdrBridge {
     });
   }
 
-  // ── One-shot RPC (throwaway socket per call) ───────────────
-
   private rpcOnce(method: string, params: Record<string, unknown>): Promise<unknown> {
     return new Promise((resolve) => {
       let settled = false;
@@ -242,8 +238,6 @@ export class HerdrBridge {
       sock.on('close', () => finish(undefined));
     });
   }
-
-  // ── Snapshots ──────────────────────────────────────────────
 
   /** Re-read the authoritative snapshot. Coalesces concurrent calls so an event burst collapses into one pass. */
   private async reconcile(): Promise<void> {
@@ -307,8 +301,16 @@ export class HerdrBridge {
             ? `${baseName} #${tabLabel}`
             : baseName,
         task: taskFromTerminalTitle(a.terminal_title_stripped),
-        sessionFile: a.agent_session?.value || undefined,
+        sessionRef: sessionRefOf(a.agent_session),
       };
     });
   }
+}
+
+/** herdr's session ref for a pane: a transcript path (compared by real path, since herdr reports the path the CLI
+ *  resolved and an agent module scans its own spelling of it) or the CLI's own session id, kept as is. */
+function sessionRefOf(session: HerdrAgentSession | null | undefined): string | undefined {
+  const value = session?.value;
+  if (!value) return undefined;
+  return session.kind === HERDR_SESSION_KIND_PATH ? canonicalSessionFile(value) : value;
 }
