@@ -50,6 +50,7 @@ import type { PendingExternalSession } from './sessionRouter.js';
 import { SessionRouter } from './sessionRouter.js';
 import { SubagentWatch } from './subagentWatch.js';
 import { cancelPermissionTimer, cancelWaitingTimer } from './timerManager.js';
+import { TranscriptFollower } from './transcriptFollower.js';
 import {
   setBackgroundAgentCompletedCallback,
   setBackgroundAgentDetectedCallback,
@@ -220,22 +221,83 @@ export class AgentRuntime {
       onTeammateRemoved: (teammateAgentId) => {
         this.removeTeammate(teammateAgentId, 'hooks');
       },
-      onSessionEnd: (agentId) => {
-        const agent = this.store.get(agentId);
-        if (!agent) return;
-        this.dismissalTracker.clearSeededMtime(agent.jsonlFile);
-        this.dismissalTracker.dismiss(agent.jsonlFile);
-        // Covers real team leads AND leads of background teammates (which
-        // have children but no teamName). No-op when childless.
-        this.removeTeammates(agentId);
-        // Unnamed background spawns die with their lead's session too.
-        this.subagentWatch.removeByLead(agentId);
-        if (agent.isExternal) {
-          this.unregisterAgent(agent.sessionId);
-          this.removeAgent(agentId);
-        }
-      },
+      onSessionEnd: (agentId) => this.endSession(agentId),
     });
+  }
+
+  private endSession(agentId: number): void {
+    const agent = this.store.get(agentId);
+    if (!agent) return;
+    this.dismissalTracker.clearSeededMtime(agent.jsonlFile);
+    this.dismissalTracker.dismiss(agent.jsonlFile);
+    // Covers real team leads AND leads of background teammates (which
+    // have children but no teamName). No-op when childless.
+    this.removeTeammates(agentId);
+    // Unnamed background spawns die with their lead's session too.
+    this.subagentWatch.removeByLead(agentId);
+    if (agent.isExternal) {
+      this.unregisterAgent(agent.sessionId);
+      this.removeAgent(agentId);
+    }
+  }
+
+  /** Watch the transcript a multiplexer pane reports for the transcript module's CLI. An agent already watching it
+   *  takes the pane's ref instead, so the pane joins that character. When the pane's own character is already on
+   *  screen (the transcript appeared after the pane), the transcript is attached to it. */
+  private adoptFollowedTranscript(
+    file: string,
+    sessionId: string,
+    sessionRef: string,
+  ): number | undefined {
+    const agents = [...this.store.values()];
+    const watching = agents.find((a) => pathsMatch(a.jsonlFile, file));
+    if (watching) {
+      watching.sessionRef ??= sessionRef;
+      return undefined;
+    }
+    // A live pane writing the file outranks an earlier end of the same session (a resume in a new pane).
+    this.dismissalTracker.clearDismissal(file);
+    this.dismissalTracker.clearSeededMtime(file);
+    const paneAgent = agents.find((a) => a.sessionRef === sessionRef && a.jsonlFile === '');
+    if (paneAgent) {
+      paneAgent.hooksOnly = false;
+      // No hook has reached this session, so the transcript is what shows its tools and ends its turns.
+      paneAgent.hookDelivered = false;
+      reassignAgentToFile(
+        paneAgent.id,
+        file,
+        this.store,
+        this.fileWatchers,
+        this.pollingTimers,
+        this.waitingTimers,
+        this.permissionTimers,
+        () => this.store.persist(),
+      );
+      this.registerAgent(paneAgent.sessionId, paneAgent.id);
+      return paneAgent.id;
+    }
+    let adopted: number | undefined;
+    adoptExternalSessionFromHook(
+      sessionId,
+      file,
+      '',
+      this.knownJsonlFiles,
+      this.store.nextAgentId,
+      this.store,
+      this.fileWatchers,
+      this.pollingTimers,
+      this.waitingTimers,
+      this.permissionTimers,
+      () => this.store.persist(),
+      (agent) => {
+        // No hook has reached this session, so the heuristic timers are what end its text-only turns.
+        agent.hookDelivered = false;
+        agent.sessionRef = sessionRef;
+        this.registerAgent(agent.sessionId, agent.id);
+        adopted = agent.id;
+      },
+    );
+    return adopted;
   }
 
   /** The enabled module named `id`. */
@@ -319,9 +381,9 @@ export class AgentRuntime {
       this.permissionTimers,
       () => this.store.persist(),
       (agent) => {
-        // Agents the transcript module adopts keep the runtime's default; everyone else names its module.
+        // Agents the transcript module adopts keep the runtime's default, everyone else names its module.
         if (owner !== this.transcriptModule?.id) agent.providerId = owner;
-        agent.sessionFile = pending.sessionFile;
+        agent.sessionRef = pending.sessionRef;
         this.registerAgent(agent.sessionId, agent.id);
       },
     );
@@ -342,6 +404,17 @@ export class AgentRuntime {
       const started = module.start(this.hostFor(module));
       running.set(module.id, started);
       this.runningModules.push(started);
+    }
+    const transcriptModule = this.transcriptModule;
+    if (transcriptModule && !transcriptModule.start) {
+      const follower = new TranscriptFollower({
+        sessionRoots: () => transcriptModule.getAllSessionRoots?.() ?? [],
+        adopt: (file, sessionId, sessionRef) =>
+          this.adoptFollowedTranscript(file, sessionId, sessionRef),
+        end: (agentId) => this.endSession(agentId),
+      });
+      running.set(transcriptModule.id, follower);
+      this.runningModules.push(follower);
     }
     for (const multiplexer of this.modules.multiplexers) {
       const feed = new MultiplexerFeed(multiplexer, this.hostFor(multiplexer), running);

@@ -8,7 +8,6 @@ import type {
   MultiplexerModule,
   RunningAgentModule,
 } from '../../core/src/provider.js';
-import { canonicalSessionFile } from './pathKey.js';
 
 /** A pane this feed has announced. */
 interface AnnouncedPane {
@@ -26,11 +25,12 @@ interface AnnouncedPane {
 /**
  * Turns a multiplexer's snapshots into AgentEvents, attributed to the multiplexer.
  *
- * Each pane is announced under `<multiplexer id>-<pane id>` with the pane's session file as its `sessionFile`
+ * Each pane is announced under `<multiplexer id>-<pane id>` with the pane's session ref as its `sessionRef`
  * identity. When the agent module for the pane's kind is running, that module takes the session over
  * (`followSession`) and reports what the agent is doing, including when its turns start and end; the multiplexer
- * then adds only what a transcript cannot say: the name, the task, and a pending approval. With no such module the
- * pane's status level is all there is, and it is reported in full.
+ * then adds only what a transcript cannot say: the name, the task, and a pending approval. A pane the multiplexer
+ * knows no session for is bound to the module's one live session in the pane's directory, once there is exactly
+ * one. With no such module the pane's status level is all there is, and it is reported in full.
  */
 export class MultiplexerFeed {
   private readonly panes = new Map<string, AnnouncedPane>();
@@ -42,7 +42,7 @@ export class MultiplexerFeed {
     private readonly agentModules: ReadonlyMap<string, RunningAgentModule>,
   ) {}
 
-  /** Connect; resolves with whether the multiplexer answered the first attempt. */
+  /** Connect, resolving with whether the multiplexer answered the first attempt. */
   start(): Promise<boolean> {
     this.connection = this.multiplexer.connect(
       (agents) => this.applySnapshot(agents),
@@ -61,16 +61,17 @@ export class MultiplexerFeed {
     const live = new Set<string>();
     for (const agent of agents) {
       live.add(agent.paneId);
-      const sessionFile = agent.sessionFile ? canonicalSessionFile(agent.sessionFile) : undefined;
-      const follower = sessionFile ? this.agentModules.get(agent.agentKind) : undefined;
-      const binding = follower ? `${agent.agentKind}:${sessionFile}` : '';
+      const module = this.agentModules.get(agent.agentKind);
+      const sessionRef = agent.sessionRef ?? module?.sessionInDirectory?.(agent.cwd);
+      const follower = sessionRef ? module : undefined;
+      const binding = follower ? `${agent.agentKind}:${sessionRef}` : '';
       let pane = this.panes.get(agent.paneId);
       if (pane && pane.binding !== binding) {
         this.end(pane);
         pane = undefined;
       }
       if (!pane) {
-        pane = this.announce(agent, sessionFile, binding, follower);
+        pane = this.announce(agent, sessionRef, binding, follower);
         this.panes.set(agent.paneId, pane);
       }
       this.report(pane, agent);
@@ -84,7 +85,7 @@ export class MultiplexerFeed {
 
   private announce(
     agent: MultiplexedAgent,
-    sessionFile: string | undefined,
+    sessionRef: string | undefined,
     binding: string,
     follower: RunningAgentModule | undefined,
   ): AnnouncedPane {
@@ -94,9 +95,9 @@ export class MultiplexerFeed {
       kind: 'sessionStart',
       source: 'startup',
       cwd: agent.cwd,
-      sessionFile,
+      sessionRef,
     });
-    const followed = follower && sessionFile ? follower.followSession(sessionFile) : null;
+    const followed = follower && sessionRef ? follower.followSession(sessionRef) : null;
     return { sessionId, followed, binding, name: '', task: '', status: null };
   }
 

@@ -30,7 +30,7 @@ export function pathsMatch(left: string, right: string): boolean {
 
 /**
  * The session-file identity two modules compare: the file's real path when it exists. A multiplexer reports the path
- * the agent CLI resolved from its own HOME, while an agent module scans its store under this process's HOME; through
+ * the agent CLI resolved from its own HOME, while an agent module scans its store under this process's HOME. Through
  * a symlinked home or store the two spell one file differently, and only the real path makes them one agent.
  */
 export function canonicalSessionFile(file: string): string {

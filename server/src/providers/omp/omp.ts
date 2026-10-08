@@ -1,19 +1,23 @@
 /**
- * omp agent module. omp has no hook API: everything comes from its session transcripts (see ompTranscript.ts),
- * found by scanning its session store or handed over by a multiplexer that hosts the session. Nothing is written
- * outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * omp agent module. omp has no hook API: everything comes from its session transcripts, found by scanning its
+ * session store or handed over by a multiplexer that hosts the session. Nothing is written outside
+ * `~/.pixel-agents/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { AgentModule } from '../../../../core/src/provider.js';
+import { DEFAULT_SESSION_STORE_TIMING } from '../sessionStore/constants.js';
+import { jsonlSessionStore } from '../sessionStore/jsonlSessionStore.js';
+import { SessionStoreTracker } from '../sessionStore/sessionStoreTracker.js';
 import {
+  OMP_SESSION_FILE_SUFFIX,
   OMP_SESSIONS_DIR_SEGMENTS,
   OMP_STATUS_DETAIL_MAX_LENGTH,
   OMP_STATUS_MAX_LENGTH,
 } from './constants.js';
-import { OmpSessionTracker } from './ompSessions.js';
+import { ompTranscriptFormat } from './ompTranscript.js';
 
 type ToolInput = Record<string, unknown>;
 
@@ -74,12 +78,21 @@ export const ompModule: AgentModule = {
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),
-  // omp's `task` runs its sub-agents in their own sessions; nothing here can clear a sub-character it would spawn.
+  // omp's `task` runs its sub-agents in their own sessions. Nothing here can clear a sub-character it would spawn.
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['read', 'grep', 'glob', 'lsp', 'fetch', 'web_search']),
 
   // omp sessions run in whatever directory the user started them in.
   adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
-    new OmpSessionTracker(host, path.join(os.homedir(), ...OMP_SESSIONS_DIR_SEGMENTS)),
+    new SessionStoreTracker(
+      host,
+      jsonlSessionStore({
+        root: path.join(os.homedir(), ...OMP_SESSIONS_DIR_SEGMENTS),
+        depth: 1,
+        isTranscript: (name) => name.endsWith(OMP_SESSION_FILE_SUFFIX),
+        format: ompTranscriptFormat,
+      }),
+      DEFAULT_SESSION_STORE_TIMING,
+    ),
 };

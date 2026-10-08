@@ -23,8 +23,6 @@ import {
   CLAUDE_TERMINAL_NAME_PREFIX,
 } from './constants.js';
 
-// ── formatToolStatus: moved from src/transcriptParser.ts ──
-
 export function formatToolStatus(toolName: string, input?: unknown): string {
   const inp = (input ?? {}) as Record<string, unknown>;
   const base = (p: unknown) => (typeof p === 'string' ? path.basename(p) : '');
@@ -73,14 +71,11 @@ export function formatToolStatus(toolName: string, input?: unknown): string {
   }
 }
 
-// ── Session dir + launch command ──
-
 function getSessionDirs(workspacePath: string): string[] {
   // Claude stores sessions at ~/.claude/projects/<workspace-path-with-dashes>/.
   const dirName = normalizeProjectPath(workspacePath);
   const projectDir = path.join(os.homedir(), '.claude', 'projects', dirName);
 
-  // Try exact match first.
   if (fs.existsSync(projectDir)) return [projectDir];
 
   // Case-insensitive fallback for Windows: drive letter casing can differ
@@ -116,14 +111,12 @@ function getAllSessionRoots(): string[] {
   return [path.join(os.homedir(), '.claude', 'projects')];
 }
 
-// ── normalizeHookEvent: the single Claude-specific normalization boundary ──
-//
 // All raw Claude hook payload fields (tool_name, tool_input, agent_type, etc.) are
 // read HERE and HERE ONLY. Downstream (hookEventHandler.ts) sees only the normalized
 // AgentEvent union.
 //
 // Sentinel 'current' toolIds are returned for PostToolUse/SubagentStop because the
-// raw hook payload doesn't carry the id; the handler correlates using its own
+// raw hook payload doesn't carry the id: the handler correlates using its own
 // currentHookToolId state. Synthetic hook-* ids are returned for PreToolUse because
 // the real tool id arrives later via JSONL polling.
 
@@ -161,7 +154,7 @@ export function normalizeHookEvent(
       return { sessionId, event: { kind: 'turnEnd' } };
 
     case 'UserPromptSubmit':
-      // No normalized kind for user prompts yet; silently ignore. No longer
+      // No normalized kind for user prompts yet, so silently ignore. No longer
       // installed (it forwarded the prompt text here only to be dropped), but a
       // stale install keeps POSTing it until its next install/uninstall runs,
       // so the drop must stay graceful.
@@ -239,16 +232,14 @@ export function normalizeHookEvent(
         event: { kind: 'subagentTurnEnd', parentToolId: 'current', reason: 'completed' },
       };
 
-    // TaskCreated is informational; no AgentEvent shape fits it. Drop. No
-    // longer installed for that reason, but stale installs still POST it —
-    // keep tolerating it here.
+    // TaskCreated is informational: no AgentEvent shape fits it. Drop. No
+    // longer installed for that reason, but stale installs still POST it,
+    // so keep tolerating it here.
     case 'TaskCreated':
     default:
       return null;
   }
 }
-
-// ── Hooks: Claude Code's settings.json, consent-gated ──
 
 const claudeHooks: HookInstaller = {
   /** Async so an installer throw (e.g. unparseable settings.json) always reaches
@@ -261,21 +252,19 @@ const claudeHooks: HookInstaller = {
   },
   areHooksInstalled: () => Promise.resolve(installerAreHooksInstalled()),
   /** The strings live in consentCopy.ts (Claude-specific facts: the event
-   *  count, the settings path); the shared consent gate ships them verbatim. */
+   *  count, the settings path), and the shared consent gate ships them verbatim. */
   consentDisclosure: () => ({ headline: CONSENT_INSTALL_HEADLINE, disclosure: CONSENT_DISCLOSURE }),
   /** Every entry runs the bundled claude-hook.js, so it is copied into
    *  ~/.pixel-agents/hooks/ before any entry points at it. */
   stageHookFiles: copyHookScript,
 };
 
-// ── Context windows ──
-
 /**
  * Window a Claude model's context is measured against.
  *
  * Claude Code writes the model id on every assistant record but never the
  * limit, so this table is the only thing standing between the context gauge and a
- * wrong denominator -- assuming 200k for a 1M model reads five times too full.
+ * wrong denominator: assuming 200k for a 1M model reads five times too full.
  * Unknown ids return undefined so the runtime keeps whatever it already
  * assumed rather than adopting a fresh guess.
  */
@@ -285,8 +274,6 @@ export function contextWindowForModel(model: string | undefined): number | undef
     ? CLAUDE_SMALL_CONTEXT_WINDOW
     : CLAUDE_LARGE_CONTEXT_WINDOW;
 }
-
-// ── The module ──
 
 export const claudeModule = {
   kind: 'agent',

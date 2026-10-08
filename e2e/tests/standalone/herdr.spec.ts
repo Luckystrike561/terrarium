@@ -57,7 +57,7 @@ function ompStoreSession(tmpHome: string, cwd: string, ...records: object[]): st
 async function launchHerdrStandalone(page: Page, provider = 'herdr'): Promise<HerdrFixture> {
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-herdr-e2e-home-'));
   const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-herdr-e2e-workspace-'));
-  // Neither herdr nor omp installs anything, so neither has a consent ask; the
+  // Neither herdr nor omp installs anything, so neither has a consent ask. The
   // Claude grant keeps an unrelated first-run dialog off the office in case a
   // spec enables Claude too.
   fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
@@ -313,7 +313,7 @@ test.describe('Standalone / herdr provider', () => {
   }) => {
     const fixture = await launchHerdrStandalone(page, 'herdr,omp');
     try {
-      // Both transcripts sit in omp's own store, where omp's discovery finds them;
+      // Both transcripts sit in omp's own store, where omp's discovery finds them.
       // herdr reports the first one in a pane as well.
       const paneSession = ompStoreSession(fixture.tmpHome, '/work/epsilon', ompPrompt);
       ompStoreSession(fixture.tmpHome, '/work/outside', ompTurnEnded);

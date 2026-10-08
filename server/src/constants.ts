@@ -2,6 +2,8 @@
 export const JSONL_POLL_INTERVAL_MS = 1000;
 export const FILE_WATCHER_POLL_INTERVAL_MS = 500;
 export const PROJECT_SCAN_INTERVAL_MS = 1000;
+/** How often a multiplexer pane's transcript is looked for until the CLI creates it. */
+export const TRANSCRIPT_FOLLOW_RETRY_MS = 1000;
 
 // ── Heuristic Agent Status Detection ────────────────────────
 // These timers are the fallback when CLI hooks are not active

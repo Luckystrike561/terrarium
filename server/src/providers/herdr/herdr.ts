@@ -1,9 +1,9 @@
 /**
  * Herdr multiplexer module. Herdr hosts agents (omp, Claude, Codex, opencode, ...) in terminal panes and knows, for
- * each one, its kind, status level, working directory, pane title and session file. This module only reads that
- * (see herdrBridge.ts); what an agent is doing comes from the agent module for its kind.
+ * each one, its kind, status level, working directory, pane title and session file. This module only reads that:
+ * what an agent is doing comes from the agent module for its kind.
  *
- * Nothing is written to any Herdr or third-party file — the bridge talks to the local socket only — so there is
+ * Nothing is written to any Herdr or third-party file (the bridge talks to the local socket only), so there is
  * nothing to consent to.
  */
 

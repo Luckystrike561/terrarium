@@ -73,7 +73,7 @@ describe('SessionRouter', () => {
       router.storePending('sess-ext', {
         sessionId: 'sess-ext',
         transcriptPath: undefined,
-        sessionFile: '/s/one.jsonl',
+        sessionRef: '/s/one.jsonl',
         cwd: '/work',
         sourceIds: ['herdr'],
       });
@@ -87,7 +87,7 @@ describe('SessionRouter', () => {
       expect(router.confirmPending('sess-ext')).toEqual({
         sessionId: 'sess-ext',
         transcriptPath: undefined,
-        sessionFile: '/s/one.jsonl',
+        sessionRef: '/s/one.jsonl',
         cwd: '/work',
         sourceIds: ['herdr', 'omp'],
       });

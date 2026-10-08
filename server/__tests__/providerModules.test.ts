@@ -6,9 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplexedAgent, MultiplexerModule } from '../../core/src/provider.js';
 import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
+import { FILE_WATCHER_POLL_INTERVAL_MS, TRANSCRIPT_FOLLOW_RETRY_MS } from '../src/constants.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
-import { OMP_TAIL_POLL_MS } from '../src/providers/omp/constants.js';
 import { ompModule } from '../src/providers/omp/omp.js';
+import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 import { PixelAgentsServer } from '../src/server.js';
 
 // omp's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
@@ -114,17 +115,17 @@ describe('provider modules', () => {
       expect(store.get(id)?.folderName).toBe('monopoly');
 
       fs.appendFileSync(file, jsonl([toolStart('t1', 'read', { path: '/work/monopoly/PLAN.md' })]));
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS);
       expect(ofType('agentToolStart')).toContainEqual(
         expect.objectContaining({ id, status: 'Reading PLAN.md', toolName: 'read' }),
       );
 
       fs.appendFileSync(file, jsonl([turnEnded]));
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS);
       expect(ofType('agentStatus').at(-1)).toMatchObject({ id, status: 'waiting' });
 
       fs.appendFileSync(file, jsonl([sessionExit]));
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS);
       expect(store.size).toBe(0);
     });
 
@@ -133,7 +134,7 @@ describe('provider modules', () => {
       ompSession('idle', '/work/idle', [toolStart('old', 'bash', { command: 'ls' }), turnEnded]);
       runtime = new AgentRuntime(store, { agents: [ompModule], multiplexers: [] });
       runtime.startModules();
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS * 3);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS * 3);
 
       const id = onlyAgentId();
       expect(store.get(id)?.folderName).toBe('idle');
@@ -148,7 +149,7 @@ describe('provider modules', () => {
       runtime = new AgentRuntime(store, { agents: [], multiplexers: [mux.module] });
       runtime.startModules();
 
-      mux.publish([pane({ sessionFile: file })]);
+      mux.publish([pane({ sessionRef: file })]);
       const id = onlyAgentId();
       expect(ofType('agentInfo').at(-1)).toMatchObject({
         id,
@@ -158,12 +159,12 @@ describe('provider modules', () => {
       expect(ofType('agentStatus').at(-1)).toMatchObject({ id, status: 'active' });
 
       fs.appendFileSync(file, jsonl([toolStart('t1', 'read', { path: 'PLAN.md' })]));
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS * 3);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS * 3);
       expect(ofType('agentToolStart')).toEqual([]);
 
-      mux.publish([pane({ sessionFile: file, status: 'blocked' })]);
+      mux.publish([pane({ sessionRef: file, status: 'blocked' })]);
       expect(ofType('agentToolPermission')).toContainEqual({ type: 'agentToolPermission', id });
-      mux.publish([pane({ sessionFile: file, status: 'idle' })]);
+      mux.publish([pane({ sessionRef: file, status: 'idle' })]);
       expect(ofType('agentStatus').at(-1)).toMatchObject({ id, status: 'waiting' });
 
       mux.publish([]);
@@ -180,21 +181,21 @@ describe('provider modules', () => {
       runtime.startModules();
       expect(store.size).toBe(2);
 
-      mux.publish([pane({ sessionFile: inPane })]);
+      mux.publish([pane({ sessionRef: inPane })]);
       expect(store.size).toBe(2);
-      const paneAgent = [...store].find(([, a]) => a.sessionFile === fs.realpathSync(inPane));
-      const outsideAgent = [...store].find(([, a]) => a.sessionFile === fs.realpathSync(outside));
+      const paneAgent = [...store].find(([, a]) => a.sessionRef === fs.realpathSync(inPane));
+      const outsideAgent = [...store].find(([, a]) => a.sessionRef === fs.realpathSync(outside));
       expect(outsideAgent).toBeDefined();
       const id = paneAgent![0];
       expect(ofType('agentInfo').at(-1)).toMatchObject({ id, name: 'alpha' });
 
       fs.appendFileSync(inPane, jsonl([toolStart('t1', 'edit', { path: 'src/app.ts' })]));
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS);
       expect(ofType('agentToolStart')).toEqual([
         expect.objectContaining({ id, status: 'Editing app.ts' }),
       ]);
 
-      mux.publish([pane({ sessionFile: inPane, status: 'blocked' })]);
+      mux.publish([pane({ sessionRef: inPane, status: 'blocked' })]);
       expect(ofType('agentToolPermission')).toEqual([{ type: 'agentToolPermission', id }]);
     });
 
@@ -205,11 +206,60 @@ describe('provider modules', () => {
       expect(store.size).toBe(0);
 
       const file = ompSession('fresh', '/work/gamma', [userPrompt]);
-      mux.publish([pane({ paneId: 'p9', name: 'gamma', sessionFile: file })]);
-      vi.advanceTimersByTime(OMP_TAIL_POLL_MS * 5); // several discovery scans find the same file
+      mux.publish([pane({ paneId: 'p9', name: 'gamma', sessionRef: file })]);
+      vi.advanceTimersByTime(SESSION_POLL_INTERVAL_MS * 5); // several discovery scans find the same file
 
       const id = onlyAgentId();
       expect(store.get(id)?.folderName).toBe('gamma');
+    });
+  });
+
+  describe('both: herdr and claude', () => {
+    it('a Claude pane herdr names by session id is one character with its transcript tool activity, gone with the pane', () => {
+      const mux = fakeMultiplexer();
+      const sessionId = '0b5e7c1e-4a2d-4c36-9f0e-1d2c3b4a5f60';
+      const dir = path.join(tmpHome, '.claude', 'projects', '-work-delta');
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, `${sessionId}.jsonl`);
+      runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [mux.module] });
+      runtime.startModules();
+
+      // Claude creates the transcript only once its first record is written, after the pane appeared.
+      mux.publish([pane({ agentKind: 'claude', name: 'delta', sessionRef: sessionId })]);
+      fs.writeFileSync(file, jsonl([{ type: 'user', message: { role: 'user', content: 'go' } }]));
+      vi.advanceTimersByTime(TRANSCRIPT_FOLLOW_RETRY_MS);
+      mux.publish([pane({ agentKind: 'claude', name: 'delta', sessionRef: sessionId })]);
+      const id = onlyAgentId();
+      expect(store.get(id)?.jsonlFile).toBe(fs.realpathSync(file));
+      expect(ofType('agentInfo').at(-1)).toMatchObject({ id, name: 'delta' });
+
+      fs.appendFileSync(
+        file,
+        jsonl([
+          {
+            type: 'assistant',
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: '/w/a.ts' } },
+              ],
+            },
+          },
+        ]),
+      );
+      vi.advanceTimersByTime(FILE_WATCHER_POLL_INTERVAL_MS * 2);
+      expect(onlyAgentId()).toBe(id);
+      expect(ofType('agentToolStart')).toContainEqual(
+        expect.objectContaining({ id, status: 'Reading a.ts', toolName: 'Read' }),
+      );
+
+      mux.publish([pane({ agentKind: 'claude', sessionRef: sessionId, status: 'blocked' })]);
+      expect(ofType('agentToolPermission')).toContainEqual(
+        expect.objectContaining({ type: 'agentToolPermission', id }),
+      );
+
+      mux.publish([]);
+      expect(store.size).toBe(0);
     });
   });
 

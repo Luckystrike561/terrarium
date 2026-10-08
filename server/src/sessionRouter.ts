@@ -6,8 +6,8 @@ export interface PendingExternalSession {
   sessionId: string;
   /** Transcript file path. Undefined for providers without transcripts (OpenCode, Copilot). */
   transcriptPath: string | undefined;
-  /** File the session writes, as announced by a module (see AgentEvent sessionStart.sessionFile). */
-  sessionFile?: string;
+  /** The session's identity, as announced by a module (see AgentEvent sessionStart.sessionRef). */
+  sessionRef?: string;
   cwd: string;
   /** Every module that announced this session. Decides whether it is adopted outside the workspace and which agent
    *  module it belongs to. */
@@ -76,7 +76,7 @@ export class SessionRouter {
     this.pendingSessions.set(sessionId, {
       sessionId,
       transcriptPath: info.transcriptPath ?? previous.transcriptPath,
-      sessionFile: info.sessionFile ?? previous.sessionFile,
+      sessionRef: info.sessionRef ?? previous.sessionRef,
       cwd: info.cwd || previous.cwd,
       sourceIds: [...new Set([...previous.sourceIds, ...info.sourceIds])],
     });

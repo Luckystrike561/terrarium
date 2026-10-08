@@ -15,7 +15,7 @@
   "icon": "icon.png",
   "license": "MIT",
   "engines": {
-    "node": ">=20",
+    "node": ">=22.13",
     "vscode": "^1.105.0"
   },
   "extensionKind": [

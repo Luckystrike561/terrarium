@@ -396,7 +396,7 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
         }
       },
       areHooksInstalled: () => module.hooks.areHooksInstalled(),
-      // Durable writes are the executor's own atomic recordHooksDecline; this only
+      // Durable writes are the executor's own atomic recordHooksDecline. This only
       // mirrors the live runtime ref, which follows this module's preference alone.
       syncHooksPreferenceOff: () => this.runtime.setHooksEnabled(module.id, false),
       reportHooksStatus: () => this.reportHooksStatus(module),

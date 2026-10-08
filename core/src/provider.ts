@@ -4,8 +4,8 @@
  * Two kinds of module, each usable alone or together:
  *
  * - An AgentModule speaks for one agent CLI (Claude Code, omp, ...). It owns that CLI's vocabulary (tool names,
- *   status text, context windows) and knows how to read what the CLI reports — installed hooks, transcripts, or
- *   both — so it can find that CLI's sessions with no multiplexer around it.
+ *   status text, context windows) and knows how to read what the CLI reports (installed hooks, transcripts, or
+ *   both), so it can find that CLI's sessions with no multiplexer around it.
  * - A MultiplexerModule speaks for one terminal multiplexer (herdr, ...). It knows which agents are alive, what
  *   kind of CLI each one is, its status level, name and task, but never what the agent is doing. For that it hands
  *   each agent to the AgentModule registered for its kind, and falls back to status alone when none is.
@@ -66,10 +66,11 @@ export type AgentEvent =
       /** Transcript the runtime's own transcript parser should follow for this session. Only set by the module whose
        *  transcripts that parser reads (the one declaring `getSessionDirs`). */
       transcriptPath?: string;
-      /** File the session writes, as the identity shared across modules: a multiplexer and an agent module that
-       *  report the same file are reporting the same agent, which then renders as one character. Never parsed by the
-       *  runtime, unlike `transcriptPath`. */
-      sessionFile?: string;
+      /** The session's identity shared across modules: its transcript path, or the CLI's own session id when the
+       *  CLI's multiplexer integration reports one. A multiplexer and an agent module that report the same ref are
+       *  reporting the same agent, which then renders as one character. Never parsed by the runtime, unlike
+       *  `transcriptPath`. */
+      sessionRef?: string;
       /** Working directory the session was started in. Used to match pending
        *  external sessions against known workspace folders. */
       cwd?: string;
@@ -99,11 +100,14 @@ export interface ModuleHandle {
 /** An agent module once started: its own session discovery is running, and it can take over sessions a multiplexer
  *  found. */
 export interface RunningAgentModule extends ModuleHandle {
-  /** Report the activity of the session writing `sessionFile`, which a multiplexer found. The module emits under its
-   *  own session ids and must announce the file as `sessionStart.sessionFile`, so the multiplexer's events for the
-   *  same file land on the same agent. Stopping the returned handle ends the session only when nothing else (the
+  /** Report the activity of the session `sessionRef` names, which a multiplexer found. The module emits under its
+   *  own session ids and must announce the same ref as `sessionStart.sessionRef`, so the multiplexer's events for the
+   *  same session land on the same agent. Stopping the returned handle ends the session only when nothing else (the
    *  module's own discovery) still tracks it. */
-  followSession(sessionFile: string): ModuleHandle;
+  followSession(sessionRef: string): ModuleHandle;
+  /** The ref of the one live session running in `cwd`, for multiplexers that report no session identity for this
+   *  CLI. Undefined when none or several run there: guessing would merge two agents into one character. */
+  sessionInDirectory?(cwd: string): string | undefined;
 }
 
 // ── Agent modules ─────────────────────────────────────────────
@@ -116,7 +120,7 @@ export interface HookInstaller {
   uninstallHooks(): Promise<void>;
   areHooksInstalled(): Promise<boolean>;
   /** First-run consent copy for THIS module's hook install: the headline titles the ask, the disclosure is its body
-   *  (what is written, what data moves, how to undo; paragraphs split on blank lines). Required, not optional — a
+   *  (what is written, what data moves, how to undo; paragraphs split on blank lines). Required, not optional: a
    *  module that installs anything must state its terms, and the gate ships these verbatim so no client copy can
    *  drift. */
   consentDisclosure(): { headline: string; disclosure: string };
@@ -161,7 +165,7 @@ export interface AgentModule {
 
   /** Context window, in tokens, for a model id this CLI reports in its
    *  transcripts. Transcripts state token usage but never the limit it counts
-   *  against, so only the module can say — and getting it wrong is visible:
+   *  against, so only the module can say, and getting it wrong is visible:
    *  the office renders usage/window as a context gauge over every character.
    *  Return undefined for an unrecognized model; the runtime then keeps its
    *  previous estimate and widens it if a context ever exceeds it. */
@@ -222,8 +226,9 @@ export interface MultiplexedAgent {
   readonly name: string;
   /** One-line description of what the agent is working on. */
   readonly task: string;
-  /** File the agent's session writes, when the multiplexer exposes it. */
-  readonly sessionFile?: string;
+  /** The agent's session, as the multiplexer's integration with the CLI reports it: an absolute transcript path or
+   *  the CLI's own session id. Absent when the multiplexer only watches the screen. */
+  readonly sessionRef?: string;
 }
 
 export interface MultiplexerConnection extends ModuleHandle {

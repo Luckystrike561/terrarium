@@ -150,7 +150,7 @@ async function installHooksOnStartup(
 ): Promise<void> {
   if (!getHooksEnabled(module.id)) {
     // Without this line, a persisted hooks-off makes startup skip the entire
-    // consent/install flow with zero output — indistinguishable from a bug.
+    // consent/install flow with zero output: indistinguishable from a bug.
     console.log(
       `[Pixel Agents] Hooks disabled for ${module.displayName} — enable "Instant Detection (Hooks)" in the UI settings to install them.`,
     );
@@ -158,12 +158,12 @@ async function installHooksOnStartup(
   }
   let consent = getHooksConsent(module.id) === 'granted';
   if (!consent && (await module.hooks.areHooksInstalled())) {
-    // Our hooks are already installed and already firing — a pre-consent
-    // version put them there. Grant and continue with NO prompt: the install
+    // Our hooks are already installed and already firing (a pre-consent
+    // version put them there). Grant and continue with NO prompt: the install
     // below only ever REDUCES scope (Claude's 14 -> 12 migration drops the two
     // events that forwarded prompt text and were consumed by nothing). Asking
     // would buy this user no protection they do not already have. A fresh
-    // install still is asked, in full — in the browser UI, when a tokened
+    // install still is asked, in full, in the browser UI, when a tokened
     // client connects (clientMessageHandler's webviewReady).
     grantHooksConsent(module.id);
     consent = true;
@@ -326,7 +326,6 @@ async function main(): Promise<void> {
     }
     runtime.watchAllSessions.current = adapter.getSetting('pixel-agents.watchAllSessions', false);
 
-    // Modules that find agents on their own (session stores, multiplexers).
     runtime.startModules();
 
     for (const module of hookModules(modules)) {
@@ -338,7 +337,6 @@ async function main(): Promise<void> {
       );
     }
 
-    // Scan this workspace's transcripts for sessions running in the user's terminals.
     const projectDir = runtime.transcriptModule?.getSessionDirs?.(process.cwd())[0];
     if (projectDir) {
       console.log(`[Pixel Agents] Scanning project dir: ${projectDir}`);

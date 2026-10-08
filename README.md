@@ -43,7 +43,7 @@ With `herdr,omp`, an omp session running in a herdr pane is one character: omp s
 
 ## Getting started
 
-Requirements: Node.js 20 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Requirements: Node.js 22.13 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
 
 ```bash
 git clone https://github.com/Luckystrike561/terrarium.git
@@ -72,7 +72,7 @@ With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everyt
 ### Options
 
 ```bash
-node dist/cli.js --provider herdr,omp  # any of claude, omp, herdr; saved for later runs
+node dist/cli.js --provider herdr,omp  # herdr, claude, or any agent module (omp, pi, codex, copilot, cursor, opencode, kilo, kimi, droid, devin, hermes, qodercli, qwen, letta, mastracode, agy, grok, kiro, maki, gemini, cline); saved for later runs
 node dist/cli.js --port 3100           # fixed port instead of a free one
 node dist/cli.js --host 127.0.0.1      # bind address (default 127.0.0.1)
 node dist/cli.js --help
@@ -152,7 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/
 ## Troubleshooting
 
 - **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. The server logs `Herdr not reachable` until it can connect.
-- **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add it to `--provider` (for omp, `--provider herdr,omp`). With omp running, herdr must also report the pane's session file, which it does once omp has started a session.
+- **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
 - **A Claude session is missing.** Check that **Settings → Instant Detection (Hooks)** is on and that the session belongs to the current workspace, or turn on **Watch All Sessions**.
 - **The office looks disconnected.** **Settings → Debug View** shows the server connection and the latest data for each agent.
 

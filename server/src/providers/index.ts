@@ -2,7 +2,7 @@
  * Provider module registry: the one list both surfaces (VS Code, standalone CLI) iterate. Nothing outside a module's
  * own directory knows any module by name.
  *
- * Adding a module (see "Adding a provider module" in CLAUDE.md):
+ * Adding a module:
  *   1. Create `server/src/providers/<id>/<id>.ts` exporting an AgentModule or a MultiplexerModule.
  *   2. Add it to `agentModules` or `multiplexerModules` below.
  */
@@ -15,11 +15,54 @@ import type {
   ProviderModule,
 } from '../../../core/src/provider.js';
 import { getEnabledModuleIds, getHooksEnabled } from '../configPersistence.js';
+import { agyModule } from './agy/agy.js';
 import { claudeModule } from './claude/claude.js';
+import { clineModule } from './cline/cline.js';
+import { codexModule } from './codex/codex.js';
+import { copilotModule } from './copilot/copilot.js';
+import { cursorModule } from './cursor/cursor.js';
+import { devinModule } from './devin/devin.js';
+import { droidModule } from './droid/droid.js';
+import { geminiModule } from './gemini/gemini.js';
+import { grokModule } from './grok/grok.js';
 import { herdrModule } from './herdr/herdr.js';
+import { hermesModule } from './hermes/hermes.js';
+import { kiloModule } from './kilo/kilo.js';
+import { kimiModule } from './kimi/kimi.js';
+import { kiroModule } from './kiro/kiro.js';
+import { lettaModule } from './letta/letta.js';
+import { makiModule } from './maki/maki.js';
+import { mastracodeModule } from './mastracode/mastracode.js';
 import { ompModule } from './omp/omp.js';
+import { opencodeModule } from './opencode/opencode.js';
+import { piModule } from './pi/pi.js';
+import { qodercliModule } from './qodercli/qodercli.js';
+import { qwenModule } from './qwen/qwen.js';
 
-export const agentModules: readonly AgentModule[] = [claudeModule, ompModule];
+export const agentModules: readonly AgentModule[] = [
+  claudeModule,
+  ompModule,
+  agyModule,
+  clineModule,
+  codexModule,
+  copilotModule,
+  cursorModule,
+  devinModule,
+  droidModule,
+  geminiModule,
+  grokModule,
+  hermesModule,
+  kiloModule,
+  kimiModule,
+  kiroModule,
+  lettaModule,
+  makiModule,
+  mastracodeModule,
+  opencodeModule,
+  piModule,
+  qodercliModule,
+  qwenModule,
+];
 export const multiplexerModules: readonly MultiplexerModule[] = [herdrModule];
 
 const allModules: readonly ProviderModule[] = [...agentModules, ...multiplexerModules];
@@ -68,8 +111,8 @@ export function hookModules(modules: ModuleSet): HookModule[] {
   return modules.agents.filter((m): m is HookModule => m.hooks !== undefined);
 }
 
-/** Resolve a wire-supplied module id to one of `modules` that installs hooks, or undefined — the caller then writes
- *  nothing (fail-closed, like a junk consent choice). */
+/** Resolve a wire-supplied module id to one of `modules` that installs hooks, or undefined (the caller then writes
+ *  nothing: fail-closed, like a junk consent choice). */
 export function findHookModule(modules: ModuleSet, id: unknown): HookModule | undefined {
   return typeof id === 'string' ? hookModules(modules).find((m) => m.id === id) : undefined;
 }

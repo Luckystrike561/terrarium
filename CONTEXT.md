@@ -205,8 +205,8 @@ The provider for one coding-agent CLI — Claude Code, omp, Codex, Pi, and the l
 **Multiplexer module**:
 The provider for one terminal multiplexer — herdr, and the like — that hosts agents in panes. It knows which agents are alive, their kind, status, name and task, never what they are doing: for that it hands each agent to the agent module for its kind, and reports status alone when none is running.
 
-**Session file**:
-The file a session writes, as two modules report it. A multiplexer and an agent module that report the same session file are reporting the same agent, which stays one character.
+**Session ref**:
+A session's identity as two modules report it: its transcript path, or the CLI's own session id when that is what the CLI's multiplexer integration reports. A multiplexer and an agent module that report the same session ref are reporting the same agent, which stays one character.
 
 **Agent event**:
 The canonical, CLI-agnostic description of something happening in a session: a tool started, a turn ended, a teammate went idle. Providers produce agent events; everything downstream consumes only these, never CLI-specific names.

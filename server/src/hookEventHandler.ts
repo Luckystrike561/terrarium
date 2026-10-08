@@ -134,30 +134,30 @@ export class HookEventHandler {
   }
 
   /**
-   * Route `sessionId` to the agent already reporting the same session file, when another module announced it: a
+   * Route `sessionId` to the agent already reporting the same session ref, when another module announced it: a
    * multiplexer pane and the agent module reporting the same session are one agent, one character. Returns whether
    * an agent claimed the session.
    *
-   * A module-announced `sessionFile` matches either kind of agent; a bare `transcriptPath` (Claude's hooks) only
+   * A module-announced `sessionRef` matches either kind of agent; a bare `transcriptPath` (Claude's hooks) only
    * matches agents a module announced, so two Claude reports of one transcript keep their existing routing.
    */
-  private claimBySessionFile(
+  private claimBySessionRef(
     sessionId: string,
-    sessionFile: string | undefined,
+    sessionRef: string | undefined,
     transcriptPath: string | undefined,
   ): boolean {
     for (const [id, agent] of this.agents) {
-      const announced = agent.sessionFile;
-      const matches = sessionFile
-        ? (announced !== undefined && pathsMatch(announced, sessionFile)) ||
-          (agent.jsonlFile !== '' && pathsMatch(agent.jsonlFile, sessionFile))
+      const announced = agent.sessionRef;
+      const matches = sessionRef
+        ? (announced !== undefined && pathsMatch(announced, sessionRef)) ||
+          (agent.jsonlFile !== '' && pathsMatch(agent.jsonlFile, sessionRef))
         : transcriptPath !== undefined &&
           announced !== undefined &&
           pathsMatch(announced, transcriptPath);
       if (!matches) continue;
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: session ${sessionId.slice(0, 8)}... reports Agent ${id}'s session file, routing to it`,
+          `[Pixel Agents] Hook: session ${sessionId.slice(0, 8)}... reports Agent ${id}'s session, routing to it`,
         );
       this.registerAgent(sessionId, id);
       return true;
@@ -281,7 +281,7 @@ export class HookEventHandler {
           return;
         }
       }
-      if (this.claimBySessionFile(event.session_id, normEvent.sessionFile, transcriptPath)) return;
+      if (this.claimBySessionRef(event.session_id, normEvent.sessionRef, transcriptPath)) return;
       // /clear or /resume: reassign existing agent to new session
       if (normEvent.source === 'clear' || normEvent.source === 'resume') {
         const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
@@ -311,7 +311,7 @@ export class HookEventHandler {
       // Unknown session -- store as pending, create only when a confirmation event
       // arrives (Stop, Notification, PermissionRequest). This filters transient sessions
       // from Claude Code Extension which fire SessionStart + SessionEnd without any activity.
-      if (transcriptPath || cwd || normEvent.sessionFile || sourceModule?.kind === 'multiplexer') {
+      if (transcriptPath || cwd || normEvent.sessionRef || sourceModule?.kind === 'multiplexer') {
         // For --resume, clear dismissals so the file can be re-adopted
         if (normEvent.source === 'resume' && transcriptPath) {
           this.lifecycleCallbacks.onSessionResume?.(transcriptPath);
@@ -323,7 +323,7 @@ export class HookEventHandler {
         this.sessionRouter.storePending(event.session_id, {
           sessionId: event.session_id,
           transcriptPath,
-          sessionFile: normEvent.sessionFile,
+          sessionRef: normEvent.sessionRef,
           cwd: cwd ?? '',
           sourceIds: [sourceId],
         });
@@ -355,9 +355,7 @@ export class HookEventHandler {
           `[Pixel Agents] Hook: ${eventName} confirmed external session ${event.session_id.slice(0, 8)}..., notifying host`,
         );
       // A module reporting a session another module already put on screen joins that character.
-      if (
-        !this.claimBySessionFile(pending.sessionId, pending.sessionFile, pending.transcriptPath)
-      ) {
+      if (!this.claimBySessionRef(pending.sessionId, pending.sessionRef, pending.transcriptPath)) {
         this.lifecycleCallbacks.onExternalSessionDetected?.(pending);
       }
       // Re-process this event now that the agent exists
@@ -533,7 +531,7 @@ export class HookEventHandler {
     agent.hadToolsInTurn = true;
 
     // Send tool start + active state to webview (instant, no 500ms JSONL delay).
-    // Skip for sub-agent spawns — their sub-agent characters need the stable JSONL
+    // Skip for sub-agent spawns: their sub-agent characters need the stable JSONL
     // tool ID (not the transient hook ID) so that SubagentStop/tool_result cleanup
     // can find and remove them. JSONL handles agentToolStart (with runInBackground)
     // for these tools.

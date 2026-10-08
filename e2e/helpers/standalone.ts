@@ -46,7 +46,7 @@ export interface LaunchStandaloneOptions {
    *  they are the only ones that want the dialog. Never overwrites a
    *  config.json that already exists (a shared HOME was seeded by its owner). */
   seedHooksConsent?: boolean;
-  /** Provider modules forwarded as `--provider <ids>` (comma-separated; default: the CLI's own default, 'claude').
+  /** Provider modules forwarded as `--provider <ids>` (comma-separated, default: the CLI's own default, 'claude').
    *  Herdr specs pass 'herdr' (or 'herdr,omp') so the standalone host connects to a local Herdr socket instead of
    *  installing Claude hooks. */
   provider?: string;

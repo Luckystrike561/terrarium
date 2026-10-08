@@ -50,7 +50,7 @@ export const SETTINGS_BACKUP_SUFFIX = '.pixel-agents.backup';
 export const SETTINGS_TMP_SUFFIX = '.pixel-agents-tmp';
 
 /** Mode for a settings.json we create ourselves. An existing file's mode is
- *  preserved instead; this is only the fresh-file default, and it is the
+ *  preserved instead. This is only the fresh-file default, and it is the
  *  restrictive one because the file holds the user's permission rules. */
 export const SETTINGS_FRESH_FILE_MODE = 0o600;
 
@@ -58,7 +58,7 @@ export const SETTINGS_FRESH_FILE_MODE = 0o600;
  *  the same file and does not coordinate with us, so the cycle re-reads the
  *  file immediately before committing and retries when it changed. The verify
  *  sits after mkdir/backup/tmp-write, so the residual lost-update window is one
- *  read plus one rename — narrowed, NOT eliminated: a Claude Code write landing
+ *  read plus one rename: narrowed, NOT eliminated. A Claude Code write landing
  *  inside that gap is still overwritten by our rename. A lockfile would not
  *  help (Claude Code would not honor it, and stale locks add failure modes
  *  worse than the race). */
@@ -70,12 +70,10 @@ export const SETTINGS_MUTATE_RETRY_DELAY_MS = 100;
  *  Used by the extension to match terminals to agents for adoption. */
 export const CLAUDE_TERMINAL_NAME_PREFIX = 'Claude Code';
 
-// ── Context windows (per model, in tokens) ──────────────────
-//
 // Transcripts report token usage but never the window it counts against, so
 // these are the denominators behind every context gauge. Measured against
 // real transcripts, where the largest context seen per model was: opus-4-8
-// 957k, fable-5 788k, opus-5 459k, sonnet-5 233k -- every current model runs
+// 957k, fable-5 788k, opus-5 459k, sonnet-5 233k: every current model runs
 // the large window. Haiku is the small-window exception.
 /** Current Claude models (Opus/Sonnet/Fable 5, Opus 4.8). */
 export const CLAUDE_LARGE_CONTEXT_WINDOW = 1_000_000;
