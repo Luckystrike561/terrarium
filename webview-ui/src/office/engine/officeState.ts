@@ -54,7 +54,6 @@ import {
 } from './characters.js';
 import type { QueueSlot } from './ctoOffice.js';
 import { computeDoorQueue, computeOfficeTiles, findCtoSeatId } from './ctoOffice.js';
-import { isoDrawOrder } from './isoSort.js';
 import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
@@ -1514,24 +1513,6 @@ export class OfficeState {
       ) {
         return ch.id;
       }
-    }
-    return null;
-  }
-
-  /** Uid of the front-most furniture whose sprite has an opaque pixel at an
-   *  iso screen point (unscaled sprite px), or null. Tall pieces cover tiles
-   *  behind their own footprint, so a tile lookup alone misses clicks on a
-   *  desk top or a wall shelf. */
-  getFurnitureAt(isoX: number, isoY: number): string | null {
-    const order = isoDrawOrder(this.furniture.map((f) => f.sort));
-    for (let k = order.length - 1; k >= 0; k--) {
-      const f = this.furniture[order[k]];
-      const width = f.sprite[0]?.length ?? 0;
-      let px = Math.floor(isoX - f.x);
-      const py = Math.floor(isoY - f.y);
-      if (px < 0 || py < 0 || px >= width || py >= f.sprite.length) continue;
-      if (f.mirrored) px = width - 1 - px;
-      if (f.sprite[py][px] !== '') return f.uid;
     }
     return null;
   }
