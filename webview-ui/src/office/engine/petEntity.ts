@@ -140,7 +140,7 @@ export function createPet(id: string, petType: number, col: number, row: number)
   const center = tileCenter(col, row);
   return {
     id,
-    name: '', // Filled by OfficeState.addPet() via getPetName(petType)
+    name: '', // Filled by OfficeState.spawnPet() via getPetName(petType)
     petType,
     state: PetState.IDLE,
     dir: Direction.DOWN,

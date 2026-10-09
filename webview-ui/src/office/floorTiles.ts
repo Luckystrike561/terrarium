@@ -40,16 +40,6 @@ function getFloorSprite(patternIndex: number): SpriteData | null {
   return null;
 }
 
-/** Check if floor sprites are available (always true — falls back to default solid tile) */
-export function hasFloorSprites(): boolean {
-  return true;
-}
-
-/** Get count of available floor patterns (at least 1 for the default solid tile) */
-export function getFloorPatternCount(): number {
-  return floorSprites.length > 0 ? floorSprites.length : 1;
-}
-
 /** Get all floor sprites (for preview rendering, falls back to default solid tile) - unused */
 // function getAllFloorSprites(): SpriteData[] {
 //   return floorSprites.length > 0 ? floorSprites : [DEFAULT_FLOOR_SPRITE];

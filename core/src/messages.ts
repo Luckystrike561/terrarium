@@ -43,7 +43,6 @@ export type ClientMessage =
   | WebviewReady
   | CloseAgent
   | SaveAgentSeats
-  | SaveLayout
   | SetSoundEnabled
   | SetLastSeenVersion
   | SetAlwaysShowLabels
@@ -320,11 +319,6 @@ export interface SeatAssignment {
   palette: number;
   hueShift: number;
   seatId: string | null;
-}
-
-export interface SaveLayout {
-  type: 'saveLayout';
-  layout: Record<string, any>;
 }
 
 export interface SetSoundEnabled {

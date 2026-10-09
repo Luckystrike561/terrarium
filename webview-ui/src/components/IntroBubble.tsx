@@ -48,9 +48,8 @@ interface IntroBubbleProps {
    *  returns the next time the office is opened. */
   onClose: () => void;
   /** True while another surface owns Escape — an open Settings/changelog modal
-   *  (stacked ABOVE this bubble) or the layout editor's multi-stage Esc
-   *  ladder. Escape aborts the tour only when the tour is topmost; without
-   *  this gate it silently aborted UNDER an open modal. */
+   *  stacked ABOVE this bubble. Escape aborts the tour only when the tour is
+   *  topmost; without this gate it silently aborted UNDER an open modal. */
   escapeSuppressed: boolean;
 }
 

@@ -1,11 +1,10 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js';
 import { transport } from '../transport/index.js';
 import { Button } from './ui/Button.js';
 import { Checkbox } from './ui/Checkbox.js';
 import { Clipboard } from './ui/Clipboard.js';
-import { MenuItem } from './ui/MenuItem.js';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,15 +22,11 @@ interface SettingsModalProps {
    *  ~/.claude/settings.json. */
   hooksInstalled: boolean;
   onToggleHooksEnabled: () => void;
-  /** Whether the areas overlay is rendered outside of the Areas edit tool. */
+  /** Whether the layout's areas overlay is rendered. */
   showAreas: boolean;
   onToggleShowAreas: () => void;
-  /** Hide the Show Areas checkbox entirely when areas are unavailable. */
+  /** Hide the Show Areas checkbox entirely when the layout defines no areas. */
   showAreasAvailable: boolean;
-  /** Browser-native layout export via the host save dialog. */
-  onExportLayout: () => void;
-  /** Browser-native layout import from a chosen file. */
-  onImportLayout: (file: File) => void;
 }
 
 export function SettingsModal({
@@ -49,46 +44,12 @@ export function SettingsModal({
   showAreas,
   onToggleShowAreas,
   showAreasAvailable,
-  onExportLayout,
-  onImportLayout,
 }: SettingsModalProps) {
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [assetDirDraft, setAssetDirDraft] = useState('');
 
   return (
     <Clipboard isOpen={isOpen} onClose={onClose} title="Settings">
-      <MenuItem
-        onClick={() => {
-          onExportLayout();
-          onClose();
-        }}
-      >
-        Export Layout
-      </MenuItem>
-      <MenuItem
-        onClick={() => {
-          // Open the native file picker; the import is applied in onChange below.
-          fileInputRef.current?.click();
-        }}
-      >
-        Import Layout
-      </MenuItem>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          // Reset the value so re-selecting the same file fires change again.
-          e.target.value = '';
-          if (file) {
-            onImportLayout(file);
-            onClose();
-          }
-        }}
-      />
       {/* No native directory picker in the browser, so accept a typed absolute path. */}
       <div className="flex items-center gap-4 py-4 px-10">
         <input

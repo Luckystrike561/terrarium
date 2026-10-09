@@ -24,8 +24,7 @@ export interface LoadedAssetData {
   sprites: Record<string, SpriteData>;
 }
 
-export type FurnitureCategory =
-  'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'misc';
+type FurnitureCategory = 'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'misc';
 
 /** @internal */
 export interface CatalogEntryWithCategory extends FurnitureCatalogEntry {
@@ -58,14 +57,9 @@ const animationGroups = new Map<string, string[]>();
 // Internal catalog (includes all variants for getCatalogEntry lookups)
 let internalCatalog: CatalogEntryWithCategory[] | null = null;
 
-// Dynamic catalog built from loaded assets (when available)
-// Only includes "front" variants for grouped items (shown in editor palette)
-let dynamicCatalog: CatalogEntryWithCategory[] | null = null;
-let dynamicCategories: FurnitureCategory[] | null = null;
-
 /**
  * Build catalog from loaded assets. Returns true if successful.
- * Once built, all getCatalog* functions use the dynamic catalog.
+ * Once built, getCatalogEntry looks up every variant in the internal catalog.
  * Uses ONLY custom assets (excludes hardcoded furniture when assets are loaded).
  */
 export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
@@ -157,7 +151,6 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
   }
 
   // Phase 2: Register rotation groups with 2+ orientations
-  const nonFrontIds = new Set<string>();
   const orientationOrder = ['front', 'right', 'back', 'left'];
   for (const [groupId, orientMap] of groupMap) {
     if (orientMap.size < 2) continue;
@@ -184,10 +177,6 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
         rotationGroups.set(id, rg);
         registeredIds.add(id);
       }
-    }
-    // Track non-front IDs to exclude from visible catalog
-    for (const [orient, id] of Object.entries(members)) {
-      if (orient !== 'front') nonFrontIds.add(id);
     }
   }
 
@@ -270,94 +259,19 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
     );
   }
 
-  // Track "on" variant IDs and animation frame IDs (non-first) to exclude from visible catalog
-  const onStateIds = new Set<string>();
-  for (const asset of assets.catalog) {
-    if (asset.state === 'on') onStateIds.add(asset.id);
-  }
-
   // Store full internal catalog (all variants — for getCatalogEntry lookups)
   internalCatalog = allEntries;
-
-  // Visible catalog: exclude non-front variants and "on" state variants
-  const visibleEntries = allEntries.filter(
-    (e) => !nonFrontIds.has(e.type) && !onStateIds.has(e.type),
-  );
-
-  // Strip orientation/state suffix from labels for grouped variants
-  for (const entry of visibleEntries) {
-    if (rotationGroups.has(entry.type) || stateGroups.has(entry.type)) {
-      entry.label = entry.label
-        .replace(/ - Front - Off$/, '')
-        .replace(/ - Front$/, '')
-        .replace(/ - Off$/, '');
-    }
-  }
-
-  dynamicCatalog = visibleEntries;
-  dynamicCategories = Array.from(new Set(visibleEntries.map((e) => e.category)))
-    .filter((c): c is FurnitureCategory => !!c)
-    .sort();
 
   const rotGroupCount = new Set(Array.from(rotationGroups.values())).size;
   const animGroupCount = animationGroups.size;
   console.log(
-    `✓ Built dynamic catalog with ${allEntries.length} assets (${visibleEntries.length} visible, ${rotGroupCount} rotation groups, ${stateGroups.size / 2} state pairs, ${animGroupCount} animation groups)`,
+    `✓ Built dynamic catalog with ${allEntries.length} assets (${rotGroupCount} rotation groups, ${stateGroups.size / 2} state pairs, ${animGroupCount} animation groups)`,
   );
   return true;
 }
 
 export function getCatalogEntry(type: string): CatalogEntryWithCategory | undefined {
-  // Check internal catalog (includes all variants, e.g., non-front rotations)
-  if (internalCatalog) {
-    return internalCatalog.find((e) => e.type === type);
-  }
-  return dynamicCatalog?.find((e) => e.type === type);
-}
-
-export function getCatalogByCategory(category: FurnitureCategory): CatalogEntryWithCategory[] {
-  const catalog = dynamicCatalog ?? [];
-  return catalog.filter((e) => e.category === category);
-}
-
-/* Currently unused since the editor palette is organized by category. */
-// function getActiveCatalog(): CatalogEntryWithCategory[] {
-//   return dynamicCatalog ?? [];
-// }
-
-export function getActiveCategories(): Array<{ id: FurnitureCategory; label: string }> {
-  const categories = dynamicCategories ?? [];
-  return FURNITURE_CATEGORIES.filter((c) => categories.includes(c.id));
-}
-
-/** @internal */
-export const FURNITURE_CATEGORIES: Array<{ id: FurnitureCategory; label: string }> = [
-  { id: 'desks', label: 'Desks' },
-  { id: 'chairs', label: 'Chairs' },
-  { id: 'storage', label: 'Storage' },
-  { id: 'electronics', label: 'Tech' },
-  { id: 'decor', label: 'Decor' },
-  { id: 'wall', label: 'Wall' },
-  { id: 'misc', label: 'Misc' },
-];
-
-// ── Rotation helpers ─────────────────────────────────────────────
-
-/** Returns the next asset ID in the rotation group (cw or ccw), or null if not rotatable. */
-export function getRotatedType(currentType: string, direction: 'cw' | 'ccw'): string | null {
-  const group = rotationGroups.get(currentType);
-  if (!group) return null;
-  const order = group.orientations.map((o) => group.members[o]);
-  const idx = order.indexOf(currentType);
-  if (idx === -1) return null;
-  const step = direction === 'cw' ? 1 : -1;
-  const nextIdx = (idx + step + order.length) % order.length;
-  return order[nextIdx];
-}
-
-/** Returns the toggled state variant (on↔off), or null if no state variant exists. */
-export function getToggledType(currentType: string): string | null {
-  return stateGroups.get(currentType) ?? null;
+  return internalCatalog?.find((e) => e.type === type);
 }
 
 /** Returns the "on" variant if this type has one, otherwise returns the type unchanged. */
@@ -369,11 +283,6 @@ export function getOnStateType(currentType: string): string {
 // function getOffStateType(currentType: string): string {
 //   return onToOff.get(currentType) ?? currentType;
 // }
-
-/** Returns true if the given furniture type is part of a rotation group. */
-export function isRotatable(type: string): boolean {
-  return rotationGroups.has(type);
-}
 
 /** Get ordered animation frame asset IDs for a given type, or null if not animated. */
 export function getAnimationFrames(type: string): string[] | null {

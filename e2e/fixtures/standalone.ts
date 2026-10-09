@@ -5,8 +5,8 @@ import type { Page, TestInfo } from '@playwright/test';
 import { expect, test as base } from '@playwright/test';
 
 import { applyAllureLabels } from '../helpers/allure-labels';
-import type { TestHooksWindow } from '../helpers/editor';
 import { killTrackedExternalProcesses } from '../helpers/mock-claude';
+import type { TestHooksWindow } from '../helpers/office';
 import { launchStandalone, type StandaloneSession } from '../helpers/standalone';
 import {
   clearNarrationContext,
@@ -132,7 +132,7 @@ export const test = base.extend<{
   seedHooksConsent: boolean;
   /** Pre-seed `~/.pixel-agents/config.json` (replaces the baseline). */
   seedConfig: unknown;
-  /** Pre-seed `~/.pixel-agents/layout.json` (must carry a high layoutRevision). */
+  /** Pre-seed `~/.pixel-agents/layout.json`, served verbatim on startup. */
   seedLayout: unknown;
   /** Pre-seed `~/.claude/settings.json` (e.g. an existing hook install). */
   seedClaudeSettings: unknown;

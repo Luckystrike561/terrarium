@@ -107,27 +107,6 @@ export function getBlockedTiles(
   return tiles;
 }
 
-/** Get tiles blocked for placement purposes — skips top backgroundTiles rows per item */
-export function getPlacementBlockedTiles(
-  furniture: PlacedFurniture[],
-  excludeUid?: string,
-): Set<string> {
-  const tiles = new Set<string>();
-  for (const item of furniture) {
-    if (item.uid === excludeUid) continue;
-    const entry = getCatalogEntry(item.type);
-    if (!entry) continue;
-    const bgRows = entry.backgroundTiles || 0;
-    for (let dr = 0; dr < entry.footprintH; dr++) {
-      if (dr < bgRows) continue; // skip background rows
-      for (let dc = 0; dc < entry.footprintW; dc++) {
-        tiles.add(`${item.col + dc},${item.row + dr}`);
-      }
-    }
-  }
-  return tiles;
-}
-
 /** Map chair orientation to character facing direction */
 function orientationToFacing(orientation: string): Direction {
   switch (orientation) {

@@ -1,25 +1,15 @@
 import { expect, test } from '../../../fixtures/standalone';
-import {
-  enterEditMode,
-  readAreas,
-  readAreaTiles,
-  type TestHooksWindow,
-} from '../../../helpers/editor';
 import { buildSeedConfig, buildSeedLayout, SEED_AREA_COLOR } from '../../../helpers/layout-seed';
+import { readAreas, readAreaTiles, type TestHooksWindow } from '../../../helpers/office';
 
 /**
  * Standalone e2e coverage for Areas with no agent folders in play.
  *
- * The Areas EDITOR (paint tool, CRUD, folder mapping) is gated on
- * `areasAvailable` (App.tsx): a layout with areas already defined, or at least
- * one agent folder name seen this session (`agentFolderNames`, populated as
- * external sessions are adopted) — the folder-mapping half is covered in
- * areas-multiroot.spec.ts. What a session with no agents CAN verify:
- *   - seeded area data loads into OfficeState (areas + areaTiles round-trip), and
- *   - the seeded showAreas state drives the effective overlay gate, and
- *   - the Areas tool button is correctly hidden with no areas and no folders.
- * Area overlay/labels are canvas-only, so we assert state, not pixels (the same
- * tradeoff the pets fixture makes).
+ * What is observable is the data path itself: a seeded layout's `areas` /
+ * `areaTiles` round-trip into OfficeState, and the seeded Show Areas state
+ * drives the effective overlay gate. Area overlay/labels are canvas-only, so
+ * this asserts state, not pixels (the same tradeoff the pets fixture makes).
+ * The folder-mapping half (seat preference) lives in areas-multiroot.spec.ts.
  */
 
 test.describe('Areas (no agent folders)', () => {
@@ -67,41 +57,6 @@ test.describe('Areas (no agent folders)', () => {
       );
       expect(showAreas).toBe(true);
       narrator.check('seeded showAreas:true is effective — the overlay gate is on');
-    });
-  });
-
-  test('the Areas tool button is hidden when no areas and no agent folders @area:areas', async ({
-    page,
-    standalone,
-  }) => {
-    const { narrator } = standalone;
-    narrator.step('opening the layout editor with no layout areas and no agents spawned');
-    await enterEditMode(page);
-    // No seeded areas and no agent has ever reported a folder name → the
-    // Areas button is gated off.
-    await expect(page.locator('button[title*="Define folder-bound areas"]')).toHaveCount(0);
-    narrator.check('no Areas tool button — the tool is gated on having something to map');
-  });
-
-  test.describe('seeded areas layout (positive gate)', () => {
-    test.use({
-      seedLayout: buildSeedLayout({
-        areas: [{ label: 'Engineering', color: SEED_AREA_COLOR }],
-        areaTiles: [{ col: 2, row: 2, label: 'Engineering' }],
-      }),
-    });
-
-    test('the Areas tool button is visible with a seeded areas layout @area:areas', async ({
-      page,
-      standalone,
-    }) => {
-      const { narrator } = standalone;
-      narrator.step('opening the seeded layout editor to check the Areas tool gate');
-      await enterEditMode(page);
-      // areasAvailable is (layout.areas?.length ?? 0) > 0 || agentFolderNames.length > 0,
-      // so a seeded layout with an area makes the button visible with no agents at all.
-      await expect(page.locator('button[title*="Define folder-bound areas"]')).toHaveCount(1);
-      narrator.check('the Areas tool button is visible because the seeded layout has an area');
     });
   });
 });

@@ -4,8 +4,6 @@ import type { ColorValue } from './components/ui/types.js';
 export const TILE_SIZE = 16;
 export const DEFAULT_COLS = 20;
 export const DEFAULT_ROWS = 11;
-export const MAX_COLS = 64;
-export const MAX_ROWS = 64;
 
 // ── Character Animation ─────────────────────────────────────
 export const WALK_SPEED_PX_PER_SEC = 48;
@@ -41,14 +39,6 @@ export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
 export const CHARACTER_SITTING_OFFSET_PX = 0;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
-export const GHOST_PREVIEW_SPRITE_ALPHA = 0.5;
-export const GHOST_PREVIEW_TINT_ALPHA = 0.25;
-export const SELECTION_DASH_PATTERN: [number, number] = [4, 3];
-export const BUTTON_MIN_RADIUS = 6;
-export const BUTTON_RADIUS_ZOOM_FACTOR = 3;
-export const BUTTON_ICON_SIZE_FACTOR = 0.45;
-export const BUTTON_LINE_WIDTH_MIN = 1.5;
-export const BUTTON_LINE_WIDTH_ZOOM_FACTOR = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
 export const BUBBLE_SITTING_OFFSET_PX = 7;
 export const BUBBLE_VERTICAL_OFFSET_PX = 36;
@@ -65,19 +55,6 @@ export const FALLBACK_FLOOR_COLOR = '#808080';
 export const SEAT_OWN_COLOR = 'rgba(0, 127, 212, 0.35)';
 export const SEAT_AVAILABLE_COLOR = 'rgba(0, 200, 80, 0.35)';
 export const SEAT_BUSY_COLOR = 'rgba(220, 50, 50, 0.35)';
-export const GRID_LINE_COLOR = 'rgba(26,20,38,0.28)';
-export const VOID_TILE_OUTLINE_COLOR = 'rgba(255,255,255,0.14)';
-export const VOID_TILE_DASH_PATTERN: [number, number] = [2, 2];
-export const GHOST_BORDER_HOVER_FILL = 'rgba(60, 130, 220, 0.25)';
-export const GHOST_BORDER_HOVER_STROKE = 'rgba(60, 130, 220, 0.5)';
-export const GHOST_BORDER_STROKE = 'rgba(255, 255, 255, 0.06)';
-export const GHOST_VALID_TINT = '#00ff00';
-export const GHOST_INVALID_TINT = '#ff0000';
-export const SELECTION_HIGHLIGHT_COLOR = '#007fd4';
-export const DELETE_BUTTON_BG = 'rgba(200, 50, 50, 0.85)';
-export const ROTATE_BUTTON_BG = 'rgba(50, 120, 200, 0.85)';
-export const BUTTON_ICON_COLOR = '#fff';
-export const CANVAS_FALLBACK_TILE_COLOR = '#444';
 export const CANVAS_ERROR_TILE_COLOR = '#FF00FF';
 export const WALL_COLOR = '#d9c4a0';
 /** Exposed floor edge thickness and colours (left = +row face, right = +col). */
@@ -96,20 +73,6 @@ export const CAMERA_FOLLOW_SNAP_THRESHOLD = 0.5;
 
 // ── Zoom ─────────────────────────────────────────────────────
 export const ZOOM_MIN = 1;
-
-// ── Editor ───────────────────────────────────────────────────
-export const UNDO_STACK_MAX_SIZE = 50;
-export const LAYOUT_SAVE_DEBOUNCE_MS = 500;
-
-// ── Layout Import/Export (browser-native, standalone) ────────
-/** Suggested filename when exporting the office layout from the standalone browser. */
-export const LAYOUT_EXPORT_FILENAME = 'pixel-agents-layout.json';
-/** MIME type for the exported layout Blob. */
-export const LAYOUT_EXPORT_MIME = 'application/json';
-export const DEFAULT_FLOOR_COLOR: ColorValue = { h: 35, s: 30, b: 15, c: 0 };
-export const DEFAULT_WALL_COLOR: ColorValue = { h: 240, s: 25, b: 0, c: 0 };
-export const DEFAULT_NEUTRAL_COLOR: ColorValue = { h: 0, s: 0, b: 0, c: 0 };
-
 // ── Carpets ──────────────────────────────────────────────────
 /** Main (lowest-luminance) color applied to carpets when no per-tile override is set. */
 export const CARPET_DEFAULT_COLOR: ColorValue = { h: 0, s: 71, b: -32, c: 0, colorize: true };
@@ -121,25 +84,10 @@ export const CARPET_DEFAULT_ACCENT_COLOR: ColorValue = {
   c: 0,
   colorize: true,
 };
-/** Keyboard key that switches from CARPET_PAINT to CARPET_PICK while editing. */
-export const KEY_CARPET_PICK = 'p';
 
 // ── Areas (named, colored workspace-folder zones) ────────────
-/** Color palette assigned to new Areas in rotation (cycles when more areas exist). */
-export const AREA_DEFAULT_COLORS: readonly string[] = [
-  '#ff6b6b',
-  '#feca57',
-  '#48dbfb',
-  '#1dd1a1',
-  '#5f27cd',
-  '#ff9ff3',
-  '#54a0ff',
-  '#ffa502',
-] as const;
 /** Translucent overlay alpha for area tile fills. */
 export const AREA_OVERLAY_ALPHA = 0.25;
-/** Alpha multiplier applied to the actively-selected area's overlay. */
-export const AREA_ACTIVE_ALPHA_MULTIPLIER = 1.6;
 /** Base font size (pixel-pre-zoom) for area centroid labels. */
 export const AREA_LABEL_FONT_SIZE_PX = 14;
 /** Minimum on-screen label size to keep labels legible at low zoom. */
@@ -152,29 +100,6 @@ export const AREA_LABEL_FALLBACK_COLOR = '#ffffff';
 export const AREA_LABEL_SHADOW_COLOR = '#000000';
 /** Drop-shadow alpha behind area labels. */
 export const AREA_LABEL_SHADOW_ALPHA = 0.6;
-
-// ── VisualColorPicker (HSV wheel + brightness for carpets) ───
-export const VISUAL_COLOR_PICKER_SV_SIZE_PX = 180;
-export const VISUAL_COLOR_PICKER_HUE_WIDTH_PX = 20;
-export const VISUAL_COLOR_PICKER_MARKER_RADIUS_PX = 6;
-/**
- * The hue bar gradient is intrinsic to the color-picking interaction, not a
- * theme color — it must span the full hue circle. Centralized here so the
- * component body stays free of inline color literals. (The saturation/brightness
- * square is painted to a canvas from the carpet HSL model, not a CSS gradient.)
- */
-export const VISUAL_COLOR_PICKER_HUE_GRADIENT =
-  'linear-gradient(to bottom, ' +
-  '#ff0000 0%, #ffff00 16.7%, #00ff00 33.3%, ' +
-  '#00ffff 50%, #0000ff 66.7%, #ff00ff 83.3%, #ff0000 100%)';
-export const VISUAL_COLOR_PICKER_MARKER_BORDER = '2px solid #fff';
-export const VISUAL_COLOR_PICKER_MARKER_SHADOW = '0 0 0 1px rgba(0,0,0,0.6)';
-/** Width of the collapsed swatch + hex trigger row (compact mode). */
-export const VISUAL_COLOR_PICKER_COMPACT_WIDTH_PX = 160;
-/** Swatch square size shown in the collapsed trigger. */
-export const VISUAL_COLOR_PICKER_SWATCH_PX = 22;
-/** Gap (px) between the collapsed trigger and the expanded popup panel. */
-export const VISUAL_COLOR_PICKER_POPUP_GAP_PX = 6;
 
 // ── Notification Sound (done: ascending chime) ─────────────
 export const NOTIFICATION_NOTE_1_HZ = 659.25; // E5
@@ -322,11 +247,5 @@ export const PET_FOLLOW_DURATION_MAX_SEC = 15.0;
 export const PET_HIT_HALF_WIDTH = 8;
 /** Hit-box height (world px) measured upward from the bottom-center anchor. */
 export const PET_HIT_HEIGHT = 16;
-/** Zoom factor used to draw pet thumbnails in the EditorToolbar Pets tab. */
-export const PET_THUMB_ZOOM = 2;
-/** Scale margin so the pet thumbnail fills the ItemSelect cell without touching the edges. */
-export const PET_THUMB_SCALE_MARGIN = 0.85;
-/** Fallback background fill for sprite-less thumbnail (used while pet sprites are loading). */
-export const EMPTY_SPRITE_THUMBNAIL_BG = '#333';
 /** Maximum string length for a PlacedPet.id (defends against pathologically-long layout entries). */
 export const MAX_PET_ID_LENGTH = 128;

@@ -145,7 +145,7 @@
   }
 
   /* Clipboard paper. Re-points the palette variables so the shared controls
-     (Checkbox, MenuItem, ghost Button) render as ink on paper unchanged. */
+     (Checkbox, ghost Button) render as ink on paper unchanged. */
   .paper-sheet {
     --color-text: var(--color-ink);
     --color-text-muted: rgba(43, 36, 51, 0.55);
@@ -154,60 +154,6 @@
     --color-border: var(--color-wood-dark);
     --color-bg: var(--color-paper-dark);
     @apply bg-paper text-text border-2 border-wood-dark rounded-none;
-  }
-
-  /* Horizontal carousel for editor items */
-  .carousel {
-    @apply flex gap-8 overflow-x-auto flex-nowrap pb-2;
-  }
-
-  /* Pixel-art range slider (HSBC ColorPicker). The accent fill up to the thumb
-     is driven by the --range-fill custom property set inline per slider. */
-  .pixel-range {
-    -webkit-appearance: none;
-    appearance: none;
-    height: 16px;
-    cursor: pointer;
-    border: 2px solid var(--color-border);
-    background: linear-gradient(
-      to right,
-      var(--color-accent) var(--range-fill, 50%),
-      var(--color-bg-dark) var(--range-fill, 50%)
-    );
-  }
-  .pixel-range::-webkit-slider-runnable-track {
-    -webkit-appearance: none;
-    height: 12px;
-    background: transparent;
-  }
-  .pixel-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 10px;
-    height: 18px;
-    margin-top: -5px;
-    background: var(--color-text);
-    border: 2px solid var(--color-border);
-    border-radius: 0;
-    box-shadow: var(--shadow-pixel);
-  }
-  .pixel-range:hover::-webkit-slider-thumb {
-    background: var(--color-accent-bright);
-  }
-  .pixel-range::-moz-range-track {
-    height: 12px;
-    background: transparent;
-  }
-  .pixel-range::-moz-range-thumb {
-    width: 10px;
-    height: 18px;
-    background: var(--color-text);
-    border: 2px solid var(--color-border);
-    border-radius: 0;
-    box-shadow: var(--shadow-pixel);
-  }
-  .pixel-range:hover::-moz-range-thumb {
-    background: var(--color-accent-bright);
   }
 
   /* Pulsing dot animation (DebugView, ToolOverlay) */

@@ -1,8 +1,41 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
-import type { TestHooksWindow } from './editor';
 import { narrate } from './test-narration';
+
+/** The carpet/area/pet observability surface installed under the isE2E guard. */
+export interface TestHooksWindow extends Window {
+  __pixelAgentsTestHooks?: {
+    getCarpetTiles?: () => Array<{
+      col: number;
+      row: number;
+      variant: number;
+      color?: unknown;
+      accentColor?: unknown;
+      order?: number;
+    }>;
+    getCarpetJunctionCase?: (jx: number, jy: number, variant: number) => number;
+    getAreas?: () => Array<{ label: string; color: string }>;
+    getAreaTiles?: () => Array<{ col: number; row: number; label: string }>;
+    getShowAreas?: () => boolean;
+    getAgentSeats?: () => Array<{
+      id: number;
+      seatId: string | null;
+      areaLabel: string | null;
+      folderName?: string;
+    }>;
+    getSeats?: () => Array<{
+      uid: string;
+      col: number;
+      row: number;
+      areaLabel: string | null;
+      assigned: boolean;
+    }>;
+    getFurnitureCount?: () => number;
+    selectAgent?: (id: number) => void;
+    messageLog?: Array<{ type: string }>;
+  };
+}
 
 const OVERLAY_TIMEOUT_MS = 15_000;
 
@@ -249,4 +282,59 @@ export async function closeAgentFromOverlay(
   await expect(closeButton).toBeVisible({ timeout });
   narrate.step('closing the agent via its "×" overlay button');
   await closeButton.click();
+}
+
+/** Read the painted carpet tiles from the test hook. */
+export async function readCarpetTiles(
+  page: Page,
+): Promise<Array<{ col: number; row: number; variant: number }>> {
+  return page.evaluate(
+    () =>
+      (window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.().map((t) => ({
+        col: t.col,
+        row: t.row,
+        variant: t.variant,
+      })) ?? [],
+  );
+}
+
+/** Read the 4-bit junction case (NW=1,NE=2,SE=4,SW=8) via the renderer logic. */
+export async function readCarpetJunctionCase(
+  page: Page,
+  jx: number,
+  jy: number,
+  variant: number,
+): Promise<number> {
+  return page.evaluate(
+    ([x, y, v]) =>
+      (window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetJunctionCase?.(x, y, v) ?? 0,
+    [jx, jy, variant] as const,
+  );
+}
+
+/** Read the area-painted tiles from the test hook. */
+export async function readAreaTiles(
+  page: Page,
+): Promise<Array<{ col: number; row: number; label: string }>> {
+  return page.evaluate(
+    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreaTiles?.() ?? [],
+  );
+}
+
+/** Read the Area definitions from the test hook. */
+export async function readAreas(page: Page): Promise<Array<{ label: string; color: string }>> {
+  return page.evaluate(
+    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreas?.() ?? [],
+  );
+}
+
+/** Read seated agents with the area their seat falls in. */
+export async function readAgentSeats(
+  page: Page,
+): Promise<
+  Array<{ id: number; seatId: string | null; areaLabel: string | null; folderName?: string }>
+> {
+  return page.evaluate(
+    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAgentSeats?.() ?? [],
+  );
 }

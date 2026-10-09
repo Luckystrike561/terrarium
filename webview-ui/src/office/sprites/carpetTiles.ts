@@ -50,19 +50,6 @@ export function hasCarpetSprites(): boolean {
   return carpetSets.length > 0;
 }
 
-export function getCarpetSetCount(): number {
-  return carpetSets.length;
-}
-
-/** Return the raw sprite sheet for a variant (or undefined). Used by editor previews.
- *
- * @public
- */
-export function getCarpetVariantSprites(variant: number): SpriteData[] | undefined {
-  if (variant < 0 || variant >= carpetSets.length) return undefined;
-  return carpetSets[variant];
-}
-
 /** Stable key for a single ColorValue used in cache and palette keys. */
 export function getCarpetColorKey(color: ColorValue): string {
   return `${color.h}|${color.s}|${color.b}|${color.c}|${color.colorize ? 1 : 0}`;

@@ -57,7 +57,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
     cli.ts                           npx pixel-agents entry (npm bin)
     fileStateAdapter.ts              ~/.pixel-agents/ persistence
     configPersistence.ts             { standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[] }
-    layoutPersistence.ts             ~/.pixel-agents/layout.json with atomic tmp+rename
+    layoutPersistence.ts             Read-only ~/.pixel-agents/layout.json loader
     fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
     transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
     timerManager.ts                  Waiting / permission timers
@@ -78,7 +78,7 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
     browserMock.ts                   Dev-server asset fetch + message injection
     testHooks.ts                     window globals exposed for e2e (officeState, helpers)
     main.tsx                         React entry (StrictMode + createRoot)
-    App.tsx                          Composition root (hooks + components + EditActionBar)
+    App.tsx                          Composition root (hooks + components)
     constants.ts                     Webview magic numbers/strings
     notificationSound.ts             Web Audio API chime
     changelogData.ts                 Changelog modal content
@@ -87,8 +87,6 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
       Tooltip.tsx, DebugView.tsx, ui/Button.tsx, ...
     hooks/
       useExtensionMessages.ts        Message handler — translates ServerMessage into OfficeState mutations
-      useEditorActions.ts            Editor state + callbacks
-      useEditorKeyboard.ts           Keyboard shortcuts (R, T, Esc, Ctrl+Z/Y)
       introTourState.ts              Intro tour wire-state machine (pure reducer, Node-runner tested)
       useIntroTour.ts                Wires the reducer to React + transport (snapshot, verdict, choices)
     office/
@@ -99,15 +97,10 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
       isoWalls.ts                    Wall tiles as iso boxes, back walls full height, the rest cut down (cutaway)
       colorize.ts                    Colorize (grayscale→HSL) + Adjust (HSL shift)
       floorTiles.ts                  Floor sprite storage + colorized cache
-      wallTiles.ts                   Wall-set storage (editor previews) + wall colour helper
+      wallTiles.ts                   Wall colour helper
       sprites/
         spriteData.ts                Pixel data (characters, furniture, tiles, bubbles)
-        spriteCache.ts               SpriteData → offscreen canvas, per-zoom WeakMap (2D widget previews only)
         textureCache.ts              SpriteData → PIXI.Texture, one per sprite regardless of zoom (world renderer)
-      editor/
-        editorActions.ts             Pure layout ops
-        editorState.ts               Imperative state (tools, ghost, selection, undo/redo, drag)
-        EditorToolbar.tsx
       layout/
         furnitureCatalog.ts          Dynamic catalog from loaded assets
         layoutSerializer.ts          OfficeLayout ↔ runtime (tileMap, furniture, seats)
@@ -117,12 +110,12 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
         officeState.ts               Game world (layout, characters, seats, selection, subagents, consent greeter, CTO + door queue)
         ctoOffice.ts                 CTO office discovery: CTO seat (EXEC_CHAIR), office room, door, queue spots outside it
         gameLoop.ts                  rAF loop with delta-time cap (0.1 s), decoupled from the render target
-        sceneRenderer.ts             PixiJS (WebGL) retained iso scene: diamond floors, wall boxes, iso-sorted entities, overlays, edit UI
+        sceneRenderer.ts             PixiJS (WebGL) retained iso scene: diamond floors, wall boxes, iso-sorted entities, overlays
         isoSort.ts                   Iso draw order: footprint boxes ordered by separating axis, layer tie-break
         pixiColor.ts                 Hex/rgba string constants → Pixi's numeric color + alpha
         matrixEffect.ts              Spawn/despawn digital rain (drawn into a Pixi Graphics, not canvas)
       components/
-        OfficeCanvas.tsx             Owns the Pixi Application, resize, DPR, mouse hit-testing, drag-to-move
+        OfficeCanvas.tsx             Owns the Pixi Application, resize, DPR, mouse hit-testing, seat reassignment
         ToolOverlay.tsx              Activity label above hovered/selected character
 
 e2e/                                 Playwright suite (standalone server + mock-claude scenarios), Chromium only
@@ -201,7 +194,7 @@ Adding an agent CLI or a multiplexer is one subdirectory under `server/src/provi
 `core/asyncapi.yaml` is the contract. Pinned to **3.0.0** because `@asyncapi/modelina@5.10.1` declares `supportedVersions: ['3.0.0']` only; bumping to 3.1.0 produces `export type Root = any`. Revisit when Modelina ships 3.1.0 support.
 
 - **30 ServerMessage variants** (server → client): agent lifecycle, agent activity, sub-agent activity, team + context usage, assets, settings, diagnostics.
-- **16 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `closeAgent`), layout (`saveAgentSeats`, `saveLayout`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), discovery + assets, diagnostics.
+- **15 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `closeAgent`), seats (`saveAgentSeats`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), areas (`saveAreaMappings`, `setShowAreas`), discovery + assets, diagnostics.
 
 Both unions use `oneOf` with `discriminator: type`. Every concrete message sets `additionalProperties: false`.
 
@@ -357,7 +350,7 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 
 `FileStateAdapter` backs persistence. Settings: `soundEnabled`, `lastSeenVersion`, `alwaysShowLabels`, `watchAllSessions`, `hooksInfoShown` (the hooks preference is per-provider and machine-global, at the config top level). A leftover config key or state file from an older multi-surface install is ignored, never an error.
 
-Layout writes are atomic via tmp + rename. The server reads `layout.json` on every `webviewReady` and serves the bundled default only when the file is missing.
+`layout.json` is read-only: the server reads it on every `webviewReady` and serves the bundled default only when the file is missing. Nothing writes it.
 
 ## Agent Status Tracking
 
@@ -397,13 +390,13 @@ Every agent's context gauge. Fed from `message.usage` on assistant records by `p
 
 ## Office UI
 
-**Rendering**: Game state in imperative `OfficeState` class (not React state), rendered as **2:1 isometric pixel art** via a PixiJS (WebGL) retained scene graph (`engine/sceneRenderer.ts`), not Canvas 2D. The simulation (pathfinding, seats, layout, editor actions) stays on the top-down tile grid; only drawing and hit-testing go through `office/iso.ts` (`isoX = x - y`, `isoY = (x + y)/2 - z`, a tile is a 32×16 diamond). Zoom = device-pixels-per-sprite-pixel, `antialias: false`, `roundPixels: true`, nearest-neighbor texture sampling. No `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly. World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container positioned/scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and are built in local, unscaled iso pixel coordinates. Editor chrome (iso grid, ghost border, selection diamond, delete/rotate buttons) and area labels render in device-pixel space directly since their stroke widths and minimum font size are deliberately constant-in-device-pixels. `pixi.js/unsafe-eval` is imported before any renderer is created so the webview's CSP (no `unsafe-eval`) never blocks Pixi's uniform-buffer sync path. **The office fits the viewport exactly; there is no user zoom.** `OfficeCanvas` derives the zoom every frame as `fitZoom`: the zoom at which the iso bounding box of the non-VOID tiles (`boundsRect(contentBounds)`, raised by the back-wall height) touches the canvas on its tighter axis, centered. It is deliberately **not an integer**, so sprite pixels can be uneven. It reports up through `onZoomChange` for the DOM overlays. Only a canvas too small for `ZOOM_MIN` (1x) scrolls (wheel, trackpad, Shift+wheel for horizontal, middle-mouse drag), and every pan goes through `clampPan` so it never scrolls past the office edge. Ctrl+wheel is swallowed. The editor freezes the zoom it entered with and widens the scroll range to the whole grid plus the one-tile ghost border (`editBounds`). **Camera follow**: `cameraFollowId` (separate from `selectedAgentId`) smoothly centers camera on the followed agent (clamped like any pan); set on agent click, cleared on deselection or manual scroll.
+**Rendering**: Game state in imperative `OfficeState` class (not React state), rendered as **2:1 isometric pixel art** via a PixiJS (WebGL) retained scene graph (`engine/sceneRenderer.ts`), not Canvas 2D. The simulation (pathfinding, seats, layout) stays on the top-down tile grid; only drawing and hit-testing go through `office/iso.ts` (`isoX = x - y`, `isoY = (x + y)/2 - z`, a tile is a 32×16 diamond). Zoom = device-pixels-per-sprite-pixel, `antialias: false`, `roundPixels: true`, nearest-neighbor texture sampling. No `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly. World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container positioned/scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and are built in local, unscaled iso pixel coordinates. Area labels render in device-pixel space directly since their minimum font size is deliberately constant-in-device-pixels. `pixi.js/unsafe-eval` is imported before any renderer is created so the webview's CSP (no `unsafe-eval`) never blocks Pixi's uniform-buffer sync path. **The office fits the viewport exactly; there is no user zoom.** `OfficeCanvas` derives the zoom every frame as `fitZoom`: the zoom at which the iso bounding box of the non-VOID tiles (`boundsRect(contentBounds)`, raised by the back-wall height) touches the canvas on its tighter axis, centered. It is deliberately **not an integer**, so sprite pixels can be uneven. It reports up through `onZoomChange` for the DOM overlays. Only a canvas too small for `ZOOM_MIN` (1x) scrolls (wheel, trackpad, Shift+wheel for horizontal, middle-mouse drag), and every pan goes through `clampPan` so it never scrolls past the office edge. Ctrl+wheel is swallowed. **Camera follow**: `cameraFollowId` (separate from `selectedAgentId`) smoothly centers camera on the followed agent (clamped like any pan); set on agent click, cleared on deselection or manual scroll.
 
-**UI styling**: Pixel art aesthetic — sharp corners (`borderRadius: 0`), solid backgrounds (`#1e1e2e`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables in `index.css` `:root` (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...). Pixel font: FS Pixel Sans (`webview-ui/src/fonts/`), loaded via `@font-face`, applied globally. The HUD is furnished like the office: `Layout` / `Settings` sit on a nailed wooden plank (`.wood-plank`, pixel icons via `ui/PixelIcon.tsx`), and Settings opens as a clipboard above it (`ui/Clipboard.tsx`). Its `.paper-sheet` re-points the palette variables (`--color-text`, `--color-btn-bg`, ...) so the shared `Checkbox` / `MenuItem` / ghost `Button` render as ink on paper without a second set of controls.
+**UI styling**: Pixel art aesthetic — sharp corners (`borderRadius: 0`), solid backgrounds (`#1e1e2e`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables in `index.css` `:root` (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...). Pixel font: FS Pixel Sans (`webview-ui/src/fonts/`), loaded via `@font-face`, applied globally. The HUD is furnished like the office: `Settings` sits on a nailed wooden plank (`.wood-plank`, pixel icons via `ui/PixelIcon.tsx`) and opens as a clipboard above it (`ui/Clipboard.tsx`). Its `.paper-sheet` re-points the palette variables (`--color-text`, `--color-btn-bg`, ...) so the shared `Checkbox` / ghost `Button` render as ink on paper without a second set of controls.
 
 Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-colors` (hex/rgb/rgba/hsl/hsla literals only in `constants.ts`), `pixel-shadow` (must use `var(--pixel-shadow)` or `2px 2px 0px`), `pixel-font` (must reference FS Pixel Sans). All `error`-level — they block PRs.
 
-**Characters**: FSM states — active (pathfind to seat, typing/reading animation by tool type), idle (wander randomly with BFS, return to seat after `wanderLimit` moves). Movement stays on the top-down grid; in iso, grid DOWN/RIGHT face the viewer (screen lower-left/lower-right) and UP/LEFT face away. Sheets carry DOWN (3/4 front), UP (3/4 back) and RIGHT (= mirrored DOWN); LEFT is the mirrored UP at runtime. Tool animations: typing (Write/Edit/Bash/Task) vs reading (Read/Grep/Glob/WebFetch); both are seated frames drawn at chair height, so `CHARACTER_SITTING_OFFSET_PX` is 0. **Draw order** (`engine/isoSort.ts`): every wall tile, furniture piece, character and pet carries a footprint box; two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort right where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). A chair whose sitter faces away (`back`/`left`) uses the attached layer so its backrest covers the sitter; other chairs draw under them. Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`). Character/pet hit-testing (`getCharacterAt`, `getPetAt`) and furniture picking in the editor (`getFurnitureAt`, opaque sprite pixel, front-most first) work in iso screen space because tall sprites cover tiles behind their footprint.
+**Characters**: FSM states — active (pathfind to seat, typing/reading animation by tool type), idle (wander randomly with BFS, return to seat after `wanderLimit` moves). Movement stays on the top-down grid; in iso, grid DOWN/RIGHT face the viewer (screen lower-left/lower-right) and UP/LEFT face away. Sheets carry DOWN (3/4 front), UP (3/4 back) and RIGHT (= mirrored DOWN); LEFT is the mirrored UP at runtime. Tool animations: typing (Write/Edit/Bash/Task) vs reading (Read/Grep/Glob/WebFetch); both are seated frames drawn at chair height, so `CHARACTER_SITTING_OFFSET_PX` is 0. **Draw order** (`engine/isoSort.ts`): every wall tile, furniture piece, character and pet carries a footprint box; two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort right where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). A chair whose sitter faces away (`back`/`left`) uses the attached layer so its backrest covers the sitter; other chairs draw under them. Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`). Character/pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space because tall sprites cover tiles behind their footprint.
 
 **CTO office and the CTO queue**: the room holding the first `EXEC_CHAIR` is the CTO's office (`computeOfficeTiles`: reachable from that chair without crossing a doorway). A fixed **CTO** character (not an agent: `OfficeState.cto`, `CTO_ID`, skin `CTO_PALETTE`) lives there on a loop (`updateCto`): typing at the executive desk for `CTO_DESK_SEC` (monitor on), then walking to the office couch (its first lounge seat) for `CTO_COUCH_SEC`, and back. Like the greeter it lives outside `characters`, so it gets no badge, no hit-test and no persistence. Every seat in the office is claimed for it and its tiles leave the wander set, so agents are never given a desk, a rest seat or a wander target in there. **An agent that needs the human joins the CTO queue** until that clears: a permission request (herdr's `blocked`, Claude's `PermissionRequest`) until `clearPermissionBubble` (next tool start or turn end), and waiting for input (`turnEnd` with `awaitingInput`) until it goes active again. Queue order is arrival order (`OfficeState.ctoQueue`). The first agents take the office's other seats, the **visitor chairs** in front of the CTO's desk, and sit there; the rest stand outside the door (the 1–2 tile wall gap nearest the CTO chair, `computeDoorQueue`, nearest first, up to `CTO_QUEUE_MAX_SLOTS`) facing it. While anyone waits at the door, the queue **rotates** every `CTO_VISIT_SEC`: the head goes to the back, so the longest-seated visitor gives its chair to the next agent at the door. An agent waiting for input keeps its `?` badge for the whole wait. The FSM override is `ctoQueueSlot` (`seated` for visitor chairs) in `characters.ts`; losing it drops the agent into IDLE, which walks an active agent back to its desk.
 
@@ -423,51 +416,41 @@ Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-
 
 **Seats**: Derived from chair furniture. `layoutToSeats()` creates a seat at every footprint tile of every chair. Multi-tile chairs produce multiple seats keyed `uid` / `uid:1` / `uid:2`. Facing direction priority: 1) chair `orientation` from catalog (front→DOWN, back→UP, left→LEFT, right→RIGHT), 2) adjacent desk direction, 3) forward (DOWN). Click character → select (white outline) → click available seat → reassign.
 
-## Layout Editor
+## Layout
 
-Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Erase (set tiles to VOID), Furniture place, Furniture pick (eyedropper for furniture type), Eyedropper (floor).
+There is no in-app layout editor: it was removed until it is redesigned. The office is authored in code (`scripts/iso-art/layout.ts`, see [Asset System](#asset-system)) and loaded read-only. On `webviewReady` the server sends `~/.pixel-agents/layout.json` when it exists, otherwise the bundled default; nothing writes `layout.json` anymore. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
 
-**Floor**: 7 patterns from `floors.png` (grayscale 16×16), colorizable via HSBC sliders (Photoshop Colorize). Color baked per-tile on paint. Eyedropper picks pattern+color.
+**Layout model**: `{ version: 1, cols, rows, tiles: TileType[], furniture: PlacedFurniture[], tileColors?: ColorValue[], carpetTiles?, areas?, areaTiles?, pets?, layoutRevision? }`. Grid dimensions are dynamic. `TileType.VOID` tiles are transparent and non-walkable.
 
-**Walls**: Separate Wall paint tool. Click/drag to add walls; click/drag existing walls to remove (toggle direction set by first tile of drag, tracked by `wallDragAdding`). HSBC color sliders (Colorize mode) apply to all wall tiles at once. Eyedropper on a wall tile picks its color and switches to Wall tool. A wall tile whose -row or -col neighbour is VOID/off-grid is a back wall: a solid `WALL_HEIGHT_PX` (40) box in the tile's wall colour. Every other wall renders as a **glass partition** (`isoWalls.ts`): a thin framed pane `WALL_GLASS_HEIGHT_PX` tall along the wall's run (cols, rows, or both at a junction), so interior rooms stay visible. Wall-mounted items belong on back walls.
+**Floor**: 7 patterns from `floors.png` (grayscale 16×16), colorized per tile (Photoshop Colorize) from `tileColors`.
 
-**Furniture**: Ghost preview (green/red validity). R key rotates, T key toggles on/off state. Drag-to-move in SELECT. Delete button (red X) + rotate button (blue arrow) on selected items. Any selected furniture shows HSBC color sliders (Color toggle + Clear button); color stored per-item in `PlacedFurniture.color?`. Single undo entry per color-editing session (tracked by `colorEditUidRef`). Pick tool copies type+color from placed item. Surface items preferred when clicking stacked furniture.
-
-**Undo/Redo**: 50-level, Ctrl+Z/Y. EditActionBar (top-center when dirty): Undo, Redo, Save, Reset.
-
-**Multi-stage Esc**: exit furniture pick → deselect catalog → close tool tab → deselect furniture → close editor.
-
-**Erase tool**: Sets tiles to `TileType.VOID` (transparent, non-walkable, no furniture). Right-click in floor/wall/erase tools also erases to VOID (drag-erasing supported). Context menu suppressed in edit mode.
-
-**Grid expansion**: In floor/wall/erase tools, a ghost border (dashed outline) appears 1 tile outside the grid. Clicking a ghost tile calls `expandLayout()` to grow the grid by 1 tile in that direction. New tiles are VOID. Furniture positions and character positions shift when expanding left/up. Max: `MAX_COLS`×`MAX_ROWS` (64×64). Default: `DEFAULT_COLS`×`DEFAULT_ROWS` (20×11). Characters outside bounds after resize relocated to random walkable tiles.
-
-**Layout model**: `{ version: 1, cols, rows, tiles: TileType[], furniture: PlacedFurniture[], tileColors?: ColorValue[] }`. Grid dimensions are dynamic. Persisted via debounced saveLayout message → `writeLayoutToFile()` → `~/.pixel-agents/layout.json`.
+**Walls**: A wall tile whose -row or -col neighbour is VOID/off-grid is a back wall: a solid `WALL_HEIGHT_PX` (40) box in the tile's wall colour. Every other wall renders as a **glass partition** (`isoWalls.ts`): a thin framed pane `WALL_GLASS_HEIGHT_PX` tall along the wall's run (cols, rows, or both at a junction), so interior rooms stay visible. Wall-mounted items belong on back walls.
 
 ## Asset System
 
 **Loading**: `esbuild.js` copies `webview-ui/public/assets/` → `dist/assets/`. Loader checks bundled path first, falls back to workspace root. PNG → pngjs → SpriteData (2D hex array, alpha≥2 = visible, `#RRGGBBAA` for semi-transparent). `loadDefaultLayout()` reads `assets/default-layout.json` as fallback for new workspaces.
 
-**Catalog**: `furniture-catalog.json` with `id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?`. String-based type system. Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-placeable items use the `wall` category and appear in a dedicated "Wall" tab. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`).
+**Catalog**: `furniture-catalog.json` with `id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?`. String-based type system. Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-mounted items use the `wall` category. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`).
 
 **Per-furniture manifests**: Each furniture item lives in its own folder under `assets/furniture/` with a `manifest.json` that declares its sprites, rotation groups, state groups (on/off), and animation frames. Floor tiles are individual PNGs in `assets/floors/`; wall tile sets in `assets/walls/`. The bundled furniture and characters are **generated**: `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/` and `assets/characters/` from code (`scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `lib/scene.ts`, `characters.ts` stamps hand-placed pixel templates); `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (open-plan work space, glass-walled CTO office and meeting room, break room with kitchen, coffee machine and lounge) as `default-layout-<REVISION>.json`; bump `REVISION` on every change. The server serves the bundled default only when `~/.pixel-agents/layout.json` does not exist, so a saved layout is never replaced by a newer default. `scripts/iso-art/preview.ts <module>` renders review sheets to `/tmp/iso-preview` without touching assets. **Iso sprite anchor contract**: an item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges (`footprintSpriteOrigin`); sprites of any other width are treated as flat art and stand centered on the footprint. Orientation = the facing direction on the grid (front = +row/screen lower-left, right = +col, back, left); rotated footprints are transposed. Desk tops are at z=12 (`DESK_SURFACE_Z`), chair seats at z=6, walls 40 px tall, and surface items are drawn starting at desk height.
 
-**Rotation groups**: `buildDynamicCatalog()` builds `rotationGroups` Map from assets sharing a `groupId`. Supports 2+ orientations (e.g., front/back only). Editor palette shows 1 item per group (front orientation preferred). `getRotatedType()` cycles through available orientations.
+**Rotation groups**: `buildDynamicCatalog()` builds `rotationGroups` Map from assets sharing a `groupId`. Supports 2+ orientations (e.g., front/back only). `getOrientationInGroup()` tells the renderer when a `left` member should be drawn mirrored.
 
-**State groups**: Items with `state: "on"` / `"off"` sharing the same `groupId` + `orientation` form toggle pairs. `stateGroups` Map enables `getToggledType()` lookup. Editor palette hides on-state variants. State groups are mirrored across orientations.
+**State groups**: Items with `state: "on"` / `"off"` sharing the same `groupId` + `orientation` form on/off pairs (`stateGroups`, `getOnStateType()`). State groups are mirrored across orientations.
 
 **Auto-state**: `officeState.rebuildFurnitureInstances()` swaps electronics to ON sprites when an active agent faces a desk with that item nearby (3 tiles deep in facing direction, 1 tile to each side). Operates at render time without modifying the saved layout.
 
-**Background tiles**: `backgroundTiles?: number` — top N footprint rows allow other furniture to be placed on them AND characters to walk through. The iso set uses 0 everywhere.
+**Background tiles**: `backgroundTiles?: number` — characters can walk through the top N footprint rows. The iso set uses 0 everywhere.
 
-**Surface placement**: `canPlaceOnSurfaces?: boolean` — items like monitors and mugs can overlap with all tiles of `isDesk` furniture. `canPlaceFurniture()` builds a desk-tile set and excludes it from collision checks. They sort on the attached layer, after the desk.
+**Surface placement**: `canPlaceOnSurfaces?: boolean` — items like monitors and mugs sit on `isDesk` furniture tiles. They sort on the attached layer, after the desk.
 
-**Wall placement**: `canPlaceOnWalls?: boolean` — paintings, clocks, shelves, whiteboards can only be placed on wall tiles: every footprint tile must be a wall. `front` mounts on a wall running along cols (its visible face is the +row face), `right` on a wall running along rows (+col face). They sort on the attached layer, after their wall tile.
+**Wall items**: `canPlaceOnWalls?: boolean` — paintings, clocks, shelves, whiteboards are wall-mounted. `front` mounts on a wall running along cols (its visible face is the +row face), `right` on a wall running along rows (+col face). They sort on the attached layer, after their wall tile.
 
 **Colorize module**: `colorize.ts` with two modes selected by `ColorValue.colorize?` flag. **Colorize mode** (Photoshop-style): grayscale → luminance → contrast → brightness → fixed HSL; always used for floor tiles. **Adjust mode** (default for furniture and character hue shifts): shifts original pixel HSL. `adjustSprite()` exported for character hue shifts. Cache keyed by arbitrary string (includes colorize flag).
 
 **Floor tiles**: `floors.png` (112×16, 7 patterns). Cached by (pattern, h, s, b, c).
 
-**Wall tiles**: `walls.png` sets are still loaded for the editor's wall-set previews; the iso walls themselves are procedural boxes (`isoWalls.ts`) coloured from the tile's wall colour, with a lighter cap and a baseboard. Floors and carpet junctions are the same 16×16 sprites as before, projected onto 32×16 diamonds (`projectToDiamond`).
+**Wall tiles**: The iso walls are procedural boxes (`isoWalls.ts`) coloured from the tile's wall colour, with a lighter cap and a baseboard. The server still loads and sends `walls.png` sets (`wallTilesLoaded`), which the webview no longer uses. Floors and carpet junctions are the same 16×16 sprites as before, projected onto 32×16 diamonds (`projectToDiamond`).
 
 **Character sprites**: 6 pre-colored PNGs (`assets/characters/char_0.png`–`char_5.png`), one per palette, generated by `scripts/iso-art/characters.ts`. Each 168×120: 7 frames × 24 px wide, 3 direction rows × 40 px tall (`CHAR_FRAME_W`/`CHAR_FRAME_H` in `core/src/assets/constants.ts`), drawn in a chunky RPG style: bold outline, big spiky-volume heads, 3/4 view, ground shadow. Row 0 = DOWN (3/4 front, facing screen lower-left), Row 1 = UP (3/4 back), Row 2 = RIGHT (row 0 mirrored per frame). Frame order: walk1, walk2, walk3, type1, type2, read1, read2 (type/read seated). LEFT = mirrored UP at runtime. When `hueShift !== 0`, `hueShiftSprites()` applies `adjustSprite()` to all frames before caching.
 
@@ -502,7 +485,7 @@ Run: `npm run test:server` (or `npm test` for all).
 
 ### Webview unit (Vitest, Node runner)
 
-`webview-ui/test/` covers office state, layout editing and migration, assets, changelog behavior, and Vite/browser wiring.
+`webview-ui/test/` covers office state, layout migration, assets, changelog behavior, and Vite/browser wiring.
 
 Run: `npm run test:webview`.
 
@@ -572,7 +555,7 @@ The drift checks are the central guarantees: `core/asyncapi.yaml` ↔ `core/src/
 
 ## TypeScript Constraints
 
-- **No `enum`** (`erasableSyntaxOnly` in webview) — use `as const` objects (`TileType`, `CharacterState`, `Direction`, `EditTool`).
+- **No `enum`** (`erasableSyntaxOnly` in webview) — use `as const` objects (`TileType`, `CharacterState`, `Direction`).
 - **`import type`** required for type-only imports (`verbatimModuleSyntax` in webview; convention in the server).
 - **`noUnusedLocals` / `noUnusedParameters`** — strict everywhere.
 - **`.js` extensions** on all relative imports in the server (Node16 module resolution).
@@ -582,13 +565,13 @@ The drift checks are the central guarantees: `core/asyncapi.yaml` ↔ `core/src/
 
 All magic numbers and strings are centralized — never inline:
 
-| Where                              | What lives there                                                                                                   |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `server/src/constants.ts`          | All timing/scanning constants (`PERMISSION_TIMER_DELAY_MS`, `TEXT_IDLE_DELAY_MS`, scanner intervals), server-wide  |
-| `core/src/constants.ts`            | Protocol-level constants (e.g., transport state names)                                                             |
-| `webview-ui/src/constants.ts`      | Webview magic numbers (grid, animation, rendering, camera, zoom, editor, game logic) + canvas overlay rgba strings |
-| `webview-ui/src/index.css` `:root` | CSS custom properties (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...) for React inline styles and CSS      |
-| `webview-ui/src/office/types.ts`   | Re-exports grid constants from `constants.ts` for convenience                                                      |
+| Where                              | What lives there                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `server/src/constants.ts`          | All timing/scanning constants (`PERMISSION_TIMER_DELAY_MS`, `TEXT_IDLE_DELAY_MS`, scanner intervals), server-wide |
+| `core/src/constants.ts`            | Protocol-level constants (e.g., transport state names)                                                            |
+| `webview-ui/src/constants.ts`      | Webview magic numbers (grid, animation, rendering, camera, zoom, game logic) + canvas overlay rgba strings        |
+| `webview-ui/src/index.css` `:root` | CSS custom properties (`--pixel-bg`, `--pixel-border`, `--pixel-accent`, ...) for React inline styles and CSS     |
+| `webview-ui/src/office/types.ts`   | Re-exports grid constants from `constants.ts` for convenience                                                     |
 
 ## Error Handling
 
@@ -615,7 +598,6 @@ Use `console.log`/`error`/`warn` with prefixed context:
 - `/clear` creates a NEW JSONL file (old file just stops).
 - Hook-based IPC failed in early prototypes (hooks captured at startup, env vars don't propagate). HTTP `/api/hooks/:providerId` with `~/.pixel-agents/server.json` discovery works.
 - PNG→SpriteData: pngjs for RGBA buffer, alpha threshold 2 (`PNG_ALPHA_THRESHOLD`), supports `#RRGGBBAA` semi-transparent pixels.
-- OfficeCanvas selection changes are imperative (`editorState.selectedFurnitureUid`); must call `onEditorSelectionChange()` to trigger React re-render for toolbar.
 - **External-session adoption**: scanner runs every 3 s. In hooks-OFF mode external scenarios, the test setup can race the first scanner tick. Mock-claude scenarios should give a few seconds of margin before assertions.
 - **Heuristic sub-agent permission bubble timing**: the bubble lands 7 s after the SUB-TOOL is registered, not 7 s after the parent Task tool appears. Tests waiting on it from the "Subtask:" overlay need at least `1 s (Task→Bash gap) + 7 s timer + ~300 ms IPC/render = 9–10 s` budget.
 - **runInBackground sub-character gate**: in webview `agentToolStart`, `runInBackground=true` Agent tools are gated out of sub-character creation when the parent has a `teamName` (teammate path handles it). With no `teamName`, the gate must be bypassed so the basic Subtask sub-character still renders. `addSubagent` dedups via `subagentIdMap`, so the bypass is safe even if a teammate is detected later. `subagentToolStart` creates the sub lazily when it's missing — covering teamed leads' unnamed background spawns and post-reload recreation.

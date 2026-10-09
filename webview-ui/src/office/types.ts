@@ -4,8 +4,6 @@ export {
   DEFAULT_COLS,
   DEFAULT_ROWS,
   MATRIX_EFFECT_DURATION_SEC as MATRIX_EFFECT_DURATION,
-  MAX_COLS,
-  MAX_ROWS,
   TILE_SIZE,
 } from '../constants.js';
 
@@ -79,21 +77,6 @@ export interface ToolActivity {
   permissionWait?: boolean;
 }
 
-export const EditTool = {
-  TILE_PAINT: 'tile_paint',
-  WALL_PAINT: 'wall_paint',
-  FURNITURE_PLACE: 'furniture_place',
-  FURNITURE_PICK: 'furniture_pick',
-  SELECT: 'select',
-  EYEDROPPER: 'eyedropper',
-  ERASE: 'erase',
-  PETS: 'pets',
-  CARPET_PAINT: 'carpet_paint',
-  CARPET_PICK: 'carpet_pick',
-  AREA_PAINT: 'area_paint',
-} as const;
-export type EditTool = (typeof EditTool)[keyof typeof EditTool];
-
 export interface FurnitureCatalogEntry {
   type: string; // asset ID from furniture manifest
   label: string;
@@ -128,7 +111,7 @@ export interface PlacedFurniture {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CarpetTile {
-  /** Variant index into the loaded carpet sprite sets (0 .. getCarpetSetCount()-1). */
+  /** Variant index into the loaded carpet sprite sets. */
   variant: number;
   /** Main colorization (lowest-luminance pixels). Defaults to CARPET_DEFAULT_COLOR when omitted. */
   color?: ColorValue;
