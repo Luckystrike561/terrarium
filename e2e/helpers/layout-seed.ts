@@ -48,13 +48,17 @@ export interface SeedLayoutOptions {
    *  `layoutToSeats` derives a real seat there
    *  (webview-ui/src/office/layout/layoutSerializer.ts). */
   chairs?: Array<{ col: number; row: number }>;
+  /** Extra furniture by catalog type, placed after the chairs. A seat counts as
+   *  a work seat only when electronics (`PC_FRONT_OFF`) sit on a tile it faces,
+   *  otherwise it is a rest seat. */
+  furniture?: Array<{ type: string; col: number; row: number }>;
   /** Placed pets, round-tripped through `layout.pets` verbatim. */
   pets?: Array<{ id: string; petType: number }>;
 }
 
 /**
  * Build a minimal valid OfficeLayout (version 1, all-floor, no furniture by
- * default) with optional carpet/area/chair/pet data, suitable for
+ * default) with optional carpet/area/chair/furniture/pet data, suitable for
  * `test.use({ seedLayout })`.
  */
 export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, unknown> {
@@ -68,12 +72,18 @@ export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, un
     cols,
     rows,
     tiles,
-    furniture: (opts.chairs ?? []).map((seat, i) => ({
-      uid: `seed-chair-${i.toString()}`,
-      type: 'WOODEN_CHAIR_FRONT',
-      col: seat.col,
-      row: seat.row,
-    })),
+    furniture: [
+      ...(opts.chairs ?? []).map((seat, i) => ({
+        uid: `seed-chair-${i.toString()}`,
+        type: 'WOODEN_CHAIR_FRONT',
+        col: seat.col,
+        row: seat.row,
+      })),
+      ...(opts.furniture ?? []).map((item, i) => ({
+        uid: `seed-furniture-${i.toString()}`,
+        ...item,
+      })),
+    ],
     layoutRevision: SEED_LAYOUT_REVISION,
   };
 

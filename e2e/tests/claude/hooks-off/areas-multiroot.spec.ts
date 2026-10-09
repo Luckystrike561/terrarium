@@ -25,8 +25,8 @@ import { readAgentSeats, type TestHooksWindow } from '../../../helpers/office';
  * (server/src/fileWatcher.ts scanGlobalProjectDirs).
  *
  * Seat-preference is asserted by AREA MEMBERSHIP (the seated agent's area ===
- * the mapped label), which is invariant under findFreeSeat's PC-bias
- * randomness.
+ * the mapped label). Every seeded chair faces a PC, so all three seats are work
+ * seats and findFreeSeat picks from its work pool, not the rest-seat fallback.
  */
 
 const ALPHA = 'alpha';
@@ -79,9 +79,10 @@ async function spawnFolderAgent(
 test.describe('Areas (folder-mapped agents)', () => {
   /**
    * Three chairs seed three real seats (layoutToSeats, derived from chair
-   * furniture: webview-ui/src/office/layout/layoutSerializer.ts). Two fall
-   * inside the seeded "Engineering" area. The third is left unzoned so an
-   * unmapped folder has somewhere to land that proves it was NOT steered in.
+   * furniture). A WOODEN_CHAIR_FRONT faces the tile one row below it, and the
+   * PC there makes each seat a desk. Two fall inside the seeded "Engineering"
+   * area. The third is left unzoned so an unmapped folder has somewhere to land
+   * that proves it was NOT steered in.
    */
   test.use({
     seedConfig: buildSeedConfig({
@@ -95,6 +96,11 @@ test.describe('Areas (folder-mapped agents)', () => {
         { col: 2, row: 2 },
         { col: 4, row: 4 },
         { col: 6, row: 6 },
+      ],
+      furniture: [
+        { type: 'PC_FRONT_OFF', col: 2, row: 3 },
+        { type: 'PC_FRONT_OFF', col: 4, row: 5 },
+        { type: 'PC_FRONT_OFF', col: 6, row: 7 },
       ],
       areas: [{ label: ENGINEERING, color: SEED_AREA_COLOR }],
       areaTiles: [

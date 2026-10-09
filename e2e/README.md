@@ -215,8 +215,8 @@ This section is auto-generated. Do not edit between the markers; CI fails on dri
 
 ### `@area:areas` (3 tests)
 
-- `e2e/claude/hooks-off/areas-multiroot.spec.ts:107` — an agent for the MAPPED folder takes a seat inside its area (Areas (folder-mapped agents))
-- `e2e/claude/hooks-off/areas-multiroot.spec.ts:132` — an agent for an UNMAPPED folder is not forced into the area (Areas (folder-mapped agents))
+- `e2e/claude/hooks-off/areas-multiroot.spec.ts:113` — an agent for the MAPPED folder takes a seat inside its area (Areas (folder-mapped agents))
+- `e2e/claude/hooks-off/areas-multiroot.spec.ts:138` — an agent for an UNMAPPED folder is not forced into the area (Areas (folder-mapped agents))
 - `e2e/claude/hooks-off/areas.spec.ts:30` — seeded areas + areaTiles load and showAreas is effective (Areas (no agent folders) › seeded area data + show-areas state)
 
 ### `@area:carpet` (6 tests)
