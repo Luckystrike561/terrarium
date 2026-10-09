@@ -45,17 +45,16 @@ export async function loadAllCharacters(
   externalDirs: string[],
 ): Promise<LoadedCharacterSprites | null> {
   let chars = await loadCharacterSprites(assetsRoot);
+  if (!chars) return null;
   for (const extraDir of externalDirs) {
     const extra = await loadExternalCharacterSprites(extraDir);
-    if (extra) {
-      chars = chars ? mergeCharacterSprites(chars, extra) : extra;
-    }
+    if (extra) chars = mergeCharacterSprites(chars, extra);
   }
   // Sync the server-side palette count so assignPaletteIfNeeded and the
   // saveAgentSeats guard use the dynamic ceiling (external dirs can add
-  // char_N.png past the bundled 6). Centralizing here means every entry
-  // point -- startup, reload -- sees the same count without scattered calls.
-  if (chars) setPaletteCount(chars.characters.length);
+  // char_N.png past the bundled sheets). Centralizing here means every entry
+  // point (startup, reload) sees the same count without scattered calls.
+  setPaletteCount(chars.characters.length);
   return chars;
 }
 

@@ -160,11 +160,20 @@ export function parseCarpetPng(pngBuffer: Buffer): string[][][] {
 }
 
 /**
- * Decode a single character PNG (168×120) into direction-keyed frame arrays.
- * Each PNG has 3 direction rows (down, up, right) × 7 frames (CHAR_FRAME_W × CHAR_FRAME_H, 24×40).
+ * Decode a single character PNG into direction-keyed frame arrays. Each PNG has
+ * 3 direction rows (down, up, right) × CHAR_FRAMES_PER_ROW frames of
+ * CHAR_FRAME_W × CHAR_FRAME_H, in CHARACTER_FRAMES order. Throws on any other
+ * size, so a sheet missing poses is rejected instead of decoded as garbage.
  */
 export function decodeCharacterPng(pngBuffer: Buffer): CharacterDirectionSprites {
   const png = PNG.sync.read(sanitizePngBuffer(pngBuffer));
+  const expectedWidth = CHAR_FRAME_W * CHAR_FRAMES_PER_ROW;
+  const expectedHeight = CHAR_FRAME_H * CHARACTER_DIRECTIONS.length;
+  if (png.width !== expectedWidth || png.height !== expectedHeight) {
+    throw new Error(
+      `character sheet is ${png.width}×${png.height}, expected ${expectedWidth}×${expectedHeight} (${CHAR_FRAMES_PER_ROW} frames of ${CHAR_FRAME_W}×${CHAR_FRAME_H} in ${CHARACTER_DIRECTIONS.length} direction rows)`,
+    );
+  }
   const charData: CharacterDirectionSprites = { down: [], up: [], right: [] };
 
   for (let dirIdx = 0; dirIdx < CHARACTER_DIRECTIONS.length; dirIdx++) {

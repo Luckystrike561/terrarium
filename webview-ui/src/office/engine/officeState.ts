@@ -8,7 +8,6 @@ import {
   CTO_COUCH_SEC,
   CTO_DESK_SEC,
   CTO_ID,
-  CTO_PALETTE,
   CTO_QUEUE_MAX_SLOTS,
   CTO_VISIT_SEC,
   DISMISS_BUBBLE_FAST_FADE_SEC,
@@ -20,7 +19,6 @@ import {
   MAX_PET_ID_LENGTH,
   PET_HIT_HALF_WIDTH,
   PET_HIT_HEIGHT,
-  TYPE_FRAME_DURATION_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
 import { worldToIso } from '../iso.js';
@@ -37,6 +35,7 @@ import { getPetCount, getPetName } from '../sprites/petSpriteData.js';
 import { getLoadedCharacterCount } from '../sprites/spriteData.js';
 import type {
   Character,
+  CtoQueueReason,
   FurnitureInstance,
   OfficeLayout,
   Pet,
@@ -48,6 +47,7 @@ import type {
 import { CharacterState, Direction, PetState, TILE_SIZE } from '../types.js';
 import {
   advanceAlongPath,
+  advancePoseFrame,
   createCharacter,
   releaseRestSeat,
   updateCharacter,
@@ -130,7 +130,7 @@ export class OfficeState {
 
   /** Agents that need the human, in arrival order, with the reason. They walk
    *  to the queue outside the CTO office door and wait there until it clears. */
-  private ctoQueue = new Map<number, 'permission' | 'input'>();
+  private ctoQueue = new Map<number, CtoQueueReason>();
   private ctoCouchSeatId: string | null = null;
   private ctoVisitorSeatIds: string[] = [];
   private ctoOnCouch = false;
@@ -287,7 +287,7 @@ export class OfficeState {
       else this.ctoCouchSeatId ??= uid;
     }
     this.walkableTiles = this.walkableTiles.filter((t) => !office.has(`${t.col},${t.row}`));
-    const cto = this.cto ?? createCharacter(CTO_ID, CTO_PALETTE, seatId, seat);
+    const cto = this.cto ?? createCharacter(CTO_ID, 0, seatId, seat);
     cto.isCto = true;
     cto.isActive = true;
     cto.state = CharacterState.TYPE;
@@ -305,8 +305,8 @@ export class OfficeState {
   }
 
   /** The CTO's loop: work at the desk for CTO_DESK_SEC, then walk to the
-   *  office couch for CTO_COUCH_SEC, and back. Only types at the desk, which
-   *  is also the only place its monitor is on. */
+   *  office couch for CTO_COUCH_SEC, and back. Types at the desk, which is
+   *  also the only place its monitor is on, and rests on the couch. */
   private updateCto(dt: number): void {
     const cto = this.cto;
     if (!cto) return;
@@ -360,11 +360,7 @@ export class OfficeState {
       }
       return;
     }
-    // Typing at the desk animates; on the couch the CTO just sits.
-    if (!this.ctoOnCouch && cto.frameTimer >= TYPE_FRAME_DURATION_SEC) {
-      cto.frameTimer -= TYPE_FRAME_DURATION_SEC;
-      cto.frame = (cto.frame + 1) % 2;
-    }
+    advancePoseFrame(cto);
   }
 
   /** Hand out CTO queue spots in queue order: the visitor chairs in front of
@@ -385,10 +381,10 @@ export class OfficeState {
         ...computeDoorQueue(this.tileMap, this.blockedTiles, ctoSeat, CTO_QUEUE_MAX_SLOTS),
       );
     }
-    const assigned = new Map<number, QueueSlot>();
+    const assigned = new Map<number, Character['ctoQueueSlot']>();
     let i = 0;
-    for (const id of this.ctoQueue.keys()) {
-      if (this.characters.has(id) && i < slots.length) assigned.set(id, slots[i++]);
+    for (const [id, reason] of this.ctoQueue) {
+      if (this.characters.has(id) && i < slots.length) assigned.set(id, { ...slots[i++], reason });
     }
     for (const ch of this.characters.values()) {
       const slot = assigned.get(ch.id) ?? null;
@@ -422,7 +418,7 @@ export class OfficeState {
     this.refreshCtoQueue();
   }
 
-  private joinCtoQueue(id: number, reason: 'permission' | 'input'): void {
+  private joinCtoQueue(id: number, reason: CtoQueueReason): void {
     const ch = this.characters.get(id);
     if (!ch || ch.isSubagent) return;
     if (this.ctoQueue.get(id) === 'permission') return;
@@ -430,7 +426,7 @@ export class OfficeState {
     this.refreshCtoQueue();
   }
 
-  private leaveCtoQueue(id: number, reason?: 'permission' | 'input'): void {
+  private leaveCtoQueue(id: number, reason?: CtoQueueReason): void {
     const current = this.ctoQueue.get(id);
     if (!current || (reason && current !== reason)) return;
     this.ctoQueue.delete(id);
@@ -743,11 +739,12 @@ export class OfficeState {
 
   /**
    * Pick a diverse palette for a new agent based on currently active agents.
-   * First 6 agents each get a unique skin (random order). Beyond 6, skins
-   * repeat in balanced rounds with a random hue shift (≥45°).
+   * The first agents each get a unique skin (random order), one per loaded
+   * sheet. Beyond that, skins repeat in balanced rounds with a random hue
+   * shift (≥45°).
    */
   private pickDiversePalette(): { palette: number; hueShift: number } {
-    // Count how many non-sub-agents use each base palette (0-5)
+    // Count how many non-sub-agents use each base palette
     const paletteCount = getLoadedCharacterCount();
     const counts = new Array(paletteCount).fill(0) as number[];
     for (const ch of this.characters.values()) {

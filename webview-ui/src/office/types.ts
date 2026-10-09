@@ -44,6 +44,10 @@ export type Direction = (typeof Direction)[keyof typeof Direction];
 /** 2D array of hex color strings: '' = transparent, '#RRGGBB' = opaque, '#RRGGBBAA' = semi-transparent. [row][col] */
 export type SpriteData = string[][];
 
+/** Why an agent waits in the CTO queue: a permission request, or its turn
+ *  ended waiting for the user's input. */
+export type CtoQueueReason = 'permission' | 'input';
+
 export interface Seat {
   /** Chair furniture uid */
   uid: string;
@@ -226,9 +230,15 @@ export interface Character {
    *  isGreeter: the CTO lives in OfficeState.cto, outside the agent map. */
   isCto?: boolean;
   /** Spot in the CTO queue this agent walks to and waits at while it needs
-   *  the human (permission / input): a visitor chair in the office (seated)
-   *  or a standing spot outside the door. */
-  ctoQueueSlot?: { col: number; row: number; facing: Direction; seated?: boolean } | null;
+   *  the human: a visitor chair in the office (seated) or a standing spot
+   *  outside the door. `reason` picks the waiting pose. */
+  ctoQueueSlot?: {
+    col: number;
+    row: number;
+    facing: Direction;
+    seated?: boolean;
+    reason: CtoQueueReason;
+  } | null;
 
   // -- Agent Teams --
   /** Team name this agent belongs to */

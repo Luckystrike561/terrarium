@@ -9,10 +9,17 @@ export interface CharacterDirectionSprites {
   right: string[][][];
 }
 
+/** The agent sheets, one per palette, and the CTO's own sheet. */
+export interface CharacterSheets {
+  characters: CharacterDirectionSprites[];
+  cto: CharacterDirectionSprites;
+}
+
 export interface AssetIndex {
   floors: string[];
   walls: string[];
   characters: string[];
+  cto: string;
   defaultLayout: string | null;
 }
 

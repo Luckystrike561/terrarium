@@ -11,9 +11,10 @@ export function MigrationNotice({ onDismiss }: MigrationNoticeProps) {
       onClick={onDismiss}
     >
       <div
-        className="pixel-panel py-24 px-32 max-w-xl text-center leading-[1.3]"
+        className="paper-sheet shadow-pixel relative py-24 px-32 max-w-xl text-center leading-[1.3]"
         onClick={(e) => e.stopPropagation()}
       >
+        <div aria-hidden className="paper-pin" />
         <div className="text-5xl mb-12 text-accent">We owe you an apology!</div>
         <p className="text-xl m-0 mb-12">
           We've just migrated to fully open-source assets, all built from scratch with love.

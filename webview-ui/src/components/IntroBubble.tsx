@@ -242,8 +242,8 @@ export function IntroBubble({
             top: y,
             width: size,
             height: size,
-            background: 'var(--color-bg)',
-            border: '2px solid var(--color-border)',
+            background: 'var(--color-paper)',
+            border: '2px solid var(--color-ink)',
           }}
         />
       ))}
@@ -251,7 +251,7 @@ export function IntroBubble({
         ref={bubbleRef}
         role="dialog"
         aria-label={titles[step]}
-        className="pixel-panel relative py-10 px-14 leading-[1.4]"
+        className="paper-tag relative py-10 px-14 leading-[1.4]"
         style={{ maxWidth }}
       >
         {/* Same close control as the Settings/changelog modals (ui/Modal.tsx):
