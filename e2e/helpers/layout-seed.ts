@@ -4,14 +4,13 @@
  * writes them under the isolated HOME before the server starts (see
  * e2e/helpers/standalone.ts), so the server reads them on startup.
  *
- * A seeded layout carries a high layoutRevision (SEED_LAYOUT_REVISION) purely
- * as a marker a spec can assert against: the server never resets a layout by
- * revision. It serves `layout.json` verbatim whenever the file exists
- * (server/src/layoutPersistence.ts), falling back to the bundled default only
- * when it is missing.
+ * A seeded layout carries a layoutRevision so the webview treats it as a
+ * current layout: without one, migrateLayout remaps tile value 8 (legacy VOID)
+ * to VOID, which would erase a FLOOR_8 seed. The server serves `layout.json`
+ * verbatim whenever the file exists and never resets it by revision.
  */
 
-/** Far above the bundled default-layout revision so a seeded layout survives load. */
+/** Any non-zero revision; marks a seeded layout as current, not legacy. */
 export const SEED_LAYOUT_REVISION = 9999;
 
 /** Default floor TileType used to fill a seeded grid (FLOOR_1 = 1). */
