@@ -17,7 +17,6 @@ export interface TestHooksWindow extends Window {
     getCarpetJunctionCase?: (jx: number, jy: number, variant: number) => number;
     getAreas?: () => Array<{ label: string; color: string }>;
     getAreaTiles?: () => Array<{ col: number; row: number; label: string }>;
-    getAreaMappings?: () => Record<string, string[]>;
     getShowAreas?: () => boolean;
     getAgentSeats?: () => Array<{
       id: number;
@@ -326,17 +325,6 @@ export async function readAreaTiles(
 export async function readAreas(page: Page): Promise<Array<{ label: string; color: string }>> {
   return page.evaluate(
     () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreas?.() ?? [],
-  );
-}
-
-/** Read all seats (uid + coords + the area their tile falls in). */
-export async function readSeats(
-  page: Page,
-): Promise<
-  Array<{ uid: string; col: number; row: number; areaLabel: string | null; assigned: boolean }>
-> {
-  return page.evaluate(
-    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getSeats?.() ?? [],
   );
 }
 
