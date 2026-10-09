@@ -20,7 +20,7 @@ import { readAgentSeats, type TestHooksWindow } from '../../../helpers/office';
  * layout. Both are seeded directly.
  *
  * A subfolder's cwd hashes to a DIFFERENT Claude project dir than the one the
- * server tracks for its own `workspaceDir` (server/src/providers/hook/claude/claude.ts),
+ * server tracks for its own `workspaceDir` (the Claude agent module's session dirs),
  * so Watch All Sessions must be on for the periodic global scanner to adopt it
  * (server/src/fileWatcher.ts scanGlobalProjectDirs).
  *
