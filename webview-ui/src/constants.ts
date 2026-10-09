@@ -67,6 +67,34 @@ export const GLASS_FRAME_COLOR = '#2c2d36';
 export const GLASS_PANE_COLOR = '#bfe3f04d';
 export const GLASS_SHEEN_COLOR = '#ffffff8c';
 
+// ── Backdrop (night city skyline behind the office) ─────────
+/** Night sky gradient, from the top of the canvas down to its bottom edge. */
+export const BACKDROP_SKY_COLORS = ['#090a1a', '#10112c', '#19173d', '#251e4f', '#36275e'] as const;
+export const BACKDROP_STAR_COLORS = ['#6f74a8', '#e6e9ff'] as const;
+/** Stars: at most one per square cell of this size, placed with this chance. */
+export const BACKDROP_STAR_CELL_PX = 12;
+export const BACKDROP_STAR_CHANCE = 0.6;
+/** Stars fade out below this fraction of the canvas height (the city glow). */
+export const BACKDROP_STAR_CUTOFF = 0.7;
+export const BACKDROP_FAR_BUILDING_COLOR = '#1b1838';
+export const BACKDROP_NEAR_BUILDING_COLOR = '#0e0d21';
+export const BACKDROP_WINDOW_LIT_COLOR = '#f0c06a';
+export const BACKDROP_WINDOW_DIM_COLOR = '#25234a';
+/** Building widths and heights in backdrop pixels: [min, max). */
+export const BACKDROP_FAR_BUILDING_WIDTH_PX = [5, 13] as const;
+export const BACKDROP_FAR_BUILDING_HEIGHT_PX = [22, 56] as const;
+export const BACKDROP_NEAR_BUILDING_WIDTH_PX = [8, 18] as const;
+export const BACKDROP_NEAR_BUILDING_HEIGHT_PX = [10, 36] as const;
+/** Share of far buildings carrying a rooftop antenna, and its height. */
+export const BACKDROP_ANTENNA_CHANCE = 0.25;
+export const BACKDROP_ANTENNA_HEIGHT_PX = 4;
+/** Near-building window grid: inset from the walls, cell size, lit share. */
+export const BACKDROP_WINDOW_INSET_PX = 2;
+export const BACKDROP_WINDOW_STEP_X_PX = 3;
+export const BACKDROP_WINDOW_STEP_Y_PX = 4;
+export const BACKDROP_WINDOW_HEIGHT_PX = 2;
+export const BACKDROP_WINDOW_LIT_CHANCE = 0.3;
+
 // ── Camera ───────────────────────────────────────────────────
 export const CAMERA_FOLLOW_LERP = 0.1;
 export const CAMERA_FOLLOW_SNAP_THRESHOLD = 0.5;
