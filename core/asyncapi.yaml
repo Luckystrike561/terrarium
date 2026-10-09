@@ -13,8 +13,9 @@ info:
     Bidirectional WebSocket protocol between the Pixel Agents server and any UI client
     (the standalone browser SPA, or future third-party clients). The server watches
     AI-coding-agent transcripts, parses tool activity, owns office layout, and streams
-    events to all connected clients. Clients send commands to launch agents, save
-    seat assignments, and toggle settings.
+    events to all connected clients. Clients send commands to close agents, save
+    seat assignments and area mappings, manage asset directories, request
+    diagnostics, and toggle settings.
 
     The protocol is provider-agnostic: a HookProvider implementation defines how raw
     CLI events are normalized to the AgentEvent shape, which the server translates
