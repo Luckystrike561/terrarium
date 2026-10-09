@@ -57,7 +57,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
     cli.ts                           npx pixel-agents entry (npm bin)
     fileStateAdapter.ts              ~/.pixel-agents/ persistence
     configPersistence.ts             { standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[] }
-    layoutPersistence.ts             ~/.pixel-agents/layout.json with atomic tmp+rename
+    layoutPersistence.ts             Read-only ~/.pixel-agents/layout.json loader
     fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
     transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
     timerManager.ts                  Waiting / permission timers
@@ -350,7 +350,7 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 
 `FileStateAdapter` backs persistence. Settings: `soundEnabled`, `lastSeenVersion`, `alwaysShowLabels`, `watchAllSessions`, `hooksInfoShown` (the hooks preference is per-provider and machine-global, at the config top level). A leftover config key or state file from an older multi-surface install is ignored, never an error.
 
-Layout writes are atomic via tmp + rename. The server reads `layout.json` on every `webviewReady` and serves the bundled default only when the file is missing.
+`layout.json` is read-only: the server reads it on every `webviewReady` and serves the bundled default only when the file is missing. Nothing writes it.
 
 ## Agent Status Tracking
 
@@ -418,7 +418,7 @@ Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce: `no-inline-
 
 ## Layout
 
-There is no in-app layout editor: it was removed until it is redesigned. The office is authored in code (`scripts/iso-art/layout.ts`, see [Asset System](#asset-system)) and loaded read-only. On `webviewReady` the server sends `~/.pixel-agents/layout.json` when it exists, otherwise the bundled default; nothing writes `layout.json` anymore. Fields no tool can author now (`carpetTiles`, `areas`, `areaTiles`, `pets`) still load and render. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
+There is no in-app layout editor: it was removed until it is redesigned. The office is authored in code (`scripts/iso-art/layout.ts`, see [Asset System](#asset-system)) and loaded read-only. On `webviewReady` the server sends `~/.pixel-agents/layout.json` when it exists, otherwise the bundled default; nothing writes `layout.json` anymore. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
 
 **Layout model**: `{ version: 1, cols, rows, tiles: TileType[], furniture: PlacedFurniture[], tileColors?: ColorValue[], carpetTiles?, areas?, areaTiles?, pets?, layoutRevision? }`. Grid dimensions are dynamic. `TileType.VOID` tiles are transparent and non-walkable.
 
@@ -430,7 +430,7 @@ There is no in-app layout editor: it was removed until it is redesigned. The off
 
 **Loading**: `esbuild.js` copies `webview-ui/public/assets/` → `dist/assets/`. Loader checks bundled path first, falls back to workspace root. PNG → pngjs → SpriteData (2D hex array, alpha≥2 = visible, `#RRGGBBAA` for semi-transparent). `loadDefaultLayout()` reads `assets/default-layout.json` as fallback for new workspaces.
 
-**Catalog**: `furniture-catalog.json` with `id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?`. String-based type system. Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-placeable items use the `wall` category and appear in a dedicated "Wall" tab. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`).
+**Catalog**: `furniture-catalog.json` with `id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?`. String-based type system. Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-mounted items use the `wall` category. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`).
 
 **Per-furniture manifests**: Each furniture item lives in its own folder under `assets/furniture/` with a `manifest.json` that declares its sprites, rotation groups, state groups (on/off), and animation frames. Floor tiles are individual PNGs in `assets/floors/`; wall tile sets in `assets/walls/`. The bundled furniture and characters are **generated**: `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/` and `assets/characters/` from code (`scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `lib/scene.ts`, `characters.ts` stamps hand-placed pixel templates); `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (open-plan work space, glass-walled CTO office and meeting room, break room with kitchen, coffee machine and lounge) as `default-layout-<REVISION>.json`; bump `REVISION` on every change. The server serves the bundled default only when `~/.pixel-agents/layout.json` does not exist, so a saved layout is never replaced by a newer default. `scripts/iso-art/preview.ts <module>` renders review sheets to `/tmp/iso-preview` without touching assets. **Iso sprite anchor contract**: an item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges (`footprintSpriteOrigin`); sprites of any other width are treated as flat art and stand centered on the footprint. Orientation = the facing direction on the grid (front = +row/screen lower-left, right = +col, back, left); rotated footprints are transposed. Desk tops are at z=12 (`DESK_SURFACE_Z`), chair seats at z=6, walls 40 px tall, and surface items are drawn starting at desk height.
 
@@ -440,11 +440,11 @@ There is no in-app layout editor: it was removed until it is redesigned. The off
 
 **Auto-state**: `officeState.rebuildFurnitureInstances()` swaps electronics to ON sprites when an active agent faces a desk with that item nearby (3 tiles deep in facing direction, 1 tile to each side). Operates at render time without modifying the saved layout.
 
-**Background tiles**: `backgroundTiles?: number` — top N footprint rows allow other furniture to be placed on them AND characters to walk through. The iso set uses 0 everywhere.
+**Background tiles**: `backgroundTiles?: number` — characters can walk through the top N footprint rows. The iso set uses 0 everywhere.
 
 **Surface placement**: `canPlaceOnSurfaces?: boolean` — items like monitors and mugs sit on `isDesk` furniture tiles. They sort on the attached layer, after the desk.
 
-**Wall placement**: `canPlaceOnWalls?: boolean` — paintings, clocks, shelves, whiteboards can only be placed on wall tiles: every footprint tile must be a wall. `front` mounts on a wall running along cols (its visible face is the +row face), `right` on a wall running along rows (+col face). They sort on the attached layer, after their wall tile.
+**Wall items**: `canPlaceOnWalls?: boolean` — paintings, clocks, shelves, whiteboards are wall-mounted. `front` mounts on a wall running along cols (its visible face is the +row face), `right` on a wall running along rows (+col face). They sort on the attached layer, after their wall tile.
 
 **Colorize module**: `colorize.ts` with two modes selected by `ColorValue.colorize?` flag. **Colorize mode** (Photoshop-style): grayscale → luminance → contrast → brightness → fixed HSL; always used for floor tiles. **Adjust mode** (default for furniture and character hue shifts): shifts original pixel HSL. `adjustSprite()` exported for character hue shifts. Cache keyed by arbitrary string (includes colorize flag).
 
@@ -485,7 +485,7 @@ Run: `npm run test:server` (or `npm test` for all).
 
 ### Webview unit (Vitest, Node runner)
 
-`webview-ui/test/` covers office state, layout editing and migration, assets, changelog behavior, and Vite/browser wiring.
+`webview-ui/test/` covers office state, layout migration, assets, changelog behavior, and Vite/browser wiring.
 
 Run: `npm run test:webview`.
 
@@ -555,7 +555,7 @@ The drift checks are the central guarantees: `core/asyncapi.yaml` ↔ `core/src/
 
 ## TypeScript Constraints
 
-- **No `enum`** (`erasableSyntaxOnly` in webview) — use `as const` objects (`TileType`, `CharacterState`, `Direction`, `EditTool`).
+- **No `enum`** (`erasableSyntaxOnly` in webview) — use `as const` objects (`TileType`, `CharacterState`, `Direction`).
 - **`import type`** required for type-only imports (`verbatimModuleSyntax` in webview; convention in the server).
 - **`noUnusedLocals` / `noUnusedParameters`** — strict everywhere.
 - **`.js` extensions** on all relative imports in the server (Node16 module resolution).
