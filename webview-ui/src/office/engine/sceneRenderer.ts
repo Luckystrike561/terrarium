@@ -10,6 +10,8 @@
  * - Area labels stay in DEVICE-PIXEL space as direct children of the stage
  *   instead: their minimum font size is deliberately constant-in-device-pixels,
  *   not proportional to zoom, so they can't live inside the scaled worldLayer.
+ * - The night-skyline backdrop is the stage's first child, also in device
+ *   pixels, so it covers the whole canvas (fit bands, VOID tiles, any pan).
  * - Walls/furniture/characters/pets are retained Sprite pools keyed by a
  *   stable id (furniture uid, `row:col` for wall tiles, character id, pet id)
  *   and diffed every frame, then ordered with isoDrawOrder: a single depth
@@ -27,7 +29,7 @@
 import 'pixi.js/unsafe-eval';
 
 import type { Renderer } from 'pixi.js';
-import { Application, Container, Graphics, Sprite, Text, TextureStyle } from 'pixi.js';
+import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from 'pixi.js';
 
 import type { ColorValue } from '../../components/ui/types.js';
 import {
@@ -55,6 +57,7 @@ import {
   STATUS_BADGE_HORIZONTAL_OFFSET_PX,
   STATUS_BADGE_VERTICAL_OFFSET_PX,
 } from '../../constants.js';
+import { paintNightSkyline } from '../backdrop.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
 import type { Point } from '../iso.js';
 import { ISO_TILE_H, ISO_TILE_W, projectToDiamond, tileCorner, worldToIso } from '../iso.js';
@@ -213,6 +216,11 @@ export class OfficeSceneRenderer {
   private app = new Application();
   private ready = false;
 
+  /** Screen-space, behind `worldLayer`: covers the whole canvas whatever the
+   *  pan, and is repainted only when the canvas size or pixel size changes. */
+  private backdrop = new Sprite();
+  private backdropKey = '';
+
   private worldLayer = new Container();
   private floorContainer = new Container();
   private carpetContainer = new Container();
@@ -270,7 +278,7 @@ export class OfficeSceneRenderer {
       width: Math.max(1, this.canvas.width),
       height: Math.max(1, this.canvas.height),
     });
-    this.app.stage.addChild(this.worldLayer, this.areaLabelContainer);
+    this.app.stage.addChild(this.backdrop, this.worldLayer, this.areaLabelContainer);
     this.ready = true;
   }
 
@@ -284,6 +292,9 @@ export class OfficeSceneRenderer {
   }
 
   destroy(): void {
+    // Shared sprite textures outlive the app (texture: false), but the
+    // backdrop's texture is owned here alone.
+    if (this.backdrop.texture !== Texture.EMPTY) this.backdrop.texture.destroy(true);
     this.app.destroy({ removeView: false }, { children: true, texture: false });
   }
 
@@ -305,6 +316,7 @@ export class OfficeSceneRenderer {
     );
     this.worldLayer.position.set(offsetX, offsetY);
     this.worldLayer.scale.set(state.zoom, state.zoom);
+    this.updateBackdrop(canvasWidth, canvasHeight, state.zoom);
 
     if (state.layout !== this.lastLayout) {
       this.rebuildFloor(state);
@@ -330,6 +342,33 @@ export class OfficeSceneRenderer {
 
     this.app.renderer.render(this.app.stage);
     return { offsetX, offsetY };
+  }
+
+  // ── Backdrop (resize-gated) ────────────────────────────────────
+
+  private updateBackdrop(canvasWidth: number, canvasHeight: number, zoom: number): void {
+    // One backdrop pixel per office sprite pixel, kept integral so nearest
+    // sampling never produces uneven pixel columns.
+    const pixelSize = Math.max(1, Math.round(zoom));
+    const key = `${canvasWidth}x${canvasHeight}@${pixelSize}`;
+    if (key === this.backdropKey) return;
+    this.backdropKey = key;
+
+    const image = paintNightSkyline(
+      Math.ceil(canvasWidth / pixelSize),
+      Math.ceil(canvasHeight / pixelSize),
+    );
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    canvas
+      .getContext('2d')!
+      .putImageData(new ImageData(image.pixels, image.width, image.height), 0, 0);
+
+    const previous = this.backdrop.texture;
+    this.backdrop.texture = Texture.from(canvas);
+    if (previous !== Texture.EMPTY) previous.destroy(true);
+    this.backdrop.scale.set(pixelSize);
   }
 
   // ── Floor + wall base color (layout-gated) ─────────────────────
