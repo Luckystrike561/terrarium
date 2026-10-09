@@ -49,7 +49,7 @@ Scenarios that exist as product behavior but are not in the automated suite. PRs
 
 CI green on this suite is the safety net for behavioral regressions. The checks below are what e2e can't meaningfully assert on (visual polish, real-Claude integration, other browsers). Run them before tagging a release, not on every PR.
 
-**Visual + interactive polish** (after any change touching `sceneRenderer.ts`, `spriteCache.ts`, `colorize.ts`, or `*.tsx`):
+**Visual + interactive polish** (after any change touching `sceneRenderer.ts`, `textureCache.ts`, `colorize.ts`, `*.tsx`, or CSS):
 
 - Spawn 3+ agents: matrix spawn animation renders cleanly, characters move smoothly between seats and z-sort correctly against chairs and desks.
 - Hover and click characters: overlay text positioning is correct, selection outline crisp, click on a seat reassigns.
