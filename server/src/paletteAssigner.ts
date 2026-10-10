@@ -5,19 +5,19 @@
  * consistent character appearance across all connected clients.
  */
 
+import { CHAR_COUNT } from '../../core/src/assets/constants.js';
 import { pickDiversePalette } from '../../core/src/paletteUtils.js';
 import type { AgentStateStore } from './agentStateStore.js';
-import { PALETTE_COUNT } from './constants.js';
 import type { AgentState } from './types.js';
 
 /**
  * Runtime palette count. External asset directories can add char_N.png
- * beyond the bundled 6 (loadExternalCharacterSprites accepts any N), so the
- * count is dynamic. Defaults to PALETTE_COUNT until setPaletteCount is
+ * beyond the bundled sheets (loadExternalCharacterSprites accepts any N), so
+ * the count is dynamic. Defaults to CHAR_COUNT until setPaletteCount is
  * called after assets load. Mirrors the setTranscriptModule / setTeamSwitch
  * module-level setter pattern in transcriptParser.ts.
  */
-let currentPaletteCount = PALETTE_COUNT;
+let currentPaletteCount = CHAR_COUNT;
 
 /** Set the palette count after asset loading. */
 export function setPaletteCount(count: number): void {

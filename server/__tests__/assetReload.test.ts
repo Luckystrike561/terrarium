@@ -7,11 +7,9 @@ vi.mock('../src/assetLoader.js', () => ({
     Promise.resolve({ catalog: [{ id: `furn:${dir}` }], sprites: new Map([[`s:${dir}`, []]]) }),
   ),
   loadCharacterSprites: vi.fn((dir: string) =>
-    Promise.resolve({ characters: [`char-root:${dir}`] }),
+    Promise.resolve({ characters: [`char-root:${dir}`], cto: `cto:${dir}` }),
   ),
-  loadExternalCharacterSprites: vi.fn((dir: string) =>
-    Promise.resolve({ characters: [`char-ext:${dir}`] }),
-  ),
+  loadExternalCharacterSprites: vi.fn((dir: string) => Promise.resolve([`char-ext:${dir}`])),
   loadPetSprites: vi.fn((dir: string) =>
     Promise.resolve({ pets: [`pet-root:${dir}`], manifests: [{ name: `m:${dir}` }] }),
   ),
@@ -26,7 +24,7 @@ vi.mock('../src/assetLoader.js', () => ({
     catalog: [...a.catalog, ...b.catalog],
     sprites: new Map([...a.sprites, ...b.sprites]),
   })),
-  mergeCharacterSprites: vi.fn((a, b) => ({ characters: [...a.characters, ...b.characters] })),
+  mergeCharacterSprites: vi.fn((a, b) => ({ characters: [...a.characters, ...b], cto: a.cto })),
   mergePetSprites: vi.fn((a, b) => ({
     pets: [...a.pets, ...b.pets],
     manifests: [...a.manifests, ...b.manifests],
@@ -93,7 +91,7 @@ describe('assetReload helpers', () => {
     const cache = await buildAssetCache('dist', []);
 
     // Wrapped: characters/pets/furniture keep their wrapper objects.
-    expect(cache.characters).toEqual({ characters: ['char-root:dist'] });
+    expect(cache.characters).toEqual({ characters: ['char-root:dist'], cto: 'cto:dist' });
     expect(cache.pets).toEqual({ pets: ['pet-root:dist'], manifests: [{ name: 'm:dist' }] });
     expect(cache.furniture?.catalog).toEqual([{ id: 'furn:dist' }]);
     // Unwrapped: floor/wall/carpet store the inner array, not the wrapper.

@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { CTO_CHARACTER_FILE } from './constants.js';
 import type { FurnitureManifest, InheritedProps, ManifestGroup } from './manifestUtils.js';
 import { flattenManifest } from './manifestUtils.js';
 import type { CatalogEntry } from './types.js';
@@ -134,6 +135,7 @@ export function buildAssetIndex(assetsDir: string) {
     floors: listSorted('floors', /^floor_\d+\.png$/i),
     walls: listSorted('walls', /^wall_\d+\.png$/i),
     characters: listSorted('characters', /^char_\d+\.png$/i),
+    cto: CTO_CHARACTER_FILE,
     defaultLayout,
   };
 }

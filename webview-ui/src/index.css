@@ -31,10 +31,12 @@
   --color-danger: #d14249;
   --color-warning: #ff8d14;
 
-  /* Status */
+  /* Agent-state colours, shared by status badges, speech bubbles and the HUD */
   --color-status-permission: #cca700;
   --color-status-active: #3794ff;
-  --color-status-success: #89d185;
+  --color-status-waiting: #7c5cff;
+  --color-status-success: #44bb66;
+  --color-status-idle: #8891a8;
   --color-status-error: var(--color-danger);
 
   /* Office furnishings (HUD plank, settings clipboard) */
@@ -93,7 +95,9 @@
   --color-warning: var(--color-warning);
   --color-status-permission: var(--color-status-permission);
   --color-status-active: var(--color-status-active);
+  --color-status-waiting: var(--color-status-waiting);
   --color-status-success: var(--color-status-success);
+  --color-status-idle: var(--color-status-idle);
   --color-status-error: var(--color-status-error);
   --color-wood: var(--color-wood);
   --color-wood-light: var(--color-wood-light);
@@ -123,9 +127,21 @@
 }
 
 @layer components {
-  /* Panel with standard pixel-art border + shadow */
-  .pixel-panel {
-    @apply bg-bg border-2 border-border rounded-none shadow-pixel;
+  /* Small paper tag: tooltips, toasts and the in-world activity label. Ink
+     border (rather than paper-sheet's wood-dark) reads crisper at this size. */
+  .paper-tag {
+    --color-text: var(--color-ink);
+    --color-text-muted: rgba(43, 36, 51, 0.55);
+    --color-btn-bg: var(--color-paper-dark);
+    --color-btn-hover: var(--color-paper-line);
+    --color-border: var(--color-ink);
+    --color-bg: var(--color-paper);
+    @apply bg-paper text-text border-2 border-ink rounded-none shadow-pixel;
+  }
+
+  /* Square paper-tack pinning a memo to the plank or a cork board. */
+  .paper-pin {
+    @apply absolute -top-7 left-1/2 -translate-x-1/2 w-12 h-12 bg-brass border-2 border-wood-dark rounded-none shadow-pixel;
   }
 
   /* Wooden plank mounted on the office wall: hard-edged grain bands, no blur. */

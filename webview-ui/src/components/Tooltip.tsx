@@ -16,10 +16,7 @@ const positionStyles: Record<string, React.CSSProperties> = {
 
 export function Tooltip({ title, onDismiss, position = 'top-right', children }: TooltipProps) {
   return (
-    <div
-      className="absolute z-20 pixel-panel whitespace-nowrap p-0"
-      style={positionStyles[position]}
-    >
+    <div className="absolute z-20 paper-tag whitespace-nowrap p-0" style={positionStyles[position]}>
       <div className="flex items-center justify-between py-4 px-8 border-b border-border">
         <span className="text-base text-accent font-bold">{title}</span>
         <button

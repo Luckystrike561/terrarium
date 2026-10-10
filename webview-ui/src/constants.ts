@@ -9,6 +9,12 @@ export const DEFAULT_ROWS = 11;
 export const WALK_SPEED_PX_PER_SEC = 48;
 export const WALK_FRAME_DURATION_SEC = 0.15;
 export const TYPE_FRAME_DURATION_SEC = 0.3;
+/** Two-frame pose loops: how long each frame shows. Slow for breathing, quick
+ *  for a waving hand. */
+export const IDLE_FRAME_DURATION_SEC = 1.0;
+export const REST_FRAME_DURATION_SEC = 1.4;
+export const RAISE_HAND_FRAME_DURATION_SEC = 0.4;
+export const HOLD_FORM_FRAME_DURATION_SEC = 0.6;
 export const WANDER_PAUSE_MIN_SEC = 2.0;
 export const WANDER_PAUSE_MAX_SEC = 20.0;
 export const WANDER_MOVES_BEFORE_REST_MIN = 3;
@@ -61,9 +67,9 @@ export const WALL_COLOR = '#d9c4a0';
 export const FLOOR_SLAB_PX = 5;
 export const FLOOR_SLAB_LEFT_COLOR = '#4a3f5c';
 export const FLOOR_SLAB_RIGHT_COLOR = '#362d45';
-/** Interior glass partitions: height (sprite px), frame, pane and sheen. */
+/** Interior glass partitions: height (sprite px), frame (ink), pane and sheen. */
 export const WALL_GLASS_HEIGHT_PX = 30;
-export const GLASS_FRAME_COLOR = '#2c2d36';
+export const GLASS_FRAME_COLOR = '#1a1426';
 export const GLASS_PANE_COLOR = '#bfe3f04d';
 export const GLASS_SHEEN_COLOR = '#ffffff8c';
 
@@ -158,8 +164,6 @@ export const WAITING_BUBBLE_DURATION_SEC = 2.0;
 export const DISMISS_BUBBLE_FAST_FADE_SEC = 0.3;
 export const INACTIVE_SEAT_TIMER_MIN_SEC = 3.0;
 export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
-/** Default/fallback palette count (bundled characters). Actual count comes from getLoadedCharacterCount(). */
-export const PALETTE_COUNT = 6;
 export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
 export const CHARACTER_HIT_HALF_WIDTH = 10;
@@ -170,10 +174,9 @@ export const TOOL_OVERLAY_VERTICAL_OFFSET = 44;
 /** Reserved character id for the Intro's greeter. Far outside both real agent
  *  ids (positive) and sub-agent ids (small negatives from -1 down). */
 export const GREETER_ID = -1_000_000_000;
-/** The fixed CTO character (not an agent): its id, its skin (palette index)
- *  and how many agents can queue outside the CTO office door at once. */
+/** The fixed CTO character (not an agent): its id and how many agents can
+ *  queue outside the CTO office door at once. */
 export const CTO_ID = -1_000_000_001;
-export const CTO_PALETTE = 1;
 export const CTO_QUEUE_MAX_SLOTS = 8;
 /** The CTO's loop: seconds working at the desk, then on the office couch. */
 export const CTO_DESK_SEC = 30;

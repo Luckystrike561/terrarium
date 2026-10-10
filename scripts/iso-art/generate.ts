@@ -3,16 +3,19 @@
  *
  *   npx tsx scripts/iso-art/generate.ts [--preview <dir>]
  *
- * Rewrites webview-ui/public/assets/furniture/ from the furniture modules and
- * the character sheets from ./characters.ts. With --preview, also writes
- * upscaled contact sheets (one per furniture module, plus characters).
+ * Rewrites webview-ui/public/assets/furniture/ from the furniture modules,
+ * the character sheets (12 workers + the CTO) from ./characters.ts and the
+ * floor patterns from ./floors.ts. With --preview, also writes upscaled
+ * contact sheets (one per furniture module, plus characters and floors).
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-import { renderCharacterSheets } from './characters.js';
+import { CTO_CHARACTER_FILE } from '../../core/src/assets/constants.js';
+import { renderCharacterSheets, renderCtoSheet } from './characters.js';
+import { renderFloorTiles } from './floors.js';
 import { ITEMS as DECOR } from './furniture/decor.js';
 import { ITEMS as DESKS } from './furniture/desks.js';
 import { ITEMS as SEATING } from './furniture/seating.js';
@@ -46,6 +49,11 @@ for (const spec of specs) writeFurniture(spec, furnitureDir);
 
 const sheets = renderCharacterSheets();
 sheets.forEach((sheet, i) => sheet.writePng(path.join(assets, 'characters', `char_${i}.png`)));
+const ctoSheet = renderCtoSheet();
+ctoSheet.writePng(path.join(assets, 'characters', CTO_CHARACTER_FILE));
+
+const floors = renderFloorTiles();
+floors.forEach((img, i) => img.writePng(path.join(assets, 'floors', `floor_${i}.png`)));
 
 if (previewDir) {
   for (const [name, items] of Object.entries(MODULES)) {
@@ -54,7 +62,10 @@ if (previewDir) {
       path.join(previewDir, `furniture-${name}.png`),
     );
   }
-  contactSheet(sheets, 4).writePng(path.join(previewDir, 'characters.png'));
+  contactSheet([...sheets, ctoSheet], 4).writePng(path.join(previewDir, 'characters.png'));
+  contactSheet(floors, 8).writePng(path.join(previewDir, 'floors.png'));
 }
 
-console.log(`[iso-art] ${specs.length} furniture items, ${sheets.length} character sheets`);
+console.log(
+  `[iso-art] ${specs.length} furniture items, ${sheets.length} character sheets, ${floors.length} floor tiles`,
+);

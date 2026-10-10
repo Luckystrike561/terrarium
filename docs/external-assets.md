@@ -30,6 +30,10 @@ my-assets/
 
 Each furniture item gets its own subfolder containing a `manifest.json` and one or more PNG sprite files. The folder name doesn't matter — the `id` field in the manifest is what identifies the item.
 
+## Characters
+
+An external directory can also add agent characters as `assets/characters/char_<N>.png`. They join the bundled workers as extra palettes, in order of `N`. A sheet must use the bundled format: 456×120, three direction rows (front, back, side) of 19 frames of 24×40, in the frame order of `CHARACTER_FRAMES` in `core/src/assets/constants.ts` (walk, type, read, idle, rest, raise a hand standing and seated, hold up a form standing and seated). A sheet of any other size, such as the older 7-frame format, is skipped with a warning. `docs/art-direction.md` describes every pose.
+
 ## Manifest Format
 
 ### Simple asset (single sprite, no rotation)
