@@ -386,7 +386,7 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
 
   it('accepts palette 7 when the cache has 8 character sprites', () => {
     // The guard reads ctx.cache?.characters?.characters.length instead
-    // of hardcoding PALETTE_COUNT. With 8 sprites, palette 7 is valid.
+    // of hardcoding CHAR_COUNT. With 8 sprites, palette 7 is valid.
     const cache: AssetCache = {
       characters: {
         characters: [
@@ -399,6 +399,7 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
           { down: [[[]]], up: [[[]]], right: [[[]]] },
           { down: [[[]]], up: [[[]]], right: [[[]]] },
         ],
+        cto: { down: [[[]]], up: [[[]]], right: [[[]]] },
       },
       pets: null,
       floorTiles: null,

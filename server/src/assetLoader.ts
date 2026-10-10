@@ -11,6 +11,7 @@ import * as path from 'path';
 import {
   CHAR_COUNT,
   CHAR_FRAMES_PER_ROW,
+  CTO_CHARACTER_FILE,
   MAX_PET_PNG_SIZE,
   WALL_BITMASK_COUNT,
 } from '../../core/src/assets/constants.js';
@@ -31,6 +32,7 @@ import {
 } from '../../core/src/assets/pngDecoder.js';
 import type {
   CharacterDirectionSprites,
+  CharacterSheets,
   PetManifest,
   PetSpriteFrames,
 } from '../../core/src/assets/types.js';
@@ -418,37 +420,39 @@ export async function loadFloorTiles(assetsRoot: string): Promise<LoadedFloorTil
 
 // ── Character sprite loading ────────────────────────────────
 
-export interface LoadedCharacterSprites {
-  /** Pre-colored characters, each with 7 frames per direction */
-  characters: CharacterDirectionSprites[];
-}
+export type LoadedCharacterSprites = CharacterSheets;
 
 /**
- * Load pre-colored character sprites from assets/characters/ (6 PNGs, each 168×120).
- * Each PNG has 3 direction rows (down, up, right) × 7 frames (CHAR_FRAME_W × CHAR_FRAME_H, 24×40).
+ * Load the bundled character sheets from assets/characters/: char_0.png to
+ * char_<CHAR_COUNT - 1>.png for agents, plus the CTO's sheet.
  */
 export async function loadCharacterSprites(
   assetsRoot: string,
 ): Promise<LoadedCharacterSprites | null> {
   try {
     const charDir = path.join(assetsRoot, 'assets', 'characters');
-    const characters: CharacterDirectionSprites[] = [];
-
-    for (let ci = 0; ci < CHAR_COUNT; ci++) {
-      const filePath = path.join(charDir, `char_${ci}.png`);
+    const readSheet = (fileName: string): CharacterDirectionSprites | null => {
+      const filePath = path.join(charDir, fileName);
       if (!fs.existsSync(filePath)) {
         console.log(`[AssetLoader] No character sprite found at: ${filePath}`);
         return null;
       }
+      return decodeCharacterPng(fs.readFileSync(filePath));
+    };
 
-      const pngBuffer = fs.readFileSync(filePath);
-      characters.push(decodeCharacterPng(pngBuffer));
+    const characters: CharacterDirectionSprites[] = [];
+    for (let ci = 0; ci < CHAR_COUNT; ci++) {
+      const sheet = readSheet(`char_${ci}.png`);
+      if (!sheet) return null;
+      characters.push(sheet);
     }
+    const cto = readSheet(CTO_CHARACTER_FILE);
+    if (!cto) return null;
 
     console.log(
-      `[AssetLoader] ✅ Loaded ${characters.length} character sprites (${CHAR_FRAMES_PER_ROW} frames × 3 directions each)`,
+      `[AssetLoader] ✅ Loaded ${characters.length} character sprites and the CTO (${CHAR_FRAMES_PER_ROW} frames × 3 directions each)`,
     );
-    return { characters };
+    return { characters, cto };
   } catch (err) {
     console.error(
       `[AssetLoader] ❌ Error loading character sprites: ${err instanceof Error ? err.message : err}`,

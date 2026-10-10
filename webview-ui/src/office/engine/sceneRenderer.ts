@@ -74,6 +74,7 @@ import {
   BUBBLE_PERMISSION_SPRITE,
   BUBBLE_WAITING_SPRITE,
   getCharacterSprites,
+  getCtoSprites,
   STATUS_DONE_SPRITE,
   STATUS_IDLE_SPRITE,
   STATUS_PERMISSION_SPRITE,
@@ -686,7 +687,7 @@ export class OfficeSceneRenderer {
     }
 
     for (const ch of state.characters) {
-      const sprites = getCharacterSprites(ch.palette, ch.hueShift);
+      const sprites = ch.isCto ? getCtoSprites() : getCharacterSprites(ch.palette, ch.hueShift);
       const spriteData = getCharacterSprite(ch, sprites);
       const texture = getTexture(spriteData);
       const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;

@@ -1,3 +1,4 @@
+import { CHAR_COUNT } from '../../core/src/assets/constants.js';
 import { resendAgentActivity } from './agentActivityResend.js';
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
@@ -9,7 +10,7 @@ import {
   setHooksEnabled,
   writeConfig,
 } from './configPersistence.js';
-import { HUE_SHIFT_MAX_DEG, PALETTE_COUNT } from './constants.js';
+import { HUE_SHIFT_MAX_DEG } from './constants.js';
 import { readLayoutFromFile } from './layoutPersistence.js';
 import type { ConsentEffects } from './providers/consentExecutor.js';
 import { applyConsentChoice } from './providers/consentExecutor.js';
@@ -112,9 +113,9 @@ export function handleClientMessage(
         // client (or a hand-edited payload) from corrupting the stored
         // values with out-of-range inputs that would render as a glitch.
         // Palette ceiling is dynamic: external asset directories can add
-        // char_N.png beyond the bundled 6, so read the count from the asset
-        // cache instead of hardcoding PALETTE_COUNT.
-        const paletteCount = cache?.characters?.characters.length ?? PALETTE_COUNT;
+        // char_N.png beyond the bundled sheets, so read the count from the
+        // asset cache instead of hardcoding CHAR_COUNT.
+        const paletteCount = cache?.characters?.characters.length ?? CHAR_COUNT;
         for (const [idStr, meta] of Object.entries(seats)) {
           const id = Number(idStr);
           const agent = store.get(id);
@@ -261,7 +262,11 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // 2. Assets (from server cache, loaded at startup via pngjs)
   if (cache) {
     if (cache.characters) {
-      send({ type: 'characterSpritesLoaded', characters: cache.characters.characters });
+      send({
+        type: 'characterSpritesLoaded',
+        characters: cache.characters.characters,
+        cto: cache.characters.cto,
+      });
     }
     if (cache.pets) {
       send({

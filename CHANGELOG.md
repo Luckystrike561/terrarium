@@ -6,10 +6,12 @@
 
 - **Removed the VS Code extension surface** — The standalone server (`npx pixel-agents`) is now the only surface. The VS Code adapter, its webview transport, and its packaging (`.vsix`, Marketplace/Open VSX publishing) are gone. A leftover `vscode` config key or `vscode-state.json` from an older install is ignored, not a startup error; existing `~/.pixel-agents/` installs keep working.
 - **Removed the in-app layout editor** ([#10](https://github.com/Luckystrike561/terrarium/issues/10)). The **Layout** button, edit mode (floor, wall, carpet, area and furniture tools, pets tab, undo/redo, Save/Reset) and Export/Import Layout in Settings are gone until the editor is redesigned. The `saveLayout`, `exportLayout` and `importLayout` client messages are removed from the protocol. The office comes from the bundled default layout, or from an existing `~/.pixel-agents/layout.json`, which still loads unchanged (carpets, areas and pets included).
+- **External character sheets use the new 19-frame format** ([#12](https://github.com/Luckystrike561/terrarium/issues/12)). `assets/characters/char_<N>.png` in an external asset directory must be 456×120 with the poses of `CHARACTER_FRAMES` (see `docs/external-assets.md`). Sheets in the old 168×120 format are skipped with a warning. The `characterSpritesLoaded` message now also carries the CTO's own sheet (`cto`).
 
 ### Features
 
 - **Night city skyline behind the office** ([#11](https://github.com/Luckystrike561/terrarium/issues/11)). The flat `#1e1e2e` fill around and inside the office (the bands left by the fitted view, VOID tiles) is replaced by a pixel-art night sky with stars and a lit city skyline, drawn by the Pixi scene behind the office at the office's own pixel size and repainted only when the canvas resizes.
+- **Graphics pass: poses, twelve workers and a written art direction** ([#12](https://github.com/Luckystrike561/terrarium/issues/12)). `docs/art-direction.md` sets the look of characters, furniture, floors, walls and the HUD. Characters gain idle breathing, a resting pose for sofas and desk breaks, and waiting poses in the CTO queue: a raised hand for input, a held-up form for approval. Nobody types without work anymore. Twelve distinct workers replace the six recoloured ones, so a twelve-agent office has no two alike, and the CTO has a look of its own.
 
 ### Removed
 

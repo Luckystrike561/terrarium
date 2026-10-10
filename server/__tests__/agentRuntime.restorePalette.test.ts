@@ -4,6 +4,7 @@ import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
+import { CHAR_COUNT } from '../../core/src/assets/constants.js';
 import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
@@ -170,11 +171,11 @@ describe('AgentRuntime -- restore preserves palette/hueShift', () => {
 
     const agent = store.get(9);
     expect(agent).toBeDefined();
-    // assignPaletteIfNeeded fills in [0, 6) with hueShift 0 on an empty
-    // store (first round). Assert "set to a valid value" rather than
+    // assignPaletteIfNeeded fills in [0, CHAR_COUNT) with hueShift 0 on an
+    // empty store (first round). Assert "set to a valid value" rather than
     // re-deriving the exact algorithm.
     expect(agent?.palette).toBeGreaterThanOrEqual(0);
-    expect(agent?.palette).toBeLessThan(6);
+    expect(agent?.palette).toBeLessThan(CHAR_COUNT);
     expect(agent?.hueShift).toBe(0);
   });
 });

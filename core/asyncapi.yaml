@@ -463,10 +463,10 @@ components:
                 type: string
 
     CharacterSpritesLoaded:
-      description: Pre-colored character sprite sets (6 palettes), sent once at startup.
+      description: Pre-colored character sprite sets (one per agent palette) and the CTO's own set, sent once at startup.
       type: object
       additionalProperties: false
-      required: [type, characters]
+      required: [type, characters, cto]
       properties:
         type:
           const: characterSpritesLoaded
@@ -474,6 +474,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CharacterSpriteSet'
+        cto:
+          $ref: '#/components/schemas/CharacterSpriteSet'
 
     PetSpritesLoaded:
       description: Pet sprite frame sets and display names, sent once after webviewReady (between characterSpritesLoaded and floorTilesLoaded).
@@ -864,8 +866,8 @@ components:
 
     CharacterSpriteSet:
       description: |
-        One palette's character sprites as 3D hex-string arrays (frames × rows × pixels).
-        Three direction sets per palette: down, up, right (left is rendered as flipped right).
+        One character's sprites as 3D hex-string arrays (frames × rows × pixels), frames in sheet order.
+        Three direction sets: down, up, right (left is rendered as the mirrored up set).
       type: object
       additionalProperties: false
       required: [down, up, right]

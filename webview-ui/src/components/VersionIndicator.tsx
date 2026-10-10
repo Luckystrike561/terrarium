@@ -63,7 +63,7 @@ export function VersionIndicator({
       {showUpdateNotice && (
         <div
           onClick={handleOpenChangelog}
-          className="absolute bottom-42 right-28 z-20 pixel-panel px-10 pt-8 pb-9 cursor-pointer flex flex-col gap-8 max-w-2xs"
+          className="absolute bottom-42 right-28 z-20 paper-tag px-10 pt-8 pb-9 cursor-pointer flex flex-col gap-8 max-w-2xs"
           style={{
             opacity: fading ? 0 : 1,
             transition: `opacity ${WHATS_NEW_FADE_MS / 1000}s ease-out`,
@@ -84,7 +84,7 @@ export function VersionIndicator({
       {!showUpdateNotice && labelHovered && (
         <div
           onClick={handleOpenChangelog}
-          className="absolute bottom-42 right-28 z-20 pixel-panel py-6 px-12 cursor-pointer text-sm whitespace-nowrap"
+          className="absolute bottom-42 right-28 z-20 paper-tag py-6 px-12 cursor-pointer text-sm whitespace-nowrap"
         >
           See what's new!
         </div>

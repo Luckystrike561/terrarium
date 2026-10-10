@@ -213,6 +213,7 @@ export interface FurnitureAssetMessage {
 export interface CharacterSpritesLoaded {
   type: 'characterSpritesLoaded';
   characters: CharacterSpriteSet[];
+  cto: CharacterSpriteSet;
 }
 
 export interface CharacterSpriteSet {

@@ -1,5 +1,9 @@
 import {
   DEFAULT_MAX_CONTEXT_TOKENS,
+  HOLD_FORM_FRAME_DURATION_SEC,
+  IDLE_FRAME_DURATION_SEC,
+  RAISE_HAND_FRAME_DURATION_SEC,
+  REST_FRAME_DURATION_SEC,
   SEAT_REST_MAX_SEC,
   SEAT_REST_MIN_SEC,
   TYPE_FRAME_DURATION_SEC,
@@ -11,10 +15,21 @@ import {
   WANDER_PAUSE_MIN_SEC,
 } from '../../constants.js';
 import { findPath } from '../layout/tileMap.js';
-import type { CharacterSprites } from '../sprites/spriteData.js';
+import type { CharacterPose, CharacterSprites, LoopingPose } from '../sprites/spriteData.js';
 import { isReadingToolName } from '../toolUtils.js';
 import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../types.js';
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
+
+const POSE_FRAME_DURATION_SEC: Record<LoopingPose, number> = {
+  typing: TYPE_FRAME_DURATION_SEC,
+  reading: TYPE_FRAME_DURATION_SEC,
+  idle: IDLE_FRAME_DURATION_SEC,
+  rest: REST_FRAME_DURATION_SEC,
+  raiseHand: RAISE_HAND_FRAME_DURATION_SEC,
+  raiseHandSeated: RAISE_HAND_FRAME_DURATION_SEC,
+  holdForm: HOLD_FORM_FRAME_DURATION_SEC,
+  holdFormSeated: HOLD_FORM_FRAME_DURATION_SEC,
+};
 
 /** Whether a tool should show the reading animation (vs typing). Taxonomy comes
  *  from the enabled agent modules via the `providerCapabilities` message. */
@@ -238,12 +253,14 @@ function waitAtCtoDoor(
     const center = tileCenter(ch.tileCol, ch.tileRow);
     ch.x = center.x;
     ch.y = center.y;
-    const pose = slot.seated ? CharacterState.TYPE : CharacterState.IDLE;
-    if (ch.state !== pose) {
-      ch.state = pose;
+    const waitingState = slot.seated ? CharacterState.TYPE : CharacterState.IDLE;
+    if (ch.state !== waitingState) {
+      ch.state = waitingState;
       ch.frame = 0;
       ch.frameTimer = 0;
     }
+    ch.frameTimer += dt;
+    advancePoseFrame(ch);
     ch.dir = slot.facing;
     return;
   }
@@ -292,10 +309,7 @@ export function updateCharacter(
 
   switch (ch.state) {
     case CharacterState.TYPE: {
-      if (ch.frameTimer >= TYPE_FRAME_DURATION_SEC) {
-        ch.frameTimer -= TYPE_FRAME_DURATION_SEC;
-        ch.frame = (ch.frame + 1) % 2;
-      }
+      advancePoseFrame(ch);
       if (ch.isActive) {
         // Was sitting in the lounge, not at the desk — head back to work.
         if (wasResting) headToOwnSeat(ch, seats, tileMap, blockedTiles);
@@ -324,8 +338,7 @@ export function updateCharacter(
     }
 
     case CharacterState.IDLE: {
-      // No idle animation — static pose
-      ch.frame = 0;
+      advancePoseFrame(ch);
       if (ch.seatTimer < 0) ch.seatTimer = 0; // clear turn-end sentinel
       // If became active, pathfind to seat
       if (ch.isActive) {
@@ -486,21 +499,36 @@ export function updateCharacter(
   }
 }
 
-/** Get the correct sprite frame for a character's current state and direction */
-export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
-  switch (ch.state) {
-    case CharacterState.TYPE:
-      if (isReadingTool(ch.currentTool)) {
-        return sprites.reading[ch.dir][ch.frame % 2];
-      }
-      return sprites.typing[ch.dir][ch.frame % 2];
-    case CharacterState.WALK:
-      return sprites.walk[ch.dir][ch.frame % 4];
-    case CharacterState.IDLE:
-      return sprites.walk[ch.dir][1];
-    default:
-      return sprites.walk[ch.dir][1];
+/** What a character's body shows. Only a working agent types or reads: one
+ *  sitting without work rests, and one waiting in the CTO queue raises a hand
+ *  (a question for the user) or holds up a form (a permission to sign). */
+export function getCharacterPose(ch: Character): CharacterPose {
+  if (ch.state === CharacterState.WALK) return 'walk';
+  const seated = ch.state === CharacterState.TYPE;
+  const queueReason = ch.ctoQueueSlot?.reason;
+  if (queueReason === 'permission') return seated ? 'holdFormSeated' : 'holdForm';
+  if (queueReason === 'input') return seated ? 'raiseHandSeated' : 'raiseHand';
+  if (!seated) return 'idle';
+  if (!ch.isActive) return 'rest';
+  return isReadingTool(ch.currentTool) ? 'reading' : 'typing';
+}
+
+/** Step the two-frame loop of the current pose. The caller adds `dt` to
+ *  `ch.frameTimer` first. */
+export function advancePoseFrame(ch: Character): void {
+  const pose = getCharacterPose(ch);
+  if (pose === 'walk') return;
+  const durationSec = POSE_FRAME_DURATION_SEC[pose];
+  if (ch.frameTimer >= durationSec) {
+    ch.frameTimer -= durationSec;
+    ch.frame = (ch.frame + 1) % 2;
   }
+}
+
+export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
+  const pose = getCharacterPose(ch);
+  if (pose === 'walk') return sprites.walk[ch.dir][ch.frame % 4];
+  return sprites[pose][ch.dir][ch.frame % 2];
 }
 
 function randomRange(min: number, max: number): number {

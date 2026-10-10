@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.18.4/.schema/devbox.schema.json",
-  "include": ["github:Luckystrike561/runpick/tags/1.1.0"],
+  "include": ["github:Luckystrike561/runpick/tags/1.2.0"],
   "packages": [
     "nodejs@22",
     "gitleaks@8.30.1"

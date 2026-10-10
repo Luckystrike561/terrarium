@@ -17,8 +17,13 @@ import type { SpriteData, TileType as TileTypeVal } from './types.js';
 import { TileType } from './types.js';
 
 const CAP_SHADE = 1.18;
+const RIM_SHADE = 1.34;
+/** Rim light band width at the top face's front edges, in world units. */
+const RIM_WIDTH = 1;
 const LEFT_FACE_SHADE = 0.95;
 const RIGHT_FACE_SHADE = 0.78;
+/** Plaster texture: quiet value noise, at most one light band either way. */
+const PLASTER_NOISE_AMOUNT = 0.05;
 const BASEBOARD_SHADE = 0.55;
 const BASEBOARD_PX = 3;
 const TILE = ISO_TILE_W / 2;
@@ -27,6 +32,16 @@ const PANE_HALF = 1;
 const FRAME_BASE = 3;
 const FRAME_TOP = 2;
 const MULLION = 1;
+
+/** Deterministic hash in [0, 1). The furniture generator hashes texture noise
+ *  with the same formula, but it is a dev-only script the webview never
+ *  imports, so the formula is repeated here. */
+function hash3(x: number, y: number, z: number): number {
+  let h = Math.imul(Math.floor(x) | 0, 374761393) ^ Math.imul(Math.floor(y) | 0, 668265263);
+  h = Math.imul(h ^ Math.imul(Math.floor(z) | 0, 2147483647), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
 
 /** Scale a `#RRGGBB` colour toward black (< 1) or toward white (> 1). */
 function shadeHex(hex: string, amount: number): string {
@@ -87,7 +102,7 @@ function traceSprite(boxes: readonly Box[], height: number): SpriteData {
         const tEnter = Math.max(b.x0 - gx0, b.y0 - gy0, b.z0);
         if (tEnter > tExit || tExit <= best) continue;
         best = tExit;
-        if (tExit === b.z1) color = b.paint('top', 0, tExit);
+        if (tExit === b.z1) color = b.paint('top', Math.min(b.x1 - gx0, b.y1 - gy0) - tExit, tExit);
         else if (tx <= ty) color = b.paint('right', gy0 + tExit - b.y0, tExit);
         else color = b.paint('left', gx0 + tExit - b.x0, tExit);
       }
@@ -100,6 +115,7 @@ function traceSprite(boxes: readonly Box[], height: number): SpriteData {
 
 function solidWall(baseHex: string): SpriteData {
   const cap = shadeHex(baseHex, CAP_SHADE);
+  const rim = shadeHex(baseHex, RIM_SHADE);
   const left = shadeHex(baseHex, LEFT_FACE_SHADE);
   const right = shadeHex(baseHex, RIGHT_FACE_SHADE);
   const leftBase = shadeHex(baseHex, BASEBOARD_SHADE);
@@ -113,10 +129,12 @@ function solidWall(baseHex: string): SpriteData {
         x1: TILE,
         y1: TILE,
         z1: WALL_HEIGHT_PX,
-        paint: (face, _along, z) => {
-          if (face === 'top') return cap;
-          if (face === 'right') return z < BASEBOARD_PX ? rightBase : right;
-          return z < BASEBOARD_PX ? leftBase : left;
+        paint: (face, along, z) => {
+          if (face === 'top') return along < RIM_WIDTH ? rim : cap;
+          const plaster =
+            (hash3(along, z, face === 'right' ? 2 : 1) - 0.5) * 2 * PLASTER_NOISE_AMOUNT;
+          if (z < BASEBOARD_PX) return face === 'right' ? rightBase : leftBase;
+          return shadeHex(face === 'right' ? right : left, 1 + plaster);
         },
       },
     ],

@@ -31,11 +31,21 @@
   --color-danger: #d14249;
   --color-warning: #ff8d14;
 
-  /* Status */
+  /* Agent-state colours, shared by status badges, speech bubbles and the HUD */
   --color-status-permission: #cca700;
   --color-status-active: #3794ff;
-  --color-status-success: #89d185;
+  --color-status-waiting: #7c5cff;
+  --color-status-success: #44bb66;
+  --color-status-idle: #8891a8;
   --color-status-error: var(--color-danger);
+
+  /* Paper HUD (memos, tags, tacks) */
+  --color-wood-dark: #4f3018;
+  --color-brass: #e0b95a;
+  --color-paper: #f1e6c8;
+  --color-paper-dark: #e2d2a8;
+  --color-paper-line: #d6c49b;
+  --color-ink: #2b2433;
 
   /* Shadow */
   --shadow-pixel: 2px 2px 0px #0a0a14;
@@ -81,8 +91,16 @@
   --color-warning: var(--color-warning);
   --color-status-permission: var(--color-status-permission);
   --color-status-active: var(--color-status-active);
+  --color-status-waiting: var(--color-status-waiting);
   --color-status-success: var(--color-status-success);
+  --color-status-idle: var(--color-status-idle);
   --color-status-error: var(--color-status-error);
+  --color-wood-dark: var(--color-wood-dark);
+  --color-brass: var(--color-brass);
+  --color-paper: var(--color-paper);
+  --color-paper-dark: var(--color-paper-dark);
+  --color-paper-line: var(--color-paper-line);
+  --color-ink: var(--color-ink);
 
   /* Shadow */
   --shadow-pixel: var(--shadow-pixel);
@@ -101,9 +119,33 @@
 }
 
 @layer components {
-  /* Panel with standard pixel-art border + shadow */
-  .pixel-panel {
-    @apply bg-bg border-2 border-border rounded-none shadow-pixel;
+  /* Small paper tag: tooltips, toasts and the in-world activity label. Ink
+     border (rather than paper-sheet's wood-dark) reads crisper at this size. */
+  .paper-tag {
+    --color-text: var(--color-ink);
+    --color-text-muted: rgba(43, 36, 51, 0.55);
+    --color-btn-bg: var(--color-paper-dark);
+    --color-btn-hover: var(--color-paper-line);
+    --color-border: var(--color-ink);
+    --color-bg: var(--color-paper);
+    @apply bg-paper text-text border-2 border-ink rounded-none shadow-pixel;
+  }
+
+  /* Square paper-tack pinning a memo. */
+  .paper-pin {
+    @apply absolute -top-7 left-1/2 -translate-x-1/2 w-12 h-12 bg-brass border-2 border-wood-dark rounded-none shadow-pixel;
+  }
+
+  /* Memo paper. Re-points the palette variables so the shared ghost Button
+     renders as ink on paper unchanged. */
+  .paper-sheet {
+    --color-text: var(--color-ink);
+    --color-text-muted: rgba(43, 36, 51, 0.55);
+    --color-btn-bg: var(--color-paper-dark);
+    --color-btn-hover: var(--color-paper-line);
+    --color-border: var(--color-wood-dark);
+    --color-bg: var(--color-paper-dark);
+    @apply bg-paper text-text border-2 border-wood-dark rounded-none;
   }
 
   /* Pulsing dot animation (ConnectionIndicator, ToolOverlay) */

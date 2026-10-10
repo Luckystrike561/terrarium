@@ -1,6 +1,11 @@
-import { CHAR_FRAME_H, CHAR_FRAME_W } from '../../../../core/src/assets/constants.ts';
+import type { CharacterFrame } from '../../../../core/src/assets/constants.ts';
+import {
+  CHAR_COUNT,
+  CHAR_FRAME_H,
+  CHAR_FRAME_W,
+  CHARACTER_FRAMES,
+} from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
-import { PALETTE_COUNT } from '../../constants.js';
 import { adjustSprite } from '../colorize.js';
 import type { Direction, SpriteData } from '../types.js';
 import { Direction as Dir } from '../types.js';
@@ -54,27 +59,28 @@ export const STATUS_PERMISSION_SPRITE: SpriteData = resolveBubbleSprite(statusPe
 // Loaded character sprites (from PNG assets)
 // ════════════════════════════════════════════════════════════════
 
-interface LoadedCharacterData {
+interface CharacterSheet {
   down: SpriteData[];
   up: SpriteData[];
   right: SpriteData[];
 }
 
-let loadedCharacters: LoadedCharacterData[] | null = null;
+let loadedCharacters: CharacterSheet[] | null = null;
+let loadedCto: CharacterSheet | null = null;
 
-/** Set pre-colored character sprites loaded from PNG assets. Call this when characterSpritesLoaded message arrives. */
-export function setCharacterTemplates(data: LoadedCharacterData[]): void {
-  loadedCharacters = data;
-  // Clear cache so sprites are rebuilt from loaded data
+/** Set the pre-colored agent sheets and the CTO's sheet. Call this when the
+ *  characterSpritesLoaded message arrives. */
+export function setCharacterTemplates(characters: CharacterSheet[], cto: CharacterSheet): void {
+  loadedCharacters = characters;
+  loadedCto = cto;
   spriteCache.clear();
 }
 
-/** Return the number of loaded character palettes, or PALETTE_COUNT as fallback. */
+/** Return the number of loaded agent palettes, or CHAR_COUNT before the sheets load. */
 export function getLoadedCharacterCount(): number {
-  return loadedCharacters ? loadedCharacters.length : PALETTE_COUNT;
+  return loadedCharacters ? loadedCharacters.length : CHAR_COUNT;
 }
 
-/** Flip a SpriteData horizontally (for generating left sprites from right) */
 function flipSpriteHorizontal(sprite: SpriteData): SpriteData {
   return sprite.map((row) => [...row].reverse());
 }
@@ -83,129 +89,101 @@ function flipSpriteHorizontal(sprite: SpriteData): SpriteData {
 // Sprite resolution + caching
 // ════════════════════════════════════════════════════════════════
 
-export interface CharacterSprites {
-  walk: Record<Direction, [SpriteData, SpriteData, SpriteData, SpriteData]>;
-  typing: Record<Direction, [SpriteData, SpriteData]>;
-  reading: Record<Direction, [SpriteData, SpriteData]>;
-}
+type FramePair = readonly [SpriteData, SpriteData];
+type WalkCycle = readonly [SpriteData, SpriteData, SpriteData, SpriteData];
+
+/** Two-frame poses and the sheet frames they alternate between. */
+const POSE_FRAMES = {
+  typing: ['type1', 'type2'],
+  reading: ['read1', 'read2'],
+  idle: ['idle1', 'idle2'],
+  rest: ['rest1', 'rest2'],
+  raiseHand: ['raiseHand1', 'raiseHand2'],
+  raiseHandSeated: ['raiseHandSeated1', 'raiseHandSeated2'],
+  holdForm: ['holdForm1', 'holdForm2'],
+  holdFormSeated: ['holdFormSeated1', 'holdFormSeated2'],
+} as const satisfies Record<string, readonly [CharacterFrame, CharacterFrame]>;
+
+export type LoopingPose = keyof typeof POSE_FRAMES;
+export type CharacterPose = 'walk' | LoopingPose;
+
+export type CharacterSprites = { walk: Record<Direction, WalkCycle> } & Record<
+  LoopingPose,
+  Record<Direction, FramePair>
+>;
 
 const spriteCache = new Map<string, CharacterSprites>();
 
-/** Apply hue shift to every sprite in a CharacterSprites set */
-function hueShiftSprites(sprites: CharacterSprites, hueShift: number): CharacterSprites {
-  const color: ColorValue = { h: hueShift, s: 0, b: 0, c: 0 };
-  const shift = (s: SpriteData) => adjustSprite(s, color);
-  const shiftWalk = (
-    arr: [SpriteData, SpriteData, SpriteData, SpriteData],
-  ): [SpriteData, SpriteData, SpriteData, SpriteData] => [
-    shift(arr[0]),
-    shift(arr[1]),
-    shift(arr[2]),
-    shift(arr[3]),
-  ];
-  const shiftPair = (arr: [SpriteData, SpriteData]): [SpriteData, SpriteData] => [
-    shift(arr[0]),
-    shift(arr[1]),
-  ];
+function byDirection<T>(build: (dir: Direction) => T): Record<Direction, T> {
   return {
-    walk: {
-      [Dir.DOWN]: shiftWalk(sprites.walk[Dir.DOWN]),
-      [Dir.UP]: shiftWalk(sprites.walk[Dir.UP]),
-      [Dir.RIGHT]: shiftWalk(sprites.walk[Dir.RIGHT]),
-      [Dir.LEFT]: shiftWalk(sprites.walk[Dir.LEFT]),
-    } as Record<Direction, [SpriteData, SpriteData, SpriteData, SpriteData]>,
-    typing: {
-      [Dir.DOWN]: shiftPair(sprites.typing[Dir.DOWN]),
-      [Dir.UP]: shiftPair(sprites.typing[Dir.UP]),
-      [Dir.RIGHT]: shiftPair(sprites.typing[Dir.RIGHT]),
-      [Dir.LEFT]: shiftPair(sprites.typing[Dir.LEFT]),
-    } as Record<Direction, [SpriteData, SpriteData]>,
-    reading: {
-      [Dir.DOWN]: shiftPair(sprites.reading[Dir.DOWN]),
-      [Dir.UP]: shiftPair(sprites.reading[Dir.UP]),
-      [Dir.RIGHT]: shiftPair(sprites.reading[Dir.RIGHT]),
-      [Dir.LEFT]: shiftPair(sprites.reading[Dir.LEFT]),
-    } as Record<Direction, [SpriteData, SpriteData]>,
+    [Dir.DOWN]: build(Dir.DOWN),
+    [Dir.UP]: build(Dir.UP),
+    [Dir.RIGHT]: build(Dir.RIGHT),
+    [Dir.LEFT]: build(Dir.LEFT),
+  } as Record<Direction, T>;
+}
+
+/** LEFT (-col) faces screen upper-left, which is the mirrored UP (upper-right)
+ *  back view. */
+function sheetFrame(sheet: CharacterSheet, dir: Direction, frame: CharacterFrame): SpriteData {
+  const index = CHARACTER_FRAMES.indexOf(frame);
+  if (dir === Dir.DOWN) return sheet.down[index];
+  if (dir === Dir.RIGHT) return sheet.right[index];
+  if (dir === Dir.UP) return sheet.up[index];
+  return flipSpriteHorizontal(sheet.up[index]);
+}
+
+function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
+  const pairs = {} as Record<LoopingPose, Record<Direction, FramePair>>;
+  for (const pose of Object.keys(POSE_FRAMES) as LoopingPose[]) {
+    const [first, second] = POSE_FRAMES[pose];
+    pairs[pose] = byDirection((dir) => [
+      sheetFrame(sheet, dir, first),
+      sheetFrame(sheet, dir, second),
+    ]);
+  }
+  return {
+    walk: byDirection((dir) => {
+      const passing = sheetFrame(sheet, dir, 'walk2');
+      return [sheetFrame(sheet, dir, 'walk1'), passing, sheetFrame(sheet, dir, 'walk3'), passing];
+    }),
+    ...pairs,
   };
 }
 
-/** Create a transparent placeholder sprite of given dimensions */
-function emptySprite(w: number, h: number): SpriteData {
-  const rows: string[][] = [];
-  for (let y = 0; y < h; y++) {
-    rows.push(new Array(w).fill(''));
-  }
-  return rows;
+function hueShiftSheet(sheet: CharacterSheet, hueShift: number): CharacterSheet {
+  const color: ColorValue = { h: hueShift, s: 0, b: 0, c: 0 };
+  const shift = (frames: SpriteData[]) => frames.map((frame) => adjustSprite(frame, color));
+  return { down: shift(sheet.down), up: shift(sheet.up), right: shift(sheet.right) };
+}
+
+/** Transparent frames shown until the sheets arrive. */
+function placeholderSheet(): CharacterSheet {
+  const empty: SpriteData = Array.from({ length: CHAR_FRAME_H }, () =>
+    new Array<string>(CHAR_FRAME_W).fill(''),
+  );
+  const frames = new Array<SpriteData>(CHARACTER_FRAMES.length).fill(empty);
+  return { down: frames, up: frames, right: frames };
 }
 
 export function getCharacterSprites(paletteIndex: number, hueShift = 0): CharacterSprites {
   const cacheKey = `${paletteIndex}:${hueShift}`;
   const cached = spriteCache.get(cacheKey);
   if (cached) return cached;
+  const base = loadedCharacters
+    ? loadedCharacters[paletteIndex % loadedCharacters.length]
+    : placeholderSheet();
+  const sprites = buildCharacterSprites(hueShift === 0 ? base : hueShiftSheet(base, hueShift));
+  spriteCache.set(cacheKey, sprites);
+  return sprites;
+}
 
-  let sprites: CharacterSprites;
-
-  if (loadedCharacters) {
-    // Pre-colored iso sheets. LEFT (-col) faces screen upper-left, which is
-    // the mirrored UP (upper-right) back view.
-    const char = loadedCharacters[paletteIndex % loadedCharacters.length];
-    const d = char.down;
-    const u = char.up;
-    const rt = char.right;
-    const flip = flipSpriteHorizontal;
-
-    sprites = {
-      walk: {
-        [Dir.DOWN]: [d[0], d[1], d[2], d[1]],
-        [Dir.UP]: [u[0], u[1], u[2], u[1]],
-        [Dir.RIGHT]: [rt[0], rt[1], rt[2], rt[1]],
-        [Dir.LEFT]: [flip(u[0]), flip(u[1]), flip(u[2]), flip(u[1])],
-      },
-      typing: {
-        [Dir.DOWN]: [d[3], d[4]],
-        [Dir.UP]: [u[3], u[4]],
-        [Dir.RIGHT]: [rt[3], rt[4]],
-        [Dir.LEFT]: [flip(u[3]), flip(u[4])],
-      },
-      reading: {
-        [Dir.DOWN]: [d[5], d[6]],
-        [Dir.UP]: [u[5], u[6]],
-        [Dir.RIGHT]: [rt[5], rt[6]],
-        [Dir.LEFT]: [flip(u[5]), flip(u[6])],
-      },
-    };
-  } else {
-    // Transparent placeholder frames until the sheets load.
-    const e = emptySprite(CHAR_FRAME_W, CHAR_FRAME_H);
-    const walkSet: [SpriteData, SpriteData, SpriteData, SpriteData] = [e, e, e, e];
-    const pairSet: [SpriteData, SpriteData] = [e, e];
-    sprites = {
-      walk: {
-        [Dir.DOWN]: walkSet,
-        [Dir.UP]: walkSet,
-        [Dir.RIGHT]: walkSet,
-        [Dir.LEFT]: walkSet,
-      },
-      typing: {
-        [Dir.DOWN]: pairSet,
-        [Dir.UP]: pairSet,
-        [Dir.RIGHT]: pairSet,
-        [Dir.LEFT]: pairSet,
-      },
-      reading: {
-        [Dir.DOWN]: pairSet,
-        [Dir.UP]: pairSet,
-        [Dir.RIGHT]: pairSet,
-        [Dir.LEFT]: pairSet,
-      },
-    };
-  }
-
-  // Apply hue shift if non-zero
-  if (hueShift !== 0) {
-    sprites = hueShiftSprites(sprites, hueShift);
-  }
-
+/** The CTO's own sprites. No agent palette resolves to them. */
+export function getCtoSprites(): CharacterSprites {
+  const cacheKey = 'cto';
+  const cached = spriteCache.get(cacheKey);
+  if (cached) return cached;
+  const sprites = buildCharacterSprites(loadedCto ?? placeholderSheet());
   spriteCache.set(cacheKey, sprites);
   return sprites;
 }

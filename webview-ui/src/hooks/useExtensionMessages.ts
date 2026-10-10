@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { HooksConsentRequest } from '../../../core/src/messages.js';
+import type { CharacterSpriteSet, HooksConsentRequest } from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
@@ -516,14 +516,10 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           prev.filter((s) => !(s.parentAgentId === id && s.parentToolId === parentToolId)),
         );
       } else if (msg.type === 'characterSpritesLoaded') {
-        const characters = msg.characters as Array<{
-          down: string[][][];
-          up: string[][][];
-          right: string[][][];
-        }>;
+        const characters = msg.characters as CharacterSpriteSet[];
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`);
         destroyAllTextures();
-        setCharacterTemplates(characters);
+        setCharacterTemplates(characters, msg.cto as CharacterSpriteSet);
       } else if (msg.type === 'petSpritesLoaded') {
         const pets = msg.pets;
         if (!Array.isArray(pets)) {
