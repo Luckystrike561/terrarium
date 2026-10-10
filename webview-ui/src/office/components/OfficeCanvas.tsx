@@ -26,17 +26,9 @@ interface OfficeCanvasProps {
   /** Reports the fit zoom the canvas derived from the viewport and layout. */
   onZoomChange: (zoom: number) => void;
   panRef: React.MutableRefObject<{ x: number; y: number }>;
-  /** Whether the area overlay + labels render (the Show Areas setting). */
-  showAreas: boolean;
 }
 
-export function OfficeCanvas({
-  officeState,
-  onClick,
-  onZoomChange,
-  panRef,
-  showAreas,
-}: OfficeCanvasProps) {
+export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const officeRendererRef = useRef<OfficeSceneRenderer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,8 +64,8 @@ export function OfficeCanvas({
   // it on every prop change would tear down and rebuild the WebGL context (and
   // every retained sprite), so the loop reads these through a ref instead of
   // closing over props and re-running the effect when they change.
-  const frameParamsRef = useRef({ officeState, showAreas });
-  frameParamsRef.current = { officeState, showAreas };
+  const frameParamsRef = useRef({ officeState });
+  frameParamsRef.current = { officeState };
 
   const clampToView = useCallback((pan: { x: number; y: number }) => {
     const canvas = canvasRef.current;
@@ -111,7 +103,7 @@ export function OfficeCanvas({
         frameParamsRef.current.officeState.update(dt);
       },
       render: () => {
-        const { officeState, showAreas } = frameParamsRef.current;
+        const { officeState } = frameParamsRef.current;
         const layout = officeState.getLayout();
 
         if (canvas.width > 0 && canvas.height > 0) {
@@ -200,7 +192,6 @@ export function OfficeCanvas({
           carpetTiles: layout.carpetTiles,
           areas: layout.areas,
           areaTiles: layout.areaTiles,
-          showAreas,
           pets: officeState.pets,
         };
         const { offsetX, offsetY } = officeRenderer.renderFrame(worldState);

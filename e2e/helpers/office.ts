@@ -17,7 +17,6 @@ export interface TestHooksWindow extends Window {
     getCarpetJunctionCase?: (jx: number, jy: number, variant: number) => number;
     getAreas?: () => Array<{ label: string; color: string }>;
     getAreaTiles?: () => Array<{ col: number; row: number; label: string }>;
-    getShowAreas?: () => boolean;
     getAgentSeats?: () => Array<{
       id: number;
       seatId: string | null;

@@ -111,6 +111,12 @@ export function hookModules(modules: ModuleSet): HookModule[] {
   return modules.agents.filter((m): m is HookModule => m.hooks !== undefined);
 }
 
+/** Every REGISTERED agent module that writes hooks, regardless of which modules this machine runs. Used by
+ *  `--uninstall-hooks`, which must be able to remove hooks a module installed before it was disabled or dropped. */
+export const allHookModules: readonly HookModule[] = agentModules.filter(
+  (m): m is HookModule => m.hooks !== undefined,
+);
+
 /** Resolve a wire-supplied module id to one of `modules` that installs hooks, or undefined (the caller then writes
  *  nothing: fail-closed, like a junk consent choice). */
 export function findHookModule(modules: ModuleSet, id: unknown): HookModule | undefined {

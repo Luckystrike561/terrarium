@@ -92,8 +92,6 @@ export const codexModule: AgentModule = {
   // Codex has one general-purpose exec tool, not separate read/write tools: no reliable read-vs-write distinction.
   readingTools: new Set<string>(),
 
-  // Codex sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

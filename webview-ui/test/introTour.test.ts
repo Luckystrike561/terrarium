@@ -145,8 +145,8 @@ test('a Back-and-revised choice clears the earlier verdict', () => {
 
 test('the verdict settles on the FIRST arrival after the click', () => {
   // Pinned from the pre-extraction behavior: the verdict is about the tour's
-  // own click. A later status (say, a Settings toggle succeeding in another
-  // tab) does not rewrite it — the wait disarmed on the first arrival.
+  // own click. A later status (say, an install succeeding in another tab)
+  // does not rewrite it — the wait disarmed on the first arrival.
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },

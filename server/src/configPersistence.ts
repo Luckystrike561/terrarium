@@ -5,12 +5,8 @@ import * as path from 'path';
 import { CONFIG_FILE_NAME, LAYOUT_FILE_DIR } from './constants.js';
 
 export interface AdapterSettings {
-  soundEnabled: boolean;
   lastSeenVersion: string;
-  alwaysShowLabels: boolean;
-  watchAllSessions: boolean;
   hooksInfoShown: boolean;
-  showAreas: boolean;
   areaMappings: Record<string, string[]>;
 }
 
@@ -18,15 +14,7 @@ export interface AdapterSettings {
  *  The hooks preference is NOT here: it is per-provider and machine-global
  *  (the hooks it governs live in one home-directory file per provider), so it
  *  lives beside `hooksConsent` at the config top level, not per namespace. */
-export const ADAPTER_SETTING_KEYS = [
-  'soundEnabled',
-  'lastSeenVersion',
-  'alwaysShowLabels',
-  'watchAllSessions',
-  'hooksInfoShown',
-  'showAreas',
-  'areaMappings',
-] as const;
+export const ADAPTER_SETTING_KEYS = ['lastSeenVersion', 'hooksInfoShown', 'areaMappings'] as const;
 
 export type AdapterSettingKey = (typeof ADAPTER_SETTING_KEYS)[number];
 
@@ -38,7 +26,6 @@ export type HooksConsentState = 'granted' | 'declined';
 
 export interface PixelAgentsConfig {
   standalone: AdapterSettings;
-  externalAssetDirectories: string[];
   /** Per-provider consent to modify that provider's settings file (Claude:
    *  ~/.claude/settings.json). Shared across surfaces — consent is per-human
    *  per-provider, not per-adapter. A provider absent from the map has never
@@ -53,12 +40,8 @@ export interface PixelAgentsConfig {
 }
 
 const DEFAULT_ADAPTER_SETTINGS: AdapterSettings = {
-  soundEnabled: true,
   lastSeenVersion: '',
-  alwaysShowLabels: false,
-  watchAllSessions: false,
   hooksInfoShown: false,
-  showAreas: false,
   areaMappings: {},
 };
 
@@ -114,28 +97,14 @@ export function parseAreaMappings(raw: unknown): Record<string, string[]> {
 function parseAdapterSettings(raw: unknown): AdapterSettings {
   const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<AdapterSettings>;
   return {
-    soundEnabled:
-      typeof obj.soundEnabled === 'boolean'
-        ? obj.soundEnabled
-        : DEFAULT_ADAPTER_SETTINGS.soundEnabled,
     lastSeenVersion:
       typeof obj.lastSeenVersion === 'string'
         ? obj.lastSeenVersion
         : DEFAULT_ADAPTER_SETTINGS.lastSeenVersion,
-    alwaysShowLabels:
-      typeof obj.alwaysShowLabels === 'boolean'
-        ? obj.alwaysShowLabels
-        : DEFAULT_ADAPTER_SETTINGS.alwaysShowLabels,
-    watchAllSessions:
-      typeof obj.watchAllSessions === 'boolean'
-        ? obj.watchAllSessions
-        : DEFAULT_ADAPTER_SETTINGS.watchAllSessions,
     hooksInfoShown:
       typeof obj.hooksInfoShown === 'boolean'
         ? obj.hooksInfoShown
         : DEFAULT_ADAPTER_SETTINGS.hooksInfoShown,
-    showAreas:
-      typeof obj.showAreas === 'boolean' ? obj.showAreas : DEFAULT_ADAPTER_SETTINGS.showAreas,
     areaMappings: parseAreaMappings(obj.areaMappings),
   };
 }
@@ -146,7 +115,6 @@ export function readConfig(): PixelAgentsConfig {
     if (!fs.existsSync(filePath)) {
       return {
         standalone: { ...DEFAULT_ADAPTER_SETTINGS },
-        externalAssetDirectories: [],
         hooksConsent: {},
         hooksEnabled: {},
       };
@@ -155,9 +123,6 @@ export function readConfig(): PixelAgentsConfig {
     const parsed = JSON.parse(raw) as Partial<PixelAgentsConfig>;
     return {
       standalone: parseAdapterSettings(parsed.standalone),
-      externalAssetDirectories: Array.isArray(parsed.externalAssetDirectories)
-        ? parsed.externalAssetDirectories.filter((d): d is string => typeof d === 'string')
-        : [],
       hooksConsent: parseHooksConsent(parsed.hooksConsent),
       hooksEnabled: parseHooksEnabled(parsed.hooksEnabled),
       modules: Array.isArray(parsed.modules)
@@ -168,7 +133,6 @@ export function readConfig(): PixelAgentsConfig {
     console.error('[Pixel Agents] Failed to read config file:', err);
     return {
       standalone: { ...DEFAULT_ADAPTER_SETTINGS },
-      externalAssetDirectories: [],
       hooksConsent: {},
       hooksEnabled: {},
     };

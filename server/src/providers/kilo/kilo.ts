@@ -85,8 +85,6 @@ export const kiloModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: KILO_TOOL_VOCAB.reading,
 
-  // Kilo sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

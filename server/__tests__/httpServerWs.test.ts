@@ -124,7 +124,7 @@ describe('/ws connection gate', () => {
     const config = await server.start({
       store: new AgentStateStore(),
       // Mirrors the standalone CLI's own side effect (server/src/cli.ts): an
-      // enable toggle over this socket IS the consent grant. Wired here so the
+      // install choice over this socket IS the consent grant. Wired here so the
       // cross-origin test asserts the real privilege, not just a close code.
       onSetHooksEnabled: async (providerId: string, enabled: boolean) => {
         if (enabled) grantHooksConsent(providerId);
@@ -137,7 +137,7 @@ describe('/ws connection gate', () => {
   //    user happens to be visiting could open /ws and grant durable consent to
   //    modify ~/.claude/settings.json. A forged Origin must be refused, and no
   //    message it sends may take effect.
-  it('rejects a cross-origin standalone connection and its setHooksEnabled', async () => {
+  it('rejects a cross-origin standalone connection and its hooksConsentResponse', async () => {
     const { port } = await startStandalone();
 
     const result = await connect(port, { Origin: 'http://evil.example' });
@@ -149,7 +149,7 @@ describe('/ws connection gate', () => {
     // Even if the attacker keeps writing, nothing is processed.
     try {
       result.socket.send(
-        JSON.stringify({ type: 'setHooksEnabled', providerId: 'claude', enabled: true }),
+        JSON.stringify({ type: 'hooksConsentResponse', providerId: 'claude', choice: 'install' }),
       );
     } catch {
       /* socket already closed — that IS the point */
@@ -214,9 +214,9 @@ describe('/ws connection gate', () => {
  * the token, because the token reaches the SPA only through the URL the CLI
  * printed in the operator's own terminal.
  *
- * Every test below sends a real consent-bearing message (`setHooksEnabled`, or
- * the consent dialog's `hooksConsentResponse`) and asserts on the install seam
- * plus the on-disk consent flag. The socket stays OPEN throughout — a tokenless
+ * Every test below sends a real consent-bearing message — the consent
+ * dialog's `hooksConsentResponse` — and asserts on the install seam plus the
+ * on-disk consent flag. The socket stays OPEN throughout — a tokenless
  * viewer keeps watching the office; it just cannot approve a change to a file
  * in someone's home directory.
  */
@@ -247,8 +247,8 @@ describe('/ws privileged-message gate', () => {
   async function startStandalone(): Promise<{ port: number; token: string }> {
     const config = await server.start({
       store: new AgentStateStore(),
-      // The real cli.ts side effect, minus the actual install: an enable
-      // toggle over this socket IS the consent grant (server/src/cli.ts).
+      // The real cli.ts side effect, minus the actual install: a granted
+      // hooksConsentResponse over this socket IS the consent grant (server/src/cli.ts).
       onSetHooksEnabled: (providerId: string, enabled: boolean) => {
         sideEffects.push(enabled);
         if (enabled) grantHooksConsent(providerId);
@@ -257,9 +257,15 @@ describe('/ws privileged-message gate', () => {
     return { port: config.port, token: config.token };
   }
 
-  /** Send setHooksEnabled over an accepted socket and let it settle. */
+  /** Send a hooksConsentResponse over an accepted socket and let it settle. */
   async function sendToggle(socket: WebSocket, enabled: boolean): Promise<void> {
-    socket.send(JSON.stringify({ type: 'setHooksEnabled', providerId: 'claude', enabled }));
+    socket.send(
+      JSON.stringify({
+        type: 'hooksConsentResponse',
+        providerId: 'claude',
+        choice: enabled ? 'install' : 'never',
+      }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
@@ -269,7 +275,7 @@ describe('/ws privileged-message gate', () => {
   // check passes and the peer address is genuinely loopback. What the rebound
   // page never receives is the token — it reached our origin by name, not by the
   // URL the CLI printed — so the consent-bearing message is refused.
-  it('refuses setHooksEnabled from a rebound (Origin === Host) connection', async () => {
+  it('refuses hooksConsentResponse from a rebound (Origin === Host) connection', async () => {
     const { port } = await startStandalone();
     const forged = `evil.example:${port.toString()}`;
 
@@ -290,7 +296,7 @@ describe('/ws privileged-message gate', () => {
   // forges a loopback Host — the exact pair the old gate accepted, reproduced
   // against the real dist/cli.js (consent=true, 12 events installed). No token
   // rides the handshake, because the operator's URL never left their terminal.
-  it('refuses setHooksEnabled from a loopback-terminating forwarder', async () => {
+  it('refuses hooksConsentResponse from a loopback-terminating forwarder', async () => {
     const { port } = await startStandalone();
 
     const result = await connectTo(`ws://127.0.0.1:${port.toString()}/ws`, {
@@ -310,7 +316,7 @@ describe('/ws privileged-message gate', () => {
   // The untokened local session: someone typed the bare http://127.0.0.1:PORT/
   // instead of opening the printed URL. Read-only by construction — a graceful
   // degrade, not a disconnect.
-  it('refuses setHooksEnabled without a token', async () => {
+  it('refuses hooksConsentResponse without a token', async () => {
     const { port } = await startStandalone();
 
     const result = await connectTo(`ws://127.0.0.1:${port.toString()}/ws`, {
@@ -327,7 +333,7 @@ describe('/ws privileged-message gate', () => {
 
   // A guessed/stale token is no token. (The comparison is constant-time, but
   // what this pins is the outcome: wrong secret, no privilege.)
-  it('refuses setHooksEnabled with a wrong token', async () => {
+  it('refuses hooksConsentResponse with a wrong token', async () => {
     const { port } = await startStandalone();
 
     const result = await connectTo(`ws://127.0.0.1:${port.toString()}/ws?token=not-the-token`, {
@@ -346,7 +352,7 @@ describe('/ws privileged-message gate', () => {
   // the tokened URL the CLI printed, forwarding that token on the handshake
   // (webview-ui/src/transport/index.ts). The toggle installs, exactly as
   // documented ("enable hooks in the UI settings").
-  it('allows setHooksEnabled from the local SPA', async () => {
+  it('allows hooksConsentResponse from the local SPA', async () => {
     const { port, token } = await startStandalone();
 
     const result = await connectTo(
@@ -361,7 +367,7 @@ describe('/ws privileged-message gate', () => {
   });
 
   // ...and over `localhost`, which resolves to ::1 as often as 127.0.0.1.
-  it('allows setHooksEnabled over a localhost URL', async () => {
+  it('allows hooksConsentResponse over a localhost URL', async () => {
     const { port, token } = await startStandalone();
 
     const result = await connectTo(

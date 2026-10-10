@@ -46,15 +46,6 @@ export interface LoadedAssets {
   sprites: Map<string, string[][]>; // assetId -> SpriteData
 }
 
-export function mergeLoadedAssets(a: LoadedAssets, b: LoadedAssets): LoadedAssets {
-  const bIds = new Set(b.catalog.map((item) => item.id));
-  const dedupedA = a.catalog.filter((item) => !bIds.has(item.id));
-  return {
-    catalog: [...dedupedA, ...b.catalog],
-    sprites: new Map([...a.sprites, ...b.sprites]),
-  };
-}
-
 /**
  * Load furniture assets from per-folder manifests
  */
@@ -432,13 +423,6 @@ export interface LoadedCharacterSprites {
   characters: CharacterDirectionSprites[];
 }
 
-export function mergeCharacterSprites(
-  a: LoadedCharacterSprites,
-  b: LoadedCharacterSprites,
-): LoadedCharacterSprites {
-  return { characters: [...a.characters, ...b.characters] };
-}
-
 /**
  * Load pre-colored character sprites from assets/characters/ (6 PNGs, each 168×120).
  * Each PNG has 3 direction rows (down, up, right) × 7 frames (CHAR_FRAME_W × CHAR_FRAME_H, 24×40).
@@ -473,70 +457,6 @@ export async function loadCharacterSprites(
   }
 }
 
-/**
- * Load character sprites from an external asset directory.
- * Scans assets/characters/ for char_N.png files (any N, sorted numerically).
- * Returns null if no characters found.
- */
-export async function loadExternalCharacterSprites(
-  externalRoot: string,
-): Promise<LoadedCharacterSprites | null> {
-  try {
-    const charDir = path.join(externalRoot, 'assets', 'characters');
-    if (!fs.existsSync(charDir)) {
-      return null;
-    }
-
-    const entries = fs.readdirSync(charDir);
-    const charFiles: { index: number; filename: string }[] = [];
-    for (const entry of entries) {
-      const match = /^char_(\d+)\.png$/i.exec(entry);
-      if (match) {
-        charFiles.push({ index: parseInt(match[1], 10), filename: entry });
-      }
-    }
-
-    if (charFiles.length === 0) {
-      return null;
-    }
-
-    charFiles.sort((a, b) => a.index - b.index);
-
-    const characters: CharacterDirectionSprites[] = [];
-    for (const { filename } of charFiles) {
-      const filePath = path.join(charDir, filename);
-      const resolvedFile = path.resolve(filePath);
-      const resolvedDir = path.resolve(charDir);
-      if (!resolvedFile.startsWith(resolvedDir + path.sep) && resolvedFile !== resolvedDir) {
-        console.warn(`  [AssetLoader] Skipping character with path outside directory: ${filename}`);
-        continue;
-      }
-      try {
-        const pngBuffer = fs.readFileSync(filePath);
-        characters.push(decodeCharacterPng(pngBuffer));
-      } catch (err) {
-        console.warn(
-          `  [AssetLoader] ⚠️  Error loading character ${filename}: ${err instanceof Error ? err.message : err}`,
-        );
-      }
-    }
-
-    if (characters.length === 0) {
-      return null;
-    }
-
-    console.log(
-      `[AssetLoader] ✅ Loaded ${characters.length} external character sprites from ${externalRoot}`,
-    );
-    return { characters };
-  } catch (err) {
-    console.error(
-      `[AssetLoader] ❌ Error loading external character sprites: ${err instanceof Error ? err.message : err}`,
-    );
-    return null;
-  }
-}
-
 // ── Pet sprite loading ──────────────────────────────────────
 
 export interface LoadedPetSprites {
@@ -544,17 +464,6 @@ export interface LoadedPetSprites {
   pets: PetSpriteFrames[];
   /** Manifest data parallel-indexed to `pets`. Names are broadcast to the webview. */
   manifests: PetManifest[];
-}
-
-/**
- * Merge two sets of loaded pet sprites (e.g., bundled + external).
- * External pets are appended after bundled; webview maps by `petType` (array index).
- */
-export function mergePetSprites(a: LoadedPetSprites, b: LoadedPetSprites): LoadedPetSprites {
-  return {
-    pets: [...a.pets, ...b.pets],
-    manifests: [...a.manifests, ...b.manifests],
-  };
 }
 
 /**
@@ -642,103 +551,6 @@ export async function loadPetSprites(assetsRoot: string): Promise<LoadedPetSprit
   } catch (err) {
     console.error(
       `[AssetLoader] ❌ Error loading pet sprites: ${err instanceof Error ? err.message : err}`,
-    );
-    return null;
-  }
-}
-
-/**
- * Load pet sprites from an external asset directory.
- *
- * Same scanning rules as {@link loadPetSprites}, against `<externalRoot>/assets/pets/`.
- * Returns `null` when the directory is missing or no valid pets were loaded.
- */
-export async function loadExternalPetSprites(
-  externalRoot: string,
-): Promise<LoadedPetSprites | null> {
-  try {
-    const petDir = path.join(externalRoot, 'assets', 'pets');
-    if (!fs.existsSync(petDir)) {
-      return null;
-    }
-
-    const entries = fs.readdirSync(petDir);
-    const petDirs: string[] = [];
-    for (const entry of entries) {
-      const entryPath = path.join(petDir, entry);
-      try {
-        if (fs.statSync(entryPath).isDirectory()) {
-          petDirs.push(entry);
-        }
-      } catch {
-        // unreadable entry — skip silently
-      }
-    }
-    petDirs.sort();
-    if (petDirs.length === 0) {
-      return null;
-    }
-
-    const pets: PetSpriteFrames[] = [];
-    const manifests: PetManifest[] = [];
-    const resolvedDir = path.resolve(petDir);
-
-    for (const dirName of petDirs) {
-      const subDir = path.join(petDir, dirName);
-      const resolvedSub = path.resolve(subDir);
-      if (!resolvedSub.startsWith(resolvedDir + path.sep)) {
-        console.warn(
-          `  [AssetLoader] Skipping external pet with path outside directory: ${dirName}`,
-        );
-        continue;
-      }
-
-      const manifestPath = path.join(subDir, 'manifest.json');
-      const pngPath = path.join(subDir, 'pet.png');
-      if (!fs.existsSync(manifestPath) || !fs.existsSync(pngPath)) {
-        console.warn(
-          `  [AssetLoader] Skipping external pet ${dirName}: missing manifest.json or pet.png`,
-        );
-        continue;
-      }
-
-      try {
-        const manifestRaw = fs.readFileSync(manifestPath, 'utf-8');
-        const manifestData = JSON.parse(manifestRaw) as Partial<PetManifest>;
-        if (!manifestData.id || !manifestData.name) {
-          console.warn(
-            `  [AssetLoader] Skipping external pet ${dirName}: manifest missing id or name`,
-          );
-          continue;
-        }
-
-        const stat = fs.statSync(pngPath);
-        if (stat.size > MAX_PET_PNG_SIZE) {
-          console.warn(
-            `[AssetLoader] ⚠️  Skipping oversized external pet ${dirName}: ${stat.size} bytes (max ${MAX_PET_PNG_SIZE})`,
-          );
-          continue;
-        }
-
-        const pngBuffer = fs.readFileSync(pngPath);
-        pets.push(decodePetPng(pngBuffer));
-        manifests.push({ id: manifestData.id, name: manifestData.name });
-      } catch (err) {
-        console.warn(
-          `[AssetLoader] ⚠️  Error loading external pet ${dirName}: ${err instanceof Error ? err.message : err}`,
-        );
-      }
-    }
-
-    if (pets.length === 0) {
-      return null;
-    }
-
-    console.log(`[AssetLoader] ✅ Loaded ${pets.length} external pet sprites from ${externalRoot}`);
-    return { pets, manifests };
-  } catch (err) {
-    console.error(
-      `[AssetLoader] ❌ Error loading external pet sprites: ${err instanceof Error ? err.message : err}`,
     );
     return null;
   }

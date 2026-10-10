@@ -37,18 +37,6 @@
   --color-status-success: #89d185;
   --color-status-error: var(--color-danger);
 
-  /* Office furnishings (HUD plank, settings clipboard) */
-  --color-wood: #8a5a32;
-  --color-wood-light: #a5703f;
-  --color-wood-dark: #4f3018;
-  --color-brass: #e0b95a;
-  --color-metal: #a7adb9;
-  --color-metal-dark: #5a5f6b;
-  --color-paper: #f1e6c8;
-  --color-paper-dark: #e2d2a8;
-  --color-paper-line: #d6c49b;
-  --color-ink: #2b2433;
-
   /* Shadow */
   --shadow-pixel: 2px 2px 0px #0a0a14;
 
@@ -95,16 +83,6 @@
   --color-status-active: var(--color-status-active);
   --color-status-success: var(--color-status-success);
   --color-status-error: var(--color-status-error);
-  --color-wood: var(--color-wood);
-  --color-wood-light: var(--color-wood-light);
-  --color-wood-dark: var(--color-wood-dark);
-  --color-brass: var(--color-brass);
-  --color-metal: var(--color-metal);
-  --color-metal-dark: var(--color-metal-dark);
-  --color-paper: var(--color-paper);
-  --color-paper-dark: var(--color-paper-dark);
-  --color-paper-line: var(--color-paper-line);
-  --color-ink: var(--color-ink);
 
   /* Shadow */
   --shadow-pixel: var(--shadow-pixel);
@@ -128,35 +106,7 @@
     @apply bg-bg border-2 border-border rounded-none shadow-pixel;
   }
 
-  /* Wooden plank mounted on the office wall: hard-edged grain bands, no blur. */
-  .wood-plank {
-    @apply border-2 border-wood-dark rounded-none shadow-pixel;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--color-wood) 0 10px,
-      var(--color-wood-light) 10px 12px,
-      var(--color-wood) 12px 22px,
-      var(--color-wood-dark) 22px 24px
-    );
-  }
-
-  .metal-clip {
-    @apply bg-metal border-2 border-metal-dark rounded-none shadow-pixel;
-  }
-
-  /* Clipboard paper. Re-points the palette variables so the shared controls
-     (Checkbox, ghost Button) render as ink on paper unchanged. */
-  .paper-sheet {
-    --color-text: var(--color-ink);
-    --color-text-muted: rgba(43, 36, 51, 0.55);
-    --color-btn-bg: var(--color-paper-dark);
-    --color-btn-hover: var(--color-paper-line);
-    --color-border: var(--color-wood-dark);
-    --color-bg: var(--color-paper-dark);
-    @apply bg-paper text-text border-2 border-wood-dark rounded-none;
-  }
-
-  /* Pulsing dot animation (DebugView, ToolOverlay) */
+  /* Pulsing dot animation (ConnectionIndicator, ToolOverlay) */
   .pixel-pulse {
     animation: pixel-pulse 1.5s ease-in-out infinite;
   }

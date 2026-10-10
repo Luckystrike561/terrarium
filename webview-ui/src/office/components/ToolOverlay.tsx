@@ -18,6 +18,7 @@ import {
   TOOL_OVERLAY_VERTICAL_OFFSET,
 } from '../../constants.js';
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js';
+import { isE2E } from '../../runtime.js';
 import type { OfficeState } from '../engine/officeState.js';
 import { overlayProjection } from '../projection.js';
 import type { ToolActivity } from '../types.js';
@@ -39,7 +40,6 @@ interface ToolOverlayProps {
   zoom: number;
   panRef: React.RefObject<{ x: number; y: number }>;
   onCloseAgent: (id: number) => void;
-  alwaysShowOverlay: boolean;
 }
 
 /** Derive a short human-readable activity string from tools/status */
@@ -91,7 +91,6 @@ export function ToolOverlay({
   zoom,
   panRef,
   onCloseAgent,
-  alwaysShowOverlay,
 }: ToolOverlayProps) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -130,8 +129,10 @@ export function ToolOverlay({
         const isHovered = hoveredId === id;
         const isSub = ch.isSubagent;
 
-        // Only show for hovered or selected agents (unless always-show is on)
-        if (!alwaysShowOverlay && !isSelected && !isHovered) return null;
+        // Only show for hovered or selected agents, except under the e2e
+        // harness where every label renders so specs can assert overlay text
+        // without hovering.
+        if (!isE2E && !isSelected && !isHovered) return null;
 
         // Position above character
         const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
@@ -143,8 +144,7 @@ export function ToolOverlay({
         // shows ONLY its floating green checkmark bubble, never the label panel
         // (the panel would cover the bubble). Render an empty positioned marker
         // so overlay counts stay stable and hover/select can still bring the
-        // panel back. When always-show is off, the early return above already
-        // keeps the panel hidden for idle agents.
+        // panel back.
         const isDone = ch.bubbleType === 'waiting' && !ch.waitingAwaitingInput;
         if (isDone && !isSelected && !isHovered) {
           return (
@@ -221,7 +221,6 @@ export function ToolOverlay({
               left: screenX,
               top: screenY - (hasExtraLines ? 34 : 28) - (showTask ? 6 : 0),
               pointerEvents: isSelected ? 'auto' : 'none',
-              opacity: alwaysShowOverlay && !isSelected && !isHovered ? (isSub ? 0.5 : 0.75) : 1,
               zIndex: isSelected ? 42 : 41,
             }}
             data-testid="agent-overlay"

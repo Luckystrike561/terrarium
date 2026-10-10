@@ -32,24 +32,16 @@ describe('FileStateAdapter', () => {
 
   it('returns defaults when config file does not exist', () => {
     const adapter = new FileStateAdapter();
-    expect(adapter.getSetting('pixel-agents.soundEnabled', false)).toBe(true);
-    expect(adapter.getSetting('pixel-agents.watchAllSessions', true)).toBe(false);
     expect(adapter.getSetting('pixel-agents.lastSeenVersion', 'x')).toBe('');
   });
 
   it('round-trips each setting key (hooksEnabled moved to the per-provider map)', () => {
     const adapter = new FileStateAdapter();
 
-    adapter.setSetting('pixel-agents.soundEnabled', false);
     adapter.setSetting('pixel-agents.lastSeenVersion', '1.3');
-    adapter.setSetting('pixel-agents.alwaysShowLabels', true);
-    adapter.setSetting('pixel-agents.watchAllSessions', true);
     adapter.setSetting('pixel-agents.hooksInfoShown', true);
 
-    expect(adapter.getSetting('pixel-agents.soundEnabled', true)).toBe(false);
     expect(adapter.getSetting('pixel-agents.lastSeenVersion', '')).toBe('1.3');
-    expect(adapter.getSetting('pixel-agents.alwaysShowLabels', false)).toBe(true);
-    expect(adapter.getSetting('pixel-agents.watchAllSessions', false)).toBe(true);
     expect(adapter.getSetting('pixel-agents.hooksInfoShown', false)).toBe(true);
 
     // hooksEnabled is deliberately NOT an adapter key any more: it is
@@ -71,20 +63,20 @@ describe('FileStateAdapter', () => {
 
   it('accepts setting keys with or without the pixel-agents. prefix', () => {
     const adapter = new FileStateAdapter();
-    adapter.setSetting('pixel-agents.soundEnabled', false);
-    expect(adapter.getSetting('soundEnabled', true)).toBe(false);
-    adapter.setSetting('lastSeenVersion', '1.0');
-    expect(adapter.getSetting('pixel-agents.lastSeenVersion', '')).toBe('1.0');
+    adapter.setSetting('pixel-agents.lastSeenVersion', '0.9');
+    expect(adapter.getSetting('lastSeenVersion', '')).toBe('0.9');
+    adapter.setSetting('hooksInfoShown', true);
+    expect(adapter.getSetting('pixel-agents.hooksInfoShown', false)).toBe(true);
   });
 
   it('persists settings under "standalone" in config.json with clean field names', () => {
     const adapter = new FileStateAdapter();
-    adapter.setSetting('pixel-agents.soundEnabled', false);
+    adapter.setSetting('pixel-agents.lastSeenVersion', '1.3');
     const configPath = path.join(tempHome, '.pixel-agents', 'config.json');
     const raw = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
-    expect(parsed.standalone.soundEnabled).toBe(false);
-    expect(parsed.standalone['pixel-agents.soundEnabled']).toBeUndefined();
+    expect(parsed.standalone.lastSeenVersion).toBe('1.3');
+    expect(parsed.standalone['pixel-agents.lastSeenVersion']).toBeUndefined();
   });
 
   // ── State file (agents + seats) ─────────────────────────────

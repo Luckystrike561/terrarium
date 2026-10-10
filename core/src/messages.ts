@@ -35,26 +35,16 @@ export type ServerMessage =
   | SettingsLoaded
   | HooksStatus
   | HooksConsentRequest
-  | ExternalAssetDirectoriesUpdated
-  | AreaMappingsLoaded
-  | AgentDiagnostics;
+  | AreaMappingsLoaded;
 
 export type ClientMessage =
   | WebviewReady
   | CloseAgent
   | SaveAgentSeats
-  | SetSoundEnabled
   | SetLastSeenVersion
-  | SetAlwaysShowLabels
-  | SetHooksEnabled
   | HooksConsentResponse
   | SetHooksInfoShown
-  | SetWatchAllSessions
-  | AddExternalAssetDirectory
-  | RemoveExternalAssetDirectory
-  | SaveAreaMappings
-  | SetShowAreas
-  | RequestDiagnostics;
+  | SaveAreaMappings;
 
 export interface ProviderCapabilities {
   type: 'providerCapabilities';
@@ -262,15 +252,10 @@ export interface CarpetTilesLoaded {
 
 export interface SettingsLoaded {
   type: 'settingsLoaded';
-  soundEnabled: boolean;
   lastSeenVersion: string;
   extensionVersion: string;
-  watchAllSessions: boolean;
-  alwaysShowLabels: boolean;
   hooksEnabled: boolean;
   hooksInfoShown: boolean;
-  externalAssetDirectories: string[];
-  showAreas: boolean;
 }
 
 export interface HooksStatus {
@@ -286,19 +271,9 @@ export interface HooksConsentRequest {
   disclosure: string;
 }
 
-export interface ExternalAssetDirectoriesUpdated {
-  type: 'externalAssetDirectoriesUpdated';
-  dirs: string[];
-}
-
 export interface AreaMappingsLoaded {
   type: 'areaMappingsLoaded';
   mappings: Record<string, string[]>;
-}
-
-export interface AgentDiagnostics {
-  type: 'agentDiagnostics';
-  agents: Record<string, any>[];
 }
 
 export interface WebviewReady {
@@ -321,25 +296,9 @@ export interface SeatAssignment {
   seatId: string | null;
 }
 
-export interface SetSoundEnabled {
-  type: 'setSoundEnabled';
-  enabled: boolean;
-}
-
 export interface SetLastSeenVersion {
   type: 'setLastSeenVersion';
   version: string;
-}
-
-export interface SetAlwaysShowLabels {
-  type: 'setAlwaysShowLabels';
-  enabled: boolean;
-}
-
-export interface SetHooksEnabled {
-  type: 'setHooksEnabled';
-  providerId: string;
-  enabled: boolean;
 }
 
 export interface HooksConsentResponse {
@@ -354,31 +313,7 @@ export interface SetHooksInfoShown {
   type: 'setHooksInfoShown';
 }
 
-export interface SetWatchAllSessions {
-  type: 'setWatchAllSessions';
-  enabled: boolean;
-}
-
-export interface AddExternalAssetDirectory {
-  type: 'addExternalAssetDirectory';
-  path?: string;
-}
-
-export interface RemoveExternalAssetDirectory {
-  type: 'removeExternalAssetDirectory';
-  path: string;
-}
-
 export interface SaveAreaMappings {
   type: 'saveAreaMappings';
   mappings: Record<string, string[]>;
-}
-
-export interface SetShowAreas {
-  type: 'setShowAreas';
-  enabled: boolean;
-}
-
-export interface RequestDiagnostics {
-  type: 'requestDiagnostics';
 }

@@ -87,8 +87,6 @@ export const hermesModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['read_file', 'search_files', 'web_search', 'web_extract']),
 
-  // Hermes sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

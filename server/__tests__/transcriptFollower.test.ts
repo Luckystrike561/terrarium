@@ -260,7 +260,6 @@ describe('TranscriptFollower through the running agent runtime', () => {
       ]),
     );
     runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [mux.module] });
-    runtime.watchAllSessions.current = true;
     runtime.startModules();
     runtime.startExternalScanning('/unused');
     vi.advanceTimersByTime(EXTERNAL_SCAN_INTERVAL_MS);

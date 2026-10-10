@@ -117,7 +117,5 @@ export const kiroModule: AgentModule = {
     'getDiagnostics',
   ]),
 
-  // Kiro sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) => new SessionStoreTracker(host, kiroSessionStore(), DEFAULT_SESSION_STORE_TIMING),
 };

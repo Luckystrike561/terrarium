@@ -328,7 +328,7 @@ describe('fileWatcher dismissal state', () => {
   });
 
   describe('startExternalSessionScanning: hooks mode workspace discovery', () => {
-    it('adopts workspace JSONL sessions when hooks and Watch All Sessions are both enabled', () => {
+    it('adopts workspace JSONL sessions when hooks are enabled', () => {
       vi.useFakeTimers();
       const projectScanTimerRef: { current: ReturnType<typeof setInterval> | null } = {
         current: null,
@@ -359,7 +359,6 @@ describe('fileWatcher dismissal state', () => {
         permissionTimers,
         new Map(),
         () => {},
-        { current: true },
         { current: true },
       );
 

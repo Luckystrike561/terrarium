@@ -47,7 +47,7 @@ interface IntroBubbleProps {
    *  itself — an unanswered consent step changes nothing and the whole Intro
    *  returns the next time the office is opened. */
   onClose: () => void;
-  /** True while another surface owns Escape — an open Settings/changelog modal
+  /** True while another surface owns Escape — an open changelog modal
    *  stacked ABOVE this bubble. Escape aborts the tour only when the tour is
    *  topmost; without this gate it silently aborted UNDER an open modal. */
   escapeSuppressed: boolean;
@@ -254,7 +254,7 @@ export function IntroBubble({
         className="pixel-panel relative py-10 px-14 leading-[1.4]"
         style={{ maxWidth }}
       >
-        {/* Same close control as the Settings/changelog modals (ui/Modal.tsx):
+        {/* Same close control as the changelog modal (ui/Modal.tsx):
             ghost icon button, plain lowercase x. */}
         <Button
           variant="ghost"
@@ -321,8 +321,8 @@ export function IntroBubble({
             {installFailed ? (
               <p className="text-sm m-0 mb-8">
                 Something went wrong writing to your Claude Code settings, so the office will watch
-                your sessions the slower way instead. No worries, everything still works and you can
-                retry activating them any time from Settings.
+                your sessions the slower way instead. No worries, everything still works, and Pixel
+                Agents tries again the next time the server starts.
               </p>
             ) : null}
             <p className="text-sm m-0 mb-8">
