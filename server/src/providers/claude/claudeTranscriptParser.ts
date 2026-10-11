@@ -643,9 +643,10 @@ function processProgressRecord(
  * Link teammates within the same team.
  * The lead is the agent with no agentName (or one already marked isTeamLead).
  * Teammates get leadAgentId pointing to the lead. If only named teammates are
- * tracked, linking waits until the lead is detected.
+ * tracked, linking waits until the lead is detected. The caller broadcasts its
+ * own agent's team; every other member whose link changed is broadcast here.
  */
-function linkTeammates(_agentId: number, agent: ClaudeAgentState, agents: ClaudeAgentStore): void {
+function linkTeammates(agentId: number, agent: ClaudeAgentState, agents: ClaudeAgentStore): void {
   const teamName = agent.teamName;
   if (!teamName) return;
 
@@ -685,6 +686,8 @@ function linkTeammates(_agentId: number, agent: ClaudeAgentState, agents: Claude
 
   // Update all team members: mark lead, clear stale lead flags, link teammates
   for (const a of teamAgents) {
+    const wasTeamLead = a.isTeamLead === true;
+    const previousLeadAgentId = a.leadAgentId;
     if (a.id === lead.id) {
       a.isTeamLead = true;
       a.leadAgentId = undefined;
@@ -692,6 +695,17 @@ function linkTeammates(_agentId: number, agent: ClaudeAgentState, agents: Claude
       a.isTeamLead = false;
       a.leadAgentId = lead.id;
     }
+    if (a.id === agentId) continue;
+    if (a.isTeamLead === wasTeamLead && a.leadAgentId === previousLeadAgentId) continue;
+    agents.broadcast({
+      type: 'agentTeamInfo',
+      id: a.id,
+      teamName: a.teamName,
+      agentName: a.agentName,
+      isTeamLead: a.isTeamLead,
+      leadAgentId: a.leadAgentId,
+      teamUsesTmux: a.teamUsesTmux,
+    });
   }
 }
 

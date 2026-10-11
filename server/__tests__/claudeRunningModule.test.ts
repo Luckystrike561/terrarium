@@ -196,4 +196,52 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
       event: { kind: 'sessionEnd', reason: 'exit' },
     });
   });
+
+  it('links a teammate adopted and tagged before its lead once the lead is tagged', async () => {
+    runningModule = startClaudeModule(host);
+    const bumpedMtime = new Date(Date.now() + 10_000);
+    fs.utimesSync(file1, bumpedMtime, bumpedMtime);
+    await vi.advanceTimersByTimeAsync(EXTERNAL_SCAN_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync(EXTERNAL_SCAN_INTERVAL_MS);
+    fs.writeFileSync(file2, jsonl([{ type: 'system', subtype: 'init' }]));
+    await vi.advanceTimersByTimeAsync(EXTERNAL_SCAN_INTERVAL_MS);
+    expect(
+      recorded.find((r) => r.sessionId === 'claude-2' && r.event.kind === 'sessionStart'),
+    ).toBeTruthy();
+
+    fs.appendFileSync(
+      file2,
+      jsonl([
+        {
+          type: 'user',
+          message: { role: 'user', content: 'ok' },
+          teamName: 'team-x',
+          agentName: 'scout',
+        },
+      ]),
+    );
+    await vi.advanceTimersByTimeAsync(FILE_WATCHER_POLL_INTERVAL_MS);
+    const beforeLeadTag = recorded.length;
+
+    fs.appendFileSync(
+      file1,
+      jsonl([
+        { type: 'user', message: { role: 'user', content: 'continuing' }, teamName: 'team-x' },
+      ]),
+    );
+    await vi.advanceTimersByTimeAsync(FILE_WATCHER_POLL_INTERVAL_MS);
+
+    const teammateTeam = recorded
+      .slice(beforeLeadTag)
+      .find((r) => r.sessionId === 'claude-2' && r.event.kind === 'teamChanged');
+    expect(teammateTeam?.event).toMatchObject({
+      kind: 'teamChanged',
+      team: expect.objectContaining({
+        teamName: 'team-x',
+        agentName: 'scout',
+        isTeamLead: false,
+        leadSessionId: 'claude-1',
+      }),
+    });
+  });
 });
