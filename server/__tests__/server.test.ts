@@ -248,6 +248,28 @@ describe('PixelAgentsServer', () => {
     expect(registryFiles()).toHaveLength(1);
   });
 
+  // 16. An own-pid entry older than this process is stale (a restarted container is PID 1 again)
+  it('starts its own server instead of reusing an own-pid entry older than this process', async () => {
+    fs.mkdirSync(registryDir, { recursive: true });
+    const staleFile = path.join(registryDir, `${process.pid}-9999.json`);
+    fs.writeFileSync(
+      staleFile,
+      JSON.stringify({
+        port: 9999,
+        pid: process.pid,
+        token: 'stale',
+        startedAt: 0,
+        protocol: 1,
+      }),
+    );
+
+    const config = await server.start({ port: 9999 });
+
+    expect(config.token).not.toBe('stale');
+    expect((await fetch(`http://127.0.0.1:${config.port}/api/health`)).ok).toBe(true);
+    expect(registryFiles()).toHaveLength(1);
+  });
+
   // 18. server.json cleaned up on stop
   it('deletes server.json on stop', async () => {
     await server.start();

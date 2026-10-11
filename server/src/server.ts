@@ -227,7 +227,7 @@ export class PixelAgentsServer {
           fs.unlinkSync(filePath);
           continue;
         }
-        if (isProcessRunning(entry.pid)) {
+        if (isRegisteredProcessRunning(entry)) {
           live.push(entry);
         } else {
           fs.unlinkSync(filePath);
@@ -279,4 +279,13 @@ function isProcessRunning(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+/** Whether the server that wrote a registry entry is still alive. An entry carrying our own PID
+ *  was written by this process only if it is not older than the process: in a container every
+ *  server is PID 1, so an entry a killed predecessor left in a persisted home would otherwise
+ *  pass as live and be "reused" while nothing listens. */
+function isRegisteredProcessRunning(entry: ServerConfig): boolean {
+  if (entry.pid === process.pid) return entry.startedAt >= performance.timeOrigin;
+  return isProcessRunning(entry.pid);
 }
