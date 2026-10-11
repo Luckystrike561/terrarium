@@ -76,7 +76,7 @@ export const kiloModule: AgentModule = {
   kind: 'agent',
   id: 'kilo',
   displayName: 'Kilo Code',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

@@ -24,7 +24,9 @@ export type {
   MultiplexerModule,
   MultiplexerWatcher,
   ProviderModule,
+  RestoredSession,
   RunningAgentModule,
+  TeamMembership,
 } from './provider.js';
 export type {
   AgentMeta,
@@ -38,4 +40,3 @@ export type {
   PlacedFurniture,
   SpriteData,
 } from './schemas.js';
-export type { TeamProvider } from './teamProvider.js';

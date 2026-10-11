@@ -1,41 +1,17 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
 import { CHAR_COUNT } from '../../core/src/assets/constants.js';
+import type {
+  AgentModule,
+  ModuleHost,
+  RestoredSession,
+  RunningAgentModule,
+} from '../../core/src/provider.js';
+import type { PersistedAgent } from '../../core/src/schemas.js';
+import { AgentEventHandler } from '../src/agentEventHandler.js';
 import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
-import { claudeModule } from '../src/providers/claude/claude.js';
-import type { AgentState, PersistedAgent } from '../src/types.js';
-
-function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
-  return {
-    id: 1,
-    sessionId: 'sess-1',
-    projectDir: '/test',
-    jsonlFile: '/test/session.jsonl',
-    fileOffset: 0,
-    lineBuffer: '',
-    activeToolIds: new Set(),
-    activeToolStatuses: new Map(),
-    activeToolNames: new Map(),
-    activeSubagentToolIds: new Map(),
-    activeSubagentToolNames: new Map(),
-    backgroundAgentToolIds: new Set(),
-    isWaiting: false,
-    permissionSent: false,
-    hadToolsInTurn: false,
-    lastDataAt: 0,
-    linesProcessed: 0,
-    seenUnknownRecordTypes: new Set(),
-    hookDelivered: false,
-    contextTokens: 0,
-    maxContextTokens: 200_000,
-    ...overrides,
-  } as AgentState;
-}
 
 function createMockAdapter(initial: PersistedAgent[] = []): StateAdapter & {
   saved: PersistedAgent[][];
@@ -56,126 +32,162 @@ function createMockAdapter(initial: PersistedAgent[] = []): StateAdapter & {
   };
 }
 
+/** An agent module that resumes every session handed back to it, except the refs listed as gone. */
+function resumingModule(gone: ReadonlySet<string> = new Set()): {
+  module: AgentModule;
+  restored: RestoredSession[];
+} {
+  const restored: RestoredSession[] = [];
+  let next = 0;
+  const module: AgentModule = {
+    kind: 'agent',
+    id: 'fake-cli',
+    displayName: 'Fake CLI',
+    protocolVersion: AgentEventHandler.SUPPORTED_PROTOCOL_VERSION,
+    formatToolStatus: (toolName) => toolName,
+    permissionExemptTools: new Set(),
+    subagentToolNames: new Set(),
+    readingTools: new Set(),
+    start(host: ModuleHost): RunningAgentModule {
+      return {
+        followSession: () => ({ stop: () => {} }),
+        restoreSession(session) {
+          restored.push(session);
+          if (gone.has(session.sessionRef)) return;
+          host.emit(`fake-${next++}`, {
+            kind: 'sessionStart',
+            live: true,
+            sessionRef: session.sessionRef,
+          });
+        },
+        stop: () => {},
+      };
+    },
+  };
+  return { module, restored };
+}
+
 /**
- * Restored agents must keep their palette/hueShift across server restarts.
- *
- * These tests use a mock adapter (mirror of backgroundAgents.test.ts's
- * fakeAdapter) for the in-memory PersistedAgent[] the adapter hands back.
- * Disk is touched only for the existence gate: restoreExternalAgents skips
- * agents whose jsonlFile doesn't exist, so each test creates one empty file.
- * No FileStateAdapter, no HOME/USERPROFILE override, no state-file I/O.
+ * Restored agents keep their id (and so their seat), palette and hueShift across server restarts: the runtime hands
+ * each persisted agent back to its module, and the session the module resumes gets the persisted agent back.
  */
-describe('AgentRuntime -- restore preserves palette/hueShift', () => {
-  let tmpDir: string;
-  let jsonlPath: string;
+describe('AgentRuntime -- restore through the agent module', () => {
   let runtime: AgentRuntime | undefined;
 
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-restore-pal-'));
-    jsonlPath = path.join(tmpDir, 'session.jsonl');
-    fs.writeFileSync(jsonlPath, '');
-  });
-
   afterEach(() => {
-    // Dispose BEFORE cleaning the tmp dir: AgentRuntime.dispose() calls
-    // removeAgent() for every tracked agent, which calls store.persist();
-    // if the runtime is disposed mid-test (between a persist and a fresh
-    // adapter's load) it can clobber in-memory state.
     runtime?.dispose();
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    runtime = undefined;
   });
 
-  it('restoreExternalAgents keeps palette/hueShift from the persisted record', () => {
-    const persisted: PersistedAgent[] = [
-      {
-        id: 7,
-        sessionId: 'sess-restore',
-        jsonlFile: jsonlPath,
-        projectDir: tmpDir,
-        palette: 3,
-        hueShift: 90,
-      },
-    ];
+  function startWith(persisted: PersistedAgent[], gone?: ReadonlySet<string>) {
     const store = new AgentStateStore();
-    store.setAdapter(createMockAdapter(persisted));
-    runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
+    const adapter = createMockAdapter(persisted);
+    store.setAdapter(adapter);
+    const { module, restored } = resumingModule(gone);
+    runtime = new AgentRuntime(store, { agents: [module], multiplexers: [] });
+    runtime.startModules();
+    return { store, adapter, restored };
+  }
 
-    runtime.restoreExternalAgents();
+  it('gives a resumed session its persisted id, palette and hueShift', () => {
+    const { store } = startWith([
+      { id: 7, providerId: 'fake-cli', sessionRef: 'sess-restore', palette: 3, hueShift: 90 },
+    ]);
 
     const agent = store.get(7);
-    expect(agent).toBeDefined();
+    expect(agent?.sessionRef).toBe('sess-restore');
     expect(agent?.palette).toBe(3);
     expect(agent?.hueShift).toBe(90);
   });
 
-  it('persist() writes palette/hueShift onto the record that restoreExternalAgents copies back', () => {
-    // Phase 1: persist an agent with palette/hueShift and capture the
-    // record the adapter received.
-    const storeA = new AgentStateStore();
-    const adapterA = createMockAdapter();
-    storeA.setAdapter(adapterA);
-    runtime = new AgentRuntime(storeA, { agents: [claudeModule], multiplexers: [] });
-    storeA.set(
-      42,
-      createTestAgent({
-        id: 42,
-        sessionId: 'sess-rt',
-        jsonlFile: jsonlPath,
-        projectDir: tmpDir,
-        palette: 5,
-        hueShift: 270,
-      }),
-    );
-    storeA.persist();
-
-    // Capture the record our explicit persist() wrote BEFORE disposing
-    // the runtime: dispose() walks the store and persists removals, which
-    // would otherwise clobber the captured record or push an empty entry
-    // onto `saved`.
-    expect(adapterA.saved.length).toBeGreaterThanOrEqual(1);
-    const persisted = adapterA.saved[0];
-    expect(persisted[0].palette).toBe(5);
-    expect(persisted[0].hueShift).toBe(270);
-
-    runtime.dispose();
+  it('persist() writes palette/hueShift onto the record the next start restores', () => {
+    const first = startWith([]);
+    first.store.set(42, {
+      id: 42,
+      sessionId: 'k',
+      providerId: 'fake-cli',
+      sessionRef: 'sess-rt',
+      activeToolIds: new Set(),
+      activeToolStatuses: new Map(),
+      activeToolNames: new Map(),
+      activeSubagentToolIds: new Map(),
+      backgroundToolIds: new Set(),
+      teammateSpawnToolIds: new Set(),
+      isWaiting: false,
+      permissionSent: false,
+      contextTokens: 0,
+      maxContextTokens: 200_000,
+      palette: 5,
+      hueShift: 270,
+    });
+    first.store.persist();
+    runtime!.dispose();
     runtime = undefined;
 
-    // Phase 2: a fresh store + runtime restore from the record phase 1
-    // wrote. The new adapter hands back exactly what phase 1 persisted.
-    const storeB = new AgentStateStore();
-    storeB.setAdapter(createMockAdapter(persisted));
-    runtime = new AgentRuntime(storeB, { agents: [claudeModule], multiplexers: [] });
-    runtime.restoreExternalAgents();
-
-    const restored = storeB.get(42);
-    expect(restored).toBeDefined();
+    const persisted = first.adapter.loadAgents();
+    const { store } = startWith(persisted);
+    const restored = store.get(42);
     expect(restored?.palette).toBe(5);
     expect(restored?.hueShift).toBe(270);
   });
 
   it('assigns a fresh palette when the persisted record has no palette', () => {
-    const persisted: PersistedAgent[] = [
-      {
-        id: 9,
-        sessionId: 'sess-fresh',
-        jsonlFile: jsonlPath,
-        projectDir: tmpDir,
-        // palette/hueShift intentionally omitted
-      },
-    ];
-    const store = new AgentStateStore();
-    store.setAdapter(createMockAdapter(persisted));
-    runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-
-    runtime.restoreExternalAgents();
+    const { store } = startWith([{ id: 9, providerId: 'fake-cli', sessionRef: 'sess-fresh' }]);
 
     const agent = store.get(9);
-    expect(agent).toBeDefined();
-    // assignPaletteIfNeeded fills in [0, CHAR_COUNT) with hueShift 0 on an
-    // empty store (first round). Assert "set to a valid value" rather than
-    // re-deriving the exact algorithm.
     expect(agent?.palette).toBeGreaterThanOrEqual(0);
     expect(agent?.palette).toBeLessThan(CHAR_COUNT);
     expect(agent?.hueShift).toBe(0);
+  });
+
+  it('hands leads back before their teammates, naming the lead by its session ref', () => {
+    const { restored } = startWith([
+      {
+        id: 2,
+        providerId: 'fake-cli',
+        sessionRef: '/mate.jsonl',
+        team: { teamName: 'crew', agentName: 'scout', leadAgentId: 1 },
+        backgroundToolIds: ['bg'],
+      },
+      {
+        id: 1,
+        providerId: 'fake-cli',
+        sessionRef: 'lead',
+        team: { teamName: 'crew', isTeamLead: true },
+      },
+    ]);
+    expect(restored).toEqual([
+      {
+        sessionRef: 'lead',
+        team: { teamName: 'crew', isTeamLead: true, leadSessionRef: undefined },
+        backgroundToolIds: [],
+      },
+      {
+        sessionRef: '/mate.jsonl',
+        team: { teamName: 'crew', agentName: 'scout', leadSessionRef: 'lead' },
+        backgroundToolIds: ['bg'],
+      },
+    ]);
+  });
+
+  it('drops agents whose session is gone or whose module is not running, and never reuses their ids', () => {
+    const { store } = startWith(
+      [
+        { id: 3, providerId: 'fake-cli', sessionRef: 'ended' },
+        { id: 5, providerId: 'not-enabled', sessionRef: 'other' },
+      ],
+      new Set(['ended']),
+    );
+    expect(store.size).toBe(0);
+    expect(store.nextAgentId.current).toBe(6);
+  });
+
+  it('dispose keeps the persisted agents for the next start', () => {
+    const { adapter } = startWith([{ id: 4, providerId: 'fake-cli', sessionRef: 'kept' }]);
+    runtime!.dispose();
+    runtime = undefined;
+    expect(adapter.loadAgents()).toEqual([
+      expect.objectContaining({ id: 4, providerId: 'fake-cli', sessionRef: 'kept' }),
+    ]);
   });
 });

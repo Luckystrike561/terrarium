@@ -3,24 +3,22 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AgentStateStore } from '../src/agentStateStore.js';
-import {
-  DISMISSED_COOLDOWN_MS,
-  EXTERNAL_ACTIVE_THRESHOLD_MS,
-  EXTERNAL_SCAN_INTERVAL_MS,
-} from '../src/constants.js';
-import { DismissalTracker } from '../src/dismissalTracker.js';
+import { PathSet } from '../src/pathKey.js';
+import type { ClaudeAgentState } from '../src/providers/claude/claudeAgentStore.js';
+import { ClaudeAgentStore } from '../src/providers/claude/claudeAgentStore.js';
 import {
   adoptExternalSessionFromHook,
   ensureProjectScan,
   scanExternalDir,
   setDismissalTracker,
-  setTeamProvider,
   startExternalSessionScanning,
-} from '../src/fileWatcher.js';
-import { PathSet } from '../src/pathKey.js';
-import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
-import type { AgentState } from '../src/types.js';
+} from '../src/providers/claude/claudeFileWatcher.js';
+import {
+  DISMISSED_COOLDOWN_MS,
+  EXTERNAL_ACTIVE_THRESHOLD_MS,
+  EXTERNAL_SCAN_INTERVAL_MS,
+} from '../src/providers/claude/constants.js';
+import { DismissalTracker } from '../src/providers/claude/dismissalTracker.js';
 
 /**
  * Tests for the DismissalTracker integration with fileWatcher's scanner functions.
@@ -37,7 +35,7 @@ describe('fileWatcher dismissal state', () => {
   // path cases below exercise the real membership semantics.
   let knownJsonlFiles: PathSet;
   let nextAgentIdRef: { current: number };
-  let agents: AgentStateStore;
+  let agents: ClaudeAgentStore;
   let fileWatchers: Map<number, fs.FSWatcher>;
   let pollingTimers: Map<number, ReturnType<typeof setInterval>>;
   let waitingTimers: Map<number, ReturnType<typeof setTimeout>>;
@@ -59,7 +57,6 @@ describe('fileWatcher dismissal state', () => {
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      () => {},
       { current: hooksEnabled },
     );
   }
@@ -73,7 +70,7 @@ describe('fileWatcher dismissal state', () => {
 
     knownJsonlFiles = new PathSet();
     nextAgentIdRef = { current: 1 };
-    agents = new AgentStateStore();
+    agents = new ClaudeAgentStore();
     fileWatchers = new Map();
     pollingTimers = new Map();
     waitingTimers = new Map();
@@ -247,83 +244,68 @@ describe('fileWatcher dismissal state', () => {
       // would strip the teammate identity (no leadAgentId, and a seat picked by
       // findFreeSeat rather than the seat closest to its lead), and since
       // workspace polling runs under hooks it can beat the hook-driven attach.
-      setTeamProvider(claudeTeamProvider);
-      try {
-        const teamName = 'session-abc12345';
-        const leadFile = writeJsonlFile('lead.jsonl', '{"type":"assistant"}\n');
-        knownJsonlFiles.add(leadFile);
-        nextAgentIdRef.current = 50;
-        agents.set(1, {
-          id: 1,
-          jsonlFile: leadFile,
-          projectDir,
-          teamName,
-        } as AgentState);
+      const teamName = 'session-abc12345';
+      const leadFile = writeJsonlFile('lead.jsonl', '{"type":"assistant"}\n');
+      knownJsonlFiles.add(leadFile);
+      nextAgentIdRef.current = 50;
+      agents.set(1, {
+        id: 1,
+        jsonlFile: leadFile,
+        projectDir,
+        teamName,
+      } as ClaudeAgentState);
 
-        writeJsonlFile(
-          'aaaaaaaa-1111-4111-8111-e2e000000001.jsonl',
-          `${JSON.stringify({ type: 'system', teamName, agentName: 'researcher' })}\n`,
-        );
+      writeJsonlFile(
+        'aaaaaaaa-1111-4111-8111-e2e000000001.jsonl',
+        `${JSON.stringify({ type: 'system', teamName, agentName: 'researcher' })}\n`,
+      );
 
-        runExternalScan(true);
+      runExternalScan(true);
 
-        // The teammate transcript must be left for team discovery. Asserted on
-        // the adopted FILES, not the store size: the scanner assigns ids from
-        // nextAgentIdRef, which can collide with a hand-seeded lead and mask an
-        // adoption as an overwrite.
-        const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
-        expect(adopted).toEqual(['lead.jsonl']);
-      } finally {
-        setTeamProvider(null as unknown as Parameters<typeof setTeamProvider>[0]);
-      }
+      // The teammate transcript must be left for team discovery. Asserted on
+      // the adopted FILES, not the store size: the scanner assigns ids from
+      // nextAgentIdRef, which can collide with a hand-seeded lead and mask an
+      // adoption as an overwrite.
+      const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
+      expect(adopted).toEqual(['lead.jsonl']);
     });
 
     it('still adopts a teammate session when hooks are OFF', () => {
       // Hooks off = no fast-attach, so this scan is the ONLY discovery path for
       // tmux teammates. Guarding on team tags without checking hooks state broke
       // the hooks-off matrix specs: the teammate was never adopted at all.
-      setTeamProvider(claudeTeamProvider);
-      try {
-        const teamName = 'session-abc12345';
-        const leadFile = writeJsonlFile('lead.jsonl', '{"type":"assistant"}\n');
-        knownJsonlFiles.add(leadFile);
-        nextAgentIdRef.current = 50;
-        agents.set(1, {
-          id: 1,
-          jsonlFile: leadFile,
-          projectDir,
-          teamName,
-        } as AgentState);
+      const teamName = 'session-abc12345';
+      const leadFile = writeJsonlFile('lead.jsonl', '{"type":"assistant"}\n');
+      knownJsonlFiles.add(leadFile);
+      nextAgentIdRef.current = 50;
+      agents.set(1, {
+        id: 1,
+        jsonlFile: leadFile,
+        projectDir,
+        teamName,
+      } as ClaudeAgentState);
 
-        writeJsonlFile(
-          'cccccccc-3333-4333-8333-e2e000000003.jsonl',
-          `${JSON.stringify({ type: 'system', teamName, agentName: 'researcher' })}\n`,
-        );
+      writeJsonlFile(
+        'cccccccc-3333-4333-8333-e2e000000003.jsonl',
+        `${JSON.stringify({ type: 'system', teamName, agentName: 'researcher' })}\n`,
+      );
 
-        runExternalScan(false);
+      runExternalScan(false);
 
-        const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
-        expect(adopted).toContain('cccccccc-3333-4333-8333-e2e000000003.jsonl');
-      } finally {
-        setTeamProvider(null as unknown as Parameters<typeof setTeamProvider>[0]);
-      }
+      const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
+      expect(adopted).toContain('cccccccc-3333-4333-8333-e2e000000003.jsonl');
     });
 
     it('still adopts an orphan team session whose lead is not tracked', () => {
-      setTeamProvider(claudeTeamProvider);
-      try {
-        writeJsonlFile(
-          'bbbbbbbb-2222-4222-8222-e2e000000002.jsonl',
-          `${JSON.stringify({ type: 'system', teamName: 'session-orphan1', agentName: 'stray' })}\n`,
-        );
+      writeJsonlFile(
+        'bbbbbbbb-2222-4222-8222-e2e000000002.jsonl',
+        `${JSON.stringify({ type: 'system', teamName: 'session-orphan1', agentName: 'stray' })}\n`,
+      );
 
-        runExternalScan(true);
+      runExternalScan(true);
 
-        const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
-        expect(adopted).toEqual(['bbbbbbbb-2222-4222-8222-e2e000000002.jsonl']);
-      } finally {
-        setTeamProvider(null as unknown as Parameters<typeof setTeamProvider>[0]);
-      }
+      const adopted = [...agents.values()].map((a) => path.basename(a.jsonlFile));
+      expect(adopted).toEqual(['bbbbbbbb-2222-4222-8222-e2e000000002.jsonl']);
     });
   });
 
@@ -344,7 +326,6 @@ describe('fileWatcher dismissal state', () => {
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        () => {},
       );
       writeJsonlFile('workspace-session.jsonl', '{"type":"assistant"}\n');
 
@@ -357,8 +338,6 @@ describe('fileWatcher dismissal state', () => {
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        new Map(),
-        () => {},
         { current: true },
       );
 
@@ -382,7 +361,7 @@ describe('fileWatcher dismissal state', () => {
         projectDir,
         jsonlFile: oldFile,
         pendingClear: true,
-      } as AgentState);
+      } as ClaudeAgentState);
       nextAgentIdRef.current = 2;
 
       runExternalScan();
@@ -436,7 +415,7 @@ describe('fileWatcher dismissal state', () => {
           id: 1,
           projectDir,
           jsonlFile: file.toUpperCase(),
-        } as AgentState);
+        } as ClaudeAgentState);
         nextAgentIdRef.current = 2;
 
         adoptExternalSessionFromHook(
@@ -450,7 +429,6 @@ describe('fileWatcher dismissal state', () => {
           pollingTimers,
           waitingTimers,
           permissionTimers,
-          () => {},
         );
         runExternalScan();
 

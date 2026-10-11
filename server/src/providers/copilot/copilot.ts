@@ -80,7 +80,7 @@ export const copilotModule: AgentModule = {
   kind: 'agent',
   id: 'copilot',
   displayName: 'GitHub Copilot CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

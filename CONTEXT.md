@@ -182,7 +182,7 @@ Any module that feeds the runtime: an agent module or a multiplexer module. Seve
 _Avoid_: plugin, connector
 
 **Agent module**:
-The provider for one coding-agent CLI — Claude Code, omp, Codex, Pi, and the like. It knows that CLI's vocabulary and how to read what the CLI reports (installed hooks, transcripts, or both), so it can find the CLI's sessions with no multiplexer around it. Claude Code is the reference implementation.
+The provider for one coding-agent CLI — Claude Code, omp, Codex, Pi, and the like. It knows that CLI's vocabulary and how to read what the CLI reports (installed hooks, transcripts, or both), so it can find the CLI's sessions with no multiplexer around it. Everything specific to the CLI stays inside its module, including its teams and sub-agents. The runtime only sees the agent events it emits. Claude Code is the reference implementation.
 
 **Multiplexer module**:
 The provider for one terminal multiplexer — herdr, and the like — that hosts agents in panes. It knows which agents are alive, their kind, status, name and task, never what they are doing: for that it hands each agent to the agent module for its kind, and reports status alone when none is running.
@@ -191,11 +191,11 @@ The provider for one terminal multiplexer — herdr, and the like — that hosts
 A session's identity as two modules report it: its transcript path, or the CLI's own session id when that is what the CLI's multiplexer integration reports. A multiplexer and an agent module that report the same session ref are reporting the same agent, which stays one character.
 
 **Agent event**:
-The canonical, CLI-agnostic description of something happening in a session: a tool started, a turn ended, a teammate went idle. Providers produce agent events; everything downstream consumes only these, never CLI-specific names.
+The canonical, CLI-agnostic description of something happening in a session: a tool started, a turn ended, a teammate joined its lead. Providers produce agent events; everything downstream consumes only these, never CLI-specific names.
 _Avoid_: hook event (the raw, CLI-specific payload before a provider normalizes it)
 
 **Runtime**:
-The core that tracks agents and drives the office. It is a separate thing from the providers that feed it and the office UI it serves.
+The core that tracks agents and drives the office. It is a separate thing from the providers that feed it and the office UI it serves, and it reads no CLI's transcripts or hooks itself.
 _Avoid_: server, backend
 
 **Transport**:

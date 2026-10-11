@@ -120,7 +120,7 @@ export const agyModule: AgentModule = {
   kind: 'agent',
   id: 'agy',
   displayName: 'Antigravity CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

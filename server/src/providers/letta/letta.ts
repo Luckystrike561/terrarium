@@ -113,7 +113,7 @@ export const lettaModule: AgentModule = {
   kind: 'agent',
   id: 'letta',
   displayName: 'Letta Code',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

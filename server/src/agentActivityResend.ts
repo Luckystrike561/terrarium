@@ -1,5 +1,4 @@
 import type { AgentStateStore } from './agentStateStore.js';
-import { hasPromotedBackgroundAgent } from './teamUtils.js';
 
 /**
  * Replay an agent's active state to a connecting client.
@@ -7,7 +6,7 @@ import { hasPromotedBackgroundAgent } from './teamUtils.js';
  * Order matters:
  * 1. Team info first — webview needs team context before tool messages
  * 2. Regular tools
- * 3. Background tools with runInBackground + isTeammateSpawn flags, skipping promoted spawns
+ * 3. Background tools with runInBackground + isTeammateSpawn flags
  * 4. Waiting status
  * 5. Context usage
  */
@@ -19,22 +18,23 @@ export function resendAgentActivity(
     // 1. Team metadata first — webview uses this to route tool messages correctly.
     // Derived teams (named background spawns) have a name and a lead link but NO
     // teamName, so gate on any team field.
-    if (agent.teamName || agent.agentName || agent.isTeamLead) {
+    const team = agent.team;
+    if (team && (team.teamName || team.agentName || team.isTeamLead)) {
       send({
         type: 'agentTeamInfo',
         id,
-        teamName: agent.teamName,
-        agentName: agent.agentName,
-        isTeamLead: agent.isTeamLead,
-        leadAgentId: agent.leadAgentId,
-        teamUsesTmux: agent.teamUsesTmux,
+        teamName: team.teamName,
+        agentName: team.agentName,
+        isTeamLead: team.isTeamLead,
+        leadAgentId: team.leadAgentId,
+        teamUsesTmux: team.teamUsesTmux,
       });
     }
 
     // 2. Regular (non-background) tools
     for (const [toolId, status] of agent.activeToolStatuses) {
       // Skip background tools here — they're sent separately below with proper flags
-      if (agent.backgroundAgentToolIds.has(toolId)) continue;
+      if (agent.backgroundToolIds.has(toolId)) continue;
 
       const toolName = agent.activeToolNames.get(toolId) ?? '';
       send({
@@ -46,11 +46,9 @@ export function resendAgentActivity(
       });
     }
 
-    // 3. Background tools with runInBackground flag. Skip promoted spawns to prevent
-    // ghost Subtask characters alongside the real teammate character.
-    for (const toolId of agent.backgroundAgentToolIds) {
-      if (hasPromotedBackgroundAgent(id, toolId, store)) continue;
-
+    // 3. Background tools with runInBackground flag. A teammate spawn carries isTeammateSpawn, so the webview
+    // never creates a Subtask character beside the teammate's own.
+    for (const toolId of agent.backgroundToolIds) {
       const status = agent.activeToolStatuses.get(toolId);
       if (!status) continue;
 
@@ -62,7 +60,7 @@ export function resendAgentActivity(
         status,
         toolName,
         runInBackground: true,
-        isTeammateSpawn: agent.teammateSpawnToolIds?.has(toolId) || undefined,
+        isTeammateSpawn: agent.teammateSpawnToolIds.has(toolId) || undefined,
       });
     }
 

@@ -110,7 +110,7 @@ export const piModule: AgentModule = {
   kind: 'agent',
   id: 'pi',
   displayName: 'Pi',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

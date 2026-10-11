@@ -1,12 +1,11 @@
-import type { AgentStateStore } from './agentStateStore.js';
+import type { ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
 import { PERMISSION_TIMER_DELAY_MS } from './constants.js';
-import { hasPromotedBackgroundAgent } from './teamUtils.js';
-import type { AgentState } from './types.js';
+import { hasPromotedBackgroundAgent } from './inlineTeammates.js';
 
 export function clearAgentActivity(
-  agent: AgentState | undefined,
+  agent: ClaudeAgentState | undefined,
   agentId: number,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
 ): void {
   if (!agent) return;
@@ -72,7 +71,7 @@ export function cancelWaitingTimer(
 export function startWaitingTimer(
   agentId: number,
   delayMs: number,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
 ): void {
   cancelWaitingTimer(agentId, waitingTimers);
@@ -107,7 +106,7 @@ export function cancelPermissionTimer(
 
 export function startPermissionTimer(
   agentId: number,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionExemptTools: ReadonlySet<string>,
 ): void {

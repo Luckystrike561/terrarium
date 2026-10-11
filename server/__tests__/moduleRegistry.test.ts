@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AgentEventHandler } from '../src/agentEventHandler.js';
 import { setEnabledModuleIds } from '../src/configPersistence.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
 import { herdrModule } from '../src/providers/herdr/herdr.js';
@@ -114,20 +115,14 @@ describe('loadEnabledModules', () => {
   });
 });
 
-describe('transcript module selection', () => {
-  // AgentRuntime picks its transcriptModule as the first selected agent module declaring getSessionDirs. Of the
-  // shipped agent modules, only Claude's reads transcripts this way; omp discovers its own sessions via a session
-  // store instead.
-  it('is the selected agent module that declares getSessionDirs', () => {
-    const modules = selectModules(['omp', 'claude']);
-    const transcriptModule = modules.agents.find((m) => m.getSessionDirs !== undefined);
-    expect(transcriptModule).toBe(claudeModule);
-  });
-
-  it('is undefined when no selected agent module declares getSessionDirs', () => {
-    const modules = selectModules(['omp']);
-    const transcriptModule = modules.agents.find((m) => m.getSessionDirs !== undefined);
-    expect(transcriptModule).toBeUndefined();
+describe('protocol version', () => {
+  // The runtime drops every event of a module speaking another protocol version, so a module left behind on a
+  // contract change would silently show nothing.
+  it('every registered agent module speaks the version the runtime understands', () => {
+    const outdated = agentModules.filter(
+      (m) => m.protocolVersion !== AgentEventHandler.SUPPORTED_PROTOCOL_VERSION,
+    );
+    expect(outdated.map((m) => m.id)).toEqual([]);
   });
 });
 

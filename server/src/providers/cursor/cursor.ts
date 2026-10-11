@@ -111,11 +111,11 @@ export const cursorModule: AgentModule = {
   kind: 'agent',
   id: 'cursor',
   displayName: 'Cursor',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),
-  // Cursor's `Task`/`Subagent` runs sub-agents in their own transcripts under `subagents/`, out of this
+  // Cursor's `Task`/`Subagent` runs sub-agents in their own transcripts in a `subagents` directory, out of this
   // module's reach (no tool result or id to correlate). Nothing here can clear a sub-character it would spawn.
   subagentToolNames: new Set<string>(),
   readingTools: new Set([

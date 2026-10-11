@@ -2,7 +2,8 @@ import { EventEmitter } from 'node:events';
 import { appendFileSync } from 'node:fs';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
-import type { AgentState, PersistedAgent } from './types.js';
+import type { PersistedAgent } from '../../core/src/schemas.js';
+import type { AgentState } from './types.js';
 
 /**
  * CI / e2e diagnostics: when PIXEL_AGENTS_DEBUG_LOG points to a writable
@@ -145,29 +146,23 @@ export class AgentStateStore {
 
   // ── Persistence ─────────────────────────────────────────────
 
+  /** Save every agent a module can resume: one with a session ref. Its module decides at restore time whether the
+   *  session is still its to report. */
   persist(): void {
     if (!this.adapter) {
       return;
     }
     const persisted: PersistedAgent[] = [];
     for (const agent of this.agents.values()) {
-      // Background-spawn children are derived state: the 1s scan re-materializes
-      // them from sidecars after a restore. Persisting them would resurrect
-      // immortal characters whose completion signal never comes.
-      if (agent.spawnToolUseId) continue;
+      if (agent.sessionRef === undefined) continue;
       persisted.push({
         id: agent.id,
-        sessionId: agent.sessionId,
-        jsonlFile: agent.jsonlFile,
-        projectDir: agent.projectDir,
+        providerId: agent.providerId,
+        sessionRef: agent.sessionRef,
         folderName: agent.folderName,
-        teamName: agent.teamName,
-        agentName: agent.agentName,
-        isTeamLead: agent.isTeamLead,
-        leadAgentId: agent.leadAgentId,
-        teamUsesTmux: agent.teamUsesTmux,
-        backgroundAgentToolIds:
-          agent.backgroundAgentToolIds.size > 0 ? [...agent.backgroundAgentToolIds] : undefined,
+        team: agent.team,
+        backgroundToolIds:
+          agent.backgroundToolIds.size > 0 ? [...agent.backgroundToolIds] : undefined,
         palette: agent.palette,
         hueShift: agent.hueShift,
       });

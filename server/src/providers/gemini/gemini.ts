@@ -120,7 +120,7 @@ export const geminiModule: AgentModule = {
   kind: 'agent',
   id: 'gemini',
   displayName: 'Gemini CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

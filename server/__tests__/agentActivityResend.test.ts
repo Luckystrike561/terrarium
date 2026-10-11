@@ -8,27 +8,19 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 0,
     sessionId: 'test-session',
-    projectDir: '/test',
-    jsonlFile: '/test/session.jsonl',
-    fileOffset: 0,
-    lineBuffer: '',
+    providerId: 'claude',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),
     activeSubagentToolIds: new Map(),
-    activeSubagentToolNames: new Map(),
-    backgroundAgentToolIds: new Set(),
+    backgroundToolIds: new Set(),
+    teammateSpawnToolIds: new Set(),
     isWaiting: false,
     permissionSent: false,
-    hadToolsInTurn: false,
-    lastDataAt: 0,
-    linesProcessed: 0,
-    seenUnknownRecordTypes: new Set(),
-    hookDelivered: false,
     contextTokens: 0,
     maxContextTokens: 200_000,
     ...overrides,
-  } as AgentState;
+  };
 }
 
 describe('resendAgentActivity', () => {
@@ -38,7 +30,7 @@ describe('resendAgentActivity', () => {
       1,
       createTestAgent({
         id: 1,
-        teamName: 'test-team',
+        team: { teamName: 'test-team' },
         activeToolStatuses: new Map([['tool-1', 'Running']]),
         activeToolNames: new Map([['tool-1', 'Bash']]),
         isWaiting: true,
@@ -79,9 +71,8 @@ describe('resendAgentActivity', () => {
     });
   });
 
-  it('handles background tools with flags and promoted skip logic', () => {
+  it('replays background tools with their flags after the team info', () => {
     const store = new AgentStateStore();
-    // Lead with three background tools: unnamed, named spawn, and promoted
     store.set(
       1,
       createTestAgent({
@@ -89,36 +80,24 @@ describe('resendAgentActivity', () => {
         // A teamed lead: the webview routes agentToolStart by the parent's
         // teamName, so the team message has to land before the tool replays or
         // a background spawn is routed as if the lead had no team.
-        teamName: 'test-team',
+        team: { teamName: 'test-team' },
         activeToolStatuses: new Map([
           ['bg-unnamed', 'Subtask: Unnamed'],
           ['bg-named', 'Subtask: Named'],
-          ['bg-promoted', 'Subtask: Promoted'],
         ]),
         activeToolNames: new Map([
           ['bg-unnamed', 'Agent'],
           ['bg-named', 'Agent'],
-          ['bg-promoted', 'Agent'],
         ]),
-        backgroundAgentToolIds: new Set(['bg-unnamed', 'bg-named', 'bg-promoted']),
+        backgroundToolIds: new Set(['bg-unnamed', 'bg-named']),
         teammateSpawnToolIds: new Set(['bg-named']),
-      }),
-    );
-    // Promoted teammate (should cause bg-promoted to be skipped)
-    store.set(
-      2,
-      createTestAgent({
-        id: 2,
-        leadAgentId: 1,
-        spawnToolUseId: 'bg-promoted',
-        agentName: 'promoted-agent',
       }),
     );
     const sent: Array<Record<string, unknown>> = [];
     resendAgentActivity((msg) => sent.push(msg), store);
 
     const toolStarts = sent.filter((m) => m.type === 'agentToolStart');
-    expect(toolStarts).toHaveLength(2); // unnamed + named, NOT promoted
+    expect(toolStarts).toHaveLength(2);
 
     // Team info first: the webview reads the parent's teamName to decide whether
     // a background agentToolStart becomes a Subtask sub-character, so a replay
@@ -146,7 +125,7 @@ describe('resendAgentActivity', () => {
   it('sends team info for any team field trigger, omits when none present', () => {
     // teamName trigger
     let store = new AgentStateStore();
-    store.set(1, createTestAgent({ id: 1, teamName: 'my-team' }));
+    store.set(1, createTestAgent({ id: 1, team: { teamName: 'my-team' } }));
     let sent: Array<Record<string, unknown>> = [];
     resendAgentActivity((msg) => sent.push(msg), store);
     expect(sent).toHaveLength(1);
@@ -154,7 +133,7 @@ describe('resendAgentActivity', () => {
 
     // agentName trigger (derived team)
     store = new AgentStateStore();
-    store.set(2, createTestAgent({ id: 2, agentName: 'worker-1', leadAgentId: 1 }));
+    store.set(2, createTestAgent({ id: 2, team: { agentName: 'worker-1', leadAgentId: 1 } }));
     sent = [];
     resendAgentActivity((msg) => sent.push(msg), store);
     expect(sent).toHaveLength(1);
@@ -162,7 +141,7 @@ describe('resendAgentActivity', () => {
 
     // isTeamLead trigger
     store = new AgentStateStore();
-    store.set(3, createTestAgent({ id: 3, isTeamLead: true }));
+    store.set(3, createTestAgent({ id: 3, team: { isTeamLead: true } }));
     sent = [];
     resendAgentActivity((msg) => sent.push(msg), store);
     expect(sent).toHaveLength(1);

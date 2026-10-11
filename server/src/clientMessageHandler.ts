@@ -92,16 +92,10 @@ export function handleClientMessage(
       break;
 
     case 'closeAgent': {
-      // Standalone agents are always external (no terminal): dismiss the
-      // file (so the external scanner doesn't re-adopt it) then remove.
-      // removeAgent fires the agentRemoved store event, which httpServer
-      // maps to an agentClosed broadcast.
+      // closeAgent stops every module reporting the agent (so its own discovery does not re-adopt it at once), then
+      // removes it: the agentRemoved store event becomes the agentClosed broadcast.
       const id = msg.id as number;
-      const agent = store.get(id);
-      if (agent && runtime) {
-        runtime.dismissalTracker.dismiss(agent.jsonlFile);
-        runtime.removeAgent(id);
-      }
+      if (store.has(id)) runtime?.closeAgent(id);
       break;
     }
 
@@ -344,7 +338,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     }
   }
 
-  // 3. Layout is sent AFTER existingAgents — see step 7 below. The webview
+  // 3. Layout is sent AFTER existingAgents — see step 6 below. The webview
   // buffers agents from existingAgents and only materializes them on the next
   // layoutLoaded (useExtensionMessages.ts: "Buffer agents — they'll be added
   // in layoutLoaded"), so layout-first would leave a client that connects
@@ -409,7 +403,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     send({ type: 'connectionsLoaded', connections: runtime.connections.list() });
   }
 
-  // Sync runtime refs with the persisted settings so scanners behave correctly
+  // Sync runtime refs with the persisted settings so modules behave correctly
   // from the first tick after a server restart.
   if (runtime) {
     for (const module of hookModules(modules)) {
@@ -417,10 +411,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     }
   }
 
-  // 5. Restore persisted external agents.
-  runtime?.restoreExternalAgents();
-
-  // 6. Existing agents (just restored, if any)
+  // 5. Existing agents (persisted ones were handed back to their modules at startup)
   const agentIds: number[] = [];
   const folderNames: Record<number, string> = {};
   const persistedSeats = adapter?.loadSeats() ?? {};
@@ -444,12 +435,12 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     folderNames,
   });
 
-  // 7. Layout last (see step 3): flushes the webview's buffered existingAgents
+  // 6. Layout last (see step 3): flushes the webview's buffered existingAgents
   // into characters once seats are rebuilt.
   const savedLayout = readLayoutFromFile();
   send({ type: 'layoutLoaded', layout: savedLayout ?? cache?.defaultLayout ?? null });
 
-  // 8. Agent state, AFTER layoutLoaded -- the characters they target only
+  // 7. Agent state, AFTER layoutLoaded -- the characters they target only
   // exist once the layout flush creates them. Without this a reconnecting
   // client shows bare characters until each agent takes another turn.
   resendAgentActivity(send, store);

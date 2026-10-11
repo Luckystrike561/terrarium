@@ -1,12 +1,11 @@
+import { toPathKey } from '../../pathKey.js';
 import { DISMISSED_COOLDOWN_MS } from './constants.js';
-import { toPathKey } from './pathKey.js';
 
 /**
  * Tracks file dismissal state for JSONL session files.
  *
- * Replaces 4 scattered module-global Maps/Sets that were previously in
- * `src/fileWatcher.ts`. All dismissal queries go through this class;
- * no direct Map manipulation from external consumers.
+ * All dismissal queries go through this class: no direct Map manipulation
+ * from external consumers.
  *
  * Every path is keyed through {@link toPathKey}: hooks and the scanners spell the
  * same transcript differently on Windows, and an exact-string key let a file

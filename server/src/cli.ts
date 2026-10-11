@@ -262,7 +262,7 @@ async function main(): Promise<void> {
     // Create runtime first (before server.start, so we can pass it in)
     const runtime = new AgentRuntime(store, modules);
 
-    // Wire hook events: HTTP POST -> runtime -> hookEventHandler -> agents
+    // Wire hook events: HTTP POST -> runtime -> the module named in the route
     server.onHookEvent((providerId, event) => {
       runtime.handleHookEvent(providerId, event);
     });
@@ -325,14 +325,6 @@ async function main(): Promise<void> {
         `http://127.0.0.1:${config.port}`,
         config.token,
       );
-    }
-
-    const projectDir = runtime.transcriptModule?.getSessionDirs?.(process.cwd())[0];
-    if (projectDir) {
-      console.log(`[Pixel Agents] Scanning project dir: ${projectDir}`);
-      runtime.startProjectScan(projectDir);
-      runtime.startExternalScanning(projectDir);
-      runtime.startStaleCheck();
     }
 
     // The URL the operator opens has to be REACHABLE (a wildcard bind address

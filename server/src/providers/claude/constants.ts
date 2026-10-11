@@ -79,3 +79,46 @@ export const CLAUDE_SMALL_CONTEXT_WINDOW = 200_000;
  *  guessing small for a large model pins every gauge in the red, while the
  *  reverse is a quiet under-read that the runtime's widening still corrects. */
 export const CLAUDE_SMALL_CONTEXT_MODEL_PATTERN = /haiku|claude-[123]|-4-[01]\b/i;
+
+// ── JSONL file watching and scanning ──
+export const FILE_WATCHER_POLL_INTERVAL_MS = 500;
+export const PROJECT_SCAN_INTERVAL_MS = 1000;
+/** How often a multiplexer pane's transcript is looked for until the CLI creates it. */
+export const TRANSCRIPT_FOLLOW_RETRY_MS = 1000;
+
+// ── Heuristic agent status detection (fallback when hooks are not active) ──
+/** Delay before sending agentToolDone (prevents UI flicker on rapid tool transitions). */
+export const TOOL_DONE_DELAY_MS = 300;
+/** Heuristic: time after a non-exempt tool starts before showing permission bubble.
+ *  Not used for teammates -- false positives on slow tools (WebFetch/WebSearch).
+ *  Teammates rely on the lead's routed Notification(permission_prompt) hook. */
+export const PERMISSION_TIMER_DELAY_MS = 7000;
+/** Heuristic: silence duration before marking a text-only turn as complete. */
+export const TEXT_IDLE_DELAY_MS = 5000;
+
+// ── External session detection ──
+export const EXTERNAL_SCAN_INTERVAL_MS = 3000;
+/** Only adopt JSONL files modified within this window. */
+export const EXTERNAL_ACTIVE_THRESHOLD_MS = 120_000; // 2 minutes
+export const EXTERNAL_STALE_CHECK_INTERVAL_MS = 30_000;
+/** Cooldown after the user closes an agent. Must be > EXTERNAL_ACTIVE_THRESHOLD_MS so the
+ *  file's mtime becomes stale before the dismissal expires. */
+export const DISMISSED_COOLDOWN_MS = 180_000; // 3 minutes
+/** Grace period after SessionEnd(reason=clear/resume) before ending the session. /clear and
+ *  /resume fire SessionEnd then SessionStart within ms; this is the safety net for when
+ *  SessionStart never arrives. */
+export const SESSION_END_GRACE_MS = 2000;
+
+// ── Context window usage ──
+/** Known window sizes, ascending. The smallest tier that fits the largest context observed so
+ *  far wins; beyond the last tier the window rounds up to a whole multiple of it. */
+export const CONTEXT_WINDOW_TIERS = [200_000, 1_000_000] as const;
+/** How much of a transcript's tail to read when seeding an agent's context on adoption or
+ *  restore. Comfortably more than one turn's worth of records. */
+export const CONTEXT_SEED_TAIL_BYTES = 256 * 1024;
+
+// ── Global session scanning ──
+/** Only adopt global JSONL files larger than this (filters out empty/init-only sessions). */
+export const GLOBAL_SCAN_ACTIVE_MIN_SIZE = 3_072; // 3KB
+/** Only adopt global JSONL files modified within this window. */
+export const GLOBAL_SCAN_ACTIVE_MAX_AGE_MS = 600_000; // 10 minutes

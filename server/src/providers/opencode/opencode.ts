@@ -45,7 +45,7 @@ export const opencodeModule: AgentModule = {
   kind: 'agent',
   id: 'opencode',
   displayName: 'OpenCode',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus: opencodeFormatToolStatus,
   permissionExemptTools: new Set<string>(),

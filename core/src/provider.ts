@@ -14,66 +14,39 @@
  * CLI-specific names.
  */
 
-import type { TeamProvider } from './teamProvider.js';
-
 // ── Normalized Events (every module produces these) ───────────
 
+/** How an agent sits in a team, as its module reports it. The office shows it; the runtime never interprets it. */
+export interface TeamMembership {
+  teamName?: string;
+  /** The agent's name within the team. Absent for the lead. */
+  agentName?: string;
+  isTeamLead?: boolean;
+  /** Session id, as emitted by the same module, of this agent's lead. */
+  leadSessionId?: string;
+  /** Whether the team's teammates run in their own terminals. Absent leaves the previous value in place. */
+  teamUsesTmux?: boolean;
+}
+
 export type AgentEvent =
-  | {
-      kind: 'toolStart';
-      toolId: string;
-      toolName: string;
-      input?: unknown;
-      /** True when the tool was spawned to run in the background (e.g. Claude's
-       *  `run_in_background` on Agent/Task). Handlers use this to suppress ghost
-       *  sub-agent characters for teammate spawns. */
-      runInBackground?: boolean;
-    }
-  | { kind: 'toolEnd'; toolId: string }
-  | {
-      kind: 'turnEnd';
-      /** True when the turn ended because the agent went idle waiting on the
-       *  user (Claude's Notification(idle_prompt)) rather than simply finishing
-       *  its response (Stop). Drives the "Waiting for input" vs "Done" label.
-       *  Absent/false = the agent finished its turn (Done). */
-      awaitingInput?: boolean;
-    }
-  /** The agent is busy on a turn and the source cannot say with which tool: a user prompt landed, or a multiplexer
-   *  reports the agent working. Makes the character active and withdraws any permission ask. */
-  | { kind: 'working' }
-  | {
-      kind: 'subagentStart';
-      parentToolId: string;
-      toolId: string;
-      toolName: string;
-      input?: unknown;
-      runInBackground?: boolean;
-    }
-  | { kind: 'subagentEnd'; parentToolId: string; toolId: string }
-  | {
-      kind: 'subagentTurnEnd';
-      parentToolId: string;
-      /** 'idle' = subagent is idle and ready for more work; 'completed' = subagent
-       *  reported its task done. Some providers emit only one; both route to the
-       *  same handler but with different downstream cleanup. */
-      reason: 'idle' | 'completed';
-    }
-  | { kind: 'progress'; toolId: string; data: unknown }
-  | { kind: 'permissionRequest' }
+  // ── Session lifecycle ──
   | {
       kind: 'sessionStart';
       source?: string;
-      /** Transcript the runtime's own transcript parser should follow for this session. Only set by the module whose
-       *  transcripts that parser reads (the one declaring `getSessionDirs`). */
-      transcriptPath?: string;
       /** The session's identity shared across modules: its transcript path, or the CLI's own session id when the
        *  CLI's multiplexer integration reports one. A multiplexer and an agent module that report the same ref are
-       *  reporting the same agent, which then renders as one character. Never parsed by the runtime, unlike
-       *  `transcriptPath`. */
+       *  reporting the same agent, which then renders as one character. Also the key a restart hands back to the
+       *  module (`RunningAgentModule.restoreSession`). */
       sessionRef?: string;
-      /** Working directory the session was started in. Used to match pending
-       *  external sessions against known workspace folders. */
+      /** Working directory the session was started in. Names the character when `folderName` is absent. */
       cwd?: string;
+      /** The module already knows the session is live (its own discovery found it): the character appears now
+       *  instead of on the session's next event. */
+      live?: boolean;
+      /** Label the character starts with, for modules that know a better one than the cwd's last segment. */
+      folderName?: string;
+      /** The session's place in a team, known when it starts. A teammate announced with its lead sits beside it. */
+      team?: TeamMembership;
     }
   | { kind: 'sessionEnd'; reason?: string }
   | {
@@ -82,7 +55,55 @@ export type AgentEvent =
       name?: string;
       /** One-line description of what the agent is working on. */
       task?: string;
-    };
+    }
+  // ── Turn activity, from a source that sees the turn coarsely: the runtime derives what the office shows ──
+  | {
+      kind: 'toolStart';
+      toolId: string;
+      toolName: string;
+      input?: unknown;
+      /** True when the tool runs in the background and outlives the turn that started it. */
+      runInBackground?: boolean;
+    }
+  | { kind: 'toolEnd'; toolId: string }
+  | {
+      kind: 'turnEnd';
+      /** True when the turn ended because the agent went idle waiting on the user rather than simply finishing its
+       *  response. Drives the "Waiting for input" vs "Done" label. Absent/false = the agent finished its turn
+       *  (Done). */
+      awaitingInput?: boolean;
+    }
+  /** The agent is busy on a turn and the source cannot say with which tool: a user prompt landed, or a multiplexer
+   *  reports the agent working. Makes the character active and withdraws any permission ask. */
+  | { kind: 'working' }
+  | { kind: 'permissionRequest' }
+  // ── Presentation, from a module that tracks the turn itself: each event is one change the office shows ──
+  | {
+      kind: 'toolShown';
+      toolId: string;
+      toolName?: string;
+      /** Status text, already formatted by the module. */
+      status: string;
+      /** Whether a permission ask is showing as the tool starts. */
+      permissionActive?: boolean;
+      /** The tool outlives the turn: a turn-end clear keeps it. */
+      runInBackground?: boolean;
+      /** The tool spawns a teammate, which gets its own character instead of a sub-agent one. */
+      isTeammateSpawn?: boolean;
+    }
+  | { kind: 'toolDone'; toolId: string }
+  /** Every tool that does not run in the background is over. */
+  | { kind: 'toolsCleared' }
+  | { kind: 'statusChanged'; status: 'active' | 'waiting'; awaitingInput?: boolean }
+  | { kind: 'permissionShown' }
+  | { kind: 'permissionCleared' }
+  | { kind: 'subagentToolShown'; parentToolId: string; toolId: string; status: string }
+  | { kind: 'subagentToolDone'; parentToolId: string; toolId: string }
+  | { kind: 'subagentPermissionShown'; parentToolId: string }
+  /** The sub-agent `parentToolId` spawned is gone, with all its tools. */
+  | { kind: 'subagentCleared'; parentToolId: string }
+  | { kind: 'teamChanged'; team: TeamMembership }
+  | { kind: 'contextUsage'; contextTokens: number; maxContextTokens: number };
 
 // ── Running modules ───────────────────────────────────────────
 
@@ -97,6 +118,16 @@ export interface ModuleHandle {
   stop(): void;
 }
 
+/** A session a module reported before the server restarted, handed back so the module can resume it. */
+export interface RestoredSession {
+  /** The `sessionRef` the module announced for it. */
+  readonly sessionRef: string;
+  /** Its team as last reported, with the lead named by the lead's own `sessionRef`. */
+  readonly team?: Omit<TeamMembership, 'leadSessionId'> & { leadSessionRef?: string };
+  /** Background tools it still had running. */
+  readonly backgroundToolIds: readonly string[];
+}
+
 /** An agent module once started: its own session discovery is running, and it can take over sessions a multiplexer
  *  found. */
 export interface RunningAgentModule extends ModuleHandle {
@@ -108,6 +139,16 @@ export interface RunningAgentModule extends ModuleHandle {
   /** The ref of the one live session running in `cwd`, for multiplexers that report no session identity for this
    *  CLI. Undefined when none or several run there: guessing would merge two agents into one character. */
   sessionInDirectory?(cwd: string): string | undefined;
+  /** A payload POSTed to `/api/hooks/<module id>`. Absent for CLIs without a hook API: POSTs to their route are
+   *  dropped. */
+  receiveHook?(payload: Record<string, unknown>): void;
+  /** Whether this module's hooks are meant to be delivering. Called once after start and on every change. */
+  setHooksEnabled?(enabled: boolean): void;
+  /** Resume reporting a session from before a restart, if it is still live. Its `sessionStart` must carry the same
+   *  ref: the runtime then gives it back its character. Without this, persisted agents of the module are dropped. */
+  restoreSession?(session: RestoredSession): void;
+  /** The user closed the character of session `sessionId`: stop reporting it, and do not rediscover it at once. */
+  dismissSession?(sessionId: string): void;
 }
 
 // ── Agent modules ─────────────────────────────────────────────
@@ -135,18 +176,11 @@ export interface AgentModule {
   readonly displayName: string;
   /** Protocol version. Server refuses to dispatch events from a module whose
    *  version it doesn't understand. Bump on every breaking change to AgentEvent
-   *  / TeamProvider / AgentModule. Start at 1. */
+   *  / AgentModule / RunningAgentModule. */
   readonly protocolVersion: number;
 
-  /** Normalize a payload POSTed to `/api/hooks/<id>` into an AgentEvent. Each CLI sends different JSON (Claude:
-   *  snake_case, Copilot: camelCase, etc.). Return null for events to ignore. Absent for CLIs without a hook API:
-   *  POSTs to their route are dropped. */
-  normalizeHookEvent?(raw: Record<string, unknown>): {
-    sessionId: string;
-    event: AgentEvent;
-  } | null;
-
-  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.pixel-agents/`. */
+  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.pixel-agents/`.
+   *  The running module receives what they POST (`RunningAgentModule.receiveHook`). */
   readonly hooks?: HookInstaller;
 
   /** Format tool status for display (e.g., "Read" -> "Reading foo.ts") */
@@ -163,32 +197,11 @@ export interface AgentModule {
    *  transcripts. Transcripts state token usage but never the limit it counts
    *  against, so only the module can say, and getting it wrong is visible:
    *  the office renders usage/window as a context gauge over every character.
-   *  Return undefined for an unrecognized model; the runtime then keeps its
-   *  previous estimate and widens it if a context ever exceeds it. */
+   *  Return undefined for an unrecognized model. */
   contextWindowForModel?(model: string | undefined): number | undefined;
 
-  /** Start this module's own session discovery. Absent for modules fed entirely by hooks and the runtime's own
-   *  transcript scanners. */
+  /** Start this module's own session discovery. Absent for modules that never report a session on their own. */
   start?(host: ModuleHost): RunningAgentModule;
-
-  // ── Optional file fallback (heuristic mode, read by the runtime's own transcript parser) ──
-
-  /** Session directories to scan. Undefined = no file fallback. */
-  getSessionDirs?(workspacePath: string): string[];
-  /** Root directories containing every session this module may have started
-   *  (across all workspaces). Used by global session discovery across the
-   *  whole machine. Each returned dir contains subdirs whose entries are
-   *  session transcript files. Undefined = this module doesn't support
-   *  global scan. */
-  getAllSessionRoots?(): string[];
-  /** Glob pattern for session files (e.g., '*.jsonl'). */
-  readonly sessionFilePattern?: string;
-
-  // ── Optional team/subagent extension (Agent Teams on Claude; empty for single-agent CLIs) ──
-
-  /** Optional reference to a TeamProvider. When set, the hook handler registers team-aware
-   *  branches (subagent routing, teammate discovery, permission forwarding, etc.). */
-  readonly team?: TeamProvider;
 }
 
 // ── Multiplexer modules ───────────────────────────────────────

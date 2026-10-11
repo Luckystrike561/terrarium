@@ -97,7 +97,7 @@ export const kiroModule: AgentModule = {
   kind: 'agent',
   id: 'kiro',
   displayName: 'Kiro CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

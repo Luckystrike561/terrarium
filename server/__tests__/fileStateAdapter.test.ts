@@ -92,9 +92,9 @@ describe('FileStateAdapter', () => {
     const agents: PersistedAgent[] = [
       {
         id: 1,
-        sessionId: 'sess-1',
-        jsonlFile: '/tmp/sess-1.jsonl',
-        projectDir: '/tmp/proj',
+        providerId: 'claude',
+        sessionRef: 'sess-1',
+        team: { teamName: 'crew', isTeamLead: true },
       },
     ];
     adapter.saveAgents(agents);
@@ -127,7 +127,7 @@ describe('FileStateAdapter', () => {
   it('preserves seats when saving agents (and vice versa)', () => {
     const adapter = new FileStateAdapter();
     adapter.saveSeats({ '1': { palette: 3 } });
-    adapter.saveAgents([{ id: 1, jsonlFile: '/x.jsonl', projectDir: '/tmp' }]);
+    adapter.saveAgents([{ id: 1, providerId: 'claude', sessionRef: '/x.jsonl' }]);
     expect(adapter.loadSeats()).toEqual({ '1': { palette: 3 } });
     expect(adapter.loadAgents()).toHaveLength(1);
   });

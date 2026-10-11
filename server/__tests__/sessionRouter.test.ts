@@ -72,25 +72,30 @@ describe('SessionRouter', () => {
     it('a second announcement of the same session keeps both sources and fills missing fields', () => {
       router.storePending('sess-ext', {
         sessionId: 'sess-ext',
-        transcriptPath: undefined,
         sessionRef: '/s/one.jsonl',
         cwd: '/work',
         sourceIds: ['herdr'],
       });
       router.storePending('sess-ext', {
         sessionId: 'sess-ext',
-        transcriptPath: undefined,
+        sessionRef: undefined,
         cwd: '',
         sourceIds: ['omp'],
       });
 
       expect(router.confirmPending('sess-ext')).toEqual({
         sessionId: 'sess-ext',
-        transcriptPath: undefined,
         sessionRef: '/s/one.jsonl',
         cwd: '/work',
         sourceIds: ['herdr', 'omp'],
       });
+    });
+
+    it('sessionsOf lists every session routed to one agent', () => {
+      router.register('pane', 1);
+      router.register('module-key', 1);
+      router.register('other', 2);
+      expect(router.sessionsOf(1)).toEqual(['pane', 'module-key']);
     });
   });
 
@@ -101,7 +106,6 @@ describe('SessionRouter', () => {
       sourceId: 'claude',
       sessionId,
       event: { kind },
-      raw: { session_id: sessionId, hook_event_name: kind },
     });
 
     it('bufferEvent stores events for later', () => {
@@ -152,7 +156,6 @@ describe('SessionRouter', () => {
       router.register('sess-1', 1);
       router.storePending('sess-ext', {
         sessionId: 'sess-ext',
-        transcriptPath: undefined,
         cwd: '/',
         sourceIds: ['claude'],
       });
@@ -160,7 +163,6 @@ describe('SessionRouter', () => {
         sourceId: 'claude',
         sessionId: 'sess-2',
         event: { kind: 'turnEnd' },
-        raw: { session_id: 'sess-2', hook_event_name: 'Stop' },
       });
 
       router.dispose();

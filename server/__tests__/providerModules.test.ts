@@ -6,8 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplexedAgent, MultiplexerModule } from '../../core/src/provider.js';
 import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
-import { FILE_WATCHER_POLL_INTERVAL_MS, TRANSCRIPT_FOLLOW_RETRY_MS } from '../src/constants.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
+import {
+  FILE_WATCHER_POLL_INTERVAL_MS,
+  TRANSCRIPT_FOLLOW_RETRY_MS,
+} from '../src/providers/claude/constants.js';
 import { ompModule } from '../src/providers/omp/omp.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 import { PixelAgentsServer } from '../src/server.js';
@@ -232,7 +235,7 @@ describe('provider modules', () => {
       vi.advanceTimersByTime(TRANSCRIPT_FOLLOW_RETRY_MS);
       mux.publish([pane({ agentKind: 'claude', name: 'delta', sessionRef: sessionId })]);
       const id = onlyAgentId();
-      expect(store.get(id)?.jsonlFile).toBe(fs.realpathSync(file));
+      expect(store.get(id)).toMatchObject({ providerId: 'claude', sessionRef: sessionId });
       expect(ofType('agentInfo').at(-1)).toMatchObject({ id, name: 'delta' });
 
       fs.appendFileSync(
@@ -273,6 +276,7 @@ describe('provider modules', () => {
         agents: [claudeModule, ompModule],
         multiplexers: [mux.module],
       });
+      runtime.startModules();
       const server = new PixelAgentsServer();
       const activeRuntime = runtime;
       server.onHookEvent((providerId, event) => activeRuntime.handleHookEvent(providerId, event));

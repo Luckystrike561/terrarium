@@ -1,16 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AgentStateStore } from '../src/agentStateStore.js';
-import { claudeModule } from '../src/providers/claude/claude.js';
+import { ClaudeAgentState, ClaudeAgentStore } from '../src/providers/claude/claudeAgentStore.js';
 import {
   processTranscriptLine,
   setTeamSwitchCallback,
-  setTranscriptModule,
-} from '../src/transcriptParser.js';
-import type { AgentState } from '../src/types.js';
+} from '../src/providers/claude/claudeTranscriptParser.js';
 
-/** Minimal AgentState for testing (mirrors hookEventHandler.test.ts). */
-function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
+/** Minimal ClaudeAgentState for testing (mirrors hookEventHandler.test.ts). */
+function createTestAgent(overrides: Partial<ClaudeAgentState> = {}): ClaudeAgentState {
   return {
     id: 1,
     sessionId: 'lead-session',
@@ -34,7 +31,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     contextTokens: 0,
     maxContextTokens: 200_000,
     ...overrides,
-  } as AgentState;
+  } as ClaudeAgentState;
 }
 
 function agentToolUseRecord(toolId: string, name: string, input: Record<string, unknown>) {
@@ -54,15 +51,14 @@ function toolResultRecord(toolId: string, text: string) {
 }
 
 describe('transcriptParser: teammate spawn results (new-harness implicit teams)', () => {
-  let agents: AgentStateStore;
-  let agent: AgentState;
+  let agents: ClaudeAgentStore;
+  let agent: ClaudeAgentState;
   let messages: Array<Record<string, unknown>>;
   const waitingTimers = new Map<number, ReturnType<typeof setTimeout>>();
   const permissionTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   beforeEach(() => {
-    setTranscriptModule(claudeModule);
-    agents = new AgentStateStore();
+    agents = new ClaudeAgentStore();
     agent = createTestAgent();
     agents.set(1, agent);
     messages = [];

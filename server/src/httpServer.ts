@@ -22,7 +22,7 @@ export interface HttpServerOptions {
   token: string;
   /** AgentStateStore for WebSocket broadcast piping */
   store: AgentStateStore;
-  /** Shared agent lifecycle core (for toggle side effects + standalone restore). */
+  /** Shared agent lifecycle core (toggle side effects, closing agents, connections). */
   runtime?: AgentRuntime;
   /** Path to SPA dist directory for static serving (standalone only) */
   staticDir?: string;
@@ -154,11 +154,10 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
         type: 'agentCreated',
         id,
         folderName: agent.folderName,
-        isTeammate: agent.leadAgentId !== undefined || undefined,
-        teammateName: agent.agentName,
-        parentAgentId: agent.leadAgentId,
-        teamName: agent.teamName,
-        hooksOnly: agent.hooksOnly || undefined,
+        isTeammate: agent.team?.leadAgentId !== undefined || undefined,
+        teammateName: agent.team?.agentName,
+        parentAgentId: agent.team?.leadAgentId,
+        teamName: agent.team?.teamName,
         palette: agent.palette,
         hueShift: agent.hueShift,
       });

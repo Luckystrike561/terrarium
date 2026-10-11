@@ -13,9 +13,8 @@ core/                                Protocol + interface definitions (zero runt
   asyncapi.yaml                      AsyncAPI 3.0 contract — single source of truth
   src/
     messages.ts                      AUTO-GENERATED discriminated unions (do not edit)
-    schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry
-    provider.ts                      AgentModule, MultiplexerModule, AgentEvent (the integration boundary)
-    teamProvider.ts                  Optional TeamProvider (semantic queries for Lead + Teammates)
+    schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry, PersistedAgent
+    provider.ts                      AgentModule, RunningAgentModule, MultiplexerModule, AgentEvent (the integration boundary)
     transport.ts                     MessageTransport interface, TransportState
     adapter.ts                       StateAdapter, AssetCache, PersistedAgent, AgentSeat
     normalizeProjectPath.ts
@@ -24,11 +23,26 @@ core/                                Protocol + interface definitions (zero runt
 server/                              Lifecycle runtime + Fastify HTTP/WS server + standalone CLI
   src/
     providers/claude/                Claude Code agent module — only place that knows Claude specifics
-      claude.ts                      normalizeHookEvent for 11 Claude events, formatToolStatus, file fallback
+      claude.ts                      The module object: vocabulary, hooks installer, start() → the running module
+      claudeVocabulary.ts            formatToolStatus, tool taxonomy, ~/.claude/projects layout, context window per model
+      claudeHookEvents.ts            normalizeHookEvent for 11 Claude events → ClaudeHookEvent (Claude-local union)
+      claudeRunningModule.ts         RunningAgentModule: discovery (workspace 1 s, global 3 s, stale 30 s), followSession, receiveHook, setHooksEnabled, restoreSession, dismissSession. Owns every timer, watcher and team/teammate removal
+      claudeAgentStore.ts            ClaudeAgentState + ClaudeAgentStore: the module's PRIVATE per-agent state (transcript cursor, hookDelivered, hook correlation, team bookkeeping, background spawns)
+      claudeBridge.ts                Private store → AgentEvents on the ModuleHost (session key `claude-<id>`, sessionRef rule, sessionStart/End, presentation events)
+      claudeHookHandler.ts           Claude hook routing on the private store: pending/confirm adoption, /clear + /resume, inline-teammate routing, SubagentStart teammate detection
+      claudeFileWatcher.ts           Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection, teammate/background-spawn scanners, external + global + stale scans
+      claudeTranscriptParser.ts      Claude JSONL records → private-store activity (turn_duration, agent_progress, queue-operation, team tags)
+      claudeTimers.ts                Heuristic waiting / permission timers (silenced per agent by hookDelivered)
+      contextUsage.ts                Context gauge from message.usage, tail seeding on adoption
+      subagentWatch.ts               Shadow ClaudeAgentStore for unnamed background spawns, translated to subagent* activity on the lead
+      inlineTeammates.ts             isInlineTeammateOf, getInlineTeammates, hasInlineTeammates, hasPromotedBackgroundAgent
+      dismissalTracker.ts            Unified dismissal state for transcripts (closed, /clear, seeded mtimes)
+      transcriptFollower.ts          followSession: a herdr pane's Claude session id → its transcript, retried until Claude creates it
+      teamProvider.ts                TeamProvider interface (semantic queries for Lead + Teammates)
       claudeTeamProvider.ts          TeamProvider: reads ~/.claude/teams/<name>/config.json
       claudeHookInstaller.ts         Consent-gated install/uninstall in ~/.claude/settings.json (abort on unparseable file or non-array hooks.<Event>; one-time .pixel-agents.backup, exclusive-create, no backup ⇒ no write — but skipped when the replaced content is entirely our own install's output, since backing up our own file masquerades as the user's original (`settingsHoldOnlyOurHooks`, compared against makeHookEntry — the WRITER — so a field added to what we write can't silently revive the bug; only `command`/`timeout` may differ, they vary across installs); every write failure THROWS; mode preserved, 0600 on create; re-read verify immediately before rename + retry; hook identity = `/.pixel-agents/hooks/claude-hook.js` suffix anchored at both ends of the…
       consentCopy.ts                 Claude's first-run consent disclosure text (scope/data/undo), served through consentDisclosure()
-      constants.ts                   Claude hook event names, script path
+      constants.ts                   Claude hook event names, script path, transcript timing/scanning constants
       hooks/claude-hook.ts           Hook script (CJS+shebang, bundled to dist/hooks/claude-hook.js)
     providers/sessionStore/          Shared session-store reading for agent modules that discover their own sessions
       sessionStoreTracker.ts         SessionStoreTracker: discovery (active window, exited sessions stay off), refcounted follows, sessionInDirectory, polling
@@ -49,12 +63,10 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
     multiplexerFeed.ts               MultiplexerFeed: diffs one endpoint's snapshots into AgentEvents, hands local panes to the running agent module for their kind, ends every pane when the link is lost
     multiplexerConnections.ts        MultiplexerConnections: the persisted connection list, one feed per enabled connection, aggregated live state, probe-before-save add
     connectionSettings.ts            Connection model, defaults (the `local` connection) and validation of client input and persisted entries
-    transcriptFollower.ts            TranscriptFollower: the transcript module's followSession, adopting a pane's transcript into the runtime's own JSONL watcher (herdr + claude)
-    agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
+    agentRuntime.ts                  Lifecycle core: starts modules, creates/removes agents, hands persisted agents back to their module, routes hooks to the module named in the route
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
-    sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending external sessions
-    dismissalTracker.ts              Unified dismissal state (replaces four legacy globals)
-    hookEventHandler.ts              Dispatches normalized AgentEvent into runtime
+    sessionRouter.ts                 session_id → agent_id mapping, event buffering, pending sessions (generic: the Claude module routes its hooks with its own instance)
+    agentEventHandler.ts             Applies every module's AgentEvent to CLI-neutral agent state and broadcasts what the office shows
     httpServer.ts                    Fastify: POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA
     clientMessageHandler.ts          Single dispatch point for ClientMessage from the webview
     server.ts                        Top-level composition
@@ -62,14 +74,10 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
     fileStateAdapter.ts              ~/.pixel-agents/ persistence
     configPersistence.ts             { standalone, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[], connections?: ConnectionSettings[] }
     layoutPersistence.ts             Read-only ~/.pixel-agents/layout.json loader
-    fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
-    transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
-    timerManager.ts                  Waiting / permission timers
     assetLoader.ts                   PNG → SpriteData via pngjs
-    teamUtils.ts                     isInlineTeammateOf, getInlineTeammates, hasInlineTeammates
-    types.ts                         ServerAgentState
-    constants.ts                     All timing/scanning constants
-  __tests__/                         60 Vitest files (providerModules.test.ts: the three module configurations end to end)
+    types.ts                         AgentState (CLI-neutral), AgentTeam
+    constants.ts                     Server-wide constants (hook body size, event buffer, default context window)
+  __tests__/                         63 Vitest files (providerModules.test.ts: the three module configurations end to end)
   manual-hook-events.http            Manual hook testing helper (REST-Client format)
 
 webview-ui/                          React 19 + Canvas UI (depends only on core/)
@@ -173,10 +181,9 @@ Two artifacts from one source tree:
 Hub-and-spoke. The server is the single aggregation point for all agent activity, regardless of source.
 
 ```
-Hook scripts ─POST /api/hooks/:providerId─→ that module's normalizeHookEvent() ─┐
-Agent modules (omp session store) ─ModuleHost.emit─────────────────────────────┤
+Hook scripts ─POST /api/hooks/:providerId─→ that running module's receiveHook() ─┐
+Agent modules (omp session store, Claude transcripts + hooks) ─ModuleHost.emit─┤
 Multiplexer snapshots ─MultiplexerFeed─ModuleHost.emit─────────────────────────┤
-JSONL transcripts ─FileWatcher─→ TranscriptParser (transcript module) ─────────┤
                                                                               ↓
                                                                     AgentEvent (canonical)
                                                                               ↓
@@ -227,25 +234,25 @@ export type TransportState = 'connecting' | 'connected' | 'reconnecting' | 'disc
 
 `core/src/provider.ts` is the integration boundary. Two kinds of module, each usable alone or together in one process:
 
-- **`AgentModule`** (`kind: 'agent'`), one per agent CLI: Claude Code plus the 21 modules under `server/src/providers/<cli>/`. Owns that CLI's vocabulary — `formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel`, optional `team` — and how to read it: `normalizeHookEvent` for payloads POSTed to `/api/hooks/<id>` (absent = no hook API), `hooks: HookInstaller` when it writes hooks into the CLI's settings (consent-gated), `start(host)` when it discovers sessions on its own (returns a `RunningAgentModule` whose `followSession(ref)` takes over a session a multiplexer found), and the file fallback (`getSessionDirs`, `getAllSessionRoots`, `sessionFilePattern`, `buildLaunchCommand`) for transcripts in the runtime's own JSONL parser format.
+- **`AgentModule`** (`kind: 'agent'`), one per agent CLI: Claude Code plus the 21 modules under `server/src/providers/<cli>/`. Owns that CLI's vocabulary — `formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel` — and how to read it: `hooks: HookInstaller` when it writes hooks into the CLI's settings (consent-gated), and `start(host)` when it reports sessions on its own. `start` returns a `RunningAgentModule`: `followSession(ref)` takes over a session a multiplexer found, `sessionInDirectory(cwd)` binds a pane with no ref, `receiveHook(payload)` takes what the CLI POSTs to `/api/hooks/<id>` (absent = no hook API), `setHooksEnabled(enabled)` carries the hooks preference, `restoreSession(session)` resumes a persisted session after a restart, and `dismissSession(sessionId)` stops reporting a session whose character the user closed. `protocolVersion` is 2.
 - **`MultiplexerModule`** (`kind: 'multiplexer'`), one per multiplexer: herdr. `connect(endpoint, watcher)` watches one server (a `MultiplexerEndpoint`: `local` socket or `ssh` target, optional session), reports its link state (`connecting`/`connected`/`reconnecting`/`error` with the error text) and every live agent as a `MultiplexedAgent` (pane id, agent kind = an agent module id, status level working/blocked/idle, cwd, name, task, session ref). It never parses a transcript. herdr's `agent_session` is a transcript path for pi and omp (`kind: 'path'`, compared by real path) and the CLI's own session id for every other integration; Amp, Kiro 2, Maki, Gemini CLI and Cline report none.
 
 The Claude module supports every transcript/hook format up to **Claude Code v2.1.220** (current as of 2026-07-30 — Task-era `agent_progress` records, explicit and implicit teams, background-by-default Agent spawns, sidecar-backed background agents). Newer CLI releases may add formats that need module updates.
 
-**Enabled modules** come from `~/.pixel-agents/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`; an unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file. `AgentRuntime.transcriptModule` is the enabled module declaring `getSessionDirs` — the one the runtime's own scanners, `TranscriptParser` and `hooksEnabled` ref serve; `runtime.setHooksEnabled(moduleId, …)` only moves that ref for that module.
+**Enabled modules** come from `~/.pixel-agents/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`; an unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file. `startModules` starts every agent module with a `start` the same way (Claude included), hands each its hooks preference, then the persisted agents, then starts the multiplexer connections. The runtime holds no transcript, hook or team logic of any CLI.
 
-**Routing.** `POST /api/hooks/:providerId` is normalized by that module and no other; in-process modules emit already-normalized events through their `ModuleHost`. An agent's `providerId` is its agent module (set by the first event from one), so per-agent behaviour — status text, sub-agent tools, team routing — comes from the right CLI. Multiplexer events never set `hookDelivered`: they must not silence the heuristics of an agent whose own module watches it.
+**Routing.** `POST /api/hooks/:providerId` goes to that module's `receiveHook` and no other (Claude normalizes the payload with `normalizeHookEvent` and routes it on its private state). Every module emits already-normalized events through its `ModuleHost`. An agent's `providerId` is always set: the module that announced it, replaced by the first agent module that reports it, so per-agent behaviour (status text, sub-agent tools) comes from the right CLI. Multiplexer events never reach a module's heuristics: Claude's `hookDelivered` lives in its own state and only its own hooks set it.
 
-**One agent, one character.** Every module announces a session with `sessionStart.sessionRef`: the session's transcript path, or the CLI's own session id where that is what its multiplexer integration reports. A session whose ref an existing agent already reports joins that agent (`claimBySessionRef`) instead of creating a second character; a bare Claude `transcriptPath` only matches module-announced agents, so Claude-vs-Claude routing is unchanged. A session store module keys its sessions in exactly the form herdr reports for that CLI (`jsonlSessionStore`'s `sessionIdOf`, or the SQLite row id), so the pane and the module's own discovery meet on one key. A pane herdr reports no ref for is bound to the module's one live session in the pane's cwd (`RunningAgentModule.sessionInDirectory`), never guessed when several share it. `MultiplexerFeed` announces each pane as `<multiplexer>-<connection>-<pane>` (pane ids are only unique within one herdr server); when the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`). With no such module, the pane's status level is all there is and is reported in full (`working` → the `working` event, `blocked` → `permissionRequest`, `idle` → `turnEnd`). The transcript module (Claude) has no `start()`: its transcripts are parsed by the runtime, so `startModules` registers a `TranscriptFollower` in its place, which resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session (with `hookDelivered` off, so the heuristic timers end its turns until a hook arrives); a pane character already on screen gets the transcript attached instead. It ends with the pane. A transcript an agent already watches stays with that agent and its own lifecycle.
+**One agent, one character.** Every module announces a session with `sessionStart.sessionRef`: the session's transcript path, or the CLI's own session id where that is what its multiplexer integration reports. A session whose ref an existing agent already reports joins that agent (`claimBySessionRef`) instead of creating a second character. An agent with no ref is never joined. A session store module keys its sessions in exactly the form herdr reports for that CLI (`jsonlSessionStore`'s `sessionIdOf`, or the SQLite row id), so the pane and the module's own discovery meet on one key. Claude announces its top-level sessions by their Claude session id (what herdr reports for Claude panes) and teammates sharing their lead's session id by their transcript path, so they never merge into the lead. A pane herdr reports no ref for is bound to the module's one live session in the pane's cwd (`RunningAgentModule.sessionInDirectory`), never guessed when several share it. `MultiplexerFeed` announces each pane as `<multiplexer>-<connection>-<pane>` (pane ids are only unique within one herdr server). When the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`). With no such module, the pane's status level is all there is and is reported in full (`working` → the `working` event, `blocked` → `permissionRequest`, `idle` → `turnEnd`). Claude's `followSession` resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session, with `hookDelivered` off so the heuristic timers end its turns until a hook arrives. Its `sessionStart` carries the same session id, so the pane's character takes it over. It ends with the pane. A transcript the module already watches stays with that agent and its own lifecycle.
 
-`AgentEvent.kind` values: `toolStart`, `toolEnd`, `turnEnd`, `working`, `subagentStart`, `subagentEnd`, `subagentTurnEnd`, `progress`, `permissionRequest`, `sessionStart`, `sessionEnd`, `sessionInfo`. The runtime dispatches on `kind`, never on CLI-specific tool names.
+`AgentEvent.kind` values, in three groups. **Lifecycle**: `sessionStart` (`live` puts the character on screen at once instead of on the session's next event, `folderName` and `team` set what it starts with), `sessionEnd`, `sessionInfo`. **Coarse activity**, from a source that only sees the turn coarsely, so the runtime derives what the office shows: `toolStart`, `toolEnd`, `turnEnd`, `working`, `permissionRequest`. **Presentation**, from a module that tracks the turn itself as Claude does, one event per change the office shows: `toolShown`, `toolDone`, `toolsCleared`, `statusChanged`, `permissionShown`, `permissionCleared`, `subagentToolShown`, `subagentToolDone`, `subagentPermissionShown`, `subagentCleared`, `teamChanged` (a `TeamMembership` naming the lead by its session id), `contextUsage`. The runtime dispatches on `kind`, never on CLI-specific tool names, and keeps only what a reconnecting browser needs replayed.
 
 ### Adding a provider module
 
 **Agent module** (a new CLI):
 
 1. Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: AgentModule` (use `satisfies AgentModule` when it always has `hooks`, so callers see them), plus `constants.ts` for its magic numbers. Implement the vocabulary members. Then pick how it learns about sessions:
-   - **Hooks**: `normalizeHookEvent(raw)` for what the CLI POSTs to `/api/hooks/<id>`, and `hooks: HookInstaller` (`installHooks` / `uninstallHooks` / `areHooksInstalled` / `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run).
+   - **Hooks**: `hooks: HookInstaller` (`installHooks` / `uninstallHooks` / `areHooksInstalled` / `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run), and `RunningAgentModule.receiveHook(payload)` for what the CLI POSTs to `/api/hooks/<id>`.
    - **Its own discovery** (transcripts, a database): `start(host)` returning a `RunningAgentModule`. Build it from `providers/sessionStore/`: `new SessionStoreTracker(host, store, DEFAULT_SESSION_STORE_TIMING)` over `jsonlSessionStore` (append-only JSONL), `jsonDocumentSessionStore` (whole-file JSON) or `sqliteSessionStore` (one SQLite file), with a format mapping the CLI's records to `working`, `toolStart`, `toolEnd`, `turnEnd`, `permissionRequest` and `sessionEnd` where the CLI really records them. Key sessions in the form herdr's `agent_session.value` takes for the CLI (path for pi/omp, the CLI's session id otherwise). The tracker never replays history (cursors open at the end and only the tail decides the starting state), keeps one reader per session refcounted between discovery and follows, and drops sessions untouched for the active window.
 2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
 3. Tests go in `server/__tests__/`; `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
@@ -256,7 +263,7 @@ The Claude module supports every transcript/hook format up to **Claude Code v2.1
 
 ### TeamProvider (Lead + Teammates)
 
-Optional extension for CLIs that support team workflows (Claude Agent Teams today). Semantic queries (`discoverTeammates`, `getTeamMembers`, `getTeamMetadataForSession`, `extractTeammateNameFromEvent`, `isTeammateSpawnCall`) — providers choose their own storage strategy.
+Claude's team workflows (Claude Agent Teams) live entirely in `server/src/providers/claude/`. The module reaches the office through presentation events: a teammate is announced by `sessionStart` with its `team` (so it sits beside its lead), later changes by `teamChanged`, and a teammate's end by its own `sessionEnd`. `TeamProvider` (`providers/claude/teamProvider.ts`, implemented by `claudeTeamProvider.ts`) keeps the semantic queries (`discoverTeammates`, `getTeamMembers`, `getTeamMetadataForSession`, `extractTeammateNameFromEvent`, `isTeammateSpawnCall`) apart from the storage they read.
 
 Four teammate modes:
 
@@ -274,9 +281,9 @@ Newer harnesses (Claude 5) never tag the LEAD's records with team metadata and n
 **Background spawns without a CLI team (sidecar-backed)**: `Agent(...)` spawns that never register a team take the async path — result "Async agent launched successfully. agentId: \<hex>" (no team anywhere), transcript + sidecar under `<projectDir>/<leadSessionId>/subagents/` (sidecar carries `agentType`/`description`/`toolUseId`, plus `name` when the spawn was named), completion via `queue-operation`. `scanForBackgroundAgentFiles` classifies them by the sidecar `name` — the domain model's sole Sub-agent vs Teammate distinction (see CONTEXT.md):
 
 - **Named → Teammate**: its own seated character, `agentName` from the sidecar `name`; the spawner gets `isTeamLead` + an `agentTeamInfo` broadcast (derived team — NO `teamName`, so config polling stays away) and the transient Subtask is ghost-killed via `subagentClear`. The child has `leadAgentId` + `spawnToolUseId`; it's removed on the completion queue-operation or lead sessionEnd (`removeTeammate` must NOT unregister its session — it shares the lead's).
-- **Unnamed → Sub-agent**: the Subtask sub-character stays; the spawn's transcript is watched in a **shadow `AgentStateStore`** (`server/src/subagentWatch.ts`, owned by `AgentRuntime`, ids from 1 000 000 up) whose broadcasts are translated onto the main store as `subagentToolStart/Done/Permission` keyed `(leadId, spawnToolUseId)` — live activity on the sub-character, no protocol change. `agentToolsClear` on the shadow agent synthesizes `subagentToolDone` for still-live tools so the sub idles between turns. Never persisted, never announced.
+- **Unnamed → Sub-agent**: the Subtask sub-character stays; the spawn's transcript is watched in a **shadow `ClaudeAgentStore`** (`providers/claude/subagentWatch.ts`, owned by the running Claude module, ids from 1 000 000 up) whose broadcasts are translated onto the module's main private store as `subagentToolStart/Done/Permission` keyed `(leadId, spawnToolUseId)`, then bridged as `subagentTool*` events: live activity on the sub-character, no protocol change. `agentToolsClear` on the shadow agent synthesizes `subagentToolDone` for still-live tools so the sub idles between turns. Never persisted, never announced.
 
-The gate for both: the sidecar `toolUseId` must match a LIVE entry in the lead's `backgroundAgentToolIds` (anti-spurious; no teamName involved). `scanForTeammateFiles` skips sidecars carrying a live `toolUseId` so it can't race the classification. The lead's `backgroundAgentToolIds` are persisted (children never are — they're derived state the 1 s scan re-materializes after a reload; restore skips stale entries with `leadAgentId` but no `teamName`). The turn-end background-tool re-sends (transcriptParser, hookEventHandler, timerManager's `clearAgentActivity`) must include `toolName` + `runInBackground` (or the webview can't recreate the Subtask after `agentToolsClear`) and must skip tools whose spawn became a teammate character (`hasPromotedBackgroundAgent`, or a ghost Subtask appears next to it).
+The gate for both: the sidecar `toolUseId` must match a LIVE entry in the lead's `backgroundAgentToolIds` (anti-spurious; no teamName involved). `scanForTeammateFiles` skips sidecars carrying a live `toolUseId` so it can't race the classification. The lead's background tools are persisted by the runtime (`PersistedAgent.backgroundToolIds`, from the `toolShown` events flagged `runInBackground`) and handed back through `restoreSession`. Children are derived state the 1 s scan re-materializes after a restart: the runtime persists them like any agent, and the Claude module refuses to restore one (a lead but no `teamName`). The turn-end background-tool re-sends (claudeTranscriptParser, claudeHookHandler, claudeTimers' `clearAgentActivity`) must include `toolName` + `runInBackground` (or the webview can't recreate the Subtask after `agentToolsClear`) and must skip tools whose spawn became a teammate character (`hasPromotedBackgroundAgent`, or a ghost Subtask appears next to it). The runtime's own replay to a reconnecting browser re-sends every background tool with its `isTeammateSpawn` flag, which keeps the webview from creating a Subtask for a promoted spawn.
 
 Teammate dismissal is driven by team config polling (`getTeamMembers(teamName)` is authoritative; members with `isActive: false` are treated as departed), by the teammate's own `sessionEnd` (own-session teammates), and by `sessionEnd` on the lead.
 
@@ -284,33 +291,29 @@ Teammate dismissal is driven by team config polling (`getTeamMembers(teamName)` 
 
 ## Server Runtime
 
-`AgentRuntime` (`server/src/agentRuntime.ts`) is the shared lifecycle core composed by `server/src/cli.ts`; only the `StateAdapter` namespace and `MessageTransport` differ between a running server and its tests.
+`AgentRuntime` (`server/src/agentRuntime.ts`) is the lifecycle core composed by `server/src/cli.ts`. It knows no CLI.
 
 ```typescript
 export class AgentRuntime {
-  constructor(opts: {
-    store: AgentStateStore;
-    providerRegistry: ProviderRegistry;
-    layoutPersistence: LayoutPersistence;
-    assetCache: AssetCache;
-    callbacks: RuntimeLifecycleCallbacks;
-  });
-  registerAgent / unregisterAgent / removeAgent / removeTeammate / removeTeammates
-  restoreExternalAgents / handleHookEvent
-  startProjectScan / startExternalScanning / startStaleCheck
-  dispose();
+  constructor(store: AgentStateStore, modules: ModuleSet);
+  startModules(); // agent modules, their hooks preference, persisted agents, then multiplexer connections
+  setHooksEnabled(moduleId, enabled);
+  handleHookEvent(providerId, payload); // → that module's receiveHook
+  closeAgent(id); // every module reporting the agent dismisses it, then the agent goes
+  removeAgent(id);
+  dispose(); // stops modules, drops agents, keeps the persisted list for the next start
 }
 ```
 
-Owns timer Maps (waiting, permission, text-idle, stale), scanners (project-dir 1 s, external 3 s, stale 30 s), `HookEventHandler`, `SessionRouter`, `DismissalTracker`. Scanners are skipped entirely while hooks are flowing (`hookDelivered` is set on every agent). `RuntimeLifecycleCallbacks` is the only seam between runtime and host.
+`AgentEventHandler` (`server/src/agentEventHandler.ts`) applies each module's events to CLI-neutral `AgentState` and broadcasts the matching `ServerMessage`. An agent is created when its session is confirmed (its first event after `sessionStart`) or announced `live`. A session whose ref an agent already reports is routed to that agent instead. **Restore**: `startModules` hands each persisted agent to its module's `restoreSession`, leads first, the lead named by its persisted `sessionRef`. A `sessionStart` carrying that module and ref gets the persisted agent back (id, seat, palette, name). The runtime never opens a transcript.
 
 ### AgentStateStore
 
 EventEmitter-backed container in `server/src/agentStateStore.ts`. Typed mutations, typed events (`agentAdded`, `agentRemoved`, `agentUpdated`, `broadcast`). The broadcast layer subscribes once at boot and translates `StoreEvents` into `ServerMessage` over the active transport. **No module under `server/` calls a transport method directly.**
 
-### SessionRouter and DismissalTracker
+### SessionRouter
 
-Two extracted classes that replaced ad-hoc module state. `SessionRouter` owns `session_id → agent_id` mapping, pre-registration event buffering, and pending external sessions. `DismissalTracker` unifies four legacy globals (`dismissedJsonlFiles`, `clearDismissedFiles`, `seededMtimes`, `pendingClearFiles`) into one class with typed reasons.
+`SessionRouter` (`server/src/sessionRouter.ts`) owns `session_id → agent_id` mapping, pre-registration event buffering, and pending sessions. It is generic over the routed event and the pending record: the runtime routes module sessions with one, and the Claude module routes its hooks with another (`ClaudePendingSession` carries `transcriptPath`). The Claude module's `DismissalTracker` (`providers/claude/dismissalTracker.ts`) unifies transcript dismissal (closed by the user, replaced by `/clear`, seeded mtimes, pending clears) into one class with typed reasons.
 
 ### HTTP + WebSocket Server
 
@@ -336,9 +339,9 @@ Server discovery written to `~/.pixel-agents/server.json` with `{ port, pid, aut
 
 Single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `LayoutPersistence`, or `FileStateAdapter`, or delegates to host-specific callbacks (`onSetHooksEnabled`, the install/uninstall side effect the consent executor runs). The connection messages go to `runtime.connections` and, like `hooksConsentResponse`, only from a privileged (tokened) socket: they open SSH sessions to other machines. `connectionsLoaded` is sent on the handshake and on every change, to privileged sockets only (it names SSH targets).
 
-### ServerAgentState (server/src/types.ts)
+### AgentState (server/src/types.ts)
 
-Per-agent runtime data: provider reference, session key, transcript-fallback fields (`jsonlFile`, `fileOffset`, `lineBuffer`), tool state Maps and Sets, team fields (`teamName`, `agentName`, `isTeamLead`, `leadAgentId`, `teamUsesTmux`), context usage (`contextTokens`, `maxContextTokens`, `sawMainChainUsage`), and the **`hookDelivered`** flag that suppresses heuristic timers when hooks are flowing.
+Per-agent state the office shows, whichever module reports it: `providerId` (always set), session id and `sessionRef`, tool state Maps and Sets (`backgroundToolIds`, `teammateSpawnToolIds` for the replay), waiting and permission flags, `folderName`/`task`, context usage, `team` (an `AgentTeam`: what the module last reported, with the lead resolved to its agent id), palette. A module's own bookkeeping never lands here: Claude's transcript cursor, `hookDelivered`, hook correlation and team discovery live in its private `ClaudeAgentState`.
 
 ## Persistence
 
@@ -346,7 +349,7 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 ~/.pixel-agents/
   config.json              { standalone, hooksConsent, hooksEnabled (both per-provider), modules (enabled module ids), connections (herdr servers, absent = the default local one) }
   herdr/<connection>.sock  Local end of each SSH connection's forwarded herdr socket (directory 0700)
-  standalone-state.json    { agents, seats }
+  standalone-state.json    { agents (PersistedAgent: id, providerId, sessionRef, folderName, team, backgroundToolIds, palette), seats }
   layout.json              OfficeLayout
   server.json              { port, pid, authToken }
   hooks/claude-hook.js     Bundled hook script (CJS, shebang)
@@ -368,12 +371,12 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 
 ### Dual-mode detection
 
-| Mode                     | Source                                                 | Detection                                                                                                                                                                                                                                                                         |
-| ------------------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hooks** (preferred)    | Claude Code Hooks API → HTTP POST → `HookEventHandler` | Instant, reliable. Installed events are `CLAUDE_HOOK_EVENTS`. `UserPromptSubmit`/`TaskCreated` are deliberately NOT installed — they normalize to null, so installing them only forwarded prompt text to be dropped; `normalizeHookEvent` still tolerates them for stale installs |
-| **Heuristic** (fallback) | Polling JSONL files                                    | Per-agent 500 ms JSONL polling for /clear detection; 1 s main scanner for workspace session adoption; 3 s external scanner; 30 s stale check. Content-based /clear detection (`/clear</command-name>` in first 8 KB)                                                              |
+| Mode                     | Source                                                                | Detection                                                                                                                                                                                                                                                                         |
+| ------------------------ | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hooks** (preferred)    | Claude Code Hooks API → HTTP POST → the Claude module's `receiveHook` | Instant, reliable. Installed events are `CLAUDE_HOOK_EVENTS`. `UserPromptSubmit`/`TaskCreated` are deliberately NOT installed — they normalize to null, so installing them only forwarded prompt text to be dropped; `normalizeHookEvent` still tolerates them for stale installs |
+| **Heuristic** (fallback) | Polling JSONL files                                                   | Per-agent 500 ms JSONL polling for /clear detection; 1 s main scanner for workspace session adoption; 3 s external scanner; 30 s stale check. Content-based /clear detection (`/clear</command-name>` in first 8 KB)                                                              |
 
-The `hookDelivered` flag (per agent) and `hooksEnabled` (global) gate timer logic. JSONL polling always runs in both modes for tool content (status text, animations); only permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
+The `hookDelivered` flag (per agent, in the Claude module's private state) and the module's `hooksEnabled` (set by `setHooksEnabled`) gate timer logic. JSONL polling always runs in both modes for tool content (status text, animations); only permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
 
 ### Sub-agent permission detection (heuristic)
 
@@ -383,14 +386,14 @@ When a sub-agent runs a non-exempt tool, `startPermissionTimer` fires on the par
 
 **Timing budget for tests**: the test waits for the bubble AFTER waiting for the "Subtask:" overlay. But the Subtask overlay appears when the parent's **Task tool_use** is parsed (scenario time T), while the timer only starts when the **sub-tool tool_use** in the progress record is parsed (~1 s later). Plus 7 s timer + 300 ms IPC/render slop = a wait timeout less than ~10 s is unsafe.
 
-### Context usage (server/src/contextUsage.ts)
+### Context usage (server/src/providers/claude/contextUsage.ts)
 
 Every agent's context gauge. Fed from `message.usage` on assistant records by `processTranscriptLine`, broadcast as `agentContextUsage` and rendered by `ToolOverlay`.
 
 - **Snapshot, not a total.** Context = the newest turn's `input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens`. Summing turns measures spend, not occupancy, and misses the cached tokens that ARE the context (`input_tokens` is single digits once caching kicks in). Falls on compaction and `/clear` for free.
 - **All-zero usage means "no news"** — synthetic records (API errors, interrupts) report zeros and must not blank the gauge.
 - **Sidechain rule**: a lead's sidechain records are its sub-agents' turns and must not move its gauge; a teammate's own transcript is sidechain top to bottom and would otherwise never report. Positional latch (`sawMainChainUsage`): once a file produces a main-chain turn, later sidechain records belong to someone else.
-- **The window comes from the provider**, not from the runtime: `HookProvider.contextWindowForModel(model)` (Claude: 1M for the current line, 200k for Haiku and the older models, `undefined` for ids it can't place). Transcripts state usage but never the limit, and guessing 200k for a 1M model reads five times too full. `widenContextWindow` is the backstop for unrecognized models and unknown-larger windows — it only ever widens, since a context that doesn't fit disproves the assumption while a shrinking one proves nothing.
+- **The window comes from the module**, not from the runtime: Claude's `contextWindowForModel(model)` (1M for the current line, 200k for Haiku and the older models, `undefined` for ids it can't place). Transcripts state usage but never the limit, and guessing 200k for a 1M model reads five times too full. `widenContextWindow` is the backstop for unrecognized models and unknown-larger windows — it only ever widens, since a context that doesn't fit disproves the assumption while a shrinking one proves nothing. The module reports the result as a `contextUsage` event.
 - **`seedContextUsage` runs once per agent in `startFileWatching`** — the single seam every watched agent passes through. Agents adopted or restored mid-session start at end-of-file, so without a tail read they'd have no gauge until their next turn.
 - Sub-agents get no gauge: no session of their own, and the shadow store never forwards `agentContextUsage`.
 
@@ -470,22 +473,26 @@ Three tiers, each with its own framework.
 
 `server/__tests__/` covers the shared runtime, persistence, providers, HTTP/WebSocket server, CLI, and the e2e scenario runner. Representative suites include:
 
-| File                           | Coverage                                                                                                                                       |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agentStateStore.test.ts`      | Mutations, EventEmitter events, snapshot                                                                                                       |
-| `hookEventHandler.test.ts`     | Routing, buffering, normalized dispatch, team gating                                                                                           |
-| `sessionRouter.test.ts`        | session_id mapping, pending sessions, buffer flush                                                                                             |
-| `fileWatcherDismissal.test.ts` | DismissalTracker integration                                                                                                                   |
-| `fileStateAdapter.test.ts`     | Persistence, allowlist, settings round-trip, leftover legacy state ignored                                                                     |
-| `teamUtils.test.ts`            | Inline-teammate helpers                                                                                                                        |
-| `claudeTeamProvider.test.ts`   | Discovery, membership, metadata extraction                                                                                                     |
-| `claude.test.ts`               | `normalizeHookEvent` per Claude event, file fallback                                                                                           |
-| `claudeHookInstaller.test.ts`  | Atomic install/uninstall, unparseable-file + non-array abort, throwing writes, mode preservation, backup, hook identity, event-scope migration |
-| `consentFlow.test.ts`          | In-app consent over the wire: who is asked, what each answer writes, Back-and-revise semantics, answer serialization                           |
-| `claude-hook.test.ts`          | Spawned hook script integration (needs `dist/hooks/claude-hook.js`)                                                                            |
-| `server.test.ts`               | HTTP lifecycle, auth, `/ws`, broadcast                                                                                                         |
-| `httpServerWs.test.ts`         | `/ws` gate: same-origin connection, `?token=` privilege                                                                                        |
-| `mockClaudeRunner.test.ts`     | E2E scenario runner sanity                                                                                                                     |
+| File                                  | Coverage                                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agentStateStore.test.ts`             | Mutations, EventEmitter events, snapshot                                                                                                       |
+| `agentEventHandler.test.ts`           | Event application: pending/live sessions, sessionRef joins, providerId, coarse and presentation events                                         |
+| `agentRuntime.restorePalette.test.ts` | Restore through the module: persisted id/palette, leads first, gone sessions dropped, dispose keeps the persisted list                         |
+| `claudeHookHandler.test.ts`           | Claude hook routing on the module's private state: buffering, pending adoption, /clear, team gating                                            |
+| `claudeRunningModule.test.ts`         | The running Claude module against a fake host: adoption, presentation events, teammates, restore, dismiss                                      |
+| `claudeBackgroundLifecycle.test.ts`   | Named background teammates through the runtime: LEAD badge, removal on completion, restart restore                                             |
+| `sessionRouter.test.ts`               | session_id mapping, pending sessions, buffer flush                                                                                             |
+| `claudeFileWatcherDismissal.test.ts`  | DismissalTracker integration                                                                                                                   |
+| `fileStateAdapter.test.ts`            | Persistence, allowlist, settings round-trip, leftover legacy state ignored                                                                     |
+| `inlineTeammates.test.ts`             | Inline-teammate helpers                                                                                                                        |
+| `claudeTeamProvider.test.ts`          | Discovery, membership, metadata extraction                                                                                                     |
+| `claude.test.ts`                      | `normalizeHookEvent` per Claude event, module shape                                                                                            |
+| `claudeHookInstaller.test.ts`         | Atomic install/uninstall, unparseable-file + non-array abort, throwing writes, mode preservation, backup, hook identity, event-scope migration |
+| `consentFlow.test.ts`                 | In-app consent over the wire: who is asked, what each answer writes, Back-and-revise semantics, answer serialization                           |
+| `claude-hook.test.ts`                 | Spawned hook script integration (needs `dist/hooks/claude-hook.js`)                                                                            |
+| `server.test.ts`                      | HTTP lifecycle, auth, `/ws`, broadcast                                                                                                         |
+| `httpServerWs.test.ts`                | `/ws` gate: same-origin connection, `?token=` privilege                                                                                        |
+| `mockClaudeRunner.test.ts`            | E2E scenario runner sanity                                                                                                                     |
 
 Run: `npm run test:server` (or `npm test` for all).
 
@@ -632,11 +639,11 @@ Supporting: `wall-tile-editor.html` (wall sprite editing), `jsonl-viewer.html` (
 
 - **Layered codebase** (core → server; core → webview-ui). The server never imports `webview-ui/` and vice versa.
 - **AsyncAPI 3.0 contract**, generated TS bindings, CI drift check. Single source of truth for the wire protocol.
-- **AgentRuntime** shared lifecycle core, composed by the server.
+- **AgentRuntime** lifecycle core, composed by the server, CLI-neutral: it handles only `AgentEvent`s and the state the office shows.
 - **AgentStateStore** as single source of truth with typed mutations and typed events. No transport calls outside the broadcast layer.
 - **Transport abstraction**: `MessageTransport` interface, `WebSocketTransport`. One construction point in the entire UI.
-- **Provider modules** as the integration boundary: agent modules (one per CLI) and multiplexer modules (one per multiplexer), any combination per process, routed by source. New ones are a single subdirectory under `server/src/providers/<id>/` plus a registry entry.
-- **TeamProvider** as optional extension. Claude Agent Teams is the only implementation.
+- **Provider modules** as the integration boundary: agent modules (one per CLI) and multiplexer modules (one per multiplexer), any combination per process, routed by source. New ones are a single subdirectory under `server/src/providers/<id>/` plus a registry entry. Claude is one of them: its transcripts, hooks, teams and sub-agents live in `providers/claude/`, on a private per-agent state bridged to `AgentEvent`s.
+- **TeamProvider** is Claude-internal (`providers/claude/teamProvider.ts`): semantic team queries kept apart from where Claude stores teams.
 - **Single-namespace persistence** under `~/.pixel-agents/`.
 - **`erasableSyntaxOnly`** in webview forbids `enum` — use `as const` objects.
 - **Server always starts** regardless of the hooks preference. Only hook installation is gated by it.

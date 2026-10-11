@@ -1,27 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
-import { AgentStateStore } from '../src/agentStateStore.js';
-import { getInlineTeammates, hasInlineTeammates, isInlineTeammateOf } from '../src/teamUtils.js';
-import type { AgentState } from '../src/types.js';
+import {
+  type ClaudeAgentState,
+  ClaudeAgentStore,
+} from '../src/providers/claude/claudeAgentStore.js';
+import {
+  getInlineTeammates,
+  hasInlineTeammates,
+  isInlineTeammateOf,
+} from '../src/providers/claude/inlineTeammates.js';
 
-/** Minimal AgentState for testing -- only the fields teamUtils actually reads. */
-function agent(overrides: Partial<AgentState> = {}): AgentState {
+/** Minimal ClaudeAgentState for testing -- only the fields inlineTeammates actually reads. */
+function agent(overrides: Partial<ClaudeAgentState> = {}): ClaudeAgentState {
   return {
     id: 0,
     leadAgentId: undefined,
     teamUsesTmux: false,
     ...overrides,
-  } as AgentState;
+  } as ClaudeAgentState;
 }
 
-/** Create an AgentStateStore from [id, agent] entries. */
-function storeFrom(entries: Array<[number, AgentState]>): AgentStateStore {
-  const s = new AgentStateStore();
+/** Create a ClaudeAgentStore from [id, agent] entries. */
+function storeFrom(entries: Array<[number, ClaudeAgentState]>): ClaudeAgentStore {
+  const s = new ClaudeAgentStore();
   for (const [id, a] of entries) s.set(id, a);
   return s;
 }
 
-describe('teamUtils', () => {
+describe('inlineTeammates', () => {
   describe('isInlineTeammateOf', () => {
     it('returns true when leadAgentId matches and teamUsesTmux is false', () => {
       expect(isInlineTeammateOf(agent({ leadAgentId: 5, teamUsesTmux: false }), 5)).toBe(true);

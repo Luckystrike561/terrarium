@@ -7,8 +7,8 @@ export const QODER_CONFIG_DIR_ENV = 'QODER_CONFIG_DIR';
 export const QODER_DEFAULT_CONFIG_DIR_SEGMENTS = ['.qoder'] as const;
 
 /** Qoder's session store, relative to its config directory: one sub-directory per project (cwd-derived slug), one
- *  `.jsonl` transcript per session inside it. Sub-agent transcripts live one level deeper, under
- *  `<session-id>/subagents/`, so the store's depth of 1 never reaches them. */
+ *  `.jsonl` transcript per session inside it. Sub-agent transcripts live one level deeper, in the session's own
+ *  `subagents` directory, so the store's depth of 1 never reaches them. */
 export const QODER_PROJECTS_DIR_SEGMENT = 'projects';
 
 export const QODER_SESSION_FILE_SUFFIX = '.jsonl';

@@ -3,31 +3,26 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { StateAdapter } from '../../core/src/adapter.js';
-import { AgentRuntime } from '../src/agentRuntime.js';
-import { AgentStateStore } from '../src/agentStateStore.js';
+import {
+  type ClaudeAgentState,
+  ClaudeAgentStore,
+} from '../src/providers/claude/claudeAgentStore.js';
 import {
   scanForBackgroundAgentFiles,
   setSubagentWatch,
-  setTeamProvider,
-  setTranscriptModule as setFileWatcherTranscriptModule,
-} from '../src/fileWatcher.js';
-import { claudeModule } from '../src/providers/claude/claude.js';
-import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
-import { SubagentWatch } from '../src/subagentWatch.js';
+} from '../src/providers/claude/claudeFileWatcher.js';
 import {
   processTranscriptLine,
   setBackgroundAgentCompletedCallback,
   setBackgroundAgentDetectedCallback,
-  setTranscriptModule,
-} from '../src/transcriptParser.js';
-import type { AgentState } from '../src/types.js';
+} from '../src/providers/claude/claudeTranscriptParser.js';
+import { SubagentWatch } from '../src/providers/claude/subagentWatch.js';
 
 const LEAD_SESSION = 'lead-session-1';
 const SPAWN_TOOL_ID = 'toolu_01LMvN98KN4sn1fmvftm7vhk';
 const SUB_TOOL_ID = 'toolu_sub_01';
 
-function createLeadAgent(projectDir: string): AgentState {
+function createLeadAgent(projectDir: string): ClaudeAgentState {
   return {
     id: 1,
     sessionId: LEAD_SESSION,
@@ -50,7 +45,7 @@ function createLeadAgent(projectDir: string): AgentState {
     hookDelivered: false,
     contextTokens: 0,
     maxContextTokens: 200_000,
-  } as AgentState;
+  } as ClaudeAgentState;
 }
 
 /** Records shaped like the background-agent flow (Claude 2.1.x, teams OFF):
@@ -145,9 +140,9 @@ function subTurnDurationLine(): string {
 
 describe('background spawns (teams OFF) classified by sidecar name', () => {
   let tmpRoot: string;
-  let agents: AgentStateStore;
+  let agents: ClaudeAgentStore;
   let watch: SubagentWatch;
-  let lead: AgentState;
+  let lead: ClaudeAgentState;
   let messages: Array<Record<string, unknown>>;
   let completed: Array<{ leadId: number; toolUseId: string }>;
   const waitingTimers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -166,8 +161,6 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        () => {},
-        undefined,
       );
     });
     setBackgroundAgentCompletedCallback((leadId, toolUseId) => {
@@ -208,10 +201,7 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
 
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-bg-'));
-    setTranscriptModule(claudeModule);
-    setFileWatcherTranscriptModule(claudeModule);
-    setTeamProvider(claudeTeamProvider);
-    agents = new AgentStateStore();
+    agents = new ClaudeAgentStore();
     watch = new SubagentWatch(agents);
     setSubagentWatch(watch);
     lead = createLeadAgent(tmpRoot);
@@ -422,8 +412,6 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      () => {},
-      undefined,
     );
 
     expect(watch.store.size).toBe(1);
@@ -457,8 +445,6 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      () => {},
-      undefined,
     );
 
     expect(watch.isWatching(jsonlPath)).toBe(true);
@@ -476,8 +462,6 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      () => {},
-      undefined,
     );
     expect(watch.isWatching(jsonlPath)).toBe(true);
 
@@ -537,8 +521,6 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        () => {},
-        undefined,
       );
 
       expect([...agents.values()].filter((a) => a.leadAgentId === 1)).toHaveLength(1);
@@ -618,143 +600,5 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
     spawnAndLaunch();
     expect([...agents.values()].some((a) => a.leadAgentId === 1)).toBe(false);
     expect(watch.isWatching(path.join(subagentsDir, 'agent-old.jsonl'))).toBe(false);
-  });
-});
-
-describe('background spawn persistence & derived team lifecycle', () => {
-  function fakeAdapter(initial: unknown[] = []): StateAdapter & { saved: unknown[][] } {
-    const saved: unknown[][] = [];
-    return {
-      saved,
-      loadAgents: () => initial as never,
-      saveAgents: (agents) => {
-        saved.push(agents as unknown[]);
-      },
-      loadSeats: () => ({}),
-      saveSeats: () => {},
-      getSetting: <T>(_key: string, defaultValue: T) => defaultValue,
-      setSetting: () => {},
-    };
-  }
-
-  it('persists the lead backgroundAgentToolIds and never the spawned children', () => {
-    const store = new AgentStateStore();
-    const adapter = fakeAdapter();
-    store.setAdapter(adapter);
-
-    const lead = createLeadAgent('/tmp/proj');
-    lead.backgroundAgentToolIds.add(SPAWN_TOOL_ID);
-    store.set(1, lead);
-
-    const child = createLeadAgent('/tmp/proj');
-    child.id = 2;
-    child.agentName = 'ghost-writer';
-    child.leadAgentId = 1;
-    child.spawnToolUseId = SPAWN_TOOL_ID;
-    store.set(2, child);
-
-    store.persist();
-
-    const persisted = adapter.saved.at(-1) as Array<Record<string, unknown>>;
-    expect(persisted).toHaveLength(1);
-    expect(persisted[0].id).toBe(1);
-    expect(persisted[0].backgroundAgentToolIds).toEqual([SPAWN_TOOL_ID]);
-  });
-
-  it('drops the LEAD badge when the last teammate leaves', () => {
-    const store = new AgentStateStore();
-    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-    try {
-      const lead = createLeadAgent('/tmp/proj');
-      lead.isTeamLead = true;
-      store.set(1, lead);
-      const teammate = createLeadAgent('/tmp/proj');
-      teammate.id = 2;
-      teammate.agentName = 'ghost-writer';
-      teammate.leadAgentId = 1;
-      teammate.spawnToolUseId = SPAWN_TOOL_ID;
-      store.set(2, teammate);
-      const broadcasts: Array<Record<string, unknown>> = [];
-      store.on('broadcast', (m) => broadcasts.push(m as Record<string, unknown>));
-
-      runtime.removeTeammate(2, 'test');
-
-      expect(store.has(2)).toBe(false);
-      expect(store.get(1)!.isTeamLead).toBeUndefined();
-      const demote = broadcasts.find((m) => m.type === 'agentTeamInfo' && m.id === 1);
-      expect(demote).toBeDefined();
-      expect(demote!.isTeamLead).toBeUndefined();
-    } finally {
-      runtime.dispose();
-    }
-  });
-
-  it('keeps the LEAD badge while other teammates remain', () => {
-    const store = new AgentStateStore();
-    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-    try {
-      const lead = createLeadAgent('/tmp/proj');
-      lead.isTeamLead = true;
-      store.set(1, lead);
-      for (const [id, name] of [
-        [2, 'ghost-writer'],
-        [3, 'researcher'],
-      ] as const) {
-        const teammate = createLeadAgent('/tmp/proj');
-        teammate.id = id;
-        teammate.agentName = name;
-        teammate.leadAgentId = 1;
-        teammate.spawnToolUseId = `${SPAWN_TOOL_ID}-${id}`;
-        store.set(id, teammate);
-      }
-
-      runtime.removeTeammate(2, 'test');
-
-      expect(store.get(1)!.isTeamLead).toBe(true);
-    } finally {
-      runtime.dispose();
-    }
-  });
-
-  it('restores the lead set and skips stale child entries (leadAgentId, no teamName)', () => {
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-bg-restore-'));
-    const leadJsonl = path.join(tmpRoot, `${LEAD_SESSION}.jsonl`);
-    const childJsonl = path.join(tmpRoot, 'child.jsonl');
-    fs.writeFileSync(leadJsonl, '');
-    fs.writeFileSync(childJsonl, '');
-
-    const adapter = fakeAdapter([
-      {
-        id: 1,
-        sessionId: LEAD_SESSION,
-        jsonlFile: leadJsonl,
-        projectDir: tmpRoot,
-        backgroundAgentToolIds: [SPAWN_TOOL_ID],
-      },
-      {
-        // Stale background child written by an older build: derived state,
-        // must not resurrect as an immortal character.
-        id: 2,
-        sessionId: LEAD_SESSION,
-        jsonlFile: childJsonl,
-        projectDir: tmpRoot,
-        agentName: 'Say hello',
-        leadAgentId: 1,
-      },
-    ]);
-
-    const store = new AgentStateStore();
-    store.setAdapter(adapter);
-    const runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-    try {
-      runtime.restoreExternalAgents();
-
-      expect(store.has(1)).toBe(true);
-      expect(store.has(2)).toBe(false);
-      expect(store.get(1)!.backgroundAgentToolIds.has(SPAWN_TOOL_ID)).toBe(true);
-    } finally {
-      runtime.dispose();
-      fs.rmSync(tmpRoot, { recursive: true, force: true });
-    }
   });
 });

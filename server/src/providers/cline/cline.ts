@@ -130,7 +130,7 @@ export const clineModule: AgentModule = {
   kind: 'agent',
   id: 'cline',
   displayName: 'Cline',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),
