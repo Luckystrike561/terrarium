@@ -101,9 +101,10 @@ export class ClaudeHookHandler {
     }
   }
 
-  /** Remove an agent's session mapping (called on agent removal/terminal close). */
-  unregisterAgent(sessionId: string): void {
-    this.sessionRouter.unregister(sessionId);
+  /** Remove an agent's session mapping (called on agent removal/terminal close). Teammates that share their lead's
+   *  session id never own its route, so only the agent the route points at can drop it. */
+  unregisterAgent(sessionId: string, agentId: number): void {
+    if (this.sessionRouter.resolve(sessionId) === agentId) this.sessionRouter.unregister(sessionId);
   }
 
   /** Process a payload POSTed to /api/hooks/claude. All raw Claude-specific fields (tool_name, tool_input,

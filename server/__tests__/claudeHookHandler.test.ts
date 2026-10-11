@@ -70,6 +70,22 @@ describe('ClaudeHookHandler', () => {
     );
   });
 
+  // ── Routing ─────────────────────────────────────────────────
+
+  it('unregisterAgent never drops a route another agent sharing the session id owns', () => {
+    const router = new SessionRouter<ClaudeRoutedEvent, ClaudePendingSession>();
+    handler = new ClaudeHookHandler(agents, waitingTimers, permissionTimers, router);
+    agents.set(1, createTestAgent({ id: 1, sessionId: 'sess-1' }));
+    agents.set(2, createTestAgent({ id: 2, sessionId: 'sess-1', leadAgentId: 1 }));
+    handler.registerAgent('sess-1', 1);
+
+    handler.unregisterAgent('sess-1', 2);
+    expect(router.resolve('sess-1')).toBe(1);
+
+    handler.unregisterAgent('sess-1', 1);
+    expect(router.resolve('sess-1')).toBeUndefined();
+  });
+
   // ── PermissionRequest ───────────────────────────────────────
 
   it('PermissionRequest sends agentToolPermission', () => {

@@ -143,7 +143,7 @@ class ClaudeRunningModule implements RunningAgentModule {
         }
         const agent = this.store.get(agentId);
         if (agent) {
-          this.unregisterAgent(agent.sessionId);
+          this.unregisterAgent(agent.sessionId, agent.id);
           agent.sessionId = newSessionId;
           this.registerAgent(agent.sessionId, agent.id);
           emitSessionReassigned(this.host, agentId, agent);
@@ -328,7 +328,7 @@ class ClaudeRunningModule implements RunningAgentModule {
     const agent = this.store.get(id);
     if (!agent) return;
     this.dismissalTracker.dismiss(agent.jsonlFile);
-    this.unregisterAgent(agent.sessionId);
+    this.unregisterAgent(agent.sessionId, id);
     this.removeAgent(id);
   }
 
@@ -363,8 +363,8 @@ class ClaudeRunningModule implements RunningAgentModule {
     this.hookHandler.registerAgent(sessionId, agentId);
   }
 
-  private unregisterAgent(sessionId: string): void {
-    this.hookHandler.unregisterAgent(sessionId);
+  private unregisterAgent(sessionId: string, agentId: number): void {
+    this.hookHandler.unregisterAgent(sessionId, agentId);
   }
 
   private removeAgent(id: number): void {
@@ -385,11 +385,7 @@ class ClaudeRunningModule implements RunningAgentModule {
     if (!agent) return;
     console.log(`[Pixel Agents] Removing teammate ${teammateId} (source: ${source})`);
     this.dismissalTracker.dismiss(agent.jsonlFile);
-    // Background teammates (spawnToolUseId set) share the LEAD's session id;
-    // unregistering it would knock the lead itself out of the session router.
-    if (!agent.spawnToolUseId) {
-      this.unregisterAgent(agent.sessionId);
-    }
+    this.unregisterAgent(agent.sessionId, teammateId);
     this.removeAgent(teammateId);
     if (agent.leadAgentId !== undefined) {
       this.demoteLeadIfTeamEmpty(agent.leadAgentId);
@@ -407,7 +403,7 @@ class ClaudeRunningModule implements RunningAgentModule {
       if (agent) {
         console.log(`[Pixel Agents] Removing teammate ${id} (lead ${leadId} closed)`);
         this.dismissalTracker.dismiss(agent.jsonlFile);
-        if (!agent.spawnToolUseId) this.unregisterAgent(agent.sessionId);
+        this.unregisterAgent(agent.sessionId, id);
         this.removeAgent(id);
       }
     }
@@ -442,7 +438,7 @@ class ClaudeRunningModule implements RunningAgentModule {
     this.removeTeammates(agentId);
     // Unnamed background spawns die with their lead's session too.
     this.subagentWatch.removeByLead(agentId);
-    this.unregisterAgent(agent.sessionId);
+    this.unregisterAgent(agent.sessionId, agentId);
     this.removeAgent(agentId);
   }
 
