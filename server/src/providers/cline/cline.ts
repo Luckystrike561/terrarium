@@ -3,7 +3,7 @@
  * scanning `~/.cline/data/sessions` (or its env overrides) or handed over by a multiplexer that hosts the session.
  * herdr reports Cline panes by status only, with no session identity, so a pane joins the module's own discovered
  * session by matching cwd (`sessionInDirectory`) rather than by a shared `sessionRef`. Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to consent to.
+ * `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

@@ -16,7 +16,7 @@ const SERVER_JSON = path.join(os.homedir(), SERVER_JSON_DIR, SERVER_JSON_NAME);
 const SERVERS_REGISTRY_DIR = path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DIR);
 
 /**
- * CI / e2e diagnostic: when PIXEL_AGENTS_DEBUG_LOG is set, record the hook
+ * CI / e2e diagnostic: when TERRARIUM_DEBUG_LOG is set, record the hook
  * script's outcome at every exit point. The hook delivery chain (spawn
  * claude-hook.js -> read the registry -> POST to every live server) is
  * otherwise 100% silent: every failure path resolves quietly, so a dropped
@@ -29,7 +29,7 @@ const SERVERS_REGISTRY_DIR = path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DI
 // inheritEnv:false, etc.). After reading the registry we fall back to a
 // live server's `debugLog` field, which the server populated from the same
 // env var.
-let debugLogPath = process.env['PIXEL_AGENTS_DEBUG_LOG'];
+let debugLogPath = process.env['TERRARIUM_DEBUG_LOG'];
 function hookDebug(line: string): void {
   if (!debugLogPath) return;
   try {
@@ -51,8 +51,8 @@ function isProcessAlive(pid: number): boolean {
 }
 
 /**
- * Enumerate every live registry entry under ~/.pixel-agents/servers/, so the
- * event can fan out to each running server (several `npx pixel-agents`
+ * Enumerate every live registry entry under ~/.terrarium/servers/, so the
+ * event can fan out to each running server (several `terrarium`
  * instances can run at once). Entries whose owning PID is no longer alive
  * are skipped (the owning server prunes its own stale file on next start;
  * this script only needs to not POST to it). Returns an empty array when

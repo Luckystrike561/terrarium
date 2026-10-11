@@ -180,7 +180,7 @@ describe('dist/cli.js entry-point guard', () => {
   itBuilt('runs main() when executed directly: --help prints usage and exits 0', async () => {
     const { code, stdout } = await runCli(['--help']);
     expect(code).toBe(0);
-    expect(stdout).toContain('Usage: pixel-agents');
+    expect(stdout).toContain('Usage: terrarium');
     expect(stdout).toContain('--uninstall-hooks');
   });
 
@@ -242,7 +242,7 @@ describe('dist/cli.js entry-point guard', () => {
    *  would be testing the helper. The trailing `\s` makes it wait for a
    *  complete line: stdout arrives in chunks, and a half-delivered URL still
    *  parses as a URL (`http://127.0.0.1:501`). */
-  const URL_LINE = /Pixel Agents server running at (\S+)\s/;
+  const URL_LINE = /Terrarium server running at (\S+)\s/;
 
   function printedUrl(output: string): URL {
     const match = URL_LINE.exec(output);
@@ -253,7 +253,7 @@ describe('dist/cli.js entry-point guard', () => {
   /** The token the server actually minted, read from its own discovery file —
    *  an independent witness, so a printed token that drifts from it fails. */
   function mintedToken(tmpHome: string): string {
-    const raw = fs.readFileSync(path.join(tmpHome, '.pixel-agents', 'server.json'), 'utf-8');
+    const raw = fs.readFileSync(path.join(tmpHome, '.terrarium', 'server.json'), 'utf-8');
     return (JSON.parse(raw) as { token: string }).token;
   }
 
@@ -331,7 +331,7 @@ describe('dist/cli.js entry-point guard', () => {
     fs.mkdirSync(path.join(tmpHome, '.claude'), { recursive: true });
     // A legacy install: our command on every event we install today, plus the
     // two we no longer do.
-    const ourCommand = `node "${path.join(tmpHome, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
+    const ourCommand = `node "${path.join(tmpHome, '.terrarium', 'hooks', 'claude-hook.js')}"`;
     const thirdPartyCommand = 'node /elsewhere/other-tool.js';
     const legacyEvents = [...CLAUDE_HOOK_EVENTS, 'UserPromptSubmit', 'TaskCreated'];
     const hooks = Object.fromEntries(
@@ -349,7 +349,7 @@ describe('dist/cli.js entry-point guard', () => {
     );
 
     await runCliServer(tmpHome, async ({ output }) => {
-      await waitForCondition(() => output().includes('[Pixel Agents] Hooks installed'));
+      await waitForCondition(() => output().includes('[Terrarium] Hooks installed'));
       const after = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as {
         permissions?: unknown;
         hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>>;
@@ -368,7 +368,7 @@ describe('dist/cli.js entry-point guard', () => {
       // TaskCreated held only ours -> emptied and the key removed entirely.
       expect(after.hooks['TaskCreated']).toBeUndefined();
 
-      const configPath = path.join(tmpHome, '.pixel-agents', 'config.json');
+      const configPath = path.join(tmpHome, '.terrarium', 'config.json');
       const consent = (
         JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
           hooksConsent?: Record<string, string>;
@@ -393,19 +393,19 @@ describe('dist/cli.js entry-point guard', () => {
   // (ENOTDIR) without touching the repo's real dist/.
   itBuilt('writes no hook entries when the hook script cannot be copied', async () => {
     const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-nocopy-'));
-    fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
+    fs.mkdirSync(path.join(tmpHome, '.terrarium'), { recursive: true });
     fs.writeFileSync(
-      path.join(tmpHome, '.pixel-agents', 'config.json'),
+      path.join(tmpHome, '.terrarium', 'config.json'),
       JSON.stringify({ hooksConsent: { claude: 'granted' } }),
     );
     // hooks/ is a FILE, so copying into hooks/claude-hook.js fails.
-    fs.writeFileSync(path.join(tmpHome, '.pixel-agents', 'hooks'), 'not a directory');
+    fs.writeFileSync(path.join(tmpHome, '.terrarium', 'hooks'), 'not a directory');
 
     await runCliServer(tmpHome, async ({ output }) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(fs.existsSync(path.join(tmpHome, '.claude', 'settings.json'))).toBe(false);
       expect(output()).toContain('Hooks NOT installed');
-      expect(output()).not.toContain('[Pixel Agents] Hooks installed');
+      expect(output()).not.toContain('[Terrarium] Hooks installed');
     });
   });
 
@@ -415,9 +415,9 @@ describe('dist/cli.js entry-point guard', () => {
     // The spawned CLI has no TTY, and without prior consent the first-run gate
     // (rightly) skips hook installation there — seed consent so this test can
     // exercise the actual install path.
-    fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
+    fs.mkdirSync(path.join(tmpHome, '.terrarium'), { recursive: true });
     fs.writeFileSync(
-      path.join(tmpHome, '.pixel-agents', 'config.json'),
+      path.join(tmpHome, '.terrarium', 'config.json'),
       JSON.stringify({ hooksConsent: { claude: 'granted' } }),
     );
     const port = await getFreePort();
@@ -446,7 +446,7 @@ describe('dist/cli.js entry-point guard', () => {
         }
       });
 
-      const installedHook = path.join(tmpHome, '.pixel-agents', 'hooks', 'claude-hook.js');
+      const installedHook = path.join(tmpHome, '.terrarium', 'hooks', 'claude-hook.js');
       await waitForCondition(() => fs.existsSync(installedHook));
       expect(fs.readFileSync(installedHook, 'utf-8')).toContain('#!/usr/bin/env node');
       if (process.platform !== 'win32') {
@@ -483,9 +483,9 @@ describe('dist/cli.js entry-point guard', () => {
     await runCliServer(
       firstHome,
       async ({ output }) => {
-        await waitForCondition(() => output().includes('[Pixel Agents] Provider modules:'));
-        expect(output()).toContain('[Pixel Agents] Provider modules: omp, herdr');
-        const configPath = path.join(firstHome, '.pixel-agents', 'config.json');
+        await waitForCondition(() => output().includes('[Terrarium] Provider modules:'));
+        expect(output()).toContain('[Terrarium] Provider modules: omp, herdr');
+        const configPath = path.join(firstHome, '.terrarium', 'config.json');
         persistedConfig = fs.readFileSync(configPath, 'utf-8');
         const parsedConfig = JSON.parse(persistedConfig) as { modules?: string[] };
         expect(parsedConfig.modules).toEqual(['omp', 'herdr']);
@@ -498,11 +498,11 @@ describe('dist/cli.js entry-point guard', () => {
     // a second start that reuses the persisted choice needs that choice carried over by hand
     // into a fresh home -- the point under test is config.json, not the directory identity.
     const secondHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-provider-reuse-'));
-    fs.mkdirSync(path.join(secondHome, '.pixel-agents'), { recursive: true });
-    fs.writeFileSync(path.join(secondHome, '.pixel-agents', 'config.json'), persistedConfig);
+    fs.mkdirSync(path.join(secondHome, '.terrarium'), { recursive: true });
+    fs.writeFileSync(path.join(secondHome, '.terrarium', 'config.json'), persistedConfig);
     await runCliServer(secondHome, async ({ output }) => {
-      await waitForCondition(() => output().includes('[Pixel Agents] Provider modules:'));
-      expect(output()).toContain('[Pixel Agents] Provider modules: omp, herdr');
+      await waitForCondition(() => output().includes('[Terrarium] Provider modules:'));
+      expect(output()).toContain('[Terrarium] Provider modules: omp, herdr');
     });
   });
 
@@ -525,7 +525,7 @@ describe('dist/cli.js entry-point guard', () => {
   }
 
   function readHooksEnabled(tmpHome: string): unknown {
-    const configPath = path.join(tmpHome, '.pixel-agents', 'config.json');
+    const configPath = path.join(tmpHome, '.terrarium', 'config.json');
     if (!fs.existsSync(configPath)) return undefined;
     const config: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     if (config === null || typeof config !== 'object' || !('hooksEnabled' in config)) {
@@ -541,7 +541,7 @@ describe('dist/cli.js entry-point guard', () => {
       try {
         const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
         fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-        const ourCommand = `node "${path.join(tmpHome, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
+        const ourCommand = `node "${path.join(tmpHome, '.terrarium', 'hooks', 'claude-hook.js')}"`;
         const thirdParty = { type: 'command', command: 'node /elsewhere/other-tool.js' };
         const hooks = Object.fromEntries(
           CLAUDE_HOOK_EVENTS.map((event) => [

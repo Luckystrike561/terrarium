@@ -30,7 +30,7 @@ RUN npm ci --omit=dev --ignore-scripts --workspace=server --include-workspace-ro
 COPY --from=build /app/dist ./dist
 # A named volume mounted here starts with this ownership, so the server can write to it as `node`. The base
 # image's home is 0700, which would lock a `--user` UID out of the mounts below it.
-RUN chmod 0755 /home/node && install -d -o node -g node /home/node/.pixel-agents
+RUN chmod 0755 /home/node && install -d -o node -g node /home/node/.terrarium
 USER node
 EXPOSE 8790
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

@@ -2,7 +2,7 @@
  * Maki agent module. Maki has no hook API: everything comes from its session transcripts, found by scanning its
  * session store. herdr recognizes Maki panes by screen state only (no SessionStart integration, no session
  * reference), so the module discovers sessions entirely on its own and a pane joins one by matching its working
- * directory (`sessionInDirectory`), not an explicit ref. Nothing is written outside `~/.pixel-agents/`, so there
+ * directory (`sessionInDirectory`), not an explicit ref. Nothing is written outside `~/.terrarium/`, so there
  * is nothing to consent to.
  */
 

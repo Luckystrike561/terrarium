@@ -1,7 +1,7 @@
 /**
  * pi agent module. pi has no hook API: everything comes from its session transcripts, found by scanning its
  * session store or handed over by a multiplexer that hosts the session. Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to consent to.
+ * `~/.terrarium/`, so there is nothing to consent to.
  *
  * pi's own herdr integration reports the transcript's real path once its `SessionManager` has one, which is
  * normally as soon as the session exists (the path is assigned before the file is actually written, so pi's lazy

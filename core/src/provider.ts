@@ -146,7 +146,7 @@ export interface AgentModule {
     event: AgentEvent;
   } | null;
 
-  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.pixel-agents/`. */
+  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.terrarium/`. */
   readonly hooks?: HookInstaller;
 
   /** Format tool status for display (e.g., "Read" -> "Reading foo.ts") */

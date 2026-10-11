@@ -4,7 +4,7 @@
  * `sess_<uuid>` session id to herdr, so a pane running `--v3` still hands over by id. A classic (V2) pane hands
  * over nothing and is only ever found by this module's own discovery, joined to a herdr pane by
  * `sessionInDirectory`. Everything comes from Kiro's own session store. Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to
+ * `~/.terrarium/`, so there is nothing to
  * consent to.
  */
 

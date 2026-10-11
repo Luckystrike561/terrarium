@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities through [GitHub's private vulnerability reporting](https://github.com/pixel-agents-hq/pixel-agents/security/advisories/new).
+Please report security vulnerabilities in Terrarium through [GitHub's private vulnerability reporting](https://github.com/Luckystrike561/terrarium/security/advisories/new). If the vulnerability also affects upstream Pixel Agents, report it to that project as well.
 
 **Do not open a public issue for security vulnerabilities.**
 

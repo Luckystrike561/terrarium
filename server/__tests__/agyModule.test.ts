@@ -10,7 +10,7 @@ import { AgentStateStore } from '../src/agentStateStore.js';
 import { agyModule } from '../src/providers/agy/agy.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 
-// agy's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// agy's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof OsModule>('os');

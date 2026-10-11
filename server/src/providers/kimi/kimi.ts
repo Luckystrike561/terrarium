@@ -1,6 +1,6 @@
 /**
  * Kimi Code agent module. Kimi has no hook API: everything comes from its session store, found by scanning it or
- * handed over by a multiplexer that hosts the session. Nothing is written outside `~/.pixel-agents/`, so there is
+ * handed over by a multiplexer that hosts the session. Nothing is written outside `~/.terrarium/`, so there is
  * nothing to consent to.
  *
  * Two gaps the store cannot fill: a pending approval and a clean session exit are both reported only by a hook

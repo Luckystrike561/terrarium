@@ -1,7 +1,7 @@
 /**
  * Cursor Agent CLI agent module. Cursor has no hook API: everything comes from its session transcripts, found
  * by scanning its session store or handed over by a multiplexer that hosts the session. Nothing is written
- * outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * outside `~/.terrarium/`, so there is nothing to consent to.
  *
  * herdr reports a cursor pane's `agent_session` as a bare conversation UUID (`kind: 'id'`), not a path, so the
  * store is keyed by that UUID (`sessionIdOf`) rather than the transcript's real path.

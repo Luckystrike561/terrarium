@@ -19,7 +19,7 @@ const AREA_TO_EPIC: Record<string, string> = {
 
 /**
  * Apply Allure epic label derived from the test's @area: tag. Called from an
- * auto-fixture in pixel-agents.ts and standalone.ts so every test in the
+ * auto-fixture in terrarium.ts and standalone.ts so every test in the
  * suite gets grouped in the Allure dashboard's Behaviors view without
  * per-test annotation.
  *

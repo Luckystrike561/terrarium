@@ -10,9 +10,9 @@ import { FILE_WATCHER_POLL_INTERVAL_MS, TRANSCRIPT_FOLLOW_RETRY_MS } from '../sr
 import { claudeModule } from '../src/providers/claude/claude.js';
 import { ompModule } from '../src/providers/omp/omp.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
-import { PixelAgentsServer } from '../src/server.js';
+import { TerrariumServer } from '../src/server.js';
 
-// omp's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// omp's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');
@@ -273,7 +273,7 @@ describe('provider modules', () => {
         agents: [claudeModule, ompModule],
         multiplexers: [mux.module],
       });
-      const server = new PixelAgentsServer();
+      const server = new TerrariumServer();
       const activeRuntime = runtime;
       server.onHookEvent((providerId, event) => activeRuntime.handleHookEvent(providerId, event));
       const config = await server.start({ store, runtime });

@@ -9,7 +9,7 @@ import { AgentStateStore } from '../src/agentStateStore.js';
 import { grokModule } from '../src/providers/grok/grok.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 
-// grok's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// grok's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');

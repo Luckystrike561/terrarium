@@ -2,7 +2,7 @@
  * Kilo Code CLI agent module. Kilo vendors OpenCode's SQLite session store (confirmed: `session`, `message` and
  * `part` tables, same column and JSON shapes), so this module reuses the OpenCode SQLite format and tool status
  * formatter wholesale, resolving only its own database path and labeling the handful of Roo-lineage tool names
- * Kilo added on top of OpenCode's vocabulary. Nothing is written outside `~/.pixel-agents/`, so there is nothing
+ * Kilo added on top of OpenCode's vocabulary. Nothing is written outside `~/.terrarium/`, so there is nothing
  * to consent to.
  */
 

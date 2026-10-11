@@ -13,7 +13,7 @@ import {
   SESSION_POLL_INTERVAL_MS,
 } from '../src/providers/sessionStore/constants.js';
 
-// Kiro's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// Kiro's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof os>('os');

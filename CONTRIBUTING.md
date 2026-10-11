@@ -1,51 +1,41 @@
-# Contributing to Pixel Agents
+# Contributing to Terrarium
 
-Thanks for your interest in contributing to Pixel Agents! All contributions are welcome — features, bug fixes, documentation improvements, refactors, and more.
+Thanks for your interest in contributing to Terrarium! All contributions are welcome: features, bug fixes, documentation improvements, refactors, and more.
 
 This project is licensed under the [MIT License](LICENSE), so your contributions will be too. No CLA or DCO is required.
+
+## Naming
+
+The product is **Terrarium**, a fork of Pixel Agents v1.4.1 (the [README](README.md) credits the upstream project). Code, paths and commands use the Terrarium name too: the npm package and CLI are `terrarium`, state lives in `~/.terrarium/`, environment variables are `TERRARIUM_*`, and the server logs with a `[Terrarium]` prefix. Say Pixel Agents only for the upstream project.
 
 ## Getting Started
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (use the version in [`.nvmrc`](.nvmrc), currently v22)
+- Optionally [devbox](https://www.jetify.com/devbox): `devbox shell` provides Node and gitleaks, which the pre-commit hook needs.
 
 ### Setup
 
 ```bash
-git clone https://github.com/pixel-agents-hq/pixel-agents.git
-cd pixel-agents
+git clone https://github.com/Luckystrike561/terrarium.git
+cd terrarium
 npm install
 npm run build
 ```
 
-Run `node dist/cli.js` (or `npx pixel-agents` once published) to start the standalone server against a workspace.
+Run `node dist/cli.js` to start the standalone server and open the URL it prints. Nothing from this fork is published to npm, and `npx terrarium` would install an unrelated package of the same name.
 
 ### Verify the npm package locally
 
-The npm artifact has its own gate because source-level tests cannot detect a missing tarball file or a package-relative path bug:
+The npm artifact has its own gate, because source-level tests cannot detect a missing tarball file or a package-relative path bug:
 
 ```bash
 npm run test:package-contract
 npm run verify:npm-package
 ```
 
-The verifier runs the production `prepack` build, creates a tarball outside the repository, installs that exact tarball into a temporary project, and exercises CLI help, the health endpoint, the standalone SPA, bundled assets, and default Hook ON setup. Temporary files and the child server are removed automatically; it never publishes to npm.
-
-### Maintainer release checklist
-
-A published GitHub Release coordinates publishing to npm. Publishing is release-driven, not triggered by a push to `main` alone.
-
-One-time npm setup: configure the `pixel-agents` package's GitHub Actions [trusted publisher](https://docs.npmjs.com/trusted-publishers/) for `pixel-agents-hq/pixel-agents`, workflow `publish-extension.yml`, no environment, and allow `npm publish`.
-The GitHub-hosted workflow enforces Node >=22.14.0 and npm >=11.5.1 and uses OIDC (`id-token: write`); do not configure a long-lived publish token, and revoke any unused one.
-
-For each release:
-
-1. Update `CHANGELOG.md`, then set the same new version in the root `package.json` and both root-version fields in `package-lock.json`. The private workspace manifests are not released and do not receive the package version.
-2. Run `npm ci`, `npm test`, and `npm run verify:npm-package`. Inspect the generated package if needed by manually dispatching the publish workflow in dry-run mode and downloading its `npm-package-*` artifact; manual dispatch never publishes to npm.
-3. Merge the release changes into `main` and wait for CI to pass.
-4. Create and publish a GitHub Release whose tag is exactly `v<package.json version>` and points to that commit on `main` (for example, `v1.4.0`). The npm job rejects a mismatched tag, ref, package identity, non-incrementing version, or changed tarball integrity.
-5. Confirm the npm job succeeded, and verify the new npm version with `npm view pixel-agents version`.
+The verifier runs the production `prepack` build, creates a tarball outside the repository, installs that exact tarball into a temporary project, and exercises CLI help, the health endpoint, the standalone SPA, bundled assets, and default Hook ON setup. Temporary files and the child server are removed automatically. It never publishes to npm.
 
 ## Development Workflow
 
@@ -55,11 +45,11 @@ For development with live rebuilds, run:
 npm run watch
 ```
 
-This starts parallel watchers for both the server backend (esbuild) and TypeScript type-checking.
+This starts parallel watchers for the server bundle (esbuild) and TypeScript type-checking.
 
-> **Note:** The webview (Vite) is not included in `watch` — after changing webview code, run `npm run build:webview` or the full `npm run build`.
+> **Note:** The webview (Vite) is not included in `watch`. After changing webview code, run `npm run build:webview` or the full `npm run build`. `npm run dev` watches both and runs the server with the herdr and omp modules on port 8790.
 
-## Running the Mocked Pixel Agent
+## Running the Mocked Office
 
 From the repository root:
 
@@ -67,23 +57,26 @@ From the repository root:
 npm run dev -w webview-ui
 ```
 
-Vite will print a local URL (typically `http://localhost:5173`) where the mocked app is available.
+Vite will print a local URL (typically `http://localhost:5173`) where the office runs against a browser mock instead of a server.
 
 ### Project Structure
 
-Pixel Agents uses a layered codebase. `core/` depends on nothing; `server/` and `webview-ui/` depend only on `core/`.
+Terrarium uses a layered codebase. `core/` depends on nothing. `server/` and `webview-ui/` depend only on `core/`.
 
-| Directory                   | Description                                                                                                                                                                                                                                           |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`                     | Protocol + interface definitions (AsyncAPI 3.0 contract, AgentModule + MultiplexerModule, MessageTransport, StateAdapter). Zero runtime side effects.                                                                                                 |
-| `server/`                   | Lifecycle runtime: `AgentRuntime`, `AgentStateStore`, `SessionRouter`, `DismissalTracker`, Fastify HTTP/WS server, file watching, transcript parsing, hook installer, providers, Vitest test suite. Also ships the `npx pixel-agents` standalone CLI. |
-| `webview-ui/`               | React 19 + Canvas UI. Transport abstraction (`WebSocketTransport`). Depends only on `core/`.                                                                                                                                                          |
-| `webview-ui/public/assets/` | Bundled sprites, furniture catalog, default layout, fonts.                                                                                                                                                                                            |
-| `scripts/`                  | Build/CI tooling: `generate-messages.ts` (AsyncAPI → TS), `run-e2e.mjs`, `build-allure-report.mjs`, `assemble-vercel-output.mjs`, and the asset extraction pipeline.                                                                                  |
-| `e2e/`                      | Playwright suite — fixtures, helpers, specs for `claude/hooks-on/`, `claude/hooks-off/`, and `standalone/`.                                                                                                                                           |
-| `eslint-rules/`             | Custom rules (`no-inline-colors`, `pixel-shadow`, `pixel-font`) enforced project-wide.                                                                                                                                                                |
+| Directory            | Description                                                                                                                                                                                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`              | Protocol and interface definitions (AsyncAPI 3.0 contract, AgentModule and MultiplexerModule, MessageTransport, StateAdapter) and the shared asset decoders.                                                                                                     |
+| `server/`            | Lifecycle runtime: `AgentRuntime`, `AgentStateStore`, `SessionRouter`, `DismissalTracker`, Fastify HTTP/WS server, file watching, transcript parsing, hook installer, provider modules, Vitest test suite. Also ships the `terrarium` CLI.                       |
+| `webview-ui/`        | React 19 HUD and a PixiJS (WebGL) isometric office. Transport abstraction (`WebSocketTransport`). Depends only on `core/`.                                                                                                                                       |
+| `webview-ui/public/` | Bundled sprites, furniture manifests, default layout (`assets/`) and the pixel font (`fonts/`).                                                                                                                                                                  |
+| `scripts/`           | Build tooling: `generate-messages.ts` (AsyncAPI → TS), `validate-asyncapi.mjs`, `run-e2e.mjs`, `generate-e2e-inventory.mjs`, the npm package contract and verifier, `record-demo.mjs`, Allure report scripts, and the `iso-art/` generators for the bundled art. |
+| `e2e/`               | Playwright suite: fixtures, helpers, specs for `claude/hooks-on/`, `claude/hooks-off/` and `standalone/`.                                                                                                                                                        |
+| `eslint-rules/`      | Custom rules (`no-inline-colors`, `pixel-shadow`, `pixel-font`) enforced project-wide.                                                                                                                                                                           |
+| `docs/`              | Architecture deep dives (`docs/architecture/`), the ADR, the art direction.                                                                                                                                                                                      |
 
-The repo uses **npm workspaces** (`server`, `webview-ui` declared in the root `package.json`). A single `npm install` at the root installs dependencies for all workspaces; no nested `cd ... && npm install` is needed.
+The repo uses **npm workspaces** (`server` and `webview-ui`, declared in the root `package.json`). `core/` is not a package: both import its sources directly. A single `npm install` at the root installs dependencies for all workspaces. No nested `cd ... && npm install` is needed.
+
+[CLAUDE.md](CLAUDE.md) is the compressed reference for the whole codebase, and [`docs/architecture/`](docs/architecture/) holds the subsystem deep dives it links to.
 
 ## Manual Hook Testing
 
@@ -93,21 +86,22 @@ It covers the basic external-session lifecycle:
 
 - `SessionStart` to stage a pending external session
 - `PreToolUse` to confirm it and mark the agent active
-- `PermissionRequest`, `Notification`, and `Stop` to drive permission/waiting states
+- `PermissionRequest`, `Notification`, and `Stop` to drive permission and waiting states
 - `SessionEnd` to despawn the agent
 
-Before using it, copy `port` and `token` from `~/.pixel-agents/server.json` into the file variables and set `cwd` to a workspace directory the server is running against. If `cwd` is outside the current workspace, enable **Watch All Sessions** in Pixel Agents first.
+Before using it, copy `port` and `token` from `~/.terrarium/server.json` into the file variables and set `cwd` to a workspace directory. Every session on the machine is watched, so any directory works.
 
 ## Code Guidelines
 
 ### Constants
 
-**No unused locals or parameters** (`noUnusedLocals` and `noUnusedParameters` are enabled). All magic numbers and strings are centralized — don't add inline constants to source files:
+**No unused locals or parameters** (`noUnusedLocals` and `noUnusedParameters` are enabled). All magic numbers and strings are centralized. Don't add inline constants to source files:
 
-- **Shared backend timing/scanning constants:** `server/src/constants.ts`
+- **Shared backend timing and scanning constants:** `server/src/constants.ts`
+- **One provider module's own constants:** `server/src/providers/<id>/constants.ts`
 - **Protocol-level constants:** `core/src/constants.ts`
-- **Webview:** `webview-ui/src/constants.ts` (grid, animation, rendering, camera, zoom, canvas overlay rgba strings)
-- **CSS variables:** `webview-ui/src/index.css` `:root` block (`--pixel-*` properties for React inline styles and CSS)
+- **Webview:** `webview-ui/src/constants.ts` (grid, animation, rendering, camera, zoom, colour strings)
+- **CSS variables:** `webview-ui/src/index.css` `:root` block
 
 ### UI Styling
 
@@ -115,10 +109,10 @@ The project uses a pixel art aesthetic. All overlays should use:
 
 - Sharp corners (`border-radius: 0`)
 - Solid backgrounds and `2px solid` borders
-- Hard offset shadows (`2px 2px 0px`, no blur) — use `var(--pixel-shadow)`
+- Hard offset shadows (`2px 2px 0px`, no blur): use `var(--pixel-shadow)`
 - The FS Pixel Sans font (loaded in `index.css`)
 
-These conventions are enforced by custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`):
+These conventions are enforced by custom ESLint rules (`eslint-rules/terrarium-rules.mjs`):
 
 | Rule               | Scope            | What it checks                                              |
 | ------------------ | ---------------- | ----------------------------------------------------------- |
@@ -126,12 +120,12 @@ These conventions are enforced by custom ESLint rules (`eslint-rules/pixel-agent
 | `pixel-shadow`     | Webview only     | Box shadows must use `var(--pixel-shadow)` or `2px 2px 0px` |
 | `pixel-font`       | Webview only     | Font family must reference FS Pixel Sans                    |
 
-These rules are set to `error` and will block your PR if violated.
+These rules are set to `error`, so `npm run lint` fails on a violation.
 
 ## Unit & Integration Tests
 
 ```bash
-# Run all tests (webview + server)
+# Run all tests (webview + server + package contract)
 npm test
 
 # Run only server tests (Vitest)
@@ -141,11 +135,11 @@ npm run test:server
 npm run test:webview
 ```
 
-Server tests cover `AgentStateStore` (typed mutations + events), `HookEventHandler` (routing, buffering, team gating), `SessionRouter` and `DismissalTracker`, `FileStateAdapter` (persistence), `teamUtils`, the Claude provider and its team extension, the hook installer, the HTTP server (lifecycle, auth, `/ws`, broadcast), and the hook script via a spawned-process integration test.
+Server tests cover `AgentStateStore` (typed mutations and events), `HookEventHandler` (routing, buffering, team gating), `SessionRouter` and `DismissalTracker`, `FileStateAdapter` (persistence), `teamUtils`, the Claude provider and its team extension, the other agent modules and herdr, the hook installer, the HTTP server (lifecycle, auth, `/ws`, broadcast), and the hook script via a spawned-process integration test.
 
-Adding an agent CLI or a terminal multiplexer is one provider module: see "Adding a provider module" in [CLAUDE.md](CLAUDE.md#adding-a-provider-module) for the files to create, the interface to implement, the registry entry, and how hooks consent applies.
+Adding an agent CLI or a terminal multiplexer is one provider module: see "Adding a provider module" in [docs/architecture/providers.md](docs/architecture/providers.md#adding-a-provider-module) for the files to create, the interface to implement, the registry entry, and how hooks consent applies.
 
-`claude-hook.test.ts` requires the bundled hook at `dist/hooks/claude-hook.js`, so build before running it (or use `npm test` which builds first).
+`claude-hook.test.ts` requires the bundled hook at `dist/hooks/claude-hook.js`, so run `npm run build` before running it.
 
 ## End-to-End Tests
 
@@ -184,7 +178,7 @@ By default, successful tests discard their videos after teardown. Pass `--attach
 
 ### Mock claude
 
-Tests never invoke the real `claude` CLI. A wrapper script (`e2e/fixtures/mock-claude` on POSIX, `mock-claude.cmd` on Windows) is copied into an isolated `bin/` directory and prepended to `PATH` before the server starts. The wrapper delegates to `e2e/fixtures/mock-claude-runner.cjs`, which honors a scenario blob set by the test via the `MOCK_CLAUDE_SCENARIO` env var.
+Tests never invoke the real `claude` CLI. A wrapper script (`e2e/fixtures/mock-claude` on POSIX, `mock-claude.cmd` on Windows) is copied into an isolated `bin/` directory and prepended to `PATH` before the server starts. The wrapper delegates to `e2e/fixtures/mock-claude-runner.cjs`, which claims the next scenario from the queue the test writes to `$HOME/.claude-mock/scenario-queue.json`.
 
 Tests build scenarios with the fluent `claudeScenario(...)` helper in `e2e/helpers/mock-claude.ts`:
 
@@ -200,19 +194,19 @@ claudeScenario('my-scenario')
 
 `appendJsonl` writes a record to `$HOME/.claude/projects/<project-hash>/<session-id>.jsonl` at the given offset. `emitHook` POSTs a hook event to the running server's `/api/hooks/:providerId`. `holdOpenFor` keeps the wrapper process alive (and the terminal "busy") for that many ms after the last action, then exits.
 
-Each test runs with an isolated `HOME`, workspace directory, and mock log file — no state leaks between runs or into your real environment.
+Each test runs with an isolated `HOME`, workspace directory, and mock log file, so no state leaks between runs or into your real environment.
 
 For the normative model behind this (the process-boundary principle, append-only transcript rule, assertion philosophy, and the one standalone-server exception), see [`e2e/README.md` → "Mocking model & rules"](e2e/README.md#mocking-model--rules).
 
 ### E2E test naming
 
-Tests use behavioral sentences with `@area:<tag>` suffixes for grouping. Areas: `spawn`, `lifecycle`, `cross-cutting`, `teams`, `matrix`, `standalone`. Example:
+Tests use behavioral sentences with `@area:<tag>` suffixes for grouping. Example:
 
 ```typescript
 test('rapid /clear then new tool within 500ms lands on the reassigned agent @area:lifecycle', ...);
 ```
 
-The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` tag. After adding or removing tests, run `npm run e2e:inventory` to regenerate — CI fails if it drifts.
+The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` tag. After adding or removing tests, run `npm run e2e:inventory` to regenerate it. The pre-push hook fails if it drifts.
 
 ## Submitting a Pull Request
 
@@ -226,29 +220,30 @@ The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` ta
    npm run asyncapi:generate            # Regen core/src/messages.ts (must produce no git diff)
    npm run e2e:inventory                # Regen e2e/README.md (must produce no git diff)
    npm run build                        # esbuild (CLI + hooks) + Vite (webview)
-   npm test                             # Server vitest + webview vitest
+   npm test                             # Server vitest + webview vitest + package contract
    npm run e2e                          # Full Playwright suite; inventory lives in e2e/README.md
    ```
-   CI runs these same checks automatically on every PR. The AsyncAPI and e2e inventory drift checks fail the build on any diff — always regen + commit the result.
-4. Open a pull request against `main` with:
-   - A **conventional commit PR title** (e.g. `feat: add zoom controls`, `fix: character freezing on terminal close`, `refactor: extract pathfinding module`). CI enforces this format — see [Conventional Commits](https://www.conventionalcommits.org/).
+   No workflow runs these checks, so these local runs are the gate. The husky `pre-push` hook runs `check-types` and the two drift checks (AsyncAPI bindings and e2e inventory) for you. Always regenerate and commit the result.
+4. Open a pull request against `master` with:
+   - A **conventional commit PR title** (e.g. `feat: add zoom controls`, `fix: character freezing on terminal close`, `refactor: extract pathfinding module`). See [Conventional Commits](https://www.conventionalcommits.org/).
+   - A link to the issue it closes (`Closes #123`)
    - A clear description of what changed and why
-   - How you tested the changes (steps to reproduce / verify)
+   - How you tested the changes (steps to reproduce or verify)
    - **Screenshots or GIFs for any UI changes**
 
-> **Note:** PRs are merged using **squash and merge** — all commits in your PR are combined into a single commit on `main`. Your PR title becomes the commit message, which is why the conventional commit format matters.
+> **Note:** PRs are merged using **squash and merge**: all commits in your PR are combined into a single commit on `main`. Your PR title becomes the commit message, which is why the conventional commit format matters.
 
 ## Reporting Bugs
 
-[Open a bug report](https://github.com/pixel-agents-hq/pixel-agents/issues/new?template=bug_report.yml) — the form will guide you through providing the details we need.
+[Open a bug report](https://github.com/Luckystrike561/terrarium/issues/new?template=bug_report.yml). The form will guide you through providing the details we need.
 
 ## Feature Requests
 
-Have an idea? [Open a feature request](https://github.com/pixel-agents-hq/pixel-agents/issues/new?template=feature_request.yml) — the form will guide you through describing the problem and your proposed solution. You can also browse and join ongoing conversations in [Discussions](https://github.com/pixel-agents-hq/pixel-agents/discussions).
+Have an idea? [Open a feature request](https://github.com/Luckystrike561/terrarium/issues/new?template=feature_request.yml). The form will guide you through describing the problem and your proposed solution.
 
 ## Security Issues
 
-Please report security vulnerabilities privately — see [SECURITY.md](SECURITY.md) for details.
+Please report security vulnerabilities privately. See [SECURITY.md](SECURITY.md) for details.
 
 ## Code of Conduct
 

@@ -114,7 +114,7 @@ test.describe('Hooks OFF / matrix', () => {
         .at(9_500)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-a10-teammate-search', 'WebSearch', {
-            query: 'pixel agents',
+            query: 'terrarium',
           }),
           { session: INLINE_TEAMMATE_ALIAS },
         )
@@ -177,7 +177,7 @@ test.describe('Hooks OFF / matrix', () => {
         .at(10_000)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-a12-teammate-search', 'WebSearch', {
-            query: 'pixel agents',
+            query: 'terrarium',
           }),
           { session: TMUX_TEAMMATE_ALIAS },
         )

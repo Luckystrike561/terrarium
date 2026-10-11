@@ -10,7 +10,7 @@ const pkgVersion = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'),
 ).version;
 const versionDefine = {
-  'process.env.PIXEL_AGENTS_VERSION': JSON.stringify(pkgVersion),
+  'process.env.TERRARIUM_VERSION': JSON.stringify(pkgVersion),
 };
 
 /**

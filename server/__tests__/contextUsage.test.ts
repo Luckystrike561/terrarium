@@ -251,7 +251,7 @@ describe('seedContextUsage', () => {
   let messages: Array<Record<string, unknown>>;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-context-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-context-'));
     agents = new AgentStateStore();
     messages = [];
     agents.on('broadcast', (msg) => messages.push(msg as Record<string, unknown>));

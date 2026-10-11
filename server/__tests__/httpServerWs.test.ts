@@ -6,8 +6,8 @@ import { WebSocket } from 'ws';
 
 import { WS_CLOSE_FORBIDDEN_ORIGIN } from '../src/constants.js';
 
-// Isolated temp HOME: the server writes ~/.pixel-agents/{server.json,servers/}
-// and the consent assertions below read ~/.pixel-agents/config.json.
+// Isolated temp HOME: the server writes ~/.terrarium/{server.json,servers/}
+// and the consent assertions below read ~/.terrarium/config.json.
 let tmpBase: string;
 
 vi.mock('os', async () => {
@@ -15,7 +15,7 @@ vi.mock('os', async () => {
   return { ...actual, homedir: () => tmpBase };
 });
 
-const { PixelAgentsServer } = await import('../src/server.js');
+const { TerrariumServer } = await import('../src/server.js');
 const { AgentStateStore } = await import('../src/agentStateStore.js');
 const { AgentRuntime } = await import('../src/agentRuntime.js');
 const { grantHooksConsent } = await import('../src/configPersistence.js');
@@ -92,7 +92,7 @@ function waitForMessage(socket: WebSocket, type: string, ms = 2_000): Promise<un
 
 function readHooksConsent(): boolean {
   try {
-    const raw = fs.readFileSync(path.join(tmpBase, '.pixel-agents', 'config.json'), 'utf-8');
+    const raw = fs.readFileSync(path.join(tmpBase, '.terrarium', 'config.json'), 'utf-8');
     const consent = (JSON.parse(raw) as { hooksConsent?: Record<string, string> }).hooksConsent;
     return consent?.claude === 'granted';
   } catch {
@@ -101,13 +101,13 @@ function readHooksConsent(): boolean {
 }
 
 describe('/ws connection gate', () => {
-  let server: InstanceType<typeof PixelAgentsServer>;
+  let server: InstanceType<typeof TerrariumServer>;
   const sockets: WebSocket[] = [];
 
   beforeEach(() => {
     tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-ws-test-'));
-    fs.mkdirSync(path.join(tmpBase, '.pixel-agents'), { recursive: true });
-    server = new PixelAgentsServer();
+    fs.mkdirSync(path.join(tmpBase, '.terrarium'), { recursive: true });
+    server = new TerrariumServer();
   });
 
   afterEach(() => {
@@ -222,16 +222,16 @@ describe('/ws connection gate', () => {
  * in someone's home directory.
  */
 describe('/ws privileged-message gate', () => {
-  let server: InstanceType<typeof PixelAgentsServer>;
+  let server: InstanceType<typeof TerrariumServer>;
   const sockets: WebSocket[] = [];
   /** Values `onSetHooksEnabled` was invoked with — the install/uninstall seam. */
   let sideEffects: boolean[];
 
   beforeEach(() => {
     tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-ws-priv-'));
-    fs.mkdirSync(path.join(tmpBase, '.pixel-agents'), { recursive: true });
+    fs.mkdirSync(path.join(tmpBase, '.terrarium'), { recursive: true });
     sideEffects = [];
-    server = new PixelAgentsServer();
+    server = new TerrariumServer();
   });
 
   afterEach(() => {
@@ -449,16 +449,16 @@ describe('/ws privileged-message gate', () => {
  * sent to tokened clients.
  */
 describe('/ws connection messages', () => {
-  let server: InstanceType<typeof PixelAgentsServer>;
+  let server: InstanceType<typeof TerrariumServer>;
   let runtime: InstanceType<typeof AgentRuntime>;
   const sockets: WebSocket[] = [];
   let probes: number;
 
   beforeEach(() => {
     tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-ws-conn-'));
-    fs.mkdirSync(path.join(tmpBase, '.pixel-agents'), { recursive: true });
+    fs.mkdirSync(path.join(tmpBase, '.terrarium'), { recursive: true });
     probes = 0;
-    server = new PixelAgentsServer();
+    server = new TerrariumServer();
   });
 
   afterEach(() => {
@@ -504,7 +504,7 @@ describe('/ws connection messages', () => {
   }
 
   function savedConnections(): unknown {
-    const raw = fs.readFileSync(path.join(tmpBase, '.pixel-agents', 'config.json'), 'utf-8');
+    const raw = fs.readFileSync(path.join(tmpBase, '.terrarium', 'config.json'), 'utf-8');
     return (JSON.parse(raw) as { connections?: unknown }).connections;
   }
 
@@ -537,7 +537,7 @@ describe('/ws connection messages', () => {
 
     expect(probes).toBe(0);
     expect(runtime.connections?.list()).toMatchObject([{ id: 'local', enabled: true }]);
-    expect(fs.existsSync(path.join(tmpBase, '.pixel-agents', 'config.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpBase, '.terrarium', 'config.json'))).toBe(false);
   });
 
   it('lets a tokened client add, disable and remove, and keeps it informed', async () => {

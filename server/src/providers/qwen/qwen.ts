@@ -1,7 +1,7 @@
 /**
  * Qwen Code agent module. Qwen Code has no hook API this module installs: everything comes from its own session
  * transcripts, found by scanning its session store or handed over by a multiplexer that hosts the session. Nothing
- * is written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * is written outside `~/.terrarium/`, so there is nothing to consent to.
  *
  * Unlike omp, herdr reports a qwen session by its own UUID (kind `id`), not by transcript path, so this module's
  * store is keyed by that id (`sessionIdOf`) rather than the file's real path.

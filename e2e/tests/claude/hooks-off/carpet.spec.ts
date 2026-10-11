@@ -14,7 +14,7 @@ import {
  *
  * Carpet tiles render only on the canvas (no DOM) and the marching-squares
  * autotile case is render-derived (not stored), so assertions read state
- * through window.__pixelAgentsTestHooks.getCarpetTiles() / getCarpetJunctionCase(),
+ * through window.__terrariumTestHooks.getCarpetTiles() / getCarpetJunctionCase(),
  * the same canvas-state approach the pets fixture uses. The specs seed
  * carpetTiles directly into layout.json and assert the real load/autotile
  * logic reads them correctly.
@@ -32,7 +32,7 @@ test.describe('Carpet', () => {
     // carpetTilesLoaded is sent once after webviewReady — proven via the message log.
     narrator.step('waiting for the carpet sprites to load and broadcast to the webview');
     await page.waitForFunction(() => {
-      const log = (window as TestHooksWindow).__pixelAgentsTestHooks?.messageLog ?? [];
+      const log = (window as TestHooksWindow).__terrariumTestHooks?.messageLog ?? [];
       return log.some((m) => m.type === 'carpetTilesLoaded');
     });
     narrator.check('carpetTilesLoaded message received — sprites are ready');
@@ -55,8 +55,7 @@ test.describe('Carpet', () => {
       narrator.step('waiting for the two seeded carpet tiles to load');
       await page.waitForFunction(
         () =>
-          ((window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.() ?? []).length ===
-          2,
+          ((window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.() ?? []).length === 2,
         undefined,
         { timeout: 15_000 },
       );
@@ -93,8 +92,7 @@ test.describe('Carpet', () => {
       narrator.step('waiting for the single seeded (NW) carpet tile to load');
       await page.waitForFunction(
         () =>
-          ((window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.() ?? []).length ===
-          1,
+          ((window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.() ?? []).length === 1,
         undefined,
         { timeout: 15_000 },
       );
@@ -120,8 +118,7 @@ test.describe('Carpet', () => {
       narrator.step('waiting for the two seeded (NW + NE) carpet tiles to load');
       await page.waitForFunction(
         () =>
-          ((window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.() ?? []).length ===
-          2,
+          ((window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.() ?? []).length === 2,
         undefined,
         { timeout: 15_000 },
       );
@@ -152,8 +149,7 @@ test.describe('Carpet', () => {
       narrator.step('waiting for all four seeded corner tiles to load');
       await page.waitForFunction(
         () =>
-          ((window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.() ?? []).length ===
-          4,
+          ((window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.() ?? []).length === 4,
         undefined,
         { timeout: 15_000 },
       );
@@ -202,7 +198,7 @@ test.describe('Carpet surface placement (seeded)', () => {
     // Carpet tile (3,3) loaded.
     await page.waitForFunction(
       () => {
-        const tiles = (window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.() ?? [];
+        const tiles = (window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.() ?? [];
         return tiles.some((t) => t.col === 3 && t.row === 3);
       },
       undefined,
@@ -211,7 +207,7 @@ test.describe('Carpet surface placement (seeded)', () => {
     narrator.check('carpet tile present at (3,3) after load');
     // Furniture also present (not blocked by the carpet).
     const furnitureCount = await page.evaluate(
-      () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getFurnitureCount?.() ?? 0,
+      () => (window as TestHooksWindow).__terrariumTestHooks?.getFurnitureCount?.() ?? 0,
     );
     expect(furnitureCount).toBeGreaterThanOrEqual(1);
     narrator.check('furniture also survived — at least one item on the same tile');

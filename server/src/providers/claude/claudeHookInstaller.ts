@@ -8,6 +8,8 @@ import {
   CLAUDE_HOOK_EVENTS,
   CLAUDE_HOOK_SCRIPT_NAME,
   LEGACY_HOOK_SCRIPT_NAME,
+  LEGACY_HOOK_SCRIPTS_DIR,
+  LEGACY_SETTINGS_BACKUP_SUFFIX,
   SETTINGS_BACKUP_SUFFIX,
   SETTINGS_FRESH_FILE_MODE,
   SETTINGS_MUTATE_ATTEMPTS,
@@ -36,7 +38,7 @@ function getClaudeSettingsPath(): string {
   return path.join(os.homedir(), '.claude', 'settings.json');
 }
 
-/** Returns the destination path for the hook script (~/.pixel-agents/hooks/claude-hook.js). */
+/** Returns the destination path for the hook script (~/.terrarium/hooks/claude-hook.js). */
 function getHookScriptPath(): string {
   return path.join(os.homedir(), HOOK_SCRIPTS_DIR, CLAUDE_HOOK_SCRIPT_NAME);
 }
@@ -156,9 +158,9 @@ async function mutateClaudeSettings(
   throw lastError ?? new Error(SETTINGS_UNPARSEABLE_MESSAGE);
 }
 
-/** One-time safety net: before Pixel Agents' first-ever modification of
+/** One-time safety net: before Terrarium' first-ever modification of
  *  settings.json, copy it aside. Never overwritten after that, so even a future
- *  installer bug leaves the user a recoverable copy of their pre-Pixel-Agents
+ *  installer bug leaves the user a recoverable copy of their pre-Terrarium
  *  file.
  *
  *  COPYFILE_EXCL makes "create only if absent" one syscall instead of an
@@ -179,10 +181,11 @@ async function mutateClaudeSettings(
  *  preserves nothing and masquerades as the user's original. */
 function backupClaudeSettingsOnce(settingsPath: string): void {
   if (!fs.existsSync(settingsPath)) return;
+  if (isRegularFile(settingsPath + LEGACY_SETTINGS_BACKUP_SUFFIX)) return;
   const backupPath = settingsPath + SETTINGS_BACKUP_SUFFIX;
   try {
     fs.copyFileSync(settingsPath, backupPath, fs.constants.COPYFILE_EXCL);
-    console.log(`[Pixel Agents] Backed up Claude settings to ${backupPath}`);
+    console.log(`[Terrarium] Backed up Claude settings to ${backupPath}`);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
     if (!isRegularFile(backupPath)) {
@@ -234,7 +237,7 @@ function writeClaudeSettings(settings: ClaudeSettings, expectedRaw: string | nul
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
-  // The backup preserves the user's pre-Pixel-Agents file; when the content
+  // The backup preserves the user's pre-Terrarium file; when the content
   // being replaced is entirely of our own writing (typical after our install
   // CREATED settings.json in a fresh home), there is nothing to preserve and
   // the copy is skipped. The decision reads expectedRaw — the same content the
@@ -292,10 +295,13 @@ function removeIfPresent(filePath: string): void {
 /** Legacy script name (before rename to claude-hook.js), as a path suffix. */
 const LEGACY_HOOK_PATH_SUFFIX = `/${LEGACY_HOOK_SCRIPT_NAME}`;
 
-/** The path suffix we own: `/.pixel-agents/hooks/claude-hook.js`. The leading
- *  separator is load-bearing — without it `/opt/evil.pixel-agents/hooks/...`
+/** The path suffix we own: `/.terrarium/hooks/claude-hook.js`. The leading
+ *  separator is load-bearing — without it `/opt/evil.terrarium/hooks/...`
  *  and `my-pixel-agents-hook.js` match by substring. */
 const HOOK_PATH_SUFFIX = `/${HOOK_SCRIPTS_DIR}/${CLAUDE_HOOK_SCRIPT_NAME}`;
+
+/** The suffix we owned before the state directory was renamed to `.terrarium`. */
+const LEGACY_DIR_HOOK_PATH_SUFFIX = `/${LEGACY_HOOK_SCRIPTS_DIR}/${CLAUDE_HOOK_SCRIPT_NAME}`;
 
 /** Characters that end a path token in a shell command line. A path we own is
  *  either the whole token or ends at one of these; anything else after it
@@ -310,10 +316,10 @@ const PATH_TERMINATORS = new Set([' ', '\t', '"', "'", ';', '&', '|', '>', '<', 
  * generic name another Claude tool could plausibly use, and substring tests
  * claim unrelated commands. Empirically, plain `includes` classified all of
  * these as ours — and `uninstallHooks` then DELETED them:
- *   node /opt/.pixel-agents/hooks/claude-hook.js.backup   (a different file)
- *   true # /opt/.pixel-agents/hooks/claude-hook.js        (a comment)
- *   wrapper --note=".pixel-agents/hooks/claude-hook.js" x (an argument)
- *   node /opt/evil.pixel-agents/hooks/claude-hook.js      (no token boundary)
+ *   node /opt/.terrarium/hooks/claude-hook.js.backup   (a different file)
+ *   true # /opt/.terrarium/hooks/claude-hook.js        (a comment)
+ *   wrapper --note=".terrarium/hooks/claude-hook.js" x (an argument)
+ *   node /opt/evil.terrarium/hooks/claude-hook.js      (no token boundary)
  *   node /opt/my-pixel-agents-hook.js.bak                 (legacy, no boundary)
  * Deleting a third-party hook is the same "we destroyed the user's config"
  * class of bug this whole module exists to fix, so identity is anchored at
@@ -323,14 +329,14 @@ const PATH_TERMINATORS = new Set([' ', '\t', '"', "'", ';', '&', '|', '>', '<', 
  * Deliberate scope choices:
  * - Casing is NOT significant: the token is normalized to lower case before the
  *   suffix compare. macOS and Windows — the two GUI platforms this ships on —
- *   have case-insensitive volumes, where `/home/x/.Pixel-Agents/Hooks/Claude-Hook.js`
+ *   have case-insensitive volumes, where `/home/x/.Terrarium/Hooks/Claude-Hook.js`
  *   is the SAME INODE as our script and is genuinely firing. Reading it as
  *   foreign is what shipped: reinstall appended a duplicate (both fired), and
  *   uninstall left the cased entry behind as an orphan our own uninstall could
  *   no longer see — a running hook the user has no route to remove. The folding
  *   is UNCONDITIONAL (we do not probe the filesystem's case sensitivity), so the
  *   accepted residual is a Linux-only false positive that is NOT harmless: on a
- *   case-sensitive volume `~/.Pixel-Agents/hooks/claude-hook.js` is a genuinely
+ *   case-sensitive volume `~/.Terrarium/hooks/claude-hook.js` is a genuinely
  *   DIFFERENT file, we classify it as ours, and uninstall DELETES it — the same
  *   class of loss this module exists to prevent, traded knowingly against a
  *   guaranteed unremovable live hook on the two platforms that actually ship
@@ -341,7 +347,7 @@ const PATH_TERMINATORS = new Set([' ', '\t', '"', "'", ';', '&', '|', '>', '<', 
  * - The FIRST token only. A command is `node <script>` or `<script>`; our path
  *   appearing later is an argument or a comment, not the thing being run.
  * - ABSOLUTE paths only. We always write one, and a RELATIVE
- *   `.pixel-agents/hooks/claude-hook.js` resolves against whatever directory
+ *   `.terrarium/hooks/claude-hook.js` resolves against whatever directory
  *   Claude Code happens to run in — so it names a project-local file that is
  *   almost certainly not ours, and deleting it would be the same mistake as
  *   deleting a lookalike.
@@ -356,10 +362,14 @@ const PATH_TERMINATORS = new Set([' ', '\t', '"', "'", ';', '&', '|', '>', '<', 
 function isOurHookCommand(command: string): boolean {
   const token = firstCommandToken(command);
   if (token === null) return false;
-  // Both suffix constants are lower-case, so folding the token is the whole
+  // Every suffix constant is lower-case, so folding the token is the whole
   // normalization.
   const normalized = token.toLowerCase();
-  return normalized.endsWith(HOOK_PATH_SUFFIX) || normalized.endsWith(LEGACY_HOOK_PATH_SUFFIX);
+  return (
+    normalized.endsWith(HOOK_PATH_SUFFIX) ||
+    normalized.endsWith(LEGACY_DIR_HOOK_PATH_SUFFIX) ||
+    normalized.endsWith(LEGACY_HOOK_PATH_SUFFIX)
+  );
 }
 
 /**
@@ -491,7 +501,7 @@ function settingsHoldOnlyOurHooks(settings: ClaudeSettings): boolean {
  *  A unique symbol, never `null`: `null` is a value a user's settings.json can
  *  legitimately contain inside a hooks array, and using it as the sentinel made
  *  us DELETE it. Observed: `{"hooks":{"Stop":[null,"third-party-junk"]}}` — a
- *  file with no Pixel Agents command anywhere — came back rewritten as
+ *  file with no Terrarium command anywhere — came back rewritten as
  *  `{"hooks":{"Stop":["third-party-junk"]}}` and logged "Hooks removed". A
  *  sentinel that can collide with user data is a sentinel that eats user data;
  *  a symbol cannot appear in parsed JSON. */
@@ -547,7 +557,7 @@ function makeHookEntry(): ClaudeHookEntry {
 }
 
 /**
- * Whether ANY Pixel Agents hook command is present in ~/.claude/settings.json.
+ * Whether ANY Terrarium hook command is present in ~/.claude/settings.json.
  *
  * "Any", not "all 12", and the difference is the whole point. Every caller asks
  * this question for one of two reasons — "are our hooks firing right now?"
@@ -586,9 +596,9 @@ export function areHooksInstalled(): boolean {
 }
 
 /**
- * Install Pixel Agents hook entries into ~/.claude/settings.json for
+ * Install Terrarium hook entries into ~/.claude/settings.json for
  * Notification, Stop, and PermissionRequest events. Idempotent: removes
- * any existing Pixel Agents entries before adding fresh ones.
+ * any existing Terrarium entries before adding fresh ones.
  *
  * Rejects (before any write) when settings.json exists but cannot be parsed or
  * keeps changing concurrently — callers surface the error to the user instead
@@ -604,7 +614,7 @@ export async function installHooks(): Promise<void> {
     });
   }
   if (wrote) {
-    console.log('[Pixel Agents] Hooks installed in ~/.claude/settings.json');
+    console.log('[Terrarium] Hooks installed in ~/.claude/settings.json');
   }
 }
 
@@ -665,7 +675,7 @@ function installEntries(): Promise<boolean> {
         throw new Error(settingsNonArrayEventMessage(event));
       }
       const entries = hooks[event];
-      // Remove any existing Pixel Agents commands (in case the script path changed)
+      // Remove any existing Terrarium commands (in case the script path changed)
       const filtered = (withoutOurEntries(entries) ?? entries).concat(makeHookEntry());
       if (JSON.stringify(filtered) !== JSON.stringify(entries)) {
         hooks[event] = filtered;
@@ -676,7 +686,7 @@ function installEntries(): Promise<boolean> {
   });
 }
 
-/** Remove all Pixel Agents hook entries from ~/.claude/settings.json. Cleans up empty objects.
+/** Remove all Terrarium hook entries from ~/.claude/settings.json. Cleans up empty objects.
  *  Rejects (before any write) when the file cannot be parsed — same protection
  *  as install: never rewrite a file we could not read. Callers surface the
  *  error; claiming success after an aborted uninstall is how a "removed"
@@ -717,11 +727,11 @@ export async function uninstallHooks(): Promise<void> {
     });
   }
   if (wrote) {
-    console.log('[Pixel Agents] Hooks removed from ~/.claude/settings.json');
+    console.log('[Terrarium] Hooks removed from ~/.claude/settings.json');
   }
 }
 
-/** Copy the shipped hook script from the extension to ~/.pixel-agents/hooks/.
+/** Copy the shipped hook script from the extension to ~/.terrarium/hooks/.
  *  Returns true if the script was copied, false if the source was missing or the
  *  copy failed, so callers can report the failure instead of logging a false
  *  success (issue #333: a path regression silently installed nothing). */
@@ -735,15 +745,15 @@ export function copyHookScript(extensionPath: string): boolean {
       fs.mkdirSync(dstDir, { recursive: true, mode: 0o700 });
     }
     if (!fs.existsSync(src)) {
-      console.warn(`[Pixel Agents] Hook script not found at ${src}`);
+      console.warn(`[Terrarium] Hook script not found at ${src}`);
       return false;
     }
     fs.copyFileSync(src, dst);
     fs.chmodSync(dst, 0o700);
-    console.log(`[Pixel Agents] Hook script installed at ${dst}`);
+    console.log(`[Terrarium] Hook script installed at ${dst}`);
     return true;
   } catch (e) {
-    console.error(`[Pixel Agents] Failed to copy hook script: ${e}`);
+    console.error(`[Terrarium] Failed to copy hook script: ${e}`);
     return false;
   }
 }
