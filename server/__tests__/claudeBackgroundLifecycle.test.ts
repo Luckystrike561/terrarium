@@ -214,6 +214,9 @@ describe('Claude background teammates through the runtime', () => {
 
     expect(store.has(leadId)).toBe(true);
     expect(store.has(teammateId)).toBe(false);
+    expect(adapter.loadAgents().find((p) => p.id === leadId)?.backgroundToolIds).toEqual([
+      'toolu_spawn_1',
+    ]);
     // The restored lead still knows the spawn is live: its completion clears the spawn's sub-agent.
     messages.length = 0;
     appendToLead(completion('toolu_spawn_1', 'a1b2c3'));

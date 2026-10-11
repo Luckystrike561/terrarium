@@ -87,7 +87,7 @@ export class AgentRuntime {
       activeToolStatuses: new Map(),
       activeToolNames: new Map(),
       activeSubagentToolIds: new Map(),
-      backgroundToolIds: new Set(),
+      backgroundToolIds: new Set(restored?.backgroundToolIds),
       teammateSpawnToolIds: new Set(),
       isWaiting: false,
       permissionSent: false,
