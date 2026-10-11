@@ -124,8 +124,13 @@ export class AgentRuntime {
 
   /** Start every enabled module that runs on its own (agent modules' session discovery, then the multiplexer
    *  connections, whose feeds hand each local pane to the running agent module for its kind), and hand each
-   *  persisted agent back to its module. */
+   *  persisted agent back to its module. The persisted list is read before any module starts: a module that
+   *  discovers a session while starting persists it, which would otherwise overwrite the list. */
   startModules(): void {
+    const persisted = this.store.loadPersistedAgents();
+    const maxPersistedId = Math.max(0, ...persisted.map((p) => p.id));
+    if (maxPersistedId >= this.store.nextAgentId.current)
+      this.store.nextAgentId.current = maxPersistedId + 1;
     for (const module of this.modules.agents) {
       if (!module.start) continue;
       const started = module.start(this.hostFor(module));
@@ -134,7 +139,7 @@ export class AgentRuntime {
       const hooksEnabled = this.hooksEnabled.get(module.id);
       if (hooksEnabled !== undefined) started.setHooksEnabled?.(hooksEnabled);
     }
-    this.restorePersistedAgents();
+    this.restorePersistedAgents(persisted);
     if (this.modules.multiplexers.length > 0) {
       const connections = new MultiplexerConnections({
         multiplexers: this.modules.multiplexers,
@@ -161,11 +166,7 @@ export class AgentRuntime {
    * the sessions that are still live; announcing one gives it its persisted agent back (id, seat, colors). Agents
    * whose module is not running, or does not resume sessions, stay gone.
    */
-  private restorePersistedAgents(): void {
-    const persisted = this.store.loadPersistedAgents();
-    if (persisted.length === 0) return;
-    const maxId = Math.max(...persisted.map((p) => p.id));
-    if (maxId >= this.store.nextAgentId.current) this.store.nextAgentId.current = maxId + 1;
+  private restorePersistedAgents(persisted: PersistedAgent[]): void {
     const refById = new Map(persisted.map((p) => [p.id, p.sessionRef] as const));
     const leadsFirst = [...persisted].sort(
       (a, b) =>

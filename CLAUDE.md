@@ -305,7 +305,7 @@ export class AgentRuntime {
 }
 ```
 
-`AgentEventHandler` (`server/src/agentEventHandler.ts`) applies each module's events to CLI-neutral `AgentState` and broadcasts the matching `ServerMessage`. An agent is created when its session is confirmed (its first event after `sessionStart`) or announced `live`. A session whose ref an agent already reports is routed to that agent instead. **Restore**: `startModules` hands each persisted agent to its module's `restoreSession`, leads first, the lead named by its persisted `sessionRef`. A `sessionStart` carrying that module and ref gets the persisted agent back (id, seat, palette, name). The runtime never opens a transcript.
+`AgentEventHandler` (`server/src/agentEventHandler.ts`) applies each module's events to CLI-neutral `AgentState` and broadcasts the matching `ServerMessage`. An agent is created when its session is confirmed (its first event after `sessionStart`) or announced `live`. A session whose ref an agent already reports is routed to that agent instead. **Restore**: `startModules` reads the persisted agents before starting any module (a module that discovers a session while starting persists it, which would overwrite the list) and reserves their ids, then hands each to its module's `restoreSession`, leads first, the lead named by its persisted `sessionRef`. A `sessionStart` carrying that module and ref gets the persisted agent back (id, seat, palette, name). The runtime never opens a transcript.
 
 ### AgentStateStore
 

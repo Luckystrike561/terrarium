@@ -182,6 +182,28 @@ describe('AgentRuntime -- restore through the agent module', () => {
     expect(store.nextAgentId.current).toBe(6);
   });
 
+  it('restores persisted agents when another module persists a session it discovers while starting', () => {
+    const store = new AgentStateStore();
+    store.setAdapter(
+      createMockAdapter([{ id: 4, providerId: 'fake-cli', sessionRef: 'kept', palette: 2 }]),
+    );
+    const { module: resuming } = resumingModule();
+    const eager: AgentModule = {
+      ...resuming,
+      id: 'eager-cli',
+      displayName: 'Eager CLI',
+      start(host: ModuleHost): RunningAgentModule {
+        host.emit('eager-0', { kind: 'sessionStart', live: true, sessionRef: 'eager-ref' });
+        return { followSession: () => ({ stop: () => {} }), stop: () => {} };
+      },
+    };
+    runtime = new AgentRuntime(store, { agents: [eager, resuming], multiplexers: [] });
+    runtime.startModules();
+
+    expect(store.get(4)).toMatchObject({ sessionRef: 'kept', palette: 2 });
+    expect([...store.values()].find((a) => a.sessionRef === 'eager-ref')?.id).toBe(5);
+  });
+
   it('dispose keeps the persisted agents for the next start', () => {
     const { adapter } = startWith([{ id: 4, providerId: 'fake-cli', sessionRef: 'kept' }]);
     runtime!.dispose();
