@@ -121,6 +121,20 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   );
   const lastConnectionRequestIdRef = useRef(0);
 
+  // The server answers an addConnection on the socket that carried it, so a transport drop mid-probe strands the
+  // promise and the form stays on "Checking…" until a reload.
+  useEffect(
+    () =>
+      transport.onStateChange((state) => {
+        if (state === 'connected') return;
+        for (const resolve of pendingConnectionAddsRef.current.values()) {
+          resolve('Lost the connection to the server. Check the list before retrying.');
+        }
+        pendingConnectionAddsRef.current.clear();
+      }),
+    [],
+  );
+
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false);
 
