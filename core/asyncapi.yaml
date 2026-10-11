@@ -116,6 +116,9 @@ components:
         - $ref: '#/components/schemas/HooksConsentRequest'
         - $ref: '#/components/schemas/ExternalAssetDirectoriesUpdated'
         - $ref: '#/components/schemas/AreaMappingsLoaded'
+        # Connections
+        - $ref: '#/components/schemas/ConnectionsLoaded'
+        - $ref: '#/components/schemas/ConnectionAddResult'
         # Diagnostics
         - $ref: '#/components/schemas/AgentDiagnostics'
       discriminator: type
@@ -137,6 +140,9 @@ components:
         - $ref: '#/components/schemas/SaveAreaMappings'
         - $ref: '#/components/schemas/SetShowAreas'
         - $ref: '#/components/schemas/RequestDiagnostics'
+        - $ref: '#/components/schemas/AddConnection'
+        - $ref: '#/components/schemas/UpdateConnection'
+        - $ref: '#/components/schemas/RemoveConnection'
       discriminator: type
 
     # ── Server message variants ────────────────────────────────────
@@ -760,6 +766,42 @@ components:
           items:
             type: object
 
+    ConnectionsLoaded:
+      description: |
+        Every herdr server the office listens to, with its live state. Sent on
+        connect and again whenever a connection is added, edited, removed or
+        changes state. Privileged (tokened) connections only: the list names
+        SSH targets, and only those clients can change it.
+      type: object
+      additionalProperties: false
+      required: [type, connections]
+      properties:
+        type:
+          const: connectionsLoaded
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+
+    ConnectionAddResult:
+      description: |
+        Outcome of one `addConnection`, sent to the client that asked. The
+        connection is saved only when the server reached herdr through it
+        (a `ping` round-trip); otherwise `error` carries the SSH or herdr
+        error text and nothing is saved.
+      type: object
+      additionalProperties: false
+      required: [type, requestId]
+      properties:
+        type:
+          const: connectionAddResult
+        requestId:
+          type: string
+          description: Echo of the `addConnection.requestId` this answers.
+        error:
+          type: string
+          description: Why the connection was not saved. Absent on success.
+
     # ── Client message variants ────────────────────────────────────
 
     WebviewReady:
@@ -960,6 +1002,64 @@ components:
         type:
           const: requestDiagnostics
 
+    AddConnection:
+      description: |
+        Add a herdr server to listen to. The server checks it with a `ping`
+        round-trip before saving, then answers with `connectionAddResult`.
+        Privileged: an `ssh` connection makes the server open SSH sessions to
+        another machine, so untokened clients are refused.
+      type: object
+      additionalProperties: false
+      required: [type, requestId, label, kind]
+      properties:
+        type:
+          const: addConnection
+        requestId:
+          type: string
+          description: Client-chosen id echoed in `connectionAddResult`.
+        label:
+          type: string
+          maxLength: 64
+        kind:
+          $ref: '#/components/schemas/ConnectionKind'
+        target:
+          type: string
+          maxLength: 255
+          description: >-
+            SSH destination for an `ssh` connection: `host`, `user@host`,
+            `ssh://user@host:2222` or an SSH config alias.
+        session:
+          type: string
+          maxLength: 64
+          description: herdr session name. Absent means herdr's default session.
+
+    UpdateConnection:
+      description: Rename a connection or turn it on or off. Privileged, like `addConnection`.
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type:
+          const: updateConnection
+        id:
+          type: string
+        label:
+          type: string
+          maxLength: 64
+        enabled:
+          type: boolean
+
+    RemoveConnection:
+      description: Stop listening to a connection and forget it. Privileged, like `addConnection`.
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type:
+          const: removeConnection
+        id:
+          type: string
+
     # ── Supporting schemas ─────────────────────────────────────────
 
     AgentSeatMeta:
@@ -1101,3 +1201,47 @@ components:
           type: string
         frame:
           type: integer
+
+    Connection:
+      description: |
+        One herdr server the office listens to. Its agents join the same office
+        as every other agent; their session ids carry the connection id, so
+        equal pane ids on two servers stay two characters.
+      type: object
+      additionalProperties: false
+      required: [id, label, kind, enabled, state]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ConnectionKind'
+        target:
+          type: string
+          description: SSH destination, set for `ssh` connections only.
+        session:
+          type: string
+          description: herdr session name. Absent means herdr's default session.
+        enabled:
+          type: boolean
+        state:
+          $ref: '#/components/schemas/ConnectionState'
+        message:
+          type: string
+          description: Last error from SSH or herdr, set while the state is `error` or `reconnecting`.
+
+    ConnectionKind:
+      description: >-
+        `local` reaches herdr on this machine through its socket. `ssh`
+        forwards the remote herdr socket over OpenSSH.
+      type: string
+      enum: [local, ssh]
+
+    ConnectionState:
+      description: >-
+        `connecting` before the first answer, `connected` while herdr answers,
+        `reconnecting` after a connection that worked was lost, `error` when an
+        attempt failed (retried in the background), `disabled` when turned off.
+      type: string
+      enum: [connecting, connected, reconnecting, error, disabled]

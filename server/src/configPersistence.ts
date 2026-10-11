@@ -2,6 +2,11 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import {
+  type ConnectionSettings,
+  DEFAULT_CONNECTIONS,
+  parseStoredConnection,
+} from './connectionSettings.js';
 import { CONFIG_FILE_NAME, LAYOUT_FILE_DIR } from './constants.js';
 
 export interface AdapterSettings {
@@ -50,6 +55,8 @@ export interface PixelAgentsConfig {
   /** Ids of the provider modules this machine runs, as last chosen with `--provider`. Absent = never chosen: the
    *  registry's default set runs. */
   modules?: string[];
+  /** The herdr servers the office listens to. Absent = never changed: the default local connection. */
+  connections?: ConnectionSettings[];
 }
 
 const DEFAULT_ADAPTER_SETTINGS: AdapterSettings = {
@@ -163,6 +170,9 @@ export function readConfig(): PixelAgentsConfig {
       modules: Array.isArray(parsed.modules)
         ? parsed.modules.filter((id): id is string => typeof id === 'string')
         : undefined,
+      connections: Array.isArray(parsed.connections)
+        ? parsed.connections.flatMap((raw: unknown) => parseStoredConnection(raw) ?? [])
+        : undefined,
     };
   } catch (err) {
     console.error('[Pixel Agents] Failed to read config file:', err);
@@ -185,6 +195,18 @@ export function getEnabledModuleIds(): string[] | undefined {
 export function setEnabledModuleIds(ids: readonly string[]): void {
   const cfg = readConfig();
   cfg.modules = [...ids];
+  writeConfig(cfg);
+}
+
+// ── Multiplexer connections ─────────────────────────────────
+
+export function readConnections(): ConnectionSettings[] {
+  return readConfig().connections ?? [...DEFAULT_CONNECTIONS];
+}
+
+export function writeConnections(connections: readonly ConnectionSettings[]): void {
+  const cfg = readConfig();
+  cfg.connections = [...connections];
   writeConfig(cfg);
 }
 

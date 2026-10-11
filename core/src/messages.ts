@@ -37,6 +37,8 @@ export type ServerMessage =
   | HooksConsentRequest
   | ExternalAssetDirectoriesUpdated
   | AreaMappingsLoaded
+  | ConnectionsLoaded
+  | ConnectionAddResult
   | AgentDiagnostics;
 
 export type ClientMessage =
@@ -54,7 +56,10 @@ export type ClientMessage =
   | RemoveExternalAssetDirectory
   | SaveAreaMappings
   | SetShowAreas
-  | RequestDiagnostics;
+  | RequestDiagnostics
+  | AddConnection
+  | UpdateConnection
+  | RemoveConnection;
 
 export interface ProviderCapabilities {
   type: 'providerCapabilities';
@@ -297,6 +302,32 @@ export interface AreaMappingsLoaded {
   mappings: Record<string, string[]>;
 }
 
+export interface ConnectionsLoaded {
+  type: 'connectionsLoaded';
+  connections: Connection[];
+}
+
+export interface Connection {
+  id: string;
+  label: string;
+  kind: ConnectionKind;
+  target?: string;
+  session?: string;
+  enabled: boolean;
+  state: ConnectionState;
+  message?: string;
+}
+
+export type ConnectionKind = 'local' | 'ssh';
+
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'error' | 'disabled';
+
+export interface ConnectionAddResult {
+  type: 'connectionAddResult';
+  requestId: string;
+  error?: string;
+}
+
 export interface AgentDiagnostics {
   type: 'agentDiagnostics';
   agents: Record<string, any>[];
@@ -382,4 +413,25 @@ export interface SetShowAreas {
 
 export interface RequestDiagnostics {
   type: 'requestDiagnostics';
+}
+
+export interface AddConnection {
+  type: 'addConnection';
+  requestId: string;
+  label: string;
+  kind: ConnectionKind;
+  target?: string;
+  session?: string;
+}
+
+export interface UpdateConnection {
+  type: 'updateConnection';
+  id: string;
+  label?: string;
+  enabled?: boolean;
+}
+
+export interface RemoveConnection {
+  type: 'removeConnection';
+  id: string;
 }

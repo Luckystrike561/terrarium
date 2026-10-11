@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { CharacterSpriteSet, HooksConsentRequest } from '../../../core/src/messages.js';
+import type {
+  AddConnection,
+  CharacterSpriteSet,
+  Connection,
+  HooksConsentRequest,
+} from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
@@ -83,6 +88,10 @@ interface ExtensionMessageState {
    *  duplicate to drift. Cleared on answer/dismissal, and by a matching provider's hooksStatus installed=true. */
   consentRequest: HooksConsentRequest | null;
   dismissConsentRequest: (providerId: string | null) => void;
+  /** The herdr servers the office listens to. Null until the first connectionsLoaded, which the server sends only
+   *  to tokened clients with a multiplexer enabled: null hides the Connections menu. */
+  connections: Connection[] | null;
+  addConnection: (input: Omit<AddConnection, 'type' | 'requestId'>) => Promise<string | undefined>;
   // Areas
   showAreas: boolean;
   setShowAreas: (v: boolean) => void;
@@ -118,6 +127,11 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   const [consentQueue, setConsentQueue] = useState<HooksConsentRequest[]>([]);
   const consentRequest = consentQueue[0] ?? null;
   const [showAreas, setShowAreas] = useState(false);
+  const [connections, setConnections] = useState<Connection[] | null>(null);
+  const pendingConnectionAddsRef = useRef<Map<string, (error: string | undefined) => void>>(
+    new Map(),
+  );
+  const lastConnectionRequestIdRef = useRef(0);
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false);
@@ -623,6 +637,18 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
             return next;
           });
         }
+      } else if (msg.type === 'connectionsLoaded') {
+        if (Array.isArray(msg.connections)) {
+          setConnections(msg.connections as Connection[]);
+        }
+      } else if (msg.type === 'connectionAddResult') {
+        if (typeof msg.requestId === 'string') {
+          const resolve = pendingConnectionAddsRef.current.get(msg.requestId as string);
+          if (resolve) {
+            pendingConnectionAddsRef.current.delete(msg.requestId as string);
+            resolve(typeof msg.error === 'string' ? (msg.error as string) : undefined);
+          }
+        }
       } else if (msg.type === 'externalAssetDirectoriesUpdated') {
         if (Array.isArray(msg.dirs)) {
           setExternalAssetDirectories(msg.dirs as string[]);
@@ -710,6 +736,16 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         setConsentQueue((q) =>
           providerId === null ? q.slice(1) : q.filter((r) => r.providerId !== providerId),
         ),
+      [],
+    ),
+    connections,
+    addConnection: useCallback(
+      (input: Omit<AddConnection, 'type' | 'requestId'>) =>
+        new Promise<string | undefined>((resolve) => {
+          const requestId = String(++lastConnectionRequestIdRef.current);
+          pendingConnectionAddsRef.current.set(requestId, resolve);
+          transport.send({ type: 'addConnection', requestId, ...input });
+        }),
       [],
     ),
     showAreas,

@@ -217,22 +217,41 @@ export interface MultiplexedAgent {
   readonly sessionRef?: string;
 }
 
-export interface MultiplexerConnection extends ModuleHandle {
-  /** Settles once the first connection attempt does: true when the multiplexer answered. A false start keeps
-   *  retrying in the background. */
-  readonly connected: Promise<boolean>;
+/** Where a multiplexer server lives. `local` is reached through its socket on this machine, `ssh` through an OpenSSH
+ *  forward of the remote socket. */
+export interface MultiplexerEndpoint {
+  /** Unique among the endpoints one process watches. Session ids carry it, so equal pane ids on two servers stay two
+   *  agents. */
+  readonly id: string;
+  readonly kind: 'local' | 'ssh';
+  /** SSH destination (`host`, `user@host`, `ssh://user@host:2222`, an SSH config alias). Set for `ssh` only. */
+  readonly target?: string;
+  /** Named multiplexer session. Absent means the multiplexer's default session. */
+  readonly session?: string;
+}
+
+/** How a watched endpoint is doing. `connected` once the multiplexer answered, `reconnecting` after a connection that
+ *  worked was lost, `error` when an attempt failed. Both of the last two keep retrying in the background. */
+export type MultiplexerLinkState = 'connecting' | 'connected' | 'reconnecting' | 'error';
+
+export interface MultiplexerWatcher {
+  /** The full list of live agents, every time it may have changed. An agent missing from a snapshot has ended. Never
+   *  called with an empty list for a multiplexer that did not answer. */
+  onSnapshot(agents: readonly MultiplexedAgent[]): void;
+  /** `message` is the SSH or multiplexer error text, for `error` and `reconnecting`. */
+  onState(state: MultiplexerLinkState, message?: string): void;
+  log(message: string): void;
 }
 
 export interface MultiplexerModule {
   readonly kind: 'multiplexer';
   readonly id: string;
   readonly displayName: string;
-  /** Watch the multiplexer. `onSnapshot` receives the full list of live agents every time it may have changed; an
-   *  agent missing from a snapshot has ended. */
-  connect(
-    onSnapshot: (agents: readonly MultiplexedAgent[]) => void,
-    log: (message: string) => void,
-  ): MultiplexerConnection;
+  /** Watch the multiplexer at `endpoint` until the handle is stopped. Stopping ends every process it started. */
+  connect(endpoint: MultiplexerEndpoint, watcher: MultiplexerWatcher): ModuleHandle;
+  /** One request/answer round-trip with the multiplexer at `endpoint`, holding nothing open afterwards. Resolves with
+   *  the SSH or multiplexer error text, or undefined when it answered. */
+  probe(endpoint: MultiplexerEndpoint): Promise<string | undefined>;
 }
 
 export type ProviderModule = AgentModule | MultiplexerModule;

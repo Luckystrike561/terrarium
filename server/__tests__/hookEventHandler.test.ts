@@ -888,7 +888,8 @@ describe('HookEventHandler — claimBySessionRef (one agent, one character)', ()
     kind: 'multiplexer',
     id: 'fake-mux',
     displayName: 'Fake Multiplexer',
-    connect: () => ({ connected: Promise.resolve(true), stop: () => {} }),
+    connect: () => ({ stop: () => {} }),
+    probe: () => Promise.resolve(undefined),
   };
 
   beforeEach(() => {

@@ -182,6 +182,12 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
     store.on('agentRemoved', onAgentRemoved);
     store.on('broadcast', onBroadcast);
 
+    // Connection state names SSH targets, and only a tokened client may change the list: it alone follows it.
+    const connections = privileged ? options.runtime?.connections : undefined;
+    const stopFollowingConnections = connections?.onChange(() =>
+      safeSend(socket, { type: 'connectionsLoaded', connections: connections.list() }),
+    );
+
     // Handle incoming client messages
     socket.on('message', (data: Buffer | string) => {
       try {
@@ -206,6 +212,7 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
       store.off('agentAdded', onAgentAdded);
       store.off('agentRemoved', onAgentRemoved);
       store.off('broadcast', onBroadcast);
+      stopFollowingConnections?.();
     });
   });
 }

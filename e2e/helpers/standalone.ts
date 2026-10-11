@@ -39,6 +39,10 @@ export interface StandaloneSession {
   /** Restart the host on the SAME port after `stopHost`, so the already-connected
    *  browser page's exponential-backoff retry succeeds again. */
   startHost: () => Promise<void>;
+  /** Open the URL the host printed on its latest start, the way the operator
+   *  does after a restart: every start mints a new token, so the old URL is
+   *  no longer privileged. */
+  reopenPrintedUrl: () => Promise<void>;
   /** Reload the SPA and wait until the office is interactive again (the
    *  standalone counterpart of closing and reopening the panel). */
   reloadPage: () => Promise<void>;
@@ -339,6 +343,7 @@ export async function launchStandalone(
 
   let hostStdout = '';
   let hostStderr = '';
+  let latestStartOffset = 0;
   function spawnAndAttach(): ChildProcessWithoutNullStreams {
     const proc = spawnStandaloneHost({
       homeDir: tmpHome,
@@ -391,8 +396,15 @@ export async function launchStandalone(
         await stopProcess(hostProcess);
       },
       startHost: async () => {
+        latestStartOffset = hostStdout.length;
         hostProcess = spawnAndAttach();
         await waitForHttpOk(`${hostUrl}/api/health`);
+      },
+      reopenPrintedUrl: async () => {
+        await openStandalonePage(
+          page,
+          await waitForPrintedUrl(() => hostStdout.slice(latestStartOffset)),
+        );
       },
       reloadPage: async () => {
         await page.reload();

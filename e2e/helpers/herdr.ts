@@ -55,20 +55,26 @@ function writeLine(socket: net.Socket, payload: unknown): void {
 
 /**
  * Starts a fake Herdr instance: a Unix domain socket at
- * `<homeDir>/.config/herdr/herdr.sock` speaking the same newline-delimited
- * JSON-RPC 2.0 `herdrBridge.ts` talks to. One-shot requests (`agent.list`,
- * `workspace.list`, `tab.list`) get a reply and the connection is then closed
- * server-side, mirroring real Herdr's connection semantics; `events.subscribe`
- * connections are kept open (the bridge's authoritative source of truth is
- * its poll loop, so this fake never needs to push anything down them).
+ * `<homeDir>/.config/herdr/herdr.sock` (or `sessions/<session>/herdr.sock` for
+ * a named session) speaking the same newline-delimited JSON-RPC 2.0
+ * `herdrBridge.ts` talks to. One-shot requests (`agent.list`,
+ * `workspace.list`, `tab.list`, `ping`) get a reply and the connection is then
+ * closed server-side, mirroring real Herdr's connection semantics.
+ * `events.subscribe` connections are kept open (the bridge's authoritative
+ * source of truth is its poll loop, so this fake never needs to push anything
+ * down them).
  *
  * Must be running (socket file present) BEFORE the standalone CLI starts: the
  * bridge's connect failure path only retries every 5s, so a late-starting
  * fake would otherwise cost every test that 5s on top of the bridge's normal
  * 2.5s snapshot interval.
  */
-export async function startFakeHerdrServer(homeDir: string): Promise<FakeHerdrServer> {
-  const socketDir = path.join(homeDir, '.config', 'herdr');
+export async function startFakeHerdrServer(
+  homeDir: string,
+  session?: string,
+): Promise<FakeHerdrServer> {
+  const configDir = path.join(homeDir, '.config', 'herdr');
+  const socketDir = session ? path.join(configDir, 'sessions', session) : configDir;
   fs.mkdirSync(socketDir, { recursive: true });
   const socketPath = path.join(socketDir, 'herdr.sock');
   if (socketPath.length > MAX_SOCKET_PATH_LENGTH) {
@@ -102,6 +108,10 @@ export async function startFakeHerdrServer(homeDir: string): Promise<FakeHerdrSe
         return;
       case 'tab.list':
         reply({ tabs });
+        socket.end();
+        return;
+      case 'ping':
+        reply({ type: 'pong' });
         socket.end();
         return;
       case 'events.subscribe':

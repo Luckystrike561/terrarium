@@ -4,6 +4,7 @@ import { toMajorMinor } from './changelogData.js';
 import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { ConnectionIndicator } from './components/ConnectionIndicator.js';
+import { ConnectionsMenu } from './components/ConnectionsMenu.js';
 import { DebugView } from './components/DebugView.js';
 import { IntroBubble } from './components/IntroBubble.js';
 import { MigrationNotice } from './components/MigrationNotice.js';
@@ -74,6 +75,8 @@ function App() {
     dismissConsentRequest,
     showAreas,
     setShowAreas,
+    connections,
+    addConnection,
   } = useExtensionMessages(getOfficeState);
 
   // Show migration notice once layout reset is detected
@@ -82,6 +85,7 @@ function App() {
 
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const [isHooksInfoOpen, setIsHooksInfoOpen] = useState(false);
   const [hooksTooltipDismissed, setHooksTooltipDismissed] = useState(false);
   const [isDebugMode, setIsDebugMode] = useState(false);
@@ -280,7 +284,16 @@ function App() {
 
       <BottomToolbar
         isSettingsOpen={isSettingsOpen}
-        onToggleSettings={() => setIsSettingsOpen((v) => !v)}
+        onToggleSettings={() => {
+          setIsSettingsOpen((v) => !v);
+          setIsConnectionsOpen(false);
+        }}
+        isConnectionsOpen={isConnectionsOpen}
+        onToggleConnections={() => {
+          setIsConnectionsOpen((v) => !v);
+          setIsSettingsOpen(false);
+        }}
+        connectionsAvailable={connections !== null}
       />
 
       <VersionIndicator
@@ -334,6 +347,15 @@ function App() {
         showAreasAvailable={layoutHasAreas}
       />
 
+      {connections !== null && (
+        <ConnectionsMenu
+          isOpen={isConnectionsOpen}
+          onClose={() => setIsConnectionsOpen(false)}
+          connections={connections}
+          addConnection={addConnection}
+        />
+      )}
+
       {showMigrationNotice && (
         <MigrationNotice onDismiss={() => setMigrationNoticeDismissed(true)} />
       )}
@@ -351,7 +373,11 @@ function App() {
           onChoice={handleConsentChoice}
           onClose={handleIntroClose}
           escapeSuppressed={
-            isSettingsOpen || isChangelogOpen || isHooksInfoOpen || showMigrationNotice
+            isSettingsOpen ||
+            isConnectionsOpen ||
+            isChangelogOpen ||
+            isHooksInfoOpen ||
+            showMigrationNotice
           }
         />
       )}

@@ -286,6 +286,21 @@ export function dispatchMockMessages(): void {
     extensionVersion: '1.3.0',
     lastSeenVersion: '1.2',
   });
+  dispatch({
+    type: 'connectionsLoaded',
+    connections: [
+      { id: 'local', label: 'This machine', kind: 'local', enabled: true, state: 'connected' },
+      {
+        id: 'ssh-1',
+        label: 'Build box',
+        kind: 'ssh',
+        target: 'dev@build.example.com',
+        enabled: true,
+        state: 'reconnecting',
+        message: 'Connection timed out, retrying…',
+      },
+    ],
+  });
 
   console.log('[BrowserMock] Messages dispatched');
 }

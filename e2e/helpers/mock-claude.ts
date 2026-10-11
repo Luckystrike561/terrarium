@@ -300,9 +300,14 @@ function getMockClaudeBinaryPath(tmpHome: string): string {
  * tmpHome — every external-spawn test times out on Windows only. Set both, and
  * clear the legacy HOMEDRIVE/HOMEPATH fallbacks libuv consults when USERPROFILE
  * is unset so a stale host value can't win.
+ *
+ * herdr's own socket overrides go too: a suite run from inside a herdr pane
+ * inherits them, and the server would watch the real herdr instead of the fake.
  */
 export function applyMockHomeEnv(base: NodeJS.ProcessEnv, tmpHome: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base, HOME: tmpHome };
+  delete env.HERDR_SOCKET_PATH;
+  delete env.HERDR_SESSION;
   if (process.platform === 'win32') {
     env.USERPROFILE = tmpHome;
     delete env.HOMEDRIVE;

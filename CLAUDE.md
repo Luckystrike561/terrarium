@@ -39,12 +39,16 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
       <cli>.ts                       The module: formatToolStatus, tool taxonomy, start() → SessionStoreTracker over its store
       <cli>Transcript.ts             The CLI's records → AgentEvent
     providers/herdr/                 herdr multiplexer module
-      herdr.ts                       The module: connect() → HerdrBridge
-      herdrBridge.ts                 herdr socket client: agent.list snapshots → MultiplexedAgent[] (never reads a transcript)
+      herdr.ts                       The module: connect(endpoint) → HerdrBridge (local socket) or HerdrSshLink (ssh), probe(endpoint) → one `ping`
+      herdrBridge.ts                 herdr socket client: agent.list snapshots → MultiplexedAgent[] (never reads a transcript), link state from the subscription's answer
+      herdrSocket.ts                 herdr's socket resolution: explicit session, HERDR_SOCKET_PATH, HERDR_SESSION, default
+      herdrSsh.ts                    SSH transport: `ssh -N -L` forward of the remote socket (resolved on the remote), HerdrSshLink restarts it when ssh exits
     providers/consentGate.ts         Provider-agnostic consent POLICY: when to ask (hooksConsentRequest per module) and what an answer means (consentActionFor(choice, {installed, consent}) — see docs/adr/0001)
     providers/consentExecutor.ts     Provider-agnostic consent EXECUTION: applyConsentChoice(providerId, choice, ConsentEffects) runs the six actions in one order, and SERIALIZES answers per process across ALL providers
     providers/index.ts               Module registry: agentModules + multiplexerModules, loadEnabledModules (config.json `modules`), hook-module lookups, providerCapabilitiesMessage
-    multiplexerFeed.ts               MultiplexerFeed: diffs a multiplexer's snapshots into AgentEvents, hands panes to the running agent module for their kind
+    multiplexerFeed.ts               MultiplexerFeed: diffs one endpoint's snapshots into AgentEvents, hands local panes to the running agent module for their kind, ends every pane when the link is lost
+    multiplexerConnections.ts        MultiplexerConnections: the persisted connection list, one feed per enabled connection, aggregated live state, probe-before-save add
+    connectionSettings.ts            Connection model, defaults (the `local` connection) and validation of client input and persisted entries
     transcriptFollower.ts            TranscriptFollower: the transcript module's followSession, adopting a pane's transcript into the runtime's own JSONL watcher (herdr + claude)
     agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
     agentStateStore.ts               EventEmitter-backed single source of truth (typed mutations + events)
@@ -56,7 +60,7 @@ server/                              Lifecycle runtime + Fastify HTTP/WS server 
     server.ts                        Top-level composition
     cli.ts                           npx pixel-agents entry (npm bin)
     fileStateAdapter.ts              ~/.pixel-agents/ persistence
-    configPersistence.ts             { standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[] }
+    configPersistence.ts             { standalone, externalAssetDirectories, hooksConsent: {providerId: granted|declined}, hooksEnabled: {providerId: boolean}, modules?: string[], connections?: ConnectionSettings[] }
     layoutPersistence.ts             Read-only ~/.pixel-agents/layout.json loader
     fileWatcher.ts                   Hybrid fs.watch + 500ms polling, JSONL line buffering, /clear detection
     transcriptParser.ts              JSONL parsing for heuristic / file-fallback mode
@@ -83,7 +87,7 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
     notificationSound.ts             Web Audio API chime
     changelogData.ts                 Changelog modal content
     components/                      React UI (toolbars, modals, settings)
-      BottomToolbar.tsx (wooden-plank HUD), SettingsModal.tsx (on ui/Clipboard.tsx), InfoModal.tsx,
+      BottomToolbar.tsx (wooden-plank HUD), SettingsModal.tsx and ConnectionsMenu.tsx (on ui/Clipboard.tsx), InfoModal.tsx,
       Tooltip.tsx, DebugView.tsx, ui/Button.tsx, ...
     hooks/
       useExtensionMessages.ts        Message handler — translates ServerMessage into OfficeState mutations
@@ -194,8 +198,8 @@ Adding an agent CLI or a multiplexer is one subdirectory under `server/src/provi
 
 `core/asyncapi.yaml` is the contract. Pinned to **3.0.0** because `@asyncapi/modelina@5.10.1` declares `supportedVersions: ['3.0.0']` only; bumping to 3.1.0 produces `export type Root = any`. Revisit when Modelina ships 3.1.0 support.
 
-- **30 ServerMessage variants** (server → client): agent lifecycle, agent activity, sub-agent activity, team + context usage, assets, settings, diagnostics.
-- **15 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `closeAgent`), seats (`saveAgentSeats`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), areas (`saveAreaMappings`, `setShowAreas`), discovery + assets, diagnostics.
+- **32 ServerMessage variants** (server → client): agent lifecycle, agent activity, sub-agent activity, team + context usage, assets, settings, connections (`connectionsLoaded`, `connectionAddResult`), diagnostics.
+- **18 ClientMessage variants** (client → server): lifecycle (`webviewReady`, `closeAgent`), seats (`saveAgentSeats`), settings (`setSoundEnabled`, `setHooksEnabled`, `setWatchAllSessions`, `setAlwaysShowLabels`, `setHooksInfoShown`, `setLastSeenVersion`), areas (`saveAreaMappings`, `setShowAreas`), connections (`addConnection`, `updateConnection`, `removeConnection`, privileged), discovery + assets, diagnostics.
 
 Both unions use `oneOf` with `discriminator: type`. Every concrete message sets `additionalProperties: false`.
 
@@ -224,7 +228,7 @@ export type TransportState = 'connecting' | 'connected' | 'reconnecting' | 'disc
 `core/src/provider.ts` is the integration boundary. Two kinds of module, each usable alone or together in one process:
 
 - **`AgentModule`** (`kind: 'agent'`), one per agent CLI: Claude Code plus the 21 modules under `server/src/providers/<cli>/`. Owns that CLI's vocabulary — `formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel`, optional `team` — and how to read it: `normalizeHookEvent` for payloads POSTed to `/api/hooks/<id>` (absent = no hook API), `hooks: HookInstaller` when it writes hooks into the CLI's settings (consent-gated), `start(host)` when it discovers sessions on its own (returns a `RunningAgentModule` whose `followSession(ref)` takes over a session a multiplexer found), and the file fallback (`getSessionDirs`, `getAllSessionRoots`, `sessionFilePattern`, `buildLaunchCommand`) for transcripts in the runtime's own JSONL parser format. `adoptsSessionsOutsideWorkspace` scopes "adopt regardless of Watch All Sessions" to that module's sessions.
-- **`MultiplexerModule`** (`kind: 'multiplexer'`), one per multiplexer: herdr. `connect(onSnapshot, log)` reports every live agent as a `MultiplexedAgent` (pane id, agent kind = an agent module id, status level working/blocked/idle, cwd, name, task, session ref). It never parses a transcript. herdr's `agent_session` is a transcript path for pi and omp (`kind: 'path'`, compared by real path) and the CLI's own session id for every other integration; Amp, Kiro 2, Maki, Gemini CLI and Cline report none.
+- **`MultiplexerModule`** (`kind: 'multiplexer'`), one per multiplexer: herdr. `connect(endpoint, watcher)` watches one server (a `MultiplexerEndpoint`: `local` socket or `ssh` target, optional session), reports its link state (`connecting`/`connected`/`reconnecting`/`error` with the error text) and every live agent as a `MultiplexedAgent` (pane id, agent kind = an agent module id, status level working/blocked/idle, cwd, name, task, session ref). It never parses a transcript. herdr's `agent_session` is a transcript path for pi and omp (`kind: 'path'`, compared by real path) and the CLI's own session id for every other integration; Amp, Kiro 2, Maki, Gemini CLI and Cline report none.
 
 The Claude module supports every transcript/hook format up to **Claude Code v2.1.220** (current as of 2026-07-30 — Task-era `agent_progress` records, explicit and implicit teams, background-by-default Agent spawns, sidecar-backed background agents). Newer CLI releases may add formats that need module updates.
 
@@ -232,7 +236,7 @@ The Claude module supports every transcript/hook format up to **Claude Code v2.1
 
 **Routing.** `POST /api/hooks/:providerId` is normalized by that module and no other; in-process modules emit already-normalized events through their `ModuleHost`. An agent's `providerId` is its agent module (set by the first event from one), so per-agent behaviour — status text, sub-agent tools, team routing — comes from the right CLI. Multiplexer events never set `hookDelivered`: they must not silence the heuristics of an agent whose own module watches it.
 
-**One agent, one character.** Every module announces a session with `sessionStart.sessionRef`: the session's transcript path, or the CLI's own session id where that is what its multiplexer integration reports. A session whose ref an existing agent already reports joins that agent (`claimBySessionRef`) instead of creating a second character; a bare Claude `transcriptPath` only matches module-announced agents, so Claude-vs-Claude routing is unchanged. A session store module keys its sessions in exactly the form herdr reports for that CLI (`jsonlSessionStore`'s `sessionIdOf`, or the SQLite row id), so the pane and the module's own discovery meet on one key. A pane herdr reports no ref for is bound to the module's one live session in the pane's cwd (`RunningAgentModule.sessionInDirectory`), never guessed when several share it. `MultiplexerFeed` announces each pane as `<multiplexer>-<pane>`; when the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`). With no such module, the pane's status level is all there is and is reported in full (`working` → the `working` event, `blocked` → `permissionRequest`, `idle` → `turnEnd`). The transcript module (Claude) has no `start()`: its transcripts are parsed by the runtime, so `startModules` registers a `TranscriptFollower` in its place, which resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session (with `hookDelivered` off, so the heuristic timers end its turns until a hook arrives); a pane character already on screen gets the transcript attached instead. It ends with the pane. A transcript an agent already watches stays with that agent and its own lifecycle.
+**One agent, one character.** Every module announces a session with `sessionStart.sessionRef`: the session's transcript path, or the CLI's own session id where that is what its multiplexer integration reports. A session whose ref an existing agent already reports joins that agent (`claimBySessionRef`) instead of creating a second character; a bare Claude `transcriptPath` only matches module-announced agents, so Claude-vs-Claude routing is unchanged. A session store module keys its sessions in exactly the form herdr reports for that CLI (`jsonlSessionStore`'s `sessionIdOf`, or the SQLite row id), so the pane and the module's own discovery meet on one key. A pane herdr reports no ref for is bound to the module's one live session in the pane's cwd (`RunningAgentModule.sessionInDirectory`), never guessed when several share it. `MultiplexerFeed` announces each pane as `<multiplexer>-<connection>-<pane>` (pane ids are only unique within one herdr server); when the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`). With no such module, the pane's status level is all there is and is reported in full (`working` → the `working` event, `blocked` → `permissionRequest`, `idle` → `turnEnd`). The transcript module (Claude) has no `start()`: its transcripts are parsed by the runtime, so `startModules` registers a `TranscriptFollower` in its place, which resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session (with `hookDelivered` off, so the heuristic timers end its turns until a hook arrives); a pane character already on screen gets the transcript attached instead. It ends with the pane. A transcript an agent already watches stays with that agent and its own lifecycle.
 
 `AgentEvent.kind` values: `toolStart`, `toolEnd`, `turnEnd`, `working`, `subagentStart`, `subagentEnd`, `subagentTurnEnd`, `progress`, `permissionRequest`, `sessionStart`, `sessionEnd`, `sessionInfo`. The runtime dispatches on `kind`, never on CLI-specific tool names.
 
@@ -247,7 +251,7 @@ The Claude module supports every transcript/hook format up to **Claude Code v2.1
 2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
 3. Tests go in `server/__tests__/`; `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
 
-**Multiplexer module**: create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule` whose `connect` reports full snapshots of live agents (an agent missing from a snapshot has ended; an unanswered poll must not report an empty list), then add it to `multiplexerModules`. `MultiplexerFeed` does the diffing, naming, hand-over and status mapping.
+**Multiplexer module**: create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule` whose `connect(endpoint, watcher)` reports full snapshots of live agents (an agent missing from a snapshot has ended; an unanswered poll must not report an empty list) and its link state, and whose `probe(endpoint)` does one round-trip, then add it to `multiplexerModules`. `MultiplexerConnections` runs one `MultiplexerFeed` per enabled connection, and the feed does the diffing, naming, hand-over and status mapping.
 
 **Consent**: a module that writes into any file outside `~/.pixel-agents/` must do it through `hooks: HookInstaller`. The consent gate then asks once per such module with its own `consentDisclosure()`, and the server installs, migrates and uninstalls it through the same generic paths (no module id appears in `cli.ts` or `clientMessageHandler.ts`). A module that only reads (omp, herdr) has no `hooks` and is never part of a consent ask.
 
@@ -332,7 +336,7 @@ Server discovery written to `~/.pixel-agents/server.json` with `{ port, pid, aut
 
 ### ClientMessageHandler
 
-Single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `LayoutPersistence`, or `FileStateAdapter`, or delegates to host-specific callbacks (`onSetHooksEnabled`).
+Single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `LayoutPersistence`, or `FileStateAdapter`, or delegates to host-specific callbacks (`onSetHooksEnabled`). The connection messages go to `runtime.connections` and, like `setHooksEnabled`, only from a privileged (tokened) socket: they open SSH sessions to other machines. `connectionsLoaded` is sent on the handshake and on every change, to privileged sockets only (it names SSH targets).
 
 ### ServerAgentState (server/src/types.ts)
 
@@ -342,7 +346,8 @@ Per-agent runtime data: provider reference, session key, transcript-fallback fie
 
 ```
 ~/.pixel-agents/
-  config.json              { standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider), modules (enabled module ids) }
+  config.json              { standalone, externalAssetDirectories, hooksConsent, hooksEnabled (both per-provider), modules (enabled module ids), connections (herdr servers, absent = the default local one) }
+  herdr/<connection>.sock  Local end of each SSH connection's forwarded herdr socket (directory 0700)
   standalone-state.json    { agents, seats }
   layout.json              OfficeLayout
   server.json              { port, pid, authToken }
