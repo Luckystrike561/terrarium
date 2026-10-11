@@ -101,6 +101,12 @@ export class AgentRuntime {
       palette: restored?.palette,
       hueShift: restored?.hueShift,
     };
+    const lead =
+      agent.team?.leadAgentId === undefined ? undefined : this.store.get(agent.team.leadAgentId);
+    if (lead && agent.palette === undefined) {
+      agent.palette = lead.palette;
+      agent.hueShift = lead.hueShift ?? 0;
+    }
     assignPaletteIfNeeded(agent, this.store);
     this.store.set(id, agent);
     this.eventHandler.registerAgent(session.sessionId, id, session.sourceIds[0]);

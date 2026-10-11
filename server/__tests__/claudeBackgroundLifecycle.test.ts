@@ -175,6 +175,8 @@ describe('Claude background teammates through the runtime', () => {
       leadAgentId: leadId,
     });
     expect(store.get(leadId)?.team?.isTeamLead).toBe(true);
+    expect(store.get(teammateId)?.palette).toBe(store.get(leadId)?.palette);
+    expect(store.get(teammateId)?.hueShift).toBe(store.get(leadId)?.hueShift);
   });
 
   it('drops the LEAD badge when the last teammate leaves', () => {
