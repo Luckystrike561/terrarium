@@ -3,12 +3,12 @@ import fs from 'node:fs';
 
 import semver from 'semver';
 
-export const EXPECTED_PACKAGE_NAME = 'pixel-agents';
-export const EXPECTED_REPOSITORY_URL = 'https://github.com/pixel-agents-hq/pixel-agents';
+export const EXPECTED_PACKAGE_NAME = 'terrarium';
+export const EXPECTED_REPOSITORY_URL = 'https://github.com/Luckystrike561/terrarium';
 
 // fastify + @fastify/{cors,static,websocket} are root runtime `dependencies` even though
 // no root source file imports them: esbuild marks them `external` when bundling
-// dist/cli.js (see esbuild.js), so the published `pixel-agents` bin resolves them from
+// dist/cli.js (see esbuild.js), so the published `terrarium` bin resolves them from
 // node_modules at runtime. server/ ships its own copy for local dev but is excluded from
 // the tarball (FORBIDDEN_PACKAGE_PREFIXES below), so dropping the root declarations would
 // publish a CLI that crashes on require(). knip.json ignores them for this reason.

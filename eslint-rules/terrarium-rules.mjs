@@ -1,5 +1,5 @@
 /**
- * Shared ESLint plugin for pixel-agents project conventions.
+ * Shared ESLint plugin for terrarium project conventions.
  *
  * Rules:
  *   no-inline-colors  — flag hex/rgb/rgba/hsl/hsla color literals (centralize in constants)
@@ -129,7 +129,7 @@ const pixelFont = {
 
 const plugin = {
   meta: {
-    name: 'eslint-plugin-pixel-agents',
+    name: 'eslint-plugin-terrarium',
     version: '1.0.0',
   },
   rules: {

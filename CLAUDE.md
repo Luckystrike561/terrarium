@@ -8,7 +8,7 @@ Terrarium is a pixel art office where AI coding agents become animated character
 
 The product is **Terrarium**, a fork of Pixel Agents v1.4.1 (the README credits the upstream project). The repository is `https://github.com/Luckystrike561/terrarium`.
 
-The code identity keeps the upstream name, because renaming it would break existing installs: the npm package and CLI `pixel-agents`, the state directory `~/.pixel-agents/`, the hook script path `~/.pixel-agents/hooks/claude-hook.js`, the `PIXEL_AGENTS_*` environment variables, the `[Pixel Agents]` log prefix, and `PixelAgentsServer`. Prose says Terrarium. Code, paths and commands say `pixel-agents`. Say Pixel Agents only when you mean the upstream project.
+Code, paths and commands use the Terrarium name too: the npm package and CLI `terrarium`, the state directory `~/.terrarium/`, the hook script path `~/.terrarium/hooks/claude-hook.js`, the `TERRARIUM_*` environment variables, the `[Terrarium]` log prefix, and `TerrariumServer`. Say Pixel Agents only when you mean the upstream project. Installs from before the rename are migrated on startup: `stateDirMigration.ts` moves `~/.pixel-agents/` to `~/.terrarium/` when the new directory does not exist yet, and the Claude hook installer still recognizes `/.pixel-agents/hooks/claude-hook.js` entries and a `settings.json.pixel-agents.backup` as its own. The old environment variable names are not read.
 
 ## Where to look
 
@@ -50,8 +50,8 @@ core/                                Protocol + interface definitions
 
 server/                              Runtime + Fastify HTTP/WS server + CLI
   src/
-    cli.ts                           `pixel-agents` entry (npm bin)
-    server.ts                        Top-level composition (PixelAgentsServer)
+    cli.ts                           `terrarium` entry (npm bin)
+    server.ts                        Top-level composition (TerrariumServer)
     serverConfig.ts                  server.json record shape
     httpServer.ts                    POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA
     clientMessageHandler.ts          Single dispatch point for ClientMessage
@@ -73,7 +73,8 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
     teamUtils.ts                     Inline-teammate helpers
     paletteAssigner.ts               Server-side palette assignment
     pathKey.ts                       Canonical path key for Maps and identity
-    fileStateAdapter.ts              ~/.pixel-agents/ persistence
+    fileStateAdapter.ts              ~/.terrarium/ persistence
+    stateDirMigration.ts             Moves a pre-rename ~/.pixel-agents/ to ~/.terrarium/ on startup
     configPersistence.ts             config.json read/write
     layoutPersistence.ts             Read-only layout.json loader
     assetLoader.ts                   PNG → SpriteData, furniture manifests, loadDefaultLayout
@@ -140,13 +141,13 @@ scripts/
   iso-art/                           Generators for furniture, characters, floors and the default layout
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
 
-eslint-rules/pixel-agents-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
+eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
 Dockerfile                           Standalone server image (herdr + omp)
 ```
 
 ## Distribution
 
-- **npm package** (`pixel-agents`). `npx pixel-agents [--port 3100]` runs the Fastify server and serves the SPA on the same port. Nothing from this fork is published to npm: `npx pixel-agents` installs upstream Pixel Agents. Run Terrarium from source (`node dist/cli.js`) or Docker. The `package.json` `files` allowlist is `CHANGELOG.md`, `LICENSE`, `dist/cli.js`, `dist/hooks/claude-hook.js`, `dist/assets/`, `dist/webview/` and `icon.png`. `scripts/npm-package-contract.mjs` pins it.
+- **npm package** (`terrarium`). `terrarium [--port 3100]` runs the Fastify server and serves the SPA on the same port. Nothing from this fork is published to npm, and the `terrarium` name on npm belongs to an unrelated package, so never document `npx terrarium`. Run Terrarium from source (`node dist/cli.js`) or Docker. The `package.json` `files` allowlist is `CHANGELOG.md`, `LICENSE`, `dist/cli.js`, `dist/hooks/claude-hook.js`, `dist/assets/`, `dist/webview/` and `icon.png`. `scripts/npm-package-contract.mjs` pins it.
 - **Docker image** (`Dockerfile`): multi-stage, `npm ci` + `npm run package`, then a runtime stage with only the server workspace's production dependencies plus `dist/`, running as `node` (UID 1000, `HOME=/home/node`) with `--provider herdr,omp --host 0.0.0.0 --port 8790`. herdr and omp only, because Claude hooks installed from a container would point at container paths. The README's Docker section is the source of truth for the mounts.
 
 ## Communication flow
@@ -205,7 +206,7 @@ Claude agents are tracked in two modes: hooks (instant, preferred) and heuristic
 
 ## Persistence
 
-Everything lives under `~/.pixel-agents/`: `config.json` (consent and hooks preference per provider, enabled modules, connections, area mappings), `standalone-state.json` (agents, seats), an optional read-only `layout.json`, `server.json` (`{ port, pid, authToken }` discovery), the staged hook script under `hooks/`, and forwarded herdr sockets under `herdr/`. Leftover keys from older installs are ignored, never an error. Nothing writes `layout.json`. Details: [server-runtime.md](docs/architecture/server-runtime.md#persistence).
+Everything lives under `~/.terrarium/`: `config.json` (consent and hooks preference per provider, enabled modules, connections, area mappings), `standalone-state.json` (agents, seats), an optional read-only `layout.json`, `server.json` (`{ port, pid, authToken }` discovery), the staged hook script under `hooks/`, and forwarded herdr sockets under `herdr/`. Leftover keys from older installs are ignored, never an error. Nothing writes `layout.json`. Details: [server-runtime.md](docs/architecture/server-runtime.md#persistence).
 
 ## Office UI
 
@@ -233,7 +234,7 @@ npm run verify:npm-package # pack, install and smoke-test the tarball
 npm run site:build         # build the website from site/ into dist/site/
 ```
 
-`esbuild.js` bundles the CLI (`dist/cli.js`, Fastify externals) and the hook script (`dist/hooks/claude-hook.js`, CJS with shebang), and copies `webview-ui/public/assets/` to `dist/assets/`. `process.env.PIXEL_AGENTS_VERSION` is stamped into all bundles.
+`esbuild.js` bundles the CLI (`dist/cli.js`, Fastify externals) and the hook script (`dist/hooks/claude-hook.js`, CJS with shebang), and copies `webview-ui/public/assets/` to `dist/assets/`. `process.env.TERRARIUM_VERSION` is stamped into all bundles.
 
 ## Checks
 
@@ -271,16 +272,16 @@ The custom ESLint rules `no-inline-colors`, `pixel-shadow` and `pixel-font` are 
 
 ## Errors and logging
 
-Errors are caught and logged, and never crash the server. Malformed JSONL lines are ignored. Missing assets log a warning and fall back to null. There is no telemetry. Log with `console.log` / `warn` / `error` and a prefix: `[Pixel Agents]` (server), `[AssetLoader]` (asset loading), `[Webview]` (webview).
+Errors are caught and logged, and never crash the server. Malformed JSONL lines are ignored. Missing assets log a warning and fall back to null. There is no telemetry. Log with `console.log` / `warn` / `error` and a prefix: `[Terrarium]` (server), `[AssetLoader]` (asset loading), `[Webview]` (webview).
 
 ## Key decisions
 
 - **Layered codebase** (core → server, core → webview-ui), with the AsyncAPI contract as the single source of truth for the wire protocol.
 - **AgentStateStore is the single source of truth.** No transport calls outside the broadcast layer.
 - **Provider modules are the integration boundary.** No module id appears in the runtime, the UI, `cli.ts` or `clientMessageHandler.ts`.
-- **Single-namespace persistence** under `~/.pixel-agents/`.
+- **Single-namespace persistence** under `~/.terrarium/`.
 - **The server always starts** regardless of the hooks preference. Only hook installation is gated by it.
-- **Consent before any first write outside `~/.pixel-agents/`**, asked once per module in the Intro, and a choice is an absolute state command. The hooks preference is persisted only after the install or uninstall verifiably landed. See [consent.md](docs/architecture/consent.md) and ADR 0001.
+- **Consent before any first write outside `~/.terrarium/`**, asked once per module in the Intro, and a choice is an absolute state command. The hooks preference is persisted only after the install or uninstall verifiably landed. See [consent.md](docs/architecture/consent.md) and ADR 0001.
 - **Never rewrite a JSON shape we did not author**, and identify our hook by an anchored, case-insensitive path suffix, never a substring. See [consent.md](docs/architecture/consent.md#writing-settingsjson-safely).
 - **Privilege is a token, never a network position.** See [consent.md](docs/architecture/consent.md#who-may-answer-the-ws-gate).
 - **E2E over webview unit tests** for user-facing behaviour. See [testing.md](docs/architecture/testing.md).

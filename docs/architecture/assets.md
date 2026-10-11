@@ -21,7 +21,7 @@ The bundled furniture, characters and floors are **generated** to the art direct
 
 ## Default layout
 
-`loadDefaultLayout()` (`server/src/assetLoader.ts`) scans `assets/` for `default-layout-<N>.json` and serves the one with the highest `N`, stamping `layoutRevision` from `N` when the file has none. It falls back to an unversioned `default-layout.json` only when no versioned file exists. The server serves the bundled default only when `~/.pixel-agents/layout.json` does not exist, so a saved layout is never replaced by a newer default.
+`loadDefaultLayout()` (`server/src/assetLoader.ts`) scans `assets/` for `default-layout-<N>.json` and serves the one with the highest `N`, stamping `layoutRevision` from `N` when the file has none. It falls back to an unversioned `default-layout.json` only when no versioned file exists. The server serves the bundled default only when `~/.terrarium/layout.json` does not exist, so a saved layout is never replaced by a newer default.
 
 ## Furniture
 

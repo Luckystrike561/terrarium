@@ -1,7 +1,7 @@
 /**
  * Letta Code agent module. Letta Code's default Cloud backend keeps conversations server-side, with only
  * stats on disk; this module reads the local backend (`--backend local`), whose per-conversation transcripts
- * are the only sessions it can show. Nothing is written outside `~/.pixel-agents/`, so there is nothing to
+ * are the only sessions it can show. Nothing is written outside `~/.terrarium/`, so there is nothing to
  * consent to.
  */
 

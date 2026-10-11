@@ -133,9 +133,9 @@ test('record the README demo', async ({ page }) => {
   const videoStartedAt = Date.now();
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-demo-home-'));
   const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-demo-ws-'));
-  fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
+  fs.mkdirSync(path.join(tmpHome, '.terrarium'), { recursive: true });
   fs.writeFileSync(
-    path.join(tmpHome, '.pixel-agents', 'config.json'),
+    path.join(tmpHome, '.terrarium', 'config.json'),
     JSON.stringify({
       standalone: { lastSeenVersion: CURRENT_MAJOR_MINOR },
       hooksConsent: { claude: 'granted' },

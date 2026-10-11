@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const resultsRootDir = path.join(repoRoot, 'allure-results');
 const reportDir = path.join(repoRoot, 'allure-report', 'allure');
-const reportName = 'Pixel Agents Cross-Platform Test Report';
+const reportName = 'Terrarium Cross-Platform Test Report';
 const metadataFileNames = new Set([
   'categories.json',
   'environment.json',
@@ -120,7 +120,7 @@ function writePlaceholderReport() {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pixel Agents Linux Test Report Unavailable</title>
+    <title>Terrarium Linux Test Report Unavailable</title>
     <style>
       :root {
         color-scheme: light;
@@ -168,7 +168,7 @@ if (suites.length === 0) {
 rmSync(reportDir, { recursive: true, force: true });
 mkdirSync(path.dirname(reportDir), { recursive: true });
 
-const stagedResultsDir = mkdtempSync(path.join(tmpdir(), 'pixel-agents-allure-'));
+const stagedResultsDir = mkdtempSync(path.join(tmpdir(), 'terrarium-allure-'));
 
 for (const suite of suites) {
   copyResults(suite.dir, stagedResultsDir);

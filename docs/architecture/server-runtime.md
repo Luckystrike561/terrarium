@@ -44,7 +44,7 @@ Fastify v5 with `@fastify/cors`, `@fastify/websocket` and `@fastify/static` (`se
 
 `/ws` accepts same-origin connections and grants privileged messages only to a socket that presents the server token. The gate and why it is built that way are in [consent.md](consent.md#who-may-answer-the-ws-gate).
 
-Server discovery is written to `~/.pixel-agents/server.json` as `{ port, pid, authToken }`. A second server detects an existing `server.json` and reuses or replaces it based on PID liveness. Every Docker container's server is PID 1, so `PixelAgentsServer` prunes an own-PID registry entry older than the process instead of reusing it.
+Server discovery is written to `~/.terrarium/server.json` as `{ port, pid, authToken }`. A second server detects an existing `server.json` and reuses or replaces it based on PID liveness. Every Docker container's server is PID 1, so `TerrariumServer` prunes an own-PID registry entry older than the process instead of reusing it.
 
 ## Client message dispatch
 
@@ -61,7 +61,7 @@ On `webviewReady` the handler sends assets, then `layoutLoaded`, then agent stat
 ## Persistence
 
 ```
-~/.pixel-agents/
+~/.terrarium/
   config.json              standalone, hooksConsent, hooksEnabled (both per provider), modules, connections
   herdr/<connection>.sock  Local end of each SSH connection's forwarded herdr socket (directory 0700)
   standalone-state.json    { agents, seats }
@@ -73,6 +73,8 @@ On `webviewReady` the handler sends assets, then `layoutLoaded`, then agent stat
 `FileStateAdapter` backs persistence. Its settings are `lastSeenVersion`, `hooksInfoShown` and `areaMappings`. The hooks preference is per provider and machine-global, at the config top level. `connections` absent means the default `local` connection.
 
 A leftover config key or state file from an older install (including the removed `watchAllSessions`, `soundEnabled`, `alwaysShowLabels`, `showAreas` and `externalAssetDirectories`) is ignored, never an error.
+
+`migrateLegacyStateDir` (`server/src/stateDirMigration.ts`) runs first in the CLI. When `~/.pixel-agents/` exists and `~/.terrarium/` does not, it renames the old directory, so an install from before the rename keeps its settings, consent and seats. An existing `~/.terrarium/` is authoritative and is never merged with the old directory.
 
 There is no settings panel. Every session on the machine is watched, the waiting chime always plays, and agent labels show on hover or selection (every label renders under the e2e harness, so specs can read overlay text).
 

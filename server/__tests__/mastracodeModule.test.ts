@@ -15,7 +15,7 @@ import {
   SESSION_POLL_INTERVAL_MS,
 } from '../src/providers/sessionStore/constants.js';
 
-// mastracode's session database and the server's ~/.pixel-agents/ both resolve against the home directory.
+// mastracode's session database and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof Os>('os');

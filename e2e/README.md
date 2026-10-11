@@ -32,7 +32,7 @@ Server-level behavior: hook-driven lifecycle propagates into the browser SPA via
 
 ### Pet system (`@area:pets`)
 
-The animated pets feature, which has no hook dependency. Pet sprites load and the `petSpritesLoaded` broadcast arrives; a pet seeded into `~/.pixel-agents/layout.json` loads into the office and survives a page reload; clicking a pet shows a heart bubble that auto-dismisses and dismisses again on re-click. Pets render only on the canvas, so live state is read through the `getPets` / `petClick` e2e test hooks. FSM internals, pathfinding, FOLLOW, z-sort, and legacy-layout migration are covered by webview unit tests, not e2e.
+The animated pets feature, which has no hook dependency. Pet sprites load and the `petSpritesLoaded` broadcast arrives; a pet seeded into `~/.terrarium/layout.json` loads into the office and survives a page reload; clicking a pet shows a heart bubble that auto-dismisses and dismisses again on re-click. Pets render only on the canvas, so live state is read through the `getPets` / `petClick` e2e test hooks. FSM internals, pathfinding, FOLLOW, z-sort, and legacy-layout migration are covered by webview unit tests, not e2e.
 
 ## What's NOT covered (gaps + deferred)
 
@@ -67,7 +67,7 @@ A green run of this suite is the safety net for behavioral regressions. The chec
 
 **First-run experience** (before tagging):
 
-- Delete `~/.pixel-agents/` entirely. Start the server fresh: default layout loads, the Intro runs and asks for hook consent, no console errors.
+- Delete `~/.terrarium/` entirely. Start the server fresh: default layout loads, the Intro runs and asks for hook consent, no console errors.
 
 **Platform sanity** (the e2e host is not your daily machine):
 
@@ -90,7 +90,7 @@ npm run test:report:open                     # serve + open the Allure dashboard
 
 ## Mocking model & rules
 
-E2E tests drive Terrarium through a Claude-like **process boundary**, not by poking internals. The mocked `claude` (`e2e/fixtures/mock-claude` → `mock-claude-runner.cjs`) behaves like the real CLI for the parts Terrarium observes: it spawns as a process, creates its own append-only JSONL transcripts, and executes the installed hook script under `~/.pixel-agents/hooks`, the same path the real CLI uses. Every agent is an external session the server adopts, spawned with `spawnExternalClaudeScenario`. The builder API itself (`claudeScenario(...)`, `.at()`, `.appendJsonl()`, `.emitHook()`, `.holdOpenFor()`) is documented in CONTRIBUTING.md → "Mock claude".
+E2E tests drive Terrarium through a Claude-like **process boundary**, not by poking internals. The mocked `claude` (`e2e/fixtures/mock-claude` → `mock-claude-runner.cjs`) behaves like the real CLI for the parts Terrarium observes: it spawns as a process, creates its own append-only JSONL transcripts, and executes the installed hook script under `~/.terrarium/hooks`, the same path the real CLI uses. Every agent is an external session the server adopts, spawned with `spawnExternalClaudeScenario`. The builder API itself (`claudeScenario(...)`, `.at()`, `.appendJsonl()`, `.emitHook()`, `.holdOpenFor()`) is documented in CONTRIBUTING.md → "Mock claude".
 
 Rules for a correct test:
 
@@ -174,7 +174,7 @@ This section is auto-generated. Do not edit between the markers. The pre-push ho
 - `e2e/claude/hooks-on/lifecycle.spec.ts:1126` — restored agents skip the matrix spawn animation (Hooks ON / lifecycle)
 - `e2e/claude/hooks-on/lifecycle.spec.ts:1215` — tool status text matches every PreToolUse tool name (Hooks ON / lifecycle)
 - `e2e/claude/hooks-on/lifecycle.spec.ts:1304` — permission sound chime fires on agentToolPermission (Hooks ON / lifecycle)
-- `e2e/claude/hooks-on/lifecycle.spec.ts:1402` — pixel-agents hook is installed in settings.json on server startup (Hooks ON / lifecycle)
+- `e2e/claude/hooks-on/lifecycle.spec.ts:1402` — terrarium hook is installed in settings.json on server startup (Hooks ON / lifecycle)
 - `e2e/claude/hooks-on/lifecycle.spec.ts:1424` — permission bubble auto-clears when a fresh PreToolUse arrives (Hooks ON / lifecycle)
 
 ### `@area:teams` (5 tests)
@@ -218,10 +218,10 @@ This section is auto-generated. Do not edit between the markers. The pre-push ho
 
 - `e2e/claude/hooks-off/carpet.spec.ts:26` — carpet sprites load and broadcast to the webview (Carpet)
 - `e2e/claude/hooks-off/carpet.spec.ts:53` — seeded carpetTiles load into the office (Carpet › seeded carpet tiles)
-- `e2e/claude/hooks-off/carpet.spec.ts:88` — junction case reflects just the NW neighbor (Carpet › autotiling: a single neighbor)
-- `e2e/claude/hooks-off/carpet.spec.ts:118` — junction case reflects NW + NE neighbors (Carpet › autotiling: two neighbors)
-- `e2e/claude/hooks-off/carpet.spec.ts:147` — junction case is fully set when all four corners are present (Carpet › autotiling: fully surrounded)
-- `e2e/claude/hooks-off/carpet.spec.ts:196` — a seeded carpet coexists with furniture on the same tile (Carpet surface placement (seeded))
+- `e2e/claude/hooks-off/carpet.spec.ts:87` — junction case reflects just the NW neighbor (Carpet › autotiling: a single neighbor)
+- `e2e/claude/hooks-off/carpet.spec.ts:116` — junction case reflects NW + NE neighbors (Carpet › autotiling: two neighbors)
+- `e2e/claude/hooks-off/carpet.spec.ts:144` — junction case is fully set when all four corners are present (Carpet › autotiling: fully surrounded)
+- `e2e/claude/hooks-off/carpet.spec.ts:192` — a seeded carpet coexists with furniture on the same tile (Carpet surface placement (seeded))
 
 ### `@area:pets` (3 tests)
 

@@ -34,7 +34,7 @@ type GreeterHooks = {
 /** Whether the consent greeter character is currently in the office. */
 function greeterPresent(page: Page): Promise<boolean> {
   return page.evaluate(() => {
-    const hooks = (window as { __pixelAgentsTestHooks?: GreeterHooks }).__pixelAgentsTestHooks;
+    const hooks = (window as { __terrariumTestHooks?: GreeterHooks }).__terrariumTestHooks;
     return (hooks?.getCharacters?.() ?? []).some((c) => c.isGreeter === true);
   });
 }
@@ -63,7 +63,7 @@ function readSettings(tmpHome: string): {
 
 function readConsent(tmpHome: string): boolean {
   try {
-    const raw = fs.readFileSync(path.join(tmpHome, '.pixel-agents', 'config.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(tmpHome, '.terrarium', 'config.json'), 'utf8');
     const consent = (JSON.parse(raw) as { hooksConsent?: Record<string, string> }).hooksConsent;
     return consent?.claude === 'granted';
   } catch {
@@ -73,7 +73,7 @@ function readConsent(tmpHome: string): boolean {
 
 function readHooksEnabled(tmpHome: string): boolean | undefined {
   try {
-    const raw = fs.readFileSync(path.join(tmpHome, '.pixel-agents', 'config.json'), 'utf8');
+    const raw = fs.readFileSync(path.join(tmpHome, '.terrarium', 'config.json'), 'utf8');
     return (JSON.parse(raw) as { hooksEnabled?: Record<string, boolean> }).hooksEnabled?.claude;
   } catch {
     return undefined;
@@ -82,12 +82,12 @@ function readHooksEnabled(tmpHome: string): boolean | undefined {
 
 /**
  * A pre-consent (legacy) settings.json: our command on 14 events, including the two we no longer collect, plus a
- * third-party hook sharing one entry. The command is matched by its `.pixel-agents/hooks/claude-hook.js` path SUFFIX
+ * third-party hook sharing one entry. The command is matched by its `.terrarium/hooks/claude-hook.js` path SUFFIX
  * rather than against the resolved homedir, so a literal `/home/legacy/...` reads as ours even though the test HOME
  * is a temp dir — which is what lets this be seeded at launch time, before that temp HOME has a name.
  */
 function legacyClaudeSettings(thirdPartyCommand: string): unknown {
-  const command = 'node "/home/legacy/.pixel-agents/hooks/claude-hook.js"';
+  const command = 'node "/home/legacy/.terrarium/hooks/claude-hook.js"';
   const events = [
     'SessionStart',
     'SessionEnd',
@@ -126,7 +126,7 @@ test.describe('Hooks consent gate', () => {
 
     narrator.step('waiting for the first-run Intro');
     const dialog = await openConsentDialog(page);
-    await expect(dialog).toContainText('Welcome to Pixel Agents!');
+    await expect(dialog).toContainText('Welcome to Terrarium!');
 
     // Diegetic: the tour is a greeter character's speech bubble, and the camera
     // shifts so character + bubble are centered — the bubble ends up FULLY on
@@ -161,12 +161,12 @@ test.describe('Hooks consent gate', () => {
     expect(text).toContain('One more thing: hooks!');
     expect(text).toMatch(/adds hooks for 12 Claude Code events/);
     expect(text).toContain('~/.claude/settings.json');
-    expect(text).toContain('.pixel-agents.backup');
+    expect(text).toContain('.terrarium.backup');
     expect(text).toMatch(/tool inputs/);
     expect(text).toContain('127.0.0.1');
     // The LAST sentence of the disclosure — asserted at the tail so a clipped
     // or half-rendered body fails here rather than passing on its opening.
-    expect(text).toContain('pixel-agents --uninstall-hooks');
+    expect(text).toContain('terrarium --uninstall-hooks');
     narrator.check(
       'the consent step discloses event scope, payload destination, and how to remove',
     );

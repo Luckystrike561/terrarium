@@ -43,7 +43,7 @@ The HUD is furnished like the office, not drawn as flat dark panels. `components
 - Tooltips, toasts and in-world labels (`Tooltip.tsx`, `VersionIndicator.tsx`, `ConnectionIndicator.tsx`, `ToolOverlay.tsx`'s activity label, the greeter's `IntroBubble.tsx`) are smaller ink-bordered `.paper-tag` tags.
 - Status badges and speech bubbles (`office/sprites/status-*.json`, `office/sprites/bubble-*.json`) share the same ink outline (`#1a1426`) and the HUD's `--color-status-*` state colours.
 
-Custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`) enforce `no-inline-colors` (hex, rgb, rgba, hsl and hsla literals only in `constants.ts`), `pixel-shadow` (`var(--pixel-shadow)` or `2px 2px 0px`) and `pixel-font` (must reference FS Pixel Sans). All are `error` level.
+Custom ESLint rules (`eslint-rules/terrarium-rules.mjs`) enforce `no-inline-colors` (hex, rgb, rgba, hsl and hsla literals only in `constants.ts`), `pixel-shadow` (`var(--pixel-shadow)` or `2px 2px 0px`) and `pixel-font` (must reference FS Pixel Sans). All are `error` level.
 
 ## Characters
 
@@ -103,7 +103,7 @@ A seat facing no electronics (sofas and benches around the coffee table) is a **
 
 ## Layout
 
-There is no in-app layout editor. The office is authored in code (`scripts/iso-art/layout.ts`, see [assets.md](assets.md)) and loaded read-only. On `webviewReady` the server sends `~/.pixel-agents/layout.json` when it exists, otherwise the bundled default. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
+There is no in-app layout editor. The office is authored in code (`scripts/iso-art/layout.ts`, see [assets.md](assets.md)) and loaded read-only. On `webviewReady` the server sends `~/.terrarium/layout.json` when it exists, otherwise the bundled default. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
 
 **Layout model**: `{ version: 1, cols, rows, tiles: TileType[], furniture: PlacedFurniture[], tileColors?: ColorValue[], carpetTiles?, areas?, areaTiles?, pets?, layoutRevision? }`. Grid dimensions are dynamic. `TileType.VOID` tiles are transparent and non-walkable. `office/layout/layoutSerializer.ts` converts between the layout and the runtime tile map, furniture and seats. `office/layout/tileMap.ts` holds walkability and BFS pathfinding.
 

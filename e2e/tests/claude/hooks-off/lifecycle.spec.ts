@@ -182,7 +182,7 @@ test.describe('Hooks OFF / lifecycle', () => {
         .at(2_500)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-b6-teammate-search', 'WebSearch', {
-            query: 'pixel agents lifecycle regressions',
+            query: 'terrarium lifecycle regressions',
           }),
           { session: INLINE_TEAMMATE_ALIAS },
         )
@@ -372,7 +372,7 @@ test.describe('Hooks OFF / lifecycle', () => {
   // playPermissionSound() / playDoneSound() (see
   // webview-ui/src/hooks/useExtensionMessages.ts), which our
   // notificationSound.ts instrumentation records in
-  // window.__pixelAgentsTestHooks.playedSounds.
+  // window.__terrariumTestHooks.playedSounds.
   //
   // This catches "hard" leaks (broadcast despite missing agent). "Soft" leaks
   // (timer fires but its callback no-ops because internal state is gone) are
@@ -415,9 +415,9 @@ test.describe('Hooks OFF / lifecycle', () => {
     narrator.step('resetting the recorded-sounds log so only post-close sounds count');
     await page.evaluate(() => {
       const w = window as Window & {
-        __pixelAgentsTestHooks?: { playedSounds?: unknown[] };
+        __terrariumTestHooks?: { playedSounds?: unknown[] };
       };
-      if (w.__pixelAgentsTestHooks) w.__pixelAgentsTestHooks.playedSounds = [];
+      if (w.__terrariumTestHooks) w.__terrariumTestHooks.playedSounds = [];
     });
 
     narrator.step('waiting out the 7s timer window — a leaked timer would fire a bubble/sound now');
@@ -426,9 +426,9 @@ test.describe('Hooks OFF / lifecycle', () => {
     await expectOverlayCount(page, 0);
     const playedKinds = await page.evaluate(() => {
       const w = window as Window & {
-        __pixelAgentsTestHooks?: { playedSounds?: Array<{ kind: string }> };
+        __terrariumTestHooks?: { playedSounds?: Array<{ kind: string }> };
       };
-      return (w.__pixelAgentsTestHooks?.playedSounds ?? []).map((s) => s.kind);
+      return (w.__terrariumTestHooks?.playedSounds ?? []).map((s) => s.kind);
     });
     expect(playedKinds).not.toContain('permission');
     expect(playedKinds).not.toContain('done');

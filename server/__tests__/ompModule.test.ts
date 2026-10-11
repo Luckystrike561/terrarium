@@ -12,7 +12,7 @@ import {
 import { formatToolStatus, ompModule } from '../src/providers/omp/omp.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 
-// omp's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// omp's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof os>('os');

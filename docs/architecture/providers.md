@@ -26,7 +26,7 @@ It never parses a transcript. herdr's `agent_session` is a transcript path for p
 
 ## Enabled modules
 
-Enabled modules come from `~/.pixel-agents/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`. An unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file.
+Enabled modules come from `~/.terrarium/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`. An unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file.
 
 `AgentRuntime.transcriptModule` is the enabled module declaring `getSessionDirs`: the one the runtime's own scanners, `transcriptParser.ts` and the `hooksEnabled` ref serve. `runtime.setHooksEnabled(moduleId, …)` only moves that ref for that module.
 
@@ -74,4 +74,4 @@ Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerMod
 
 ### Consent
 
-A module that writes into any file outside `~/.pixel-agents/` must do it through `hooks: HookInstaller`. The consent gate then asks once per such module with its own `consentDisclosure()`, and the server installs, migrates and uninstalls it through the same generic paths: no module id appears in `cli.ts` or `clientMessageHandler.ts`. A module that only reads (omp, herdr) has no `hooks` and is never part of a consent ask. See [consent.md](consent.md).
+A module that writes into any file outside `~/.terrarium/` must do it through `hooks: HookInstaller`. The consent gate then asks once per such module with its own `consentDisclosure()`, and the server installs, migrates and uninstalls it through the same generic paths: no module id appears in `cli.ts` or `clientMessageHandler.ts`. A module that only reads (omp, herdr) has no `hooks` and is never part of a consent ask. See [consent.md](consent.md).

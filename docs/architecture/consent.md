@@ -1,6 +1,6 @@
 # Hooks consent and the Claude hook installer
 
-Terrarium writes outside `~/.pixel-agents/` in exactly one place: the Claude module's hook entries in `~/.claude/settings.json`. This document covers when it asks, what an answer does, and how the installer edits a file it does not own. The full rule and its rejected alternatives are in [ADR 0001](../adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md).
+Terrarium writes outside `~/.terrarium/` in exactly one place: the Claude module's hook entries in `~/.claude/settings.json`. This document covers when it asks, what an answer does, and how the installer edits a file it does not own. The full rule and its rejected alternatives are in [ADR 0001](../adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md).
 
 ## Where the logic lives
 
@@ -10,7 +10,7 @@ Terrarium writes outside `~/.pixel-agents/` in exactly one place: the Claude mod
 | `server/src/providers/consentExecutor.ts`            | Execution: `applyConsentChoice(providerId, choice, ConsentEffects)` runs the six actions in one order and SERIALIZES answers per process across ALL providers |
 | `server/src/providers/claude/claudeHookInstaller.ts` | Claude's `HookInstaller`: install, uninstall, detect, migrate                                                                                                 |
 | `server/src/providers/claude/consentCopy.ts`         | Claude's first-run disclosure text (scope, data, undo), served through `consentDisclosure()`                                                                  |
-| `server/src/providers/claude/hooks/claude-hook.ts`   | The hook script, bundled to `dist/hooks/claude-hook.js` and staged under `~/.pixel-agents/hooks/`                                                             |
+| `server/src/providers/claude/hooks/claude-hook.ts`   | The hook script, bundled to `dist/hooks/claude-hook.js` and staged under `~/.terrarium/hooks/`                                                                |
 
 The ask-or-not predicate, the choice→action rule and the execution live ONCE, in the two provider-agnostic files. No module id appears in `cli.ts` or `clientMessageHandler.ts`.
 
@@ -32,7 +32,7 @@ Back re-opens the ask, so a revision undoes whatever the earlier answer left: ho
 
 - The hook script is copied BEFORE the entries are written. A failed copy aborts the install, because entries pointing at a missing script spawn a dead `node` per event.
 - **The hooks preference is persisted only after the install or uninstall settled and the on-disk result agrees.** Writing hooks-off first strands the user when an uninstall fails: the entries keep firing, while the persisted preference makes the next startup skip the consent and install path entirely.
-- `pixel-agents --uninstall-hooks` follows the same rule: it persists hooks-off only after the uninstall verifiably landed, and exits non-zero otherwise.
+- `terrarium --uninstall-hooks` follows the same rule: it persists hooks-off only after the uninstall verifiably landed, and exits non-zero otherwise.
 - The server always starts regardless of the hooks preference. Only hook installation is gated by it.
 
 ## Installed events
@@ -42,7 +42,8 @@ The installer writes the events in `CLAUDE_HOOK_EVENTS` (`server/src/providers/c
 ## Writing `settings.json` safely
 
 - Abort on an unparseable file or a non-array `hooks.<Event>`.
-- A one-time `.pixel-agents.backup` is taken with an exclusive create. No backup means no write. The backup is skipped when the replaced content is entirely our own install's output (`settingsHoldOnlyOurHooks`), since a backup of what we wrote preserves nothing and masquerades as the user's original. That check compares against `makeHookEntry`, the writer, so a field added to what we write cannot silently revive the bug. Only `command` and `timeout` may differ, because they vary across installs.
+- A one-time `.terrarium.backup` is taken with an exclusive create. No backup means no write. The backup is skipped when the replaced content is entirely our own install's output (`settingsHoldOnlyOurHooks`), since a backup of what we wrote preserves nothing and masquerades as the user's original. That check compares against `makeHookEntry`, the writer, so a field added to what we write cannot silently revive the bug. Only `command` and `timeout` may differ, because they vary across installs.
+- A `settings.json.pixel-agents.backup` from before the rename to Terrarium counts as that backup, so no second one is taken over settings that already hold our hooks.
 - Every write failure THROWS.
 - The file mode is preserved, and a new file is created `0600`.
 - The file is re-read and verified immediately before the rename, with a retry, because Claude Code writes the same file without coordinating with us.
@@ -55,11 +56,13 @@ The unparseable-file abort generalizes: a non-object `hooks`, a non-array `hooks
 
 ### Hook identity is anchored at both ends
 
-A substring test (`includes('claude-hook.js') && includes('.pixel-agents')`) claimed, and `uninstallHooks` then DELETED, a `.backup` copy of our script, a shell comment naming our path, a wrapper passing it as an argument, `/opt/evil.pixel-agents/hooks/claude-hook.js`, and `my-pixel-agents-hook.js`.
+A substring test (`includes('claude-hook.js') && includes('.terrarium')`) claimed, and `uninstallHooks` then DELETED, a `.backup` copy of our script, a shell comment naming our path, a wrapper passing it as an argument, `/opt/evil.terrarium/hooks/claude-hook.js`, and `my-pixel-agents-hook.js`.
 
-Ours is the `/.pixel-agents/hooks/claude-hook.js` suffix, ending the command's FIRST token, matched **case-insensitively** (the token is normalized to lower case). Case-sensitive matching is what shipped first. On the case-insensitive volumes this runs on (macOS, Windows) a differently-cased path is the SAME INODE as our script and genuinely firing: reinstall appended a duplicate, and uninstall left the cased entry as an orphan our own `areHooksInstalled` could no longer see, a live hook with no removal route.
+Ours is the `/.terrarium/hooks/claude-hook.js` suffix, ending the command's FIRST token, matched **case-insensitively** (the token is normalized to lower case). Case-sensitive matching is what shipped first. On the case-insensitive volumes this runs on (macOS, Windows) a differently-cased path is the SAME INODE as our script and genuinely firing: reinstall appended a duplicate, and uninstall left the cased entry as an orphan our own `areHooksInstalled` could no longer see, a live hook with no removal route.
 
-The folding is unconditional (no filesystem case-sensitivity probe), so the accepted trade is a Linux-only false positive that is **not** a mere dedup. On a case-sensitive volume `~/.Pixel-Agents/hooks/claude-hook.js` is a genuinely DIFFERENT file, we classify it as ours, and uninstall **deletes** it (`claudeHookInstaller.test.ts` pins that removal). Nothing creates that path, and the trade is deliberate: the alternative is a guaranteed unremovable live hook on the two platforms that need it most.
+The suffix from before the rename to Terrarium, `/.pixel-agents/hooks/claude-hook.js`, is matched the same way. Those entries name a script the state directory migration moved away, so the next install must replace them and uninstall must remove them.
+
+The folding is unconditional (no filesystem case-sensitivity probe), so the accepted trade is a Linux-only false positive that is **not** a mere dedup. On a case-sensitive volume `~/.Terrarium/hooks/claude-hook.js` is a genuinely DIFFERENT file, we classify it as ours, and uninstall **deletes** it (`claudeHookInstaller.test.ts` pins that removal). Nothing creates that path, and the trade is deliberate: the alternative is a guaranteed unremovable live hook on the two platforms that need it most.
 
 A symlink alias to our script is deliberately _not_ recognized. The cost is one duplicate entry, versus deleting a stranger's hook if we resolved paths.
 

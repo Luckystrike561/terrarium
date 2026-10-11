@@ -104,12 +104,12 @@ describe('configPersistence: areas', () => {
       expect(getHooksEnabled('claude')).toBe(true);
       writeConfig(readConfig()); // full config on disk...
       const raw = JSON.parse(
-        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
       delete raw.hooksConsent; // ...from an older shape
       delete raw.hooksEnabled;
       fs.writeFileSync(
-        path.join(tempHome, '.pixel-agents', 'config.json'),
+        path.join(tempHome, '.terrarium', 'config.json'),
         JSON.stringify(raw, null, 2),
       );
       expect(getHooksConsent('claude')).toBe('unanswered');
@@ -117,9 +117,9 @@ describe('configPersistence: areas', () => {
     });
 
     it('drops junk values from hand-edited maps instead of crashing or trusting them', () => {
-      fs.mkdirSync(path.join(tempHome, '.pixel-agents'), { recursive: true });
+      fs.mkdirSync(path.join(tempHome, '.terrarium'), { recursive: true });
       fs.writeFileSync(
-        path.join(tempHome, '.pixel-agents', 'config.json'),
+        path.join(tempHome, '.terrarium', 'config.json'),
         JSON.stringify({
           hooksConsent: { claude: 'GRANTED', other: 'declined', junk: 42 },
           hooksEnabled: { claude: 'yes', other: false },
@@ -152,7 +152,7 @@ describe('configPersistence: areas', () => {
       // Both keys are genuinely gone — "never answered" and "answered and
       // reverted" must be indistinguishable on disk.
       const raw = JSON.parse(
-        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
       expect('claude' in (raw.hooksConsent ?? {})).toBe(false);
       expect('claude' in (raw.hooksEnabled ?? {})).toBe(false);
@@ -170,7 +170,7 @@ describe('configPersistence: areas', () => {
       expect(getHooksConsent('claude')).toBe('granted');
       expect(getHooksEnabled('claude')).toBe(true);
       const raw = JSON.parse(
-        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
       expect('claude' in (raw.hooksEnabled ?? {})).toBe(false);
     });
@@ -192,7 +192,7 @@ describe('configPersistence: areas', () => {
       // The key is genuinely gone, not written back as true: "never answered"
       // and "answered and reverted" must be indistinguishable on disk.
       const raw = JSON.parse(
-        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
       expect('claude' in (raw.hooksEnabled ?? {})).toBe(false);
     });
@@ -228,7 +228,7 @@ describe('configPersistence: areas', () => {
       setEnabledModuleIds(['omp', 'herdr']);
       expect(getEnabledModuleIds()).toEqual(['omp', 'herdr']);
       const raw = JSON.parse(
-        fs.readFileSync(path.join(tempHome, '.pixel-agents', 'config.json'), 'utf-8'),
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
       expect(raw.modules).toEqual(['omp', 'herdr']);
     });
@@ -240,18 +240,18 @@ describe('configPersistence: areas', () => {
     });
 
     it('treats a non-array modules value as never chosen rather than crashing', () => {
-      fs.mkdirSync(path.join(tempHome, '.pixel-agents'), { recursive: true });
+      fs.mkdirSync(path.join(tempHome, '.terrarium'), { recursive: true });
       fs.writeFileSync(
-        path.join(tempHome, '.pixel-agents', 'config.json'),
+        path.join(tempHome, '.terrarium', 'config.json'),
         JSON.stringify({ modules: 'claude' }),
       );
       expect(getEnabledModuleIds()).toBeUndefined();
     });
 
     it('filters non-string entries out of a hand-edited modules array', () => {
-      fs.mkdirSync(path.join(tempHome, '.pixel-agents'), { recursive: true });
+      fs.mkdirSync(path.join(tempHome, '.terrarium'), { recursive: true });
       fs.writeFileSync(
-        path.join(tempHome, '.pixel-agents', 'config.json'),
+        path.join(tempHome, '.terrarium', 'config.json'),
         JSON.stringify({ modules: ['claude', 42, null, 'omp', { bogus: true }] }),
       );
       expect(getEnabledModuleIds()).toEqual(['claude', 'omp']);
@@ -276,7 +276,7 @@ describe('configPersistence: areas', () => {
     });
 
     it('coerces a hand-edited config.json with malformed areaMappings into defaults', () => {
-      const configDir = path.join(tempHome, '.pixel-agents');
+      const configDir = path.join(tempHome, '.terrarium');
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, 'config.json'),
@@ -291,7 +291,7 @@ describe('configPersistence: areas', () => {
     });
 
     it('loads a config.json carrying a leftover vscode key without error, keeps standalone intact, and drops the key on next write', () => {
-      const configDir = path.join(tempHome, '.pixel-agents');
+      const configDir = path.join(tempHome, '.terrarium');
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, 'config.json'),
@@ -315,7 +315,7 @@ describe('configPersistence: areas', () => {
     });
 
     it('ignores removed legacy setting keys in a hand-edited config.json and keeps only the remaining settings', () => {
-      const configDir = path.join(tempHome, '.pixel-agents');
+      const configDir = path.join(tempHome, '.terrarium');
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, 'config.json'),

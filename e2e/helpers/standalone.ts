@@ -62,9 +62,9 @@ export interface LaunchStandaloneOptions {
    *  given. Never overwrites a config.json that already exists (a shared HOME
    *  was seeded by its owner). */
   seedHooksConsent?: boolean;
-  /** Full `~/.pixel-agents/config.json` to seed instead of the baseline. */
+  /** Full `~/.terrarium/config.json` to seed instead of the baseline. */
   seedConfig?: unknown;
-  /** `~/.pixel-agents/layout.json` to seed. The server serves it verbatim
+  /** `~/.terrarium/layout.json` to seed. The server serves it verbatim
    *  whenever the file exists and never resets it by revision. */
   seedLayout?: unknown;
   /** `~/.claude/settings.json` to seed before the server starts. A string is
@@ -147,9 +147,9 @@ function spawnStandaloneHost(args: {
       ...applyMockHomeEnv(process.env, args.homeDir),
       USERPROFILE: args.homeDir,
       PATH: `${args.mockBinDir}${path.delimiter}${process.env['PATH'] ?? ''}`,
-      PIXEL_AGENTS_NODE_BIN: process.execPath,
+      TERRARIUM_NODE_BIN: process.execPath,
       // Server-side hook/broadcast timeline, attached to failing tests.
-      PIXEL_AGENTS_DEBUG_LOG: path.join(args.homeDir, '.pixel-agents', 'debug.log'),
+      TERRARIUM_DEBUG_LOG: path.join(args.homeDir, '.terrarium', 'debug.log'),
       CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
     },
     stdio: 'pipe',
@@ -178,7 +178,7 @@ function installMockClaude(mockBinDir: string): void {
  * Claude consent so the first-run Intro does not cover the office.
  */
 function seedHome(tmpHome: string, options: LaunchStandaloneOptions): void {
-  const paDir = path.join(tmpHome, '.pixel-agents');
+  const paDir = path.join(tmpHome, '.terrarium');
   fs.mkdirSync(paDir, { recursive: true });
   const configPath = path.join(paDir, 'config.json');
   if (!fs.existsSync(configPath)) {
@@ -234,7 +234,7 @@ async function stopProcess(child: ChildProcessWithoutNullStreams): Promise<void>
 /**
  * Install a WebSocket recorder BEFORE page navigation. Proxies window.WebSocket
  * so every incoming message frame is JSON-parsed and pushed to
- * window.__pixelAgentsMessages, which drainMessages() reads from.
+ * window.__terrariumMessages, which drainMessages() reads from.
  */
 async function installMessageRecorder(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -257,14 +257,13 @@ async function installMessageRecorder(page: Page): Promise<void> {
       },
     });
     window.WebSocket = RecordingWebSocket as typeof WebSocket;
-    (window as Window & { __pixelAgentsMessages?: unknown[] }).__pixelAgentsMessages =
-      recordedMessages;
+    (window as Window & { __terrariumMessages?: unknown[] }).__terrariumMessages = recordedMessages;
   });
 }
 
 async function drainRecordedMessages(page: Page): Promise<RecordedServerMessage[]> {
   return await page.evaluate(() => {
-    const store = (window as Window & { __pixelAgentsMessages?: unknown[] }).__pixelAgentsMessages;
+    const store = (window as Window & { __terrariumMessages?: unknown[] }).__terrariumMessages;
     if (!Array.isArray(store)) {
       return [];
     }
@@ -277,7 +276,7 @@ async function drainRecordedMessages(page: Page): Promise<RecordedServerMessage[
 /** The trailing `\s` is load-bearing: stdout arrives in chunks, and without a
  *  terminator a half-delivered line would match and yield a truncated URL that
  *  still parses (`http://127.0.0.1:501`). */
-const PRINTED_URL_PATTERN = /Pixel Agents server running at (\S+)\s/;
+const PRINTED_URL_PATTERN = /Terrarium server running at (\S+)\s/;
 
 /**
  * Wait for the URL line the CLI prints on its own stdout, and hand back exactly
@@ -287,7 +286,7 @@ const PRINTED_URL_PATTERN = /Pixel Agents server running at (\S+)\s/;
  * obtains the server token — the token is what makes the session privileged
  * enough to approve a hook install (the SPA forwards it on the /ws handshake,
  * server/src/httpServer.ts standaloneTokenValid). Reading the token out of
- * `~/.pixel-agents/server.json` and synthesizing an equivalent URL, which this
+ * `~/.terrarium/server.json` and synthesizing an equivalent URL, which this
  * fixture used to do, is the fixture handing ITSELF a capability no browser can
  * reach: the whole standalone suite then stays green over a CLI that prints a
  * bare, wrong-tokened, or unbrowsable URL, and every real user lands in a
@@ -367,9 +366,9 @@ export async function launchStandalone(
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
     // Mark this as the e2e harness before navigation so the standalone webview
-    // installs its test-only observability hooks (window.__pixelAgentsTestHooks).
+    // installs its test-only observability hooks (window.__terrariumTestHooks).
     await page.addInitScript(() => {
-      (window as unknown as { __PIXEL_AGENTS_E2E?: boolean }).__PIXEL_AGENTS_E2E = true;
+      (window as unknown as { __TERRARIUM_E2E?: boolean }).__TERRARIUM_E2E = true;
     });
     await installMessageRecorder(page);
     await waitForHttpOk(`${hostUrl}/api/health`);

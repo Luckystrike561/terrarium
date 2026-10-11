@@ -12,7 +12,7 @@ import { AgentStateStore } from '../src/agentStateStore.js';
 import { opencodeModule } from '../src/providers/opencode/opencode.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 
-// OpenCode's SQLite store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// OpenCode's SQLite store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof NodeOs>('os');

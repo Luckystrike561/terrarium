@@ -1,5 +1,5 @@
 name: "Bug report"
-description: "Report a bug to help us improve Pixel Agents."
+description: "Report a bug to help us improve Terrarium."
 title: "[Bug]: "
 labels: ["type: bug"]
 body:
@@ -18,7 +18,7 @@ body:
       label: "Steps to reproduce"
       description: "List exact steps to reproduce the behavior."
       placeholder: |
-        1. Start the server with `npx pixel-agents`
+        1. Start the server with `terrarium`
         2. Open the printed URL in a browser
         3. ...
     validations:
@@ -80,5 +80,5 @@ body:
     id: logs
     attributes:
       label: "Logs"
-      description: "Paste any lines containing `[Pixel Agents]` from the terminal running `npx pixel-agents`, or your browser's **DevTools > Console** output. **Note:** logs may contain file paths with your username -- redact anything sensitive before posting."
+      description: "Paste any lines containing `[Terrarium]` from the terminal running `terrarium`, or your browser's **DevTools > Console** output. **Note:** logs may contain file paths with your username -- redact anything sensitive before posting."
       render: shell

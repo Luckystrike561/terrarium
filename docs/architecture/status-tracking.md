@@ -30,7 +30,7 @@ Record types:
 
 The per-agent `hookDelivered` flag and the global `hooksEnabled` gate the timer logic. JSONL polling always runs in both modes for tool content (status text, animations). Only the permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
 
-Hook-based IPC failed in early prototypes: hooks are captured at startup and environment variables do not propagate. HTTP `/api/hooks/:providerId` with `~/.pixel-agents/server.json` discovery works.
+Hook-based IPC failed in early prototypes: hooks are captured at startup and environment variables do not propagate. HTTP `/api/hooks/:providerId` with `~/.terrarium/server.json` discovery works.
 
 ## Idle detection
 
@@ -53,4 +53,4 @@ The external scanner runs every 3 s. In hooks-OFF e2e scenarios the test setup c
 
 ## Manual hook testing
 
-`server/manual-hook-events.http` (REST-Client format) drives the hook endpoint of a running server. Copy `port` and `token` from `~/.pixel-agents/server.json` and set `cwd` to a workspace directory. It covers `SessionStart` → `PreToolUse` → `PermissionRequest` / `Notification` / `Stop` → `SessionEnd`.
+`server/manual-hook-events.http` (REST-Client format) drives the hook endpoint of a running server. Copy `port` and `token` from `~/.terrarium/server.json` and set `cwd` to a workspace directory. It covers `SessionStart` → `PreToolUse` → `PermissionRequest` / `Notification` / `Stop` → `SessionEnd`.

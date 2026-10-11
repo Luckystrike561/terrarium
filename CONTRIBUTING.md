@@ -6,7 +6,7 @@ This project is licensed under the [MIT License](LICENSE), so your contributions
 
 ## Naming
 
-The product is **Terrarium**, a fork of Pixel Agents v1.4.1 (the [README](README.md) credits the upstream project). The code keeps the upstream identity, because renaming it would break existing installs: the npm package and CLI are `pixel-agents`, state lives in `~/.pixel-agents/`, environment variables are `PIXEL_AGENTS_*`, and the server logs with a `[Pixel Agents]` prefix. Write Terrarium in prose, and keep `pixel-agents` in code, paths and commands. Say Pixel Agents only for the upstream project.
+The product is **Terrarium**, a fork of Pixel Agents v1.4.1 (the [README](README.md) credits the upstream project). Code, paths and commands use the Terrarium name too: the npm package and CLI are `terrarium`, state lives in `~/.terrarium/`, environment variables are `TERRARIUM_*`, and the server logs with a `[Terrarium]` prefix. Say Pixel Agents only for the upstream project.
 
 ## Getting Started
 
@@ -24,7 +24,7 @@ npm install
 npm run build
 ```
 
-Run `node dist/cli.js` to start the standalone server and open the URL it prints. Nothing from this fork is published to npm: `npx pixel-agents` installs upstream Pixel Agents, not Terrarium.
+Run `node dist/cli.js` to start the standalone server and open the URL it prints. Nothing from this fork is published to npm, and `npx terrarium` would install an unrelated package of the same name.
 
 ### Verify the npm package locally
 
@@ -66,7 +66,7 @@ Terrarium uses a layered codebase. `core/` depends on nothing. `server/` and `we
 | Directory            | Description                                                                                                                                                                                                                                                      |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core/`              | Protocol and interface definitions (AsyncAPI 3.0 contract, AgentModule and MultiplexerModule, MessageTransport, StateAdapter) and the shared asset decoders.                                                                                                     |
-| `server/`            | Lifecycle runtime: `AgentRuntime`, `AgentStateStore`, `SessionRouter`, `DismissalTracker`, Fastify HTTP/WS server, file watching, transcript parsing, hook installer, provider modules, Vitest test suite. Also ships the `pixel-agents` CLI.                    |
+| `server/`            | Lifecycle runtime: `AgentRuntime`, `AgentStateStore`, `SessionRouter`, `DismissalTracker`, Fastify HTTP/WS server, file watching, transcript parsing, hook installer, provider modules, Vitest test suite. Also ships the `terrarium` CLI.                       |
 | `webview-ui/`        | React 19 HUD and a PixiJS (WebGL) isometric office. Transport abstraction (`WebSocketTransport`). Depends only on `core/`.                                                                                                                                       |
 | `webview-ui/public/` | Bundled sprites, furniture manifests, default layout (`assets/`) and the pixel font (`fonts/`).                                                                                                                                                                  |
 | `scripts/`           | Build tooling: `generate-messages.ts` (AsyncAPI → TS), `validate-asyncapi.mjs`, `run-e2e.mjs`, `generate-e2e-inventory.mjs`, the npm package contract and verifier, `record-demo.mjs`, Allure report scripts, and the `iso-art/` generators for the bundled art. |
@@ -89,7 +89,7 @@ It covers the basic external-session lifecycle:
 - `PermissionRequest`, `Notification`, and `Stop` to drive permission and waiting states
 - `SessionEnd` to despawn the agent
 
-Before using it, copy `port` and `token` from `~/.pixel-agents/server.json` into the file variables and set `cwd` to a workspace directory. Every session on the machine is watched, so any directory works.
+Before using it, copy `port` and `token` from `~/.terrarium/server.json` into the file variables and set `cwd` to a workspace directory. Every session on the machine is watched, so any directory works.
 
 ## Code Guidelines
 
@@ -112,7 +112,7 @@ The project uses a pixel art aesthetic. All overlays should use:
 - Hard offset shadows (`2px 2px 0px`, no blur): use `var(--pixel-shadow)`
 - The FS Pixel Sans font (loaded in `index.css`)
 
-These conventions are enforced by custom ESLint rules (`eslint-rules/pixel-agents-rules.mjs`):
+These conventions are enforced by custom ESLint rules (`eslint-rules/terrarium-rules.mjs`):
 
 | Rule               | Scope            | What it checks                                              |
 | ------------------ | ---------------- | ----------------------------------------------------------- |

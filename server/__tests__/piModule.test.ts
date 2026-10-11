@@ -9,7 +9,7 @@ import { AgentStateStore } from '../src/agentStateStore.js';
 import { piModule } from '../src/providers/pi/pi.js';
 import { SESSION_POLL_INTERVAL_MS } from '../src/providers/sessionStore/constants.js';
 
-// pi's session store and the server's ~/.pixel-agents/ both resolve against the home directory.
+// pi's session store and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');

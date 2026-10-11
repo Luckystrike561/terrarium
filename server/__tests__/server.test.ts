@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Use isolated temp HOME to avoid touching real ~/.pixel-agents/
+// Use isolated temp HOME to avoid touching real ~/.terrarium/
 let tmpBase: string;
 let serverJsonDir: string;
 let serverJsonPath: string;
@@ -24,7 +24,7 @@ vi.mock('os', async () => {
 });
 
 // Must import AFTER mock setup
-const { PixelAgentsServer } = await import('../src/server.js');
+const { TerrariumServer } = await import('../src/server.js');
 
 async function postHook(
   port: number,
@@ -42,16 +42,16 @@ async function postHook(
   });
 }
 
-describe('PixelAgentsServer', () => {
-  let server: InstanceType<typeof PixelAgentsServer>;
+describe('TerrariumServer', () => {
+  let server: InstanceType<typeof TerrariumServer>;
 
   beforeEach(() => {
     tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-server-test-'));
-    serverJsonDir = path.join(tmpBase, '.pixel-agents');
+    serverJsonDir = path.join(tmpBase, '.terrarium');
     serverJsonPath = path.join(serverJsonDir, 'server.json');
     registryDir = path.join(serverJsonDir, 'servers');
     fs.mkdirSync(serverJsonDir, { recursive: true });
-    server = new PixelAgentsServer();
+    server = new TerrariumServer();
   });
 
   afterEach(() => {
@@ -174,7 +174,7 @@ describe('PixelAgentsServer', () => {
   // 11. No explicit port: a second instance never reuses, always starts fresh
   it('second instance with no explicit port never reuses; starts its own', async () => {
     const config1 = await server.start();
-    const server2 = new PixelAgentsServer();
+    const server2 = new TerrariumServer();
     const config2 = await server2.start();
     expect(config2.port).not.toBe(config1.port);
     expect(registryFiles()).toHaveLength(2);
@@ -184,7 +184,7 @@ describe('PixelAgentsServer', () => {
   // 12. Explicit matching port: a second instance reuses the existing server
   it('second instance with an explicit matching port reuses the existing server', async () => {
     const config1 = await server.start();
-    const server2 = new PixelAgentsServer();
+    const server2 = new TerrariumServer();
     const config2 = await server2.start({ port: config1.port });
     expect(config2.port).toBe(config1.port);
     expect(config2.pid).toBe(config1.pid);
@@ -195,7 +195,7 @@ describe('PixelAgentsServer', () => {
   // 13. Explicit non-matching port: a second instance starts its own, on that port
   it('second instance with an explicit non-matching port starts its own', async () => {
     const config1 = await server.start();
-    const server2 = new PixelAgentsServer();
+    const server2 = new TerrariumServer();
     const otherPort = config1.port === 65_535 ? config1.port - 1 : config1.port + 1;
     const config2 = await server2.start({ port: otherPort });
     expect(config2.port).toBe(otherPort);
@@ -286,7 +286,7 @@ describe('PixelAgentsServer', () => {
       JSON.stringify({ port: 9999, pid: 999999, token: 'fake', startedAt: 0 }),
     );
     // Server never started (it would reuse), just stop
-    const server2 = new PixelAgentsServer();
+    const server2 = new TerrariumServer();
     server2.stop();
     expect(fs.existsSync(serverJsonPath)).toBe(true);
   });
@@ -294,7 +294,7 @@ describe('PixelAgentsServer', () => {
   // 20. stop() removes only this server's own registry entry, preserves another's
   it('deletes only its own registry entry on stop, preserving a coexisting server', async () => {
     const config1 = await server.start();
-    const server2 = new PixelAgentsServer();
+    const server2 = new TerrariumServer();
     const otherPort = config1.port === 65_535 ? config1.port - 1 : config1.port + 1;
     const config2 = await server2.start({ port: otherPort });
     expect(registryFiles()).toHaveLength(2);

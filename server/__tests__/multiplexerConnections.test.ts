@@ -125,7 +125,7 @@ describe('MultiplexerConnections', () => {
     expect(error).toBe('ssh: Could not resolve hostname nowhere');
     expect(connections.list()).toHaveLength(1);
     expect(mux.links.size).toBe(1);
-    expect(fs.existsSync(path.join(tmpHome, '.pixel-agents', 'config.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpHome, '.terrarium', 'config.json'))).toBe(false);
   });
 
   it('refuses a second connection to the same herdr server without probing it', async () => {

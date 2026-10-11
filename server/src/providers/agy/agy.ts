@@ -1,7 +1,7 @@
 /**
  * Antigravity CLI (`agy`) agent module. Antigravity has no hook API and its transcripts record no session-exit:
  * everything comes from its conversation transcripts, found by scanning its `brain/` store or handed over by a
- * multiplexer that hosts the session. Nothing is written outside `~/.pixel-agents/`, so there is nothing to
+ * multiplexer that hosts the session. Nothing is written outside `~/.terrarium/`, so there is nothing to
  * consent to.
  */
 

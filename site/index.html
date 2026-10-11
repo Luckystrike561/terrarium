@@ -65,7 +65,7 @@
             <h3>A standalone server</h3>
             <p>
               One Node.js process watches your agents and serves the office to any browser. It never
-              modifies your agents: its data lives in <code>~/.pixel-agents/</code>, and the only
+              modifies your agents: its data lives in <code>~/.terrarium/</code>, and the only
               file it writes elsewhere is <code>~/.claude/settings.json</code>, when you approve
               Claude Code hooks.
             </p>
@@ -117,7 +117,7 @@ npm run build</code></pre>
           The server picks a free port and prints a URL like
           <code>http://127.0.0.1:43123/?token=…</code>. Open it in a browser. Treat that URL as a
           secret: its token lets a browser install hooks and add connections. The
-          <code>--provider</code> choice is saved in <code>~/.pixel-agents/config.json</code>
+          <code>--provider</code> choice is saved in <code>~/.terrarium/config.json</code>
           and reused by later runs.
         </p>
         <p>

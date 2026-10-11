@@ -2,7 +2,7 @@
  * Gemini CLI agent module. Gemini has no hook API, and herdr reports no session identity for it (only a
  * status level read from its screen manifest), so everything comes from Gemini's own session store, found
  * by scanning it. A herdr pane is joined to a session by cwd through `sessionInDirectory`. Nothing is
- * written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * written outside `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as fs from 'node:fs';

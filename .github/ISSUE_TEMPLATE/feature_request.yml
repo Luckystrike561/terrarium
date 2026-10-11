@@ -1,5 +1,5 @@
 name: "Feature request"
-description: "Suggest a new feature, idea, or improvement for Pixel Agents."
+description: "Suggest a new feature, idea, or improvement for Terrarium."
 title: "[Feature]: "
 labels: ["type: feature"]
 body:

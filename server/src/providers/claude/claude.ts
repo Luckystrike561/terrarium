@@ -244,7 +244,7 @@ const claudeHooks: HookInstaller = {
    *  count, the settings path), and the shared consent gate ships them verbatim. */
   consentDisclosure: () => ({ headline: CONSENT_INSTALL_HEADLINE, disclosure: CONSENT_DISCLOSURE }),
   /** Every entry runs the bundled claude-hook.js, so it is copied into
-   *  ~/.pixel-agents/hooks/ before any entry points at it. */
+   *  ~/.terrarium/hooks/ before any entry points at it. */
   stageHookFiles: copyHookScript,
 };
 

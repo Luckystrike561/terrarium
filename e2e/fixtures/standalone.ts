@@ -87,18 +87,18 @@ async function attachFailureArtifacts(
   await attachTextFileIfExists(
     testInfo,
     'server-json',
-    path.join(tmpHome, '.pixel-agents', 'server.json'),
+    path.join(tmpHome, '.terrarium', 'server.json'),
     'application/json',
   );
   await attachTextFileIfExists(
     testInfo,
-    'pixel-agents-debug-log',
-    path.join(tmpHome, '.pixel-agents', 'debug.log'),
+    'terrarium-debug-log',
+    path.join(tmpHome, '.terrarium', 'debug.log'),
     'text/plain',
   );
   try {
     const messageLog = await page.evaluate(
-      () => (window as TestHooksWindow).__pixelAgentsTestHooks?.messageLog ?? null,
+      () => (window as TestHooksWindow).__terrariumTestHooks?.messageLog ?? null,
     );
     if (messageLog) {
       await attachText(
@@ -130,9 +130,9 @@ export const test = base.extend<{
    *  consent specs opt out via `test.use({ seedHooksConsent: false })` so the
    *  first-run Intro shows — they are the only ones that want it. */
   seedHooksConsent: boolean;
-  /** Pre-seed `~/.pixel-agents/config.json` (replaces the baseline). */
+  /** Pre-seed `~/.terrarium/config.json` (replaces the baseline). */
   seedConfig: unknown;
-  /** Pre-seed `~/.pixel-agents/layout.json`, served verbatim on startup. */
+  /** Pre-seed `~/.terrarium/layout.json`, served verbatim on startup. */
   seedLayout: unknown;
   /** Pre-seed `~/.claude/settings.json` (e.g. an existing hook install). */
   seedClaudeSettings: unknown;

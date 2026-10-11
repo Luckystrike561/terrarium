@@ -7,10 +7,10 @@
 # that's expected and harmless until Modelina catches up.
 asyncapi: 3.0.0
 info:
-  title: Pixel Agents Protocol
+  title: Terrarium Protocol
   version: 1.0.0
   description: |
-    Bidirectional WebSocket protocol between the Pixel Agents server and any UI client
+    Bidirectional WebSocket protocol between the Terrarium server and any UI client
     (the standalone browser SPA, or future third-party clients). The server watches
     AI-coding-agent transcripts, parses tool activity, owns office layout, and streams
     events to all connected clients. Clients send commands to close agents, save
@@ -22,14 +22,14 @@ info:
   license:
     name: MIT
   contact:
-    name: Pixel Agents
-    url: https://github.com/pablodelucca/pixel-agents
+    name: Terrarium
+    url: https://github.com/Luckystrike561/terrarium
 
 servers:
   local:
     host: 127.0.0.1:3100
     protocol: ws
-    description: Local Pixel Agents server (default port 3100)
+    description: Local Terrarium server (default port 3100)
     pathname: /ws
 
 channels:

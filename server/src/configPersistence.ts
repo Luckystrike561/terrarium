@@ -15,7 +15,7 @@ export interface AdapterSettings {
   areaMappings: Record<string, string[]>;
 }
 
-/** All keys in AdapterSettings. Used by adapters to map `pixel-agents.foo` → `foo`.
+/** All keys in AdapterSettings. Used by adapters to map `terrarium.foo` → `foo`.
  *  The hooks preference is NOT here: it is per-provider and machine-global
  *  (the hooks it governs live in one home-directory file per provider), so it
  *  lives beside `hooksConsent` at the config top level, not per namespace. */
@@ -29,7 +29,7 @@ export type AdapterSettingKey = (typeof ADAPTER_SETTING_KEYS)[number];
  *  unanswered, the ask is still open. */
 export type HooksConsentState = 'granted' | 'declined';
 
-export interface PixelAgentsConfig {
+export interface TerrariumConfig {
   standalone: AdapterSettings;
   /** Per-provider consent to modify that provider's settings file (Claude:
    *  ~/.claude/settings.json). Shared across surfaces — consent is per-human
@@ -116,7 +116,7 @@ function parseAdapterSettings(raw: unknown): AdapterSettings {
   };
 }
 
-export function readConfig(): PixelAgentsConfig {
+export function readConfig(): TerrariumConfig {
   const filePath = getConfigFilePath();
   try {
     if (!fs.existsSync(filePath)) {
@@ -127,7 +127,7 @@ export function readConfig(): PixelAgentsConfig {
       };
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(raw) as Partial<PixelAgentsConfig>;
+    const parsed = JSON.parse(raw) as Partial<TerrariumConfig>;
     return {
       standalone: parseAdapterSettings(parsed.standalone),
       hooksConsent: parseHooksConsent(parsed.hooksConsent),
@@ -140,7 +140,7 @@ export function readConfig(): PixelAgentsConfig {
         : undefined,
     };
   } catch (err) {
-    console.error('[Pixel Agents] Failed to read config file:', err);
+    console.error('[Terrarium] Failed to read config file:', err);
     return {
       standalone: { ...DEFAULT_ADAPTER_SETTINGS },
       hooksConsent: {},
@@ -271,7 +271,7 @@ export function resetHooksConfig(): void {
   writeConfig(cfg);
 }
 
-export function writeConfig(config: PixelAgentsConfig): void {
+export function writeConfig(config: TerrariumConfig): void {
   const filePath = getConfigFilePath();
   const dir = path.dirname(filePath);
   try {
@@ -283,6 +283,6 @@ export function writeConfig(config: PixelAgentsConfig): void {
     fs.writeFileSync(tmpPath, json, 'utf-8');
     fs.renameSync(tmpPath, filePath);
   } catch (err) {
-    console.error('[Pixel Agents] Failed to write config file:', err);
+    console.error('[Terrarium] Failed to write config file:', err);
   }
 }

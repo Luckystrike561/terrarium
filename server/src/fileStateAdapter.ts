@@ -1,9 +1,9 @@
 /**
  * FileStateAdapter: the server's StateAdapter implementation.
  *
- * Settings persist to ~/.pixel-agents/config.json under the "standalone" key.
+ * Settings persist to ~/.terrarium/config.json under the "standalone" key.
  *
- * Agents + seats persist to ~/.pixel-agents/standalone-state.json.
+ * Agents + seats persist to ~/.terrarium/standalone-state.json.
  */
 
 import * as fs from 'fs';
@@ -18,9 +18,9 @@ import { LAYOUT_FILE_DIR } from './constants.js';
 
 const ADAPTER_SETTING_KEY_SET: ReadonlySet<string> = new Set(ADAPTER_SETTING_KEYS);
 
-/** Strip leading "pixel-agents." prefix to match AdapterSettings field names. */
+/** Strip leading "terrarium." prefix to match AdapterSettings field names. */
 function settingNameOf(key: string): AdapterSettingKey | null {
-  const bare = key.startsWith('pixel-agents.') ? key.slice('pixel-agents.'.length) : key;
+  const bare = key.startsWith('terrarium.') ? key.slice('terrarium.'.length) : key;
   return ADAPTER_SETTING_KEY_SET.has(bare) ? (bare as AdapterSettingKey) : null;
 }
 
@@ -95,7 +95,7 @@ export class FileStateAdapter implements StateAdapter {
             : {},
       };
     } catch (err) {
-      console.error('[Pixel Agents] Failed to read adapter state:', err);
+      console.error('[Terrarium] Failed to read adapter state:', err);
       return { ...EMPTY_STATE };
     }
   }
@@ -111,7 +111,7 @@ export class FileStateAdapter implements StateAdapter {
       fs.writeFileSync(tmpPath, json, 'utf-8');
       fs.renameSync(tmpPath, this.stateFilePath);
     } catch (err) {
-      console.error('[Pixel Agents] Failed to write adapter state:', err);
+      console.error('[Terrarium] Failed to write adapter state:', err);
     }
   }
 }

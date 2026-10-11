@@ -91,10 +91,10 @@ describe('mock-claude-runner hook execution', () => {
     }
   });
 
-  it('executes only Pixel Agents hooks from ~/.claude/settings.json', async () => {
+  it('executes only Terrarium hooks from ~/.claude/settings.json', async () => {
     const pixelOutput = path.join(tmpBase, 'pixel-hook.json');
     const thirdPartyOutput = path.join(tmpBase, 'third-party-hook.json');
-    const pixelHookPath = path.join(tmpHome, '.pixel-agents', 'hooks', 'claude-hook.js');
+    const pixelHookPath = path.join(tmpHome, '.terrarium', 'hooks', 'claude-hook.js');
     const thirdPartyHookPath = path.join(tmpHome, '.claude', 'third-party-hook.js');
 
     writeHookScript(pixelHookPath, pixelOutput);
