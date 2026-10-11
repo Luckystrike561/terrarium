@@ -105,6 +105,8 @@ export class MultiplexerConnections implements ModuleHandle {
       const error = await multiplexer.probe(endpointOf(added));
       if (error) return error;
     }
+    const raced = this.settings.find((existing) => isSameServer(existing, connection));
+    if (raced) return `Already listening to that herdr server as "${raced.label}"`;
     this.settings = [...this.settings, added];
     writeConnections(this.settings);
     this.startConnection(added);

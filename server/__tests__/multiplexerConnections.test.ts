@@ -137,6 +137,19 @@ describe('MultiplexerConnections', () => {
     expect(mux.probed).toEqual([]);
   });
 
+  it('saves only one of two adds of the same server that raced through the probe', async () => {
+    const { mux, connections } = setUp();
+
+    await Promise.all([
+      connections.add({ label: 'First', kind: 'ssh', target: 'buildbox' }),
+      connections.add({ label: 'Second', kind: 'ssh', target: 'buildbox' }),
+    ]);
+
+    expect(connections.list()).toHaveLength(2);
+    expect(mux.links.size).toBe(2);
+    expect(readConnections().map((c) => c.label)).toEqual(['This machine', 'First']);
+  });
+
   it('turning a connection off ends its characters and its link, turning it on starts it again', () => {
     const { mux, connections, emitted } = setUp();
     mux.links.get('local')?.onState('connected');
