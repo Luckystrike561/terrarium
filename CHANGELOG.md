@@ -12,6 +12,11 @@
 
 - **Night city skyline behind the office** ([#11](https://github.com/Luckystrike561/terrarium/issues/11)). The flat `#1e1e2e` fill around and inside the office (the bands left by the fitted view, VOID tiles) is replaced by a pixel-art night sky with stars and a lit city skyline, drawn by the Pixi scene behind the office at the office's own pixel size and repainted only when the canvas resizes.
 - **Graphics pass: poses, twelve workers and a written art direction** ([#12](https://github.com/Luckystrike561/terrarium/issues/12)). `docs/art-direction.md` sets the look of characters, furniture, floors, walls and the HUD. Characters gain idle breathing, a resting pose for sofas and desk breaks, and waiting poses in the CTO queue: a raised hand for input, a held-up form for approval. Nobody types without work anymore. Twelve distinct workers replace the six recoloured ones, so a twelve-agent office has no two alike, and the CTO has a look of its own.
+- **Docker image for the standalone server** ([#17](https://github.com/Luckystrike561/terrarium/issues/17)). A multi-stage `Dockerfile` builds the server and runs it as a non-root user with the herdr and omp modules on `0.0.0.0:8790`. The README's **Docker** section documents the herdr socket, omp session and `~/.pixel-agents` mounts, the matching port, and that the printed token lands in `docker logs`.
+
+### Fixes
+
+- **A server restarted under the same PID no longer "reuses" its dead predecessor** ([#17](https://github.com/Luckystrike561/terrarium/issues/17)). A registry entry carrying the server's own PID but written before the process started is pruned as stale. In a container every server is PID 1, so after a killed container the next one found its predecessor's entry in the persisted `~/.pixel-agents`, printed its old URL and never listened.
 
 ### Removed
 

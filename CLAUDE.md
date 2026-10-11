@@ -158,9 +158,10 @@ webview-ui/                          npm workspace
 
 ## Distribution
 
-One artifact from one source tree:
+Two artifacts from one source tree:
 
 - **npm package** (`pixel-agents`) — `npx pixel-agents [--port 3100]` runs the Fastify server and serves the SPA on the same port. Bundles the CLI + webview SPA + assets + hook scripts + `core/asyncapi.yaml` (so third-party clients can regenerate from it).
+- **Docker image** (`Dockerfile`, `.dockerignore`): multi-stage, `npm ci` + `npm run package`, then a runtime stage with only the server workspace's production dependencies plus `dist/`, running as `node` (UID 1000, `HOME=/home/node`) with `--provider herdr,omp --host 0.0.0.0 --port 8790`. herdr and omp only: Claude hooks installed from a container would point at container paths. The README's Docker section is the source of truth for the mounts (herdr socket directory, omp sessions at the same absolute path, a volume on `~/.pixel-agents`). Every container's server is PID 1, so `PixelAgentsServer` prunes an own-PID registry entry older than the process instead of reusing it.
 
 `package.json:files` allowlist controls the npm tarball: `dist/cli.js{,.map}`, `dist/webview/`, `dist/assets/`, `dist/hooks/`, `core/asyncapi.yaml`, `icon.png`.
 
