@@ -1,4 +1,6 @@
-# Terrarium — plan
+# Terrarium: original plan (superseded)
+
+> Superseded. This is the design Terrarium started from: a per-machine collector, a hub with SQLite, Bun workspaces and an omp extension. None of it is in this tree. Terrarium became a fork of Pixel Agents instead, described in `CLAUDE.md`. Kept as history only.
 
 A full-screen web page on a laptop or tablet. It shows a glass tank where every
 AI agent running on my machines is a small creature. When an omp agent reads a
@@ -27,13 +29,13 @@ across all three machines.
 
 ## Data sources (checked on this laptop)
 
-| Source | What it gives | How to read it | Latency |
-|---|---|---|---|
-| **herdr socket** `~/.config/herdr/herdr.sock` (herdr 0.8.2, protocol 20) | Every agent pane (omp, claude, codex, opencode, …) with `agent_status` ∈ `idle, working, blocked, done, unknown`, plus `cwd` and `agent_session` (path to the omp session JSONL) | Newline-delimited JSON-RPC. `agent.list` gives a snapshot; `events.subscribe` with `pane.agent_detected` plus one `pane.agent_status_changed` subscription per `pane_id`. Subscribing was tested and returns `subscription_started`. | Push |
-| **omp extension** in `~/.omp/agent/extensions/terrarium.ts` | Detailed activity: `agent_start`, `agent_end`, `tool_execution_start` / `tool_execution_end` (with `toolName`), `tool_approval_requested`, `session_start`, `session_shutdown`. The existing `herdr-omp-agent-state.ts` extension uses the same hooks. | The extension writes one JSON line per event to the local collector's unix socket and silently drops the event if the socket is missing. | Push |
-| **omp stats DB** `~/.omp/stats.db` (SQLite) | Usage per assistant message: `provider` (`anthropic`, `ollama-cloud`), `model`, `folder`, `agent_type` (main or subagent), token counts, `cost_total`, `duration`, `ttft`, `stop_reason`. Also a `tool_calls` table. | Open read-only and poll by `timestamp` watermark. Alternative: `omp stats --json` (keys: `overall`, `byModel`, `byFolder`, `byAgentType`, `timeSeries`, `costSeries`, …). | Poll 30 s |
-| **Ollama** (server, if local models run there) | Loaded models and VRAM use | `GET /api/ps` on the server | Poll 10 s |
-| **Claude Code** `~/.claude/projects/*/*.jsonl` | Usage from sessions not run through omp. There are 0 projects on this laptop today. | Deferred until it is actually used | — |
+| Source                                                                   | What it gives                                                                                                                                                                                                                                          | How to read it                                                                                                                                                                                                                       | Latency   |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| **herdr socket** `~/.config/herdr/herdr.sock` (herdr 0.8.2, protocol 20) | Every agent pane (omp, claude, codex, opencode, …) with `agent_status` ∈ `idle, working, blocked, done, unknown`, plus `cwd` and `agent_session` (path to the omp session JSONL)                                                                       | Newline-delimited JSON-RPC. `agent.list` gives a snapshot; `events.subscribe` with `pane.agent_detected` plus one `pane.agent_status_changed` subscription per `pane_id`. Subscribing was tested and returns `subscription_started`. | Push      |
+| **omp extension** in `~/.omp/agent/extensions/terrarium.ts`              | Detailed activity: `agent_start`, `agent_end`, `tool_execution_start` / `tool_execution_end` (with `toolName`), `tool_approval_requested`, `session_start`, `session_shutdown`. The existing `herdr-omp-agent-state.ts` extension uses the same hooks. | The extension writes one JSON line per event to the local collector's unix socket and silently drops the event if the socket is missing.                                                                                             | Push      |
+| **omp stats DB** `~/.omp/stats.db` (SQLite)                              | Usage per assistant message: `provider` (`anthropic`, `ollama-cloud`), `model`, `folder`, `agent_type` (main or subagent), token counts, `cost_total`, `duration`, `ttft`, `stop_reason`. Also a `tool_calls` table.                                   | Open read-only and poll by `timestamp` watermark. Alternative: `omp stats --json` (keys: `overall`, `byModel`, `byFolder`, `byAgentType`, `timeSeries`, `costSeries`, …).                                                            | Poll 30 s |
+| **Ollama** (server, if local models run there)                           | Loaded models and VRAM use                                                                                                                                                                                                                             | `GET /api/ps` on the server                                                                                                                                                                                                          | Poll 10 s |
+| **Claude Code** `~/.claude/projects/*/*.jsonl`                           | Usage from sessions not run through omp. There are 0 projects on this laptop today.                                                                                                                                                                    | Deferred until it is actually used                                                                                                                                                                                                   | —         |
 
 Notes:
 
@@ -128,17 +130,17 @@ browsers use a read-only view token.
 ```ts
 type TerrariumEvent = {
   v: 1;
-  host: string;               // "laptop-a" | "laptop-b" | "server"
-  ts: number;                 // ms epoch, source time
-  agentId: string;            // see "Joining the sources"
+  host: string; // "laptop-a" | "laptop-b" | "server"
+  ts: number; // ms epoch, source time
+  agentId: string; // see "Joining the sources"
   kind:
-    | "agent.seen"            // new pane/session: agent kind, cwd folder name
-    | "agent.state"           // idle | working | blocked | done | unknown | offline
-    | "tool.start"            // tool name
-    | "tool.end"              // tool name, isError
-    | "turn.usage"            // provider, model, tokens in/out/cache, cost
-    | "agent.gone"
-    | "host.heartbeat";
+    | 'agent.seen' // new pane/session: agent kind, cwd folder name
+    | 'agent.state' // idle | working | blocked | done | unknown | offline
+    | 'tool.start' // tool name
+    | 'tool.end' // tool name, isError
+    | 'turn.usage' // provider, model, tokens in/out/cache, cost
+    | 'agent.gone'
+    | 'host.heartbeat';
   data: Record<string, unknown>;
 };
 ```
@@ -154,20 +156,20 @@ the server as the deep bottom layer. Each agent kind has its own species. Each
 project folder gets a hat or colour so the same project is recognisable
 across hosts.
 
-| Signal | Animation |
-|---|---|
-| `idle` | Sleeping, with Zzz |
-| `working`, no tool | Walking around, thinking bubble |
-| `read`, `grep`, `glob`, `lsp` | Reading a scroll / sniffing the ground |
-| `edit`, `write`, `ast_edit` | Building with blocks |
-| `bash`, `eval` | Hammering on an anvil |
-| `web_search`, fetch | Looking through a telescope |
-| `task` (subagent spawn) | Egg hatches a baby creature |
-| `todo` | Writing on a notepad |
-| `blocked` / `ask` / approval | Knocking on the glass (attention: pulse + optional chime) |
-| `done` | Celebration, then idle |
-| `tool.end` with error | Trips and falls |
-| host heartbeat lost | Zone dims and creatures turn to stone |
+| Signal                        | Animation                                                 |
+| ----------------------------- | --------------------------------------------------------- |
+| `idle`                        | Sleeping, with Zzz                                        |
+| `working`, no tool            | Walking around, thinking bubble                           |
+| `read`, `grep`, `glob`, `lsp` | Reading a scroll / sniffing the ground                    |
+| `edit`, `write`, `ast_edit`   | Building with blocks                                      |
+| `bash`, `eval`                | Hammering on an anvil                                     |
+| `web_search`, fetch           | Looking through a telescope                               |
+| `task` (subagent spawn)       | Egg hatches a baby creature                               |
+| `todo`                        | Writing on a notepad                                      |
+| `blocked` / `ask` / approval  | Knocking on the glass (attention: pulse + optional chime) |
+| `done`                        | Celebration, then idle                                    |
+| `tool.end` with error         | Trips and falls                                           |
+| host heartbeat lost           | Zone dims and creatures turn to stone                     |
 
 The top 10 tools on this laptop (from `stats.db`) are bash, read, edit, eval,
 grep, hub, write, glob, web_search and todo. The table above covers all except
@@ -265,14 +267,14 @@ Each milestone ends with something I can run and look at.
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| herdr socket protocol changes (currently protocol 20) | Check `protocol` from `herdr status` at connect and log a clear error on mismatch. All herdr code lives in one adapter file. |
+| Risk                                                              | Mitigation                                                                                                                                                 |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| herdr socket protocol changes (currently protocol 20)             | Check `protocol` from `herdr status` at connect and log a clear error on mismatch. All herdr code lives in one adapter file.                               |
 | omp extension API or `stats.db` schema changes (omp 18.4.3 today) | Open the DB read-only, select only the columns listed above, and let the extension silently drop events it cannot send. Each source is a separate adapter. |
-| Double counting usage (extension `turn.usage` vs `stats.db`) | `stats.db` is the only source for usage numbers. The extension sends activity only. |
-| Laptops asleep or offline | Heartbeats, an offline state, and replay from `stats.db` by watermark after reconnect |
-| Privacy (project names show on a tablet in the room) | A per-folder alias map in hub config. Prompt and response text is never collected. |
-| Tablet performance | Sprite atlases, a hard cap on particles, and a 30 fps fallback when `requestAnimationFrame` falls behind |
+| Double counting usage (extension `turn.usage` vs `stats.db`)      | `stats.db` is the only source for usage numbers. The extension sends activity only.                                                                        |
+| Laptops asleep or offline                                         | Heartbeats, an offline state, and replay from `stats.db` by watermark after reconnect                                                                      |
+| Privacy (project names show on a tablet in the room)              | A per-folder alias map in hub config. Prompt and response text is never collected.                                                                         |
+| Tablet performance                                                | Sprite atlases, a hard cap on particles, and a 30 fps fallback when `requestAnimationFrame` falls behind                                                   |
 
 ## Open questions
 

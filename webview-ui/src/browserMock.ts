@@ -271,7 +271,7 @@ export function dispatchMockMessages(): void {
     window.dispatchEvent(new MessageEvent('message', { data }));
   }
 
-  // Must match the load order defined in CLAUDE.md:
+  // Must match the order the server sends on webviewReady (pets omitted, the mock has none):
   // characterSpritesLoaded -> floorTilesLoaded -> wallTilesLoaded -> carpetTilesLoaded
   //   -> furnitureAssetsLoaded -> layoutLoaded
   dispatch({ type: 'characterSpritesLoaded', ...characters });

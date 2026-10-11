@@ -1,5 +1,7 @@
 # Changelog
 
+Terrarium forked from Pixel Agents at v1.4.1. **Unreleased** is Terrarium's own work. Every entry from v1.4.1 down is upstream Pixel Agents history, kept as it was published, with its links to the upstream repository.
+
 ## Unreleased
 
 ### Breaking
@@ -21,7 +23,7 @@
 
 ### Removed
 
-- - **Removed obsolete OMP session handling**
+- **Removed obsolete omp session handling** ([#20](https://github.com/Luckystrike561/terrarium/pull/20)). The herdr bridge no longer parses omp transcripts itself. That parsing now lives in the omp agent module.
 
 ## v1.4.1
 

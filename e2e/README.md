@@ -1,6 +1,6 @@
-# Pixel Agents e2e tests
+# Terrarium e2e tests
 
-Playwright end-to-end tests for the `npx pixel-agents` standalone server, driven in Chromium against a mocked `claude`. This README is the single source of truth for what's e2e-tested, what's not, and how to run the suite.
+Playwright end-to-end tests for the Terrarium standalone server (`node dist/cli.js`), driven in Chromium against a mocked `claude`. This README is the single source of truth for what's e2e-tested, what's not, and how to run the suite.
 
 ## What this suite covers
 
@@ -47,7 +47,7 @@ Scenarios that exist as product behavior but are not in the automated suite. PRs
 
 ## Pre-release manual smoke (~30 min)
 
-CI green on this suite is the safety net for behavioral regressions. The checks below are what e2e can't meaningfully assert on (visual polish, real-Claude integration, other browsers). Run them before tagging a release, not on every PR.
+A green run of this suite is the safety net for behavioral regressions. The checks below are what e2e can't meaningfully assert on (visual polish, real-Claude integration, other browsers). Run them before tagging a release, not on every PR.
 
 **Visual + interactive polish** (after any change touching `sceneRenderer.ts`, `textureCache.ts`, `colorize.ts`, `*.tsx`, or CSS):
 
@@ -56,7 +56,7 @@ CI green on this suite is the safety net for behavioral regressions. The checks 
 
 **Real Claude Code integration** (mock-claude is a fixture; real Claude's JSONL has edge cases the mock doesn't):
 
-- `node dist/cli.js` (or `npx pixel-agents` after publish), open the printed URL, run a real Claude session in a terminal with a few tool-heavy turns and a permission-requiring tool. Watch for character desync, missing animations, stuck permission bubbles.
+- `node dist/cli.js`, open the printed URL, run a real Claude session in a terminal with a few tool-heavy turns and a permission-requiring tool. Watch for character desync, missing animations, stuck permission bubbles.
 - Use a session with a large pasted image (multi-MB base64 user message): confirm the "Possible format issue" warning doesn't false-fire and tool tracking still works.
 - Test with one MCP server installed: confirm `mcp_progress` records don't break tool status.
 
@@ -65,18 +65,18 @@ CI green on this suite is the safety net for behavioral regressions. The checks 
 - Open the printed URL in Firefox AND Safari: characters appear and animate via WebSocket.
 - Refresh the browser mid-session: WebSocketTransport reconnects, agents reappear from server state.
 
-**First-run experience** (before publishing):
+**First-run experience** (before tagging):
 
 - Delete `~/.pixel-agents/` entirely. Start the server fresh: default layout loads, the Intro runs and asks for hook consent, no console errors.
 
-**Platform sanity** (CI hosts ≠ your machine):
+**Platform sanity** (the e2e host is not your daily machine):
 
 - On the OS you primarily develop on, run a normal session for ~5 minutes: no surprise CPU spikes, no leaked file watchers, a page reload doesn't lose state.
 
 ## Running
 
 ```bash
-cd pixel-agents
+cd terrarium
 npm run compile && npm run e2e               # full suite
 
 npm run e2e -- --grep "@area:spawn"          # filter by area tag
@@ -90,7 +90,7 @@ npm run test:report:open                     # serve + open the Allure dashboard
 
 ## Mocking model & rules
 
-E2E tests drive Pixel Agents through a Claude-like **process boundary**, not by poking internals. The mocked `claude` (`e2e/fixtures/mock-claude` → `mock-claude-runner.cjs`) behaves like the real CLI for the parts Pixel Agents observes: it spawns as a process, creates its own append-only JSONL transcripts, and executes the installed hook script under `~/.pixel-agents/hooks`, the same path the real CLI uses. Every agent is an external session the server adopts, spawned with `spawnExternalClaudeScenario`. The builder API itself (`claudeScenario(...)`, `.at()`, `.appendJsonl()`, `.emitHook()`, `.holdOpenFor()`) is documented in CONTRIBUTING.md → "Mock claude".
+E2E tests drive Terrarium through a Claude-like **process boundary**, not by poking internals. The mocked `claude` (`e2e/fixtures/mock-claude` → `mock-claude-runner.cjs`) behaves like the real CLI for the parts Terrarium observes: it spawns as a process, creates its own append-only JSONL transcripts, and executes the installed hook script under `~/.pixel-agents/hooks`, the same path the real CLI uses. Every agent is an external session the server adopts, spawned with `spawnExternalClaudeScenario`. The builder API itself (`claudeScenario(...)`, `.at()`, `.appendJsonl()`, `.emitHook()`, `.holdOpenFor()`) is documented in CONTRIBUTING.md → "Mock claude".
 
 Rules for a correct test:
 
@@ -101,9 +101,9 @@ Rules for a correct test:
 
 ## What to read before adding a test
 
-- `CLAUDE.md`: architecture and message protocol
+- `CLAUDE.md`: architecture and message protocol, and `docs/architecture/testing.md` for the test tiers
 - `e2e/fixtures/standalone.ts` and `e2e/helpers/standalone.ts`: fixture lifecycle and seed options
-- `e2e/helpers/`: every helper, especially `hooks.ts`, `mock-claude.ts`, `office.ts`, `webview.ts`
+- `e2e/helpers/`: every helper, especially `hooks.ts`, `mock-claude.ts`, `office.ts`, `intro.ts`, `layout-seed.ts`
 
 When you add a new test:
 
@@ -121,11 +121,11 @@ When you remove a test:
 
 Tests call `narrator.step('…')` before an action and `narrator.check('…')` after an assertion resolves (the `standalone` fixture exposes `narrator`). Shared helpers narrate universal moments (spawning or closing an agent) via the module-level `narrate` in `helpers/test-narration.ts`. Each line goes to `<tmpHome>/.claude-mock/test-narration.log`, and every external mock session's own stdout goes to `<tmpHome>/.claude-mock/external-narration.log`. A failing test gets both attached, next to the server log, the debug log, the webview message log and a screenshot.
 
-**Cosmetic-only contract (never violate):** Pixel Agents never reads these logs, so narration cannot change what a test exercises. Narration must **never carry an assertion, gate logic, or affect timing**. Deleting every `step`/`check` call must leave all tests passing. Never call the narrator from inside a browser-context callback (`page.waitForFunction`/`evaluate`/`.poll`): it is Node-side only.
+**Cosmetic-only contract (never violate):** Terrarium never reads these logs, so narration cannot change what a test exercises. Narration must **never carry an assertion, gate logic, or affect timing**. Deleting every `step`/`check` call must leave all tests passing. Never call the narrator from inside a browser-context callback (`page.waitForFunction`/`evaluate`/`.poll`): it is Node-side only.
 
 ## Test inventory
 
-This section is auto-generated. Do not edit between the markers; CI fails on drift.
+This section is auto-generated. Do not edit between the markers. The pre-push hook fails on drift.
 
 <!-- BEGIN:E2E-INVENTORY -->
 
