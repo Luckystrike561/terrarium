@@ -182,7 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/
 
 ## Troubleshooting
 
-- **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. **Connections** shows the error for each herdr server the office cannot reach.
+- **The office stays empty with `--provider herdr`.** Check that herdr is running and that its socket exists (`HERDR_SOCKET_PATH`, else `~/.config/herdr/sessions/$HERDR_SESSION/herdr.sock`, else `~/.config/herdr/herdr.sock`). In a browser opened with the printed `?token=` URL, **Connections** shows the error for each herdr server the office cannot reach. The server log carries the same state changes.
 - **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
 - **A Claude session is missing.** The server logs `Hooks installed` at startup when Claude hooks are active. Without hooks, sessions are found by scanning `~/.claude/projects/` every few seconds, so a new one can take a moment to appear.
 
