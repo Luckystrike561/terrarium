@@ -351,6 +351,23 @@ describe('MultiplexerFeed link state', () => {
     expect(starts).toEqual(['herdr-local-p1', 'herdr-local-p2', 'herdr-local-p1']);
   });
 
+  it('ignores a snapshot that arrives after the link was lost', () => {
+    const { host, emitted } = fakeHost();
+    const mux = fakeMultiplexer();
+    const { states } = startFeed(mux, host, new Map());
+    mux.publish([pane({ paneId: 'p1' })]);
+
+    mux.setState('reconnecting', 'herdr closed the connection');
+    mux.publish([pane({ paneId: 'p1' }), pane({ paneId: 'p2' })]);
+
+    const starts = emitted.filter((e) => e.event.kind === 'sessionStart').map((e) => e.sessionId);
+    expect(starts).toEqual(['herdr-local-p1']);
+    expect(states.at(-1)).toEqual({
+      state: 'reconnecting',
+      message: 'herdr closed the connection',
+    });
+  });
+
   it('stop disconnects and ends every pane it announced', () => {
     const { host, emitted } = fakeHost();
     const mux = fakeMultiplexer();

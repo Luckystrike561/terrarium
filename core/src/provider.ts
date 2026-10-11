@@ -232,7 +232,8 @@ export type MultiplexerLinkState = 'connecting' | 'connected' | 'reconnecting' |
 
 export interface MultiplexerWatcher {
   /** The full list of live agents, every time it may have changed. An agent missing from a snapshot has ended. Never
-   *  called with an empty list for a multiplexer that did not answer. */
+   *  called with an empty list for a multiplexer that did not answer. Counts only while the link is `connected`: a
+   *  snapshot that arrives after the link was lost is ignored. */
   onSnapshot(agents: readonly MultiplexedAgent[]): void;
   /** `message` is the SSH or multiplexer error text, for `error` and `reconnecting`. */
   onState(state: MultiplexerLinkState, message?: string): void;

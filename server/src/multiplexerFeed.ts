@@ -54,6 +54,8 @@ export class MultiplexerFeed {
   private connection: ModuleHandle | null = null;
   private readonly isRemote: boolean;
   private label: string | undefined;
+  /** A snapshot from a reconcile that outlived the link would re-announce panes endAll() already removed. */
+  private isLinkUp = false;
 
   constructor(private readonly options: MultiplexerFeedOptions) {
     this.isRemote = options.endpoint.kind === 'ssh';
@@ -68,9 +70,12 @@ export class MultiplexerFeed {
   start(): void {
     const { multiplexer, endpoint, host } = this.options;
     this.connection = multiplexer.connect(endpoint, {
-      onSnapshot: (agents) => this.applySnapshot(agents),
+      onSnapshot: (agents) => {
+        if (this.isLinkUp) this.applySnapshot(agents);
+      },
       onState: (state, message) => {
-        if (state !== 'connected') this.endAll();
+        this.isLinkUp = state === 'connected';
+        if (!this.isLinkUp) this.endAll();
         this.options.onState(state, message);
       },
       log: (message) => host.log(message),
