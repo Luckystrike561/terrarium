@@ -33,6 +33,14 @@ const WHITESPACE = /\s/;
 const CONNECTION_ID = /^[A-Za-z0-9_-]+$/;
 /** herdr session names become a directory under `~/.config/herdr/sessions/`, so nothing that could leave it. */
 const SESSION_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+/** OpenSSH substitutes the user and host into ssh_config `%r`/`%h` (ProxyCommand, Match exec) unquoted, and filters
+ *  shell metacharacters out of them only since 9.6, so a target is held to destination syntax. The user may contain
+ *  `@`: ssh splits on the last one, which bastion gateways rely on. A port or a bracketed IPv6 address only parses in
+ *  the URI form. */
+const SSH_DESTINATION =
+  /^(?:[A-Za-z0-9_][A-Za-z0-9._@-]*@)?(?:[A-Za-z0-9][A-Za-z0-9._-]*|[0-9A-Fa-f]*:[0-9A-Fa-f:.]*)$/;
+const SSH_URI =
+  /^ssh:\/\/(?:[A-Za-z0-9_][A-Za-z0-9._-]*@)?(?:[A-Za-z0-9][A-Za-z0-9._-]*|\[[0-9A-Fa-f:.]+\])(?::[0-9]{1,5})?$/;
 
 export function connectionLabelError(label: string): string | undefined {
   if (!label) return 'Give the connection a label';
@@ -43,7 +51,8 @@ export function connectionLabelError(label: string): string | undefined {
   return undefined;
 }
 
-/** The target becomes an `ssh` argument: a leading `-` would be read as an option, whitespace would split it. */
+/** The target becomes an `ssh` argument: a leading `-` would be read as an option, whitespace would split it, and
+ *  anything else outside destination syntax would reach ssh_config's `%h`/`%r`. */
 function sshTargetError(target: string): string | undefined {
   if (!target) return 'Enter an SSH target (host, user@host or an SSH config alias)';
   if (target.length > SSH_TARGET_MAX_CHARS) {
@@ -52,6 +61,9 @@ function sshTargetError(target: string): string | undefined {
   if (target.startsWith('-')) return 'SSH targets cannot start with "-"';
   if (WHITESPACE.test(target) || CONTROL_CHARS.test(target)) {
     return 'SSH targets cannot contain spaces or control characters';
+  }
+  if (!SSH_DESTINATION.test(target) && !SSH_URI.test(target)) {
+    return `"${target}" is not an SSH target: use host, user@host, ssh://user@host:port or an SSH config alias`;
   }
   return undefined;
 }

@@ -45,7 +45,7 @@ interface SshExecError extends Error {
 }
 
 export interface SshTransportOptions {
-  /** SSH destination, validated by the caller: never empty, never starting with `-`. */
+  /** SSH destination, validated by the caller: destination syntax only, never starting with `-`. */
   readonly target: string;
   readonly session?: string;
   /** Where the local end of the forward is bound. Its directory is created owner-only. */

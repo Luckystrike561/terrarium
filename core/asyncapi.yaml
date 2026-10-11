@@ -878,9 +878,12 @@ components:
         target:
           type: string
           maxLength: 255
+          pattern: '^(?:[A-Za-z0-9_][A-Za-z0-9._@-]*@)?(?:[A-Za-z0-9][A-Za-z0-9._-]*|[0-9A-Fa-f]*:[0-9A-Fa-f:.]*)$|^ssh://(?:[A-Za-z0-9_][A-Za-z0-9._-]*@)?(?:[A-Za-z0-9][A-Za-z0-9._-]*|\[[0-9A-Fa-f:.]+\])(?::[0-9]{1,5})?$'
           description: >-
-            SSH destination for an `ssh` connection: `host`, `user@host`,
-            `ssh://user@host:2222` or an SSH config alias.
+            SSH destination for an `ssh` connection: `host`, `user@host`, a
+            bare IPv6 address, `ssh://user@host:2222` or an SSH config alias.
+            Nothing outside destination syntax, since OpenSSH substitutes it
+            unquoted into ssh_config `%h`/`%r`.
         session:
           type: string
           maxLength: 64

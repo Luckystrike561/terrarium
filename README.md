@@ -120,7 +120,7 @@ With the `herdr` module, the **Connections** entry on the bottom plank lists eve
 
 - **This machine** is there from the start and is today's behaviour: herdr's socket, found the way herdr finds it (`HERDR_SOCKET_PATH`, then `HERDR_SESSION`, then `~/.config/herdr/herdr.sock`).
 - **Local session** reaches another herdr session on this machine (`~/.config/herdr/sessions/<name>/herdr.sock`).
-- **SSH** reaches herdr on another machine. The target is anything `ssh` accepts: `host`, `user@host`, `ssh://user@host:2222` or a `~/.ssh/config` alias, plus an optional herdr session name.
+- **SSH** reaches herdr on another machine. The target is an SSH destination: `host`, `user@host`, a bare IPv6 address, `ssh://user@host:2222` (also `ssh://[::1]:2222`) or a `~/.ssh/config` alias, plus an optional herdr session name. Shell metacharacters are refused, since OpenSSH substitutes the target unquoted into `ProxyCommand` and `Match exec` lines of your `~/.ssh/config`.
 
 Adding a connection checks it first (one `ping` round-trip with herdr) and saves it only when herdr answered. Otherwise the menu shows why. Connections are saved in `~/.pixel-agents/config.json` and come back after a restart. Disabling or removing one removes its characters and closes its SSH process. When herdr stops on a connection, its characters leave and the connection reads as reconnecting or error until herdr is back, with no action from you.
 

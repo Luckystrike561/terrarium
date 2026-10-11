@@ -206,8 +206,16 @@ describe('MultiplexerConnections', () => {
 });
 
 describe('connection settings validation', () => {
-  it('accepts an SSH target in every form OpenSSH takes', () => {
-    for (const target of ['buildbox', 'luc@buildbox', 'ssh://luc@buildbox:2222', '192.168.1.20']) {
+  it('accepts an SSH target in every destination form OpenSSH takes', () => {
+    for (const target of [
+      'buildbox',
+      'luc@buildbox',
+      'ssh://luc@buildbox:2222',
+      '192.168.1.20',
+      'fe80::1',
+      'ssh://[::1]:22',
+      'luc@buildbox@bastion.example.com',
+    ]) {
       expect(parseNewConnection({ label: 'x', kind: 'ssh', target })).toEqual({
         label: 'x',
         kind: 'ssh',
@@ -217,7 +225,7 @@ describe('connection settings validation', () => {
     }
   });
 
-  it('refuses targets ssh would read as an option or split, and session names that leave their directory', () => {
+  it('refuses targets ssh would read as an option, split, or expand into ssh_config, and session names that leave their directory', () => {
     expect(parseNewConnection({ label: 'x', kind: 'ssh', target: '-oProxyCommand=sh' })).toEqual({
       error: 'SSH targets cannot start with "-"',
     });
@@ -227,6 +235,11 @@ describe('connection settings validation', () => {
     expect(parseNewConnection({ label: 'x', kind: 'ssh', target: '' })).toMatchObject({
       error: expect.stringContaining('Enter an SSH target'),
     });
+    for (const target of ['h$(id)', '$(id)@host', 'a`id`', 'host;id', 'buildbox:2222', '[::1]']) {
+      expect(parseNewConnection({ label: 'x', kind: 'ssh', target })).toEqual({
+        error: `"${target}" is not an SSH target: use host, user@host, ssh://user@host:port or an SSH config alias`,
+      });
+    }
     expect(parseNewConnection({ label: 'x', kind: 'local', session: '../evil' })).toMatchObject({
       error: expect.stringContaining('herdr session names use'),
     });
