@@ -5,12 +5,12 @@ import type { StateAdapter } from '../../core/src/adapter.js';
 import type { AgentState, PersistedAgent } from './types.js';
 
 /**
- * CI / e2e diagnostics: when PIXEL_AGENTS_DEBUG_LOG points to a writable
+ * CI / e2e diagnostics: when TERRARIUM_DEBUG_LOG points to a writable
  * path, every broadcast is appended there with a timestamp. The test fixture
  * attaches the resulting file to Allure so failures can be analyzed without
  * local repro. Zero cost when the env var is unset.
  */
-const DEBUG_LOG_PATH = process.env['PIXEL_AGENTS_DEBUG_LOG'];
+const DEBUG_LOG_PATH = process.env['TERRARIUM_DEBUG_LOG'];
 
 function debugLogBroadcast(message: Record<string, unknown>): void {
   if (!DEBUG_LOG_PATH) return;

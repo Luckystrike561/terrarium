@@ -102,7 +102,7 @@ function shortId(value) {
 }
 
 /**
- * Human-readable narration to stdout. Pixel Agents never reads it (its inputs
+ * Human-readable narration to stdout. Terrarium never reads it (its inputs
  * are JSONL transcripts and hook POSTs), so this changes nothing about what
  * tests exercise. It exists so a failing test's attached log shows WHAT the
  * mock simulated and WHEN, where real claude would render its TUI.
@@ -199,14 +199,14 @@ function normalizePathForMatch(value) {
   return String(value).replace(/\\/g, '/');
 }
 
-function isPixelAgentsHookCommand(homeDir, command) {
+function isTerrariumHookCommand(homeDir, command) {
   if (typeof command !== 'string' || command.length === 0) {
     return false;
   }
 
   const normalizedCommand = normalizePathForMatch(command);
   const currentHookPath = normalizePathForMatch(
-    path.join(homeDir, '.pixel-agents', 'hooks', 'claude-hook.js'),
+    path.join(homeDir, '.terrarium', 'hooks', 'claude-hook.js'),
   );
 
   return normalizedCommand.includes(currentHookPath);
@@ -358,7 +358,7 @@ async function emitHook(homeDir, context, payload) {
       ) {
         continue;
       }
-      if (!isPixelAgentsHookCommand(homeDir, hook.command)) {
+      if (!isTerrariumHookCommand(homeDir, hook.command)) {
         continue;
       }
       matched += 1;
@@ -370,7 +370,7 @@ async function emitHook(homeDir, context, payload) {
       );
     }
   }
-  // Diagnostic: if no registered command matched the pixel-agents hook, the
+  // Diagnostic: if no registered command matched the terrarium hook, the
   // hook script was never spawned — log the computed path + the commands we
   // saw so a CI failure shows the mismatch instead of failing silently.
   if (matched === 0) {

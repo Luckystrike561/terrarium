@@ -3,7 +3,7 @@
  * transcripts, found by scanning its session store or handed over by a multiplexer that hosts the session.
  * herdr reports a droid session by Droid's own session id, never a transcript path, so sessions here are keyed
  * by that id (the transcript's file name without its `.jsonl` suffix). Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to consent to.
+ * `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

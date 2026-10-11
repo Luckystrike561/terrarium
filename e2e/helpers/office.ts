@@ -5,7 +5,7 @@ import { narrate } from './test-narration';
 
 /** The carpet/area/pet observability surface installed under the isE2E guard. */
 export interface TestHooksWindow extends Window {
-  __pixelAgentsTestHooks?: {
+  __terrariumTestHooks?: {
     getCarpetTiles?: () => Array<{
       col: number;
       row: number;
@@ -217,7 +217,7 @@ export async function expectTeammateSeatedNextToLead(
       getAgentSeats?: () => Array<{ id: number; seatId: string | null }>;
       getSeats?: () => Array<{ uid: string; col: number; row: number; assigned: boolean }>;
     }
-    const hooks = (window as { __pixelAgentsTestHooks?: SeatHooks }).__pixelAgentsTestHooks;
+    const hooks = (window as { __terrariumTestHooks?: SeatHooks }).__terrariumTestHooks;
     const characters = hooks?.getCharacters?.() ?? [];
     const agentSeats = hooks?.getAgentSeats?.() ?? [];
     const seats = hooks?.getSeats?.() ?? [];
@@ -248,7 +248,7 @@ export async function expectTeammateSeatedNextToLead(
  *  live activity text in its overlay (hover shows only the subtask title). */
 export async function selectCharacter(frame: Page, agentId: number): Promise<void> {
   await frame.evaluate((id) => {
-    (window as TestHooksWindow).__pixelAgentsTestHooks?.selectAgent?.(id);
+    (window as TestHooksWindow).__terrariumTestHooks?.selectAgent?.(id);
   }, agentId);
 }
 
@@ -274,7 +274,7 @@ export async function closeAgentFromOverlay(
   // data-agent-id, so the text-based lookup path resolves an id too.
   const agentId = options.agentId ?? Number(await overlay.getAttribute('data-agent-id'));
   await frame.evaluate((id) => {
-    (window as TestHooksWindow).__pixelAgentsTestHooks?.selectAgent?.(id);
+    (window as TestHooksWindow).__terrariumTestHooks?.selectAgent?.(id);
   }, agentId);
 
   const closeButton = overlay.locator('button[title="Close agent"]');
@@ -289,7 +289,7 @@ export async function readCarpetTiles(
 ): Promise<Array<{ col: number; row: number; variant: number }>> {
   return page.evaluate(
     () =>
-      (window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetTiles?.().map((t) => ({
+      (window as TestHooksWindow).__terrariumTestHooks?.getCarpetTiles?.().map((t) => ({
         col: t.col,
         row: t.row,
         variant: t.variant,
@@ -306,7 +306,7 @@ export async function readCarpetJunctionCase(
 ): Promise<number> {
   return page.evaluate(
     ([x, y, v]) =>
-      (window as TestHooksWindow).__pixelAgentsTestHooks?.getCarpetJunctionCase?.(x, y, v) ?? 0,
+      (window as TestHooksWindow).__terrariumTestHooks?.getCarpetJunctionCase?.(x, y, v) ?? 0,
     [jx, jy, variant] as const,
   );
 }
@@ -316,15 +316,13 @@ export async function readAreaTiles(
   page: Page,
 ): Promise<Array<{ col: number; row: number; label: string }>> {
   return page.evaluate(
-    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreaTiles?.() ?? [],
+    () => (window as TestHooksWindow).__terrariumTestHooks?.getAreaTiles?.() ?? [],
   );
 }
 
 /** Read the Area definitions from the test hook. */
 export async function readAreas(page: Page): Promise<Array<{ label: string; color: string }>> {
-  return page.evaluate(
-    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAreas?.() ?? [],
-  );
+  return page.evaluate(() => (window as TestHooksWindow).__terrariumTestHooks?.getAreas?.() ?? []);
 }
 
 /** Read seated agents with the area their seat falls in. */
@@ -334,6 +332,6 @@ export async function readAgentSeats(
   Array<{ id: number; seatId: string | null; areaLabel: string | null; folderName?: string }>
 > {
   return page.evaluate(
-    () => (window as TestHooksWindow).__pixelAgentsTestHooks?.getAgentSeats?.() ?? [],
+    () => (window as TestHooksWindow).__terrariumTestHooks?.getAgentSeats?.() ?? [],
   );
 }

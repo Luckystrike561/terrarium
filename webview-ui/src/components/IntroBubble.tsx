@@ -215,7 +215,7 @@ export function IntroBubble({
   };
 
   const titles = [
-    'Welcome to Pixel Agents!',
+    'Welcome to Terrarium!',
     'Powered by Claude Code',
     headline,
     installFailed ? "Hooks couldn't be installed" : "You're all set!",

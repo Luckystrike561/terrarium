@@ -358,7 +358,7 @@ test.describe('Hooks ON / teams', () => {
         .at(17_000)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-a9-teammate-search', 'WebSearch', {
-            query: 'pixel agents',
+            query: 'terrarium',
           }),
           { session: INLINE_TEAMMATE_ALIAS },
         )

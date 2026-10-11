@@ -9,9 +9,9 @@
 // ── Hook API ─────────────────────────────────────────────────
 
 export const HOOK_API_PREFIX = '/api/hooks';
-export const SERVER_JSON_DIR = '.pixel-agents';
+export const SERVER_JSON_DIR = '.terrarium';
 export const SERVER_JSON_NAME = 'server.json';
-export const HOOK_SCRIPTS_DIR = '.pixel-agents/hooks';
+export const HOOK_SCRIPTS_DIR = '.terrarium/hooks';
 
 // ── Display ──────────────────────────────────────────────────
 

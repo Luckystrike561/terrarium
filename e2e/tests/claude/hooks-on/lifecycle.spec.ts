@@ -503,7 +503,7 @@ test.describe('Hooks ON / lifecycle', () => {
         .at(2_500)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-b6-teammate-search', 'WebSearch', {
-            query: 'pixel agents lifecycle regressions',
+            query: 'terrarium lifecycle regressions',
           }),
           { session: INLINE_TEAMMATE_ALIAS },
         )
@@ -586,7 +586,7 @@ test.describe('Hooks ON / lifecycle', () => {
         .at(2_200)
         .appendJsonl(
           buildAssistantToolUseRecord('toolu-b7-search', 'WebSearch', {
-            query: 'pixel agents cascade removal',
+            query: 'terrarium cascade removal',
           }),
           { session: INLINE_TEAMMATE_ALIAS },
         )
@@ -850,7 +850,7 @@ test.describe('Hooks ON / lifecycle', () => {
         async () =>
           page.evaluate((agentName) => {
             const w = window as Window & {
-              __pixelAgentsTestHooks?: {
+              __terrariumTestHooks?: {
                 getCharacters?: () => Array<{
                   agentName?: string;
                   bubbleType: 'permission' | 'waiting' | null;
@@ -858,7 +858,7 @@ test.describe('Hooks ON / lifecycle', () => {
                 }>;
               };
             };
-            return w.__pixelAgentsTestHooks
+            return w.__terrariumTestHooks
               ?.getCharacters?.()
               .find((ch) => ch.agentName === agentName);
           }, INLINE_TEAMMATE_ROLE),
@@ -1037,7 +1037,7 @@ test.describe('Hooks ON / lifecycle', () => {
 
   // verify playDoneSound() fires on agentStatus: 'waiting'.
   // The webview's notificationSound.ts records every invocation into
-  // window.__pixelAgentsTestHooks.playedSounds (a test-only marker). We
+  // window.__terrariumTestHooks.playedSounds (a test-only marker). We
   // trigger waiting state by sending an idle_prompt notification hook (the
   // same hook path the spawn-paths test uses to surface "Might be waiting for
   // input") and assert the sound was dispatched.
@@ -1080,9 +1080,9 @@ test.describe('Hooks ON / lifecycle', () => {
     // triggered by the idle_prompt under test.
     await page.evaluate(() => {
       const w = window as Window & {
-        __pixelAgentsTestHooks?: { playedSounds?: unknown[] };
+        __terrariumTestHooks?: { playedSounds?: unknown[] };
       };
-      if (w.__pixelAgentsTestHooks) w.__pixelAgentsTestHooks.playedSounds = [];
+      if (w.__terrariumTestHooks) w.__terrariumTestHooks.playedSounds = [];
     });
 
     narrator.step('sending an idle_prompt to flip the agent to waiting');
@@ -1098,9 +1098,9 @@ test.describe('Hooks ON / lifecycle', () => {
         async () =>
           page.evaluate(() => {
             const w = window as Window & {
-              __pixelAgentsTestHooks?: { playedSounds?: Array<{ kind: string }> };
+              __terrariumTestHooks?: { playedSounds?: Array<{ kind: string }> };
             };
-            return (w.__pixelAgentsTestHooks?.playedSounds ?? []).map((s) => s.kind);
+            return (w.__terrariumTestHooks?.playedSounds ?? []).map((s) => s.kind);
           }),
         { timeout: 5_000 },
       )
@@ -1119,7 +1119,7 @@ test.describe('Hooks ON / lifecycle', () => {
   // running. The reload re-mounts the SPA, sends a fresh webviewReady, and the
   // server unconditionally resends existingAgents on every webviewReady.
   //
-  // Observable: window.__pixelAgentsTestHooks.getCharacters() (exposed from
+  // Observable: window.__terrariumTestHooks.getCharacters() (exposed from
   // App.tsx) returns a snapshot of character.matrixEffect. The addAgentLog
   // captures matrixEffect AT addAgent time (synchronous inside the wrapper),
   // immune to the ~300ms matrix-effect lifetime race a snapshot read would hit.
@@ -1171,9 +1171,9 @@ test.describe('Hooks ON / lifecycle', () => {
         async () =>
           page.evaluate(() => {
             const w = window as Window & {
-              __pixelAgentsTestHooks?: { addAgentLog?: unknown[] };
+              __terrariumTestHooks?: { addAgentLog?: unknown[] };
             };
-            return w.__pixelAgentsTestHooks?.addAgentLog?.length ?? 0;
+            return w.__terrariumTestHooks?.addAgentLog?.length ?? 0;
           }),
         { timeout: 15_000 },
       )
@@ -1181,7 +1181,7 @@ test.describe('Hooks ON / lifecycle', () => {
 
     const log = await page.evaluate(() => {
       const w = window as Window & {
-        __pixelAgentsTestHooks?: {
+        __terrariumTestHooks?: {
           addAgentLog?: Array<{
             id: number;
             skipSpawnEffect: boolean | undefined;
@@ -1189,7 +1189,7 @@ test.describe('Hooks ON / lifecycle', () => {
           }>;
         };
       };
-      return w.__pixelAgentsTestHooks?.addAgentLog ?? [];
+      return w.__terrariumTestHooks?.addAgentLog ?? [];
     });
 
     // Every addAgent call against this fresh page comes from the restore path
@@ -1332,9 +1332,9 @@ test.describe('Hooks ON / lifecycle', () => {
     // sounds (none expected from the spawn, but defensive) are ignored.
     await page.evaluate(() => {
       const w = window as Window & {
-        __pixelAgentsTestHooks?: { playedSounds?: unknown[] };
+        __terrariumTestHooks?: { playedSounds?: unknown[] };
       };
-      if (w.__pixelAgentsTestHooks) w.__pixelAgentsTestHooks.playedSounds = [];
+      if (w.__terrariumTestHooks) w.__terrariumTestHooks.playedSounds = [];
     });
 
     narrator.step('sending a permissionRequest hook to raise the approval bubble');
@@ -1350,9 +1350,9 @@ test.describe('Hooks ON / lifecycle', () => {
         async () =>
           page.evaluate(() => {
             const w = window as Window & {
-              __pixelAgentsTestHooks?: { playedSounds?: Array<{ kind: string }> };
+              __terrariumTestHooks?: { playedSounds?: Array<{ kind: string }> };
             };
-            return (w.__pixelAgentsTestHooks?.playedSounds ?? []).map((s) => s.kind);
+            return (w.__terrariumTestHooks?.playedSounds ?? []).map((s) => s.kind);
           }),
         { timeout: 5_000 },
       )
@@ -1360,7 +1360,7 @@ test.describe('Hooks ON / lifecycle', () => {
     narrator.check('playedSounds contains a "permission" entry');
   });
 
-  // The server installs the pixel-agents hook into ~/.claude/settings.json on
+  // The server installs the terrarium hook into ~/.claude/settings.json on
   // startup. Historical bugs around clobbering pre-existing third-party hook
   // entries make this a real bug surface; unit tests cover the installer with
   // mocked fs, this e2e covers the actual install landing on disk.
@@ -1383,7 +1383,7 @@ test.describe('Hooks ON / lifecycle', () => {
     }
   }
 
-  function pixelAgentsHookPresent(settings: ClaudeHookSettings, eventName: string): boolean {
+  function terrariumHookPresent(settings: ClaudeHookSettings, eventName: string): boolean {
     const entries = settings.hooks?.[eventName] ?? [];
     for (const entry of entries) {
       for (const h of entry.hooks ?? []) {
@@ -1395,11 +1395,11 @@ test.describe('Hooks ON / lifecycle', () => {
     return false;
   }
 
-  // the server installs the pixel-agents hook on startup with the default
+  // the server installs the terrarium hook on startup with the default
   // hooksEnabled=true. Sanity check — if this fails, claudeHookInstaller never
   // ran, and every other hooks-on test is operating against an empty
   // settings.json (i.e., hooks are silently no-op'd).
-  test('pixel-agents hook is installed in settings.json on server startup @area:cross-cutting', async ({
+  test('terrarium hook is installed in settings.json on server startup @area:cross-cutting', async ({
     standalone,
   }) => {
     const { tmpHome, narrator } = standalone;
@@ -1411,10 +1411,10 @@ test.describe('Hooks ON / lifecycle', () => {
     // installHooks writes entries for every hook event the provider supports.
     // SessionStart and PreToolUse are the load-bearing ones; if those are present,
     // installation succeeded.
-    expect(pixelAgentsHookPresent(settings, 'SessionStart')).toBe(true);
-    expect(pixelAgentsHookPresent(settings, 'PreToolUse')).toBe(true);
+    expect(terrariumHookPresent(settings, 'SessionStart')).toBe(true);
+    expect(terrariumHookPresent(settings, 'PreToolUse')).toBe(true);
     narrator.check(
-      '~/.claude/settings.json has the pixel-agents hook under both SessionStart and PreToolUse',
+      '~/.claude/settings.json has the terrarium hook under both SessionStart and PreToolUse',
     );
   });
 

@@ -8,7 +8,7 @@ import { buildSeedLayout } from '../../../helpers/layout-seed';
  *
  * Pets render only on the canvas (no DOM nodes) and the heart bubble is pure
  * runtime state that is never persisted, so the live assertions read pet state
- * through `window.__pixelAgentsTestHooks.getPets()` / `.petClick()` — the same
+ * through `window.__terrariumTestHooks.getPets()` / `.petClick()` — the same
  * state-driving approach `selectAgent` uses for characters (see
  * webview-ui/src/testHooks.ts and the comment on closeAgentFromOverlay in
  * e2e/helpers/office.ts). Pets spawn at a random walkable tile, so tests never
@@ -37,20 +37,20 @@ interface PetTestHooks {
   messageLog?: Array<{ type: string }>;
 }
 
-type PetWindow = Window & { __pixelAgentsTestHooks?: PetTestHooks };
+type PetWindow = Window & { __terrariumTestHooks?: PetTestHooks };
 
 /** Point-in-time snapshot of every live pet, read from the test hook. */
 async function readPets(page: Page): Promise<PetSnapshot[]> {
   return page.evaluate(() => {
     const w = window as PetWindow;
-    return w.__pixelAgentsTestHooks?.getPets?.() ?? [];
+    return w.__terrariumTestHooks?.getPets?.() ?? [];
   });
 }
 
 /** Toggle a pet's heart bubble exactly as a canvas click would. */
 async function petClick(page: Page, petId: string): Promise<void> {
   await page.evaluate((id) => {
-    (window as PetWindow).__pixelAgentsTestHooks?.petClick?.(id);
+    (window as PetWindow).__terrariumTestHooks?.petClick?.(id);
   }, petId);
 }
 
@@ -63,7 +63,7 @@ test.describe('Pets', () => {
     narrator.step('waiting for the pet sprites to broadcast to the webview');
     await page.waitForFunction(() => {
       const w = window as PetWindow;
-      const log = w.__pixelAgentsTestHooks?.messageLog ?? [];
+      const log = w.__terrariumTestHooks?.messageLog ?? [];
       return log.some((m) => m.type === 'petSpritesLoaded');
     });
     narrator.check('petSpritesLoaded reached the client — pet assets delivered');
@@ -82,7 +82,7 @@ test.describe('Pets', () => {
 
       narrator.step('waiting for the seeded pet to load');
       await page.waitForFunction(() => {
-        const pets = (window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? [];
+        const pets = (window as PetWindow).__terrariumTestHooks?.getPets?.() ?? [];
         return pets.length === 1 && pets[0]?.petType === 0;
       });
       narrator.check('one pet loaded from the seeded layout (getPets → 1, petType 0)');
@@ -90,7 +90,7 @@ test.describe('Pets', () => {
       narrator.step('reloading the page: the pet must rehydrate from disk');
       await standalone.reloadPage();
       await page.waitForFunction(
-        () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 1,
+        () => ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).length === 1,
         undefined,
         { timeout: 15_000 },
       );
@@ -105,7 +105,7 @@ test.describe('Pets', () => {
 
       narrator.step('waiting for the seeded pet to load');
       await page.waitForFunction(
-        () => ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).length === 1,
+        () => ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).length === 1,
       );
       const pets = await readPets(page);
       const petId = pets[0]!.id;
@@ -115,7 +115,7 @@ test.describe('Pets', () => {
       narrator.step('clicking the pet — heart bubble should appear');
       await petClick(page, petId);
       await page.waitForFunction((id) => {
-        const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
+        const p = ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).find(
           (x) => x.id === id,
         );
         return p?.bubbleType === 'heart';
@@ -127,7 +127,7 @@ test.describe('Pets', () => {
       narrator.step('waiting for the 2s auto-dismiss timer, no clicks');
       await page.waitForFunction(
         (id) => {
-          const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
+          const p = ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).find(
             (x) => x.id === id,
           );
           return p?.bubbleType === null;
@@ -142,7 +142,7 @@ test.describe('Pets', () => {
       narrator.step('clicking again — heart bubble re-appears');
       await petClick(page, petId);
       await page.waitForFunction((id) => {
-        const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
+        const p = ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).find(
           (x) => x.id === id,
         );
         return p?.bubbleType === 'heart';
@@ -153,7 +153,7 @@ test.describe('Pets', () => {
       await petClick(page, petId);
       await page.waitForFunction(
         (id) => {
-          const p = ((window as PetWindow).__pixelAgentsTestHooks?.getPets?.() ?? []).find(
+          const p = ((window as PetWindow).__terrariumTestHooks?.getPets?.() ?? []).find(
             (x) => x.id === id,
           );
           return p?.bubbleType === null;

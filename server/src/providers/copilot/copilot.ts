@@ -1,7 +1,7 @@
 /**
  * Copilot agent module. GitHub Copilot CLI has no hook API usable here: everything comes from its own
  * `events.jsonl` session transcripts, found by scanning its session store or handed over by a multiplexer that
- * hosts the session. Nothing is written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * hosts the session. Nothing is written outside `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

@@ -15,7 +15,7 @@ import { claudeModule } from '../src/providers/claude/claude.js';
 import type { TranscriptAdoption } from '../src/transcriptFollower.js';
 import { TranscriptFollower } from '../src/transcriptFollower.js';
 
-// claudeModule's getAllSessionRoots and the server's ~/.pixel-agents/ both resolve against the home directory.
+// claudeModule's getAllSessionRoots and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');

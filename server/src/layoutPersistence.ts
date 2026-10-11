@@ -15,7 +15,7 @@ export function readLayoutFromFile(): Record<string, unknown> | null {
     const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw) as Record<string, unknown>;
   } catch (err) {
-    console.error('[Pixel Agents] Failed to read layout file:', err);
+    console.error('[Terrarium] Failed to read layout file:', err);
     return null;
   }
 }

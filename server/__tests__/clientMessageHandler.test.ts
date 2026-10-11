@@ -199,7 +199,7 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
     it('emits carpetTilesLoaded after wallTilesLoaded when both are present in the cache', () => {
       // Hex placeholders are test fixtures, not UI tokens — disable the
       // centralized-color rule just for this cache literal.
-      /* eslint-disable pixel-agents/no-inline-colors */
+      /* eslint-disable terrarium/no-inline-colors */
       const cache: AssetCache = {
         characters: null,
         pets: null,
@@ -209,7 +209,7 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
         furniture: null,
         defaultLayout: null,
       };
-      /* eslint-enable pixel-agents/no-inline-colors */
+      /* eslint-enable terrarium/no-inline-colors */
       ctx = freshCtx(cache);
 
       handleClientMessage({ type: 'webviewReady' }, (m) => sent.push(m), ctx);

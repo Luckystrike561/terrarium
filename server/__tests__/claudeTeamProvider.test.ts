@@ -77,7 +77,7 @@ describe('claudeTeamProvider', () => {
 
   describe('discoverTeammates', () => {
     const fsMod = require('fs') as typeof import('fs');
-    const tmpRoot = path.join(os.tmpdir(), 'pixel-agents-discover-' + Date.now());
+    const tmpRoot = path.join(os.tmpdir(), 'terrarium-discover-' + Date.now());
 
     afterEach(() => {
       try {
@@ -196,7 +196,7 @@ describe('claudeTeamProvider', () => {
 
   describe('discoverTeammates (new-style: top-level tagged sessions)', () => {
     const fsMod = require('fs') as typeof import('fs');
-    const tmpRoot = path.join(os.tmpdir(), 'pixel-agents-discover-new-' + Date.now());
+    const tmpRoot = path.join(os.tmpdir(), 'terrarium-discover-new-' + Date.now());
     const LEAD_SESSION = '11111111-1111-4111-8111-111111111111';
     const MATE_SESSION = '22222222-2222-4222-8222-222222222222';
     const TEAM = 'session-abc12345';
@@ -304,7 +304,7 @@ describe('claudeTeamProvider', () => {
 
   describe('getTeamMetadataForSession', () => {
     const fsMod = require('fs') as typeof import('fs');
-    const tmpRoot = path.join(os.tmpdir(), 'pixel-agents-meta-' + Date.now());
+    const tmpRoot = path.join(os.tmpdir(), 'terrarium-meta-' + Date.now());
 
     afterEach(() => {
       try {

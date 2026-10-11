@@ -182,7 +182,7 @@ test.describe('Standalone / herdr connections', () => {
       await connectionRow(reopened, 'Build box').getByRole('button', { name: 'Remove' }).click();
       await expect(connectionRow(reopened, 'Build box')).toHaveCount(0);
       const config = JSON.parse(
-        fs.readFileSync(path.join(fixture.home, '.pixel-agents', 'config.json'), 'utf8'),
+        fs.readFileSync(path.join(fixture.home, '.terrarium', 'config.json'), 'utf8'),
       ) as { connections?: { label: string }[] };
       expect(config.connections?.map((connection) => connection.label)).toEqual(['This machine']);
     } finally {

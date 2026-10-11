@@ -33,7 +33,7 @@ export default defineConfig({
   outputDir: artifactsDir,
   use: {
     video:
-      process.env['PIXEL_AGENTS_E2E_ATTACH_VIDEOS_ON_SUCCESS'] === '1' ? 'on' : 'retain-on-failure',
+      process.env['TERRARIUM_E2E_ATTACH_VIDEOS_ON_SUCCESS'] === '1' ? 'on' : 'retain-on-failure',
   },
   // Default to one worker locally; CI can override this with --workers.
   workers: 1,

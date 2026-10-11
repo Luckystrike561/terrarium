@@ -67,7 +67,7 @@ async function spawnFolderAgent(
   });
   await page.waitForFunction(
     (name) =>
-      ((window as TestHooksWindow).__pixelAgentsTestHooks?.getAgentSeats?.() ?? []).some(
+      ((window as TestHooksWindow).__terrariumTestHooks?.getAgentSeats?.() ?? []).some(
         (a) => a.folderName === name,
       ),
     folder,
@@ -119,7 +119,7 @@ test.describe('Areas (folder-mapped agents)', () => {
     narrator.step('expecting the alpha agent to take a seat inside Engineering');
     await page.waitForFunction(
       (folder) =>
-        ((window as TestHooksWindow).__pixelAgentsTestHooks?.getAgentSeats?.() ?? []).some(
+        ((window as TestHooksWindow).__terrariumTestHooks?.getAgentSeats?.() ?? []).some(
           (a) => a.folderName === folder && a.seatId !== null,
         ),
       ALPHA,
@@ -146,7 +146,7 @@ test.describe('Areas (folder-mapped agents)', () => {
     narrator.step('expecting the unmapped beta agent to land on an unzoned seat');
     await page.waitForFunction(
       (folder) =>
-        ((window as TestHooksWindow).__pixelAgentsTestHooks?.getAgentSeats?.() ?? []).some(
+        ((window as TestHooksWindow).__terrariumTestHooks?.getAgentSeats?.() ?? []).some(
           (a) => a.folderName === folder && a.seatId !== null,
         ),
       BETA,

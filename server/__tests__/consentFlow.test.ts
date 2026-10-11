@@ -39,7 +39,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
   /** Put our command on every installed event, as a real install would. */
   function seedInstalledHooks(): void {
-    const command = `node "${path.join(tempHome, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
+    const command = `node "${path.join(tempHome, '.terrarium', 'hooks', 'claude-hook.js')}"`;
     const entry = { matcher: '', hooks: [{ type: 'command', command, timeout: 5 }] };
     fs.mkdirSync(path.join(tempHome, '.claude'), { recursive: true });
     fs.writeFileSync(
@@ -57,7 +57,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
   /** The strongest possible "writes nothing": the config file was never even
    *  created. */
   function configJsonExists(): boolean {
-    return fs.existsSync(path.join(tempHome, '.pixel-agents', 'config.json'));
+    return fs.existsSync(path.join(tempHome, '.terrarium', 'config.json'));
   }
 
   function answer(choice: unknown, providerId: unknown = 'claude'): void {

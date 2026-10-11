@@ -25,16 +25,16 @@
 
 <!-- Add your own test steps -->
 
-- [ ] Tested against the standalone server (`npx pixel-agents` / `npm run build && node dist/cli.js`)
+- [ ] Tested against the standalone server (`npm run build && node dist/cli.js`)
 - [ ] ...
 
 ## E2E coverage
 
-<!-- See pixel-agents/e2e/README.md for the suite inventory. -->
+<!-- See e2e/README.md for the suite inventory. -->
 
 - [ ] If user-visible behavior changed, an e2e test was added or updated
-      under `pixel-agents/e2e/tests/`. Ran `npm run e2e:inventory` and
-      committed the regenerated `pixel-agents/e2e/README.md`.
+      under `e2e/tests/`. Ran `npm run e2e:inventory` and
+      committed the regenerated `e2e/README.md`.
 - [ ] If this PR is a refactor / docs / chore with no user-visible
       behavior change, no e2e test is needed. Explain below.
 

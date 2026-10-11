@@ -133,7 +133,7 @@ describe('herdr module endpoints', () => {
       const link = herdrModule.connect({ id: 'c0ffee', kind: 'ssh', target: 'buildbox' }, watcher);
       await waitFor(() => states.includes('connected'));
 
-      const forwardDir = path.join(tmpHome, '.pixel-agents', 'herdr');
+      const forwardDir = path.join(tmpHome, '.terrarium', 'herdr');
       expect(fs.existsSync(path.join(forwardDir, 'c0ffee.sock'))).toBe(true);
       expect(fs.statSync(forwardDir).mode & 0o777).toBe(0o700);
 

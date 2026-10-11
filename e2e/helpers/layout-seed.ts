@@ -1,5 +1,5 @@
 /**
- * Builders for seeded `~/.pixel-agents/{layout,config}.json`, passed to the
+ * Builders for seeded `~/.terrarium/{layout,config}.json`, passed to the
  * standalone fixture via `test.use({ seedLayout, seedConfig })`. The fixture
  * writes them under the isolated HOME before the server starts (see
  * e2e/helpers/standalone.ts), so the server reads them on startup.
@@ -17,8 +17,8 @@ export const SEED_LAYOUT_REVISION = 9999;
 const FLOOR_1 = 1;
 
 /** The only hex literal an Areas spec needs; centralized here so the
- *  `pixel-agents/no-inline-colors` rule has one declaration to allow. */
-// eslint-disable-next-line pixel-agents/no-inline-colors
+ *  `terrarium/no-inline-colors` rule has one declaration to allow. */
+// eslint-disable-next-line terrarium/no-inline-colors
 export const SEED_AREA_COLOR = '#ff6b6b';
 
 export interface SeedAreaTile {
@@ -127,7 +127,7 @@ export interface SeedConfigOptions {
 }
 
 /**
- * Build a full PixelAgentsConfig for `test.use({ seedConfig })`, setting the
+ * Build a full TerrariumConfig for `test.use({ seedConfig })`, setting the
  * standalone namespace's areaMappings.
  */
 export function buildSeedConfig(opts: SeedConfigOptions = {}): Record<string, unknown> {

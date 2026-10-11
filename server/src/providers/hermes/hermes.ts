@@ -1,7 +1,7 @@
 /**
  * Hermes Agent module. Hermes keeps every session in one SQLite database (`~/.hermes/state.db`, `HERMES_HOME`
  * overridable), not JSONL transcripts, so its sessions are found by polling that database directly or handed
- * over by a multiplexer that hosts the session. Nothing is written outside `~/.pixel-agents/`, so there is
+ * over by a multiplexer that hosts the session. Nothing is written outside `~/.terrarium/`, so there is
  * nothing to consent to.
  */
 
