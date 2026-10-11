@@ -69,18 +69,19 @@ With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everyt
 
 ### Docker
 
-The image builds the server from this checkout and starts it with the herdr and omp modules on port 8790:
+The image starts the server with the herdr and omp modules on port 8790. CI publishes it to the GitHub Container Registry for `linux/amd64` and `linux/arm64`: `ghcr.io/luckystrike561/terrarium:latest` follows every commit on `master`, and each GitHub release `vX.Y.Z` is also published as `ghcr.io/luckystrike561/terrarium:X.Y.Z`.
 
 ```bash
-docker build -t terrarium .
 docker run -d --name terrarium \
   -p 127.0.0.1:8790:8790 \
   -v "$HOME/.config/herdr:/home/node/.config/herdr:ro" \
   -v "$HOME/.omp/agent/sessions:$HOME/.omp/agent/sessions:ro" \
   -v terrarium-data:/home/node/.pixel-agents \
-  terrarium
+  ghcr.io/luckystrike561/terrarium:latest
 docker logs terrarium
 ```
+
+To build it from this checkout instead, run `docker build -t terrarium .` and use `terrarium` as the image name.
 
 The log prints `http://127.0.0.1:8790/?token=…`. Open it on the host. Each mount has one job:
 
