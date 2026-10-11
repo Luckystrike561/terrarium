@@ -19,7 +19,7 @@
 ### Fixes
 
 - **A server restarted under the same PID no longer "reuses" its dead predecessor** ([#17](https://github.com/Luckystrike561/terrarium/issues/17)). A registry entry carrying the server's own PID but written before the process started is pruned as stale. In a container every server is PID 1, so after a killed container the next one found its predecessor's entry in the persisted `~/.pixel-agents`, printed its old URL and never listened.
-- **A gracefully stopped server restores its agents on the next start** ([#24](https://github.com/Luckystrike561/terrarium/issues/24)). Shutdown used to remove every agent from `standalone-state.json` before exiting, so only a crash left anything to restore. Persisted agents are now handed back to their module at startup, before the first browser connects, and keep their seat.
+- **A gracefully stopped server restores its Claude agents on the next start** ([#24](https://github.com/Luckystrike561/terrarium/issues/24)). Shutdown used to remove every agent from `standalone-state.json` before exiting, so only a crash left anything to restore. Persisted Claude agents are now handed back to their module at startup, before the first browser connects, and keep their seat. Other agent modules do not resume sessions yet.
 
 ### Removed
 
