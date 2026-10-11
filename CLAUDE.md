@@ -123,6 +123,8 @@ webview-ui/                          React 19 + Canvas UI (depends only on core/
         OfficeCanvas.tsx             Owns the Pixi Application, resize, DPR, mouse hit-testing, seat reassignment
         ToolOverlay.tsx              Activity label above hovered/selected character
 
+site/                                GitHub Pages website source (index.html template + style.css), built by scripts/build-site.ts
+
 e2e/                                 Playwright suite (standalone server + mock-claude scenarios), Chromium only
   playwright.config.ts
   global-setup.ts
@@ -150,6 +152,7 @@ scripts/
   generate-e2e-inventory.mjs         Splices test list into e2e/README.md (CI drift check)
   build-allure-report.mjs            Combine e2e+server+webview Allure results
   assemble-vercel-output.mjs         Stage /reports/allure/ for Vercel deploy
+  build-site.ts                      site/ → dist/site/, supported-agents table from the provider registry (fails on a module missing from AGENT_COVERAGE)
   asset-manager.html                 Unified furniture editor (positions + metadata)
   jsonl-viewer.html                  Standalone JSONL transcript inspector
   wall-tile-editor.html              Wall sprite editor
@@ -248,7 +251,8 @@ The Claude module supports every transcript/hook format up to **Claude Code v2.1
    - **Hooks**: `normalizeHookEvent(raw)` for what the CLI POSTs to `/api/hooks/<id>`, and `hooks: HookInstaller` (`installHooks` / `uninstallHooks` / `areHooksInstalled` / `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run).
    - **Its own discovery** (transcripts, a database): `start(host)` returning a `RunningAgentModule`. Build it from `providers/sessionStore/`: `new SessionStoreTracker(host, store, DEFAULT_SESSION_STORE_TIMING)` over `jsonlSessionStore` (append-only JSONL), `jsonDocumentSessionStore` (whole-file JSON) or `sqliteSessionStore` (one SQLite file), with a format mapping the CLI's records to `working`, `toolStart`, `toolEnd`, `turnEnd`, `permissionRequest` and `sessionEnd` where the CLI really records them. Key sessions in the form herdr's `agent_session.value` takes for the CLI (path for pi/omp, the CLI's session id otherwise). The tracker never replays history (cursors open at the end and only the tail decides the starting state), keeps one reader per session refcounted between discovery and follows, and drops sessions untouched for the active window.
 2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
-3. Tests go in `server/__tests__/`; `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
+3. Add what its sessions show (tool activity, turn ends, approvals, clean exit) to `AGENT_COVERAGE` in `scripts/build-site.ts`, or the website build (`npm run site:build`) fails. A new multiplexer module needs a `MULTIPLEXER_SUMMARY` entry there.
+4. Tests go in `server/__tests__/`; `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
 
 **Multiplexer module**: create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule` whose `connect(endpoint, watcher)` reports full snapshots of live agents (an agent missing from a snapshot has ended; an unanswered poll must not report an empty list) and its link state, and whose `probe(endpoint)` does one round-trip, then add it to `multiplexerModules`. `MultiplexerConnections` runs one `MultiplexerFeed` per enabled connection, and the feed does the diffing, naming, hand-over and status mapping.
 

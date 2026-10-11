@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terrarium: AI coding agents as pixel-art characters</title>
+    <meta
+      name="description"
+      content="Every AI coding agent on your machine, as a pixel-art character in an isometric office."
+    />
+    <link rel="icon" type="image/png" href="media/icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Sections">
+        <a href="#features">What it does</a>
+        <a href="#agents">Supported agents</a>
+        <a href="#getting-started">Getting started</a>
+        <a href="https://github.com/Luckystrike561/terrarium">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1><img src="media/logo.png" alt="Terrarium" width="680" height="208" /></h1>
+        <p class="tagline">
+          Every AI coding agent on your machine, as a pixel-art character in an isometric office.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#getting-started">Get started</a>
+          <a class="button" href="https://github.com/Luckystrike561/terrarium">View on GitHub</a>
+        </div>
+        <figure class="demo">
+          <img
+            src="media/demo.gif"
+            alt="Terrarium: omp agents from herdr working, queueing at the CTO's office for approval, and resting in the lounge"
+            width="960"
+            height="600"
+          />
+        </figure>
+      </section>
+
+      <section id="features" class="paper-sheet">
+        <h2>What it does</h2>
+        <div class="feature-grid">
+          <article>
+            <h3>Agents become characters</h3>
+            <p>
+              Each agent gets its own character. It types at a desk while its agent edits files or
+              runs commands, reads while it searches, and shows the agent's own one-line intent
+              above its head. When the agent needs you, it queues at the CTO's office. When it is
+              idle, it rests in the lounge.
+            </p>
+          </article>
+          <article>
+            <h3>herdr integration</h3>
+            <p>
+              The <a href="https://github.com/herdrdev/herdr">herdr</a> module shows every agent
+              herdr manages, named after its workspace, with its status, task and pending approvals.
+              herdr servers on other machines join the same office over SSH.
+            </p>
+          </article>
+          <article>
+            <h3>A standalone server</h3>
+            <p>
+              One Node.js process watches your agents and serves the office to any browser. It never
+              modifies your agents: its data lives in <code>~/.pixel-agents/</code>, and the only
+              file it writes elsewhere is <code>~/.claude/settings.json</code>, when you approve
+              Claude Code hooks.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="agents" class="paper-sheet">
+        <h2>Supported agents</h2>
+        <p>
+          herdr plus
+          <!-- AGENT-COUNT -->
+          agent modules. Pick any combination with <code>--provider</code>, for example
+          <code>--provider herdr,omp,codex</code>. Every agent module shows its CLI's sessions on
+          this machine, with or without herdr.
+        </p>
+        <!-- AGENT-TABLE -->
+        <p>
+          <strong>Approvals</strong> means the office shows the agent waiting for your approval.
+          <strong>Clean exit</strong> means the CLI records its own exit, so the character leaves
+          the moment the session ends. Without it, the character leaves once the session has been
+          quiet for a while. Inside herdr, herdr adds pending approvals for every agent.
+        </p>
+        <h3>Status only in herdr</h3>
+        <p>
+          An agent in a herdr pane whose CLI has no running agent module shows herdr's status, name
+          and task, but no tool activity. That is always the case for <strong>Amp</strong>, which
+          keeps its threads on ampcode.com, and for agents on herdr servers reached over SSH, whose
+          transcripts are files on the other machine. For every other CLI, add its id to
+          <code>--provider</code>.
+        </p>
+      </section>
+
+      <section id="getting-started" class="paper-sheet">
+        <h2>Getting started</h2>
+        <p>
+          Requirements: Node.js 22.13 or later (or Docker), and either herdr running locally or one
+          of the supported agent CLIs. Terrarium runs from source.
+        </p>
+        <pre><code>git clone https://github.com/Luckystrike561/terrarium.git
+cd terrarium
+npm install
+npm run build</code></pre>
+        <p>With herdr and omp:</p>
+        <pre><code>node dist/cli.js --provider herdr,omp</code></pre>
+        <p>With Claude Code:</p>
+        <pre><code>node dist/cli.js --provider claude</code></pre>
+        <p>
+          The server picks a free port and prints a URL like
+          <code>http://127.0.0.1:43123/?token=…</code>. Open it in a browser. Treat that URL as a
+          secret: its token lets a browser install hooks and add connections. The
+          <code>--provider</code> choice is saved in <code>~/.pixel-agents/config.json</code>
+          and reused by later runs.
+        </p>
+        <p>
+          The <a href="https://github.com/Luckystrike561/terrarium#readme">README</a> covers Docker,
+          the other options and troubleshooting.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav aria-label="Project links">
+        <a href="https://github.com/Luckystrike561/terrarium">Repository</a>
+        <a href="https://github.com/Luckystrike561/terrarium/issues">Issues</a>
+        <a href="https://github.com/Luckystrike561/terrarium/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/Luckystrike561/terrarium/blob/master/LICENSE">MIT License</a>
+      </nav>
+      <p>
+        Built on <a href="https://github.com/pixel-agents-hq/pixel-agents">Pixel Agents</a> by Pablo
+        De Lucca and its contributors.
+      </p>
+    </footer>
+  </body>
+</html>
