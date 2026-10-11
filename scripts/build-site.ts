@@ -45,7 +45,7 @@ const AGENT_COVERAGE: Readonly<Record<string, AgentCoverage>> = {
     turnEnds: true,
     approvals: true,
     cleanExit: true,
-    note: 'Hooks after you approve them in the app, transcripts otherwise. Sub-agents and Agent Teams too.',
+    note: 'Hooks after you approve them in the app, transcripts otherwise. Clean exit needs the hooks. Sub-agents and Agent Teams too.',
   },
   omp: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: true },
   agy: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
