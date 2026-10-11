@@ -105,8 +105,11 @@ export class SshForward {
       [
         ...SSH_BASE_OPTIONS,
         '-N',
+        // The option covers the user's own LocalForward/RemoteForward for this host too, so one busy port there would
+        // end every attempt. Our own bind failing still fails open(): the socket never appears before the deadline.
+        // Set, not omitted: ssh keeps the first value it sees, so omitting it lets ssh_config turn it back on.
         '-o',
-        'ExitOnForwardFailure=yes',
+        'ExitOnForwardFailure=no',
         '-o',
         'StreamLocalBindUnlink=yes',
         '-L',
