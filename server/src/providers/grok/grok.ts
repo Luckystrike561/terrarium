@@ -78,8 +78,6 @@ export const grokModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['read_file', 'list_dir', 'grep', 'glob', 'web_fetch', 'web_search']),
 
-  // grok sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

@@ -39,7 +39,6 @@ import {
   buildTeamMetadataRecord,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { setSettings } from '../../../helpers/webview';
 
 const TEAMMATE_ROLE = 'web-researcher';
 
@@ -321,11 +320,6 @@ test.describe('Hooks ON / teams', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
 
-    narrator.step('enabling Watch All Sessions so the external hooks-only session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
-
     const teamName = uniqueTeamName('hooks-on-external-inline');
     narrator.step('seeding a team config: a lead plus a web-researcher teammate');
     seedTeamConfig(tmpHome, teamName, ['lead', TEAMMATE_ROLE]);
@@ -393,11 +387,6 @@ test.describe('Hooks ON / teams', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so the external hooks-only session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     const teamName = uniqueTeamName('hooks-on-external-tmux');
     narrator.step('seeding a team config: a lead plus a tmux teammate');

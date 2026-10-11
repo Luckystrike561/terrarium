@@ -167,11 +167,6 @@ export interface AgentModule {
    *  previous estimate and widens it if a context ever exceeds it. */
   contextWindowForModel?(model: string | undefined): number | undefined;
 
-  /** Sessions of this CLI live wherever its user started them, not in the workspace's project dirs, so the runtime
-   *  adopts every session this module announces regardless of Watch All Sessions. Scoped to this module: another
-   *  module's sessions keep the workspace rule. */
-  readonly adoptsSessionsOutsideWorkspace?: boolean;
-
   /** Start this module's own session discovery. Absent for modules fed entirely by hooks and the runtime's own
    *  transcript scanners. */
   start?(host: ModuleHost): RunningAgentModule;
@@ -181,9 +176,10 @@ export interface AgentModule {
   /** Session directories to scan. Undefined = no file fallback. */
   getSessionDirs?(workspacePath: string): string[];
   /** Root directories containing every session this module may have started
-   *  (across all workspaces). Used by global session discovery / "Watch All
-   *  Sessions". Each returned dir contains subdirs whose entries are session
-   *  transcript files. Undefined = this module doesn't support global scan. */
+   *  (across all workspaces). Used by global session discovery across the
+   *  whole machine. Each returned dir contains subdirs whose entries are
+   *  session transcript files. Undefined = this module doesn't support
+   *  global scan. */
   getAllSessionRoots?(): string[];
   /** Glob pattern for session files (e.g., '*.jsonl'). */
   readonly sessionFilePattern?: string;

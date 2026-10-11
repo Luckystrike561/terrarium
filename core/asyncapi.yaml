@@ -14,8 +14,7 @@ info:
     (the standalone browser SPA, or future third-party clients). The server watches
     AI-coding-agent transcripts, parses tool activity, owns office layout, and streams
     events to all connected clients. Clients send commands to close agents, save
-    seat assignments and area mappings, manage asset directories, request
-    diagnostics, and toggle settings.
+    seat assignments and area mappings, and answer the hooks consent dialog.
 
     The protocol is provider-agnostic: a HookProvider implementation defines how raw
     CLI events are normalized to the AgentEvent shape, which the server translates
@@ -114,10 +113,7 @@ components:
         - $ref: '#/components/schemas/SettingsLoaded'
         - $ref: '#/components/schemas/HooksStatus'
         - $ref: '#/components/schemas/HooksConsentRequest'
-        - $ref: '#/components/schemas/ExternalAssetDirectoriesUpdated'
         - $ref: '#/components/schemas/AreaMappingsLoaded'
-        # Diagnostics
-        - $ref: '#/components/schemas/AgentDiagnostics'
       discriminator: type
 
     ClientMessage:
@@ -125,18 +121,10 @@ components:
         - $ref: '#/components/schemas/WebviewReady'
         - $ref: '#/components/schemas/CloseAgent'
         - $ref: '#/components/schemas/SaveAgentSeats'
-        - $ref: '#/components/schemas/SetSoundEnabled'
         - $ref: '#/components/schemas/SetLastSeenVersion'
-        - $ref: '#/components/schemas/SetAlwaysShowLabels'
-        - $ref: '#/components/schemas/SetHooksEnabled'
         - $ref: '#/components/schemas/HooksConsentResponse'
         - $ref: '#/components/schemas/SetHooksInfoShown'
-        - $ref: '#/components/schemas/SetWatchAllSessions'
-        - $ref: '#/components/schemas/AddExternalAssetDirectory'
-        - $ref: '#/components/schemas/RemoveExternalAssetDirectory'
         - $ref: '#/components/schemas/SaveAreaMappings'
-        - $ref: '#/components/schemas/SetShowAreas'
-        - $ref: '#/components/schemas/RequestDiagnostics'
       discriminator: type
 
     # ── Server message variants ────────────────────────────────────
@@ -624,37 +612,20 @@ components:
       additionalProperties: false
       required:
         - type
-        - soundEnabled
         - lastSeenVersion
         - extensionVersion
-        - watchAllSessions
-        - alwaysShowLabels
         - hooksEnabled
         - hooksInfoShown
-        - externalAssetDirectories
-        - showAreas
       properties:
         type:
           const: settingsLoaded
-        soundEnabled:
-          type: boolean
         lastSeenVersion:
           type: string
         extensionVersion:
           type: string
-        watchAllSessions:
-          type: boolean
-        alwaysShowLabels:
-          type: boolean
         hooksEnabled:
           type: boolean
         hooksInfoShown:
-          type: boolean
-        externalAssetDirectories:
-          type: array
-          items:
-            type: string
-        showAreas:
           type: boolean
 
     HooksStatus:
@@ -663,7 +634,7 @@ components:
         preference in SettingsLoaded. The two can disagree: hooksEnabled
         defaults to true while first-run consent is still pending and nothing
         is installed yet. Sent after the connect handshake and whenever the
-        install state changes (consent granted, settings toggle, uninstall).
+        install state changes (consent granted, hooks uninstalled via CLI).
       type: object
       additionalProperties: false
       required: [type, providerId, installed]
@@ -733,33 +704,6 @@ components:
             items:
               type: string
 
-    ExternalAssetDirectoriesUpdated:
-      description: External asset directory list changed (after add/remove).
-      type: object
-      additionalProperties: false
-      required: [type, dirs]
-      properties:
-        type:
-          const: externalAssetDirectoriesUpdated
-        dirs:
-          type: array
-          items:
-            type: string
-
-    AgentDiagnostics:
-      description: Connection diagnostics for all agents (response to requestDiagnostics).
-      type: object
-      additionalProperties: false
-      required: [type, agents]
-      properties:
-        type:
-          const: agentDiagnostics
-        agents:
-          type: array
-          description: Per-agent diagnostic info; shape opaque to the protocol.
-          items:
-            type: object
-
     # ── Client message variants ────────────────────────────────────
 
     WebviewReady:
@@ -796,16 +740,6 @@ components:
           additionalProperties:
             $ref: '#/components/schemas/SeatAssignment'
 
-    SetSoundEnabled:
-      type: object
-      additionalProperties: false
-      required: [type, enabled]
-      properties:
-        type:
-          const: setSoundEnabled
-        enabled:
-          type: boolean
-
     SetLastSeenVersion:
       type: object
       additionalProperties: false
@@ -815,32 +749,6 @@ components:
           const: setLastSeenVersion
         version:
           type: string
-
-    SetAlwaysShowLabels:
-      type: object
-      additionalProperties: false
-      required: [type, enabled]
-      properties:
-        type:
-          const: setAlwaysShowLabels
-        enabled:
-          type: boolean
-
-    SetHooksEnabled:
-      type: object
-      additionalProperties: false
-      required: [type, providerId, enabled]
-      properties:
-        type:
-          const: setHooksEnabled
-        providerId:
-          type: string
-          description: >-
-            The hook provider being toggled (HookProvider.id). The client
-            echoes the id of the hooksStatus row the checkbox renders; it
-            never originates one.
-        enabled:
-          type: boolean
 
     HooksConsentResponse:
       description: |
@@ -890,41 +798,6 @@ components:
         type:
           const: setHooksInfoShown
 
-    SetWatchAllSessions:
-      type: object
-      additionalProperties: false
-      required: [type, enabled]
-      properties:
-        type:
-          const: setWatchAllSessions
-        enabled:
-          type: boolean
-
-    AddExternalAssetDirectory:
-      description: >-
-        Add an external asset directory. The browser has no native directory
-        picker, so the client supplies an absolute `path` typed by the user.
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: addExternalAssetDirectory
-        path:
-          type: string
-          description: Absolute directory path typed by the user.
-
-    RemoveExternalAssetDirectory:
-      description: Remove an external asset directory by path.
-      type: object
-      additionalProperties: false
-      required: [type, path]
-      properties:
-        type:
-          const: removeExternalAssetDirectory
-        path:
-          type: string
-
     SaveAreaMappings:
       description: Persist folder-to-Area mappings for seat assignment.
       type: object
@@ -939,26 +812,6 @@ components:
             type: array
             items:
               type: string
-
-    SetShowAreas:
-      description: Toggle the Areas overlay (translucent rendering on top of the office).
-      type: object
-      additionalProperties: false
-      required: [type, enabled]
-      properties:
-        type:
-          const: setShowAreas
-        enabled:
-          type: boolean
-
-    RequestDiagnostics:
-      description: Request agent connection diagnostics (server responds with agentDiagnostics).
-      type: object
-      additionalProperties: false
-      required: [type]
-      properties:
-        type:
-          const: requestDiagnostics
 
     # ── Supporting schemas ─────────────────────────────────────────
 

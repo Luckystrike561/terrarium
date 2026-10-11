@@ -95,7 +95,7 @@ function getSessionDirs(workspacePath: string): string[] {
 }
 
 /** Root that holds every Claude session across all workspaces. Used by the
- *  global session scanner ("Watch All Sessions"). */
+ *  global session scanner. */
 function getAllSessionRoots(): string[] {
   return [path.join(os.homedir(), '.claude', 'projects')];
 }

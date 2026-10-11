@@ -14,7 +14,6 @@ import {
 } from '../../helpers/office';
 import type { RecordedServerMessage } from '../../helpers/standalone';
 import { launchStandalone } from '../../helpers/standalone';
-import { setSettings } from '../../helpers/webview';
 
 /**
  * omp has no hook API: the process boundary it crosses is its own session
@@ -46,7 +45,6 @@ test.describe('Standalone / omp provider', () => {
       provider: 'omp',
     });
     try {
-      await setSettings(page, { alwaysShowLabels: true });
       await standalone.drainMessages();
 
       // omp starts a session in another terminal: header, then the user's prompt.

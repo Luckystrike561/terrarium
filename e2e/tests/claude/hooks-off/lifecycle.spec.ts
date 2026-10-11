@@ -26,24 +26,18 @@ import {
   buildUserToolResultRecord,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { setSettings } from '../../../helpers/webview';
+import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 
 const PARALLEL_PARENT_TOOL_ID = 'toolu-b5-parent';
 
 test.describe('Hooks OFF / lifecycle', () => {
+  test.use({ seedConfig: buildHooksOffSeedConfig() });
+
   test('heuristic late --resume after stale cleanup prevents zombie agents @area:lifecycle', async ({
     page,
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step(
-      'enabling Watch All Sessions + hooks OFF so an external session is adopted via polling',
-    );
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -101,12 +95,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('hooks OFF — three parallel Task subagents detected by JSONL polling alone');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     narrator.step(
       'arranging one batch record with three Task tool_uses, then results + turn_duration',
@@ -174,12 +162,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     narrator.step('seeding a team config: lead + one inline teammate');
     const configPath = seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE]);
 
-    narrator.step('hooks OFF — teammate lifecycle driven by JSONL metadata + 1s config polling');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
-
     narrator.step(
       'arranging: teammate joins and searches the web, then config is rewritten to lead-only at t+8s',
     );
@@ -237,12 +219,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions + hooks OFF — external session adopted via polling');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -311,12 +287,6 @@ test.describe('Hooks OFF / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
 
-    narrator.step('enabling Watch All Sessions + hooks OFF — a team-less lead read from JSONL');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
-
     await spawnExternalClaudeScenario({
       tmpHome,
       workspaceDir,
@@ -360,12 +330,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('hooks OFF — turn-end clear exercised through the JSONL parser path');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     // Cross-cutting invariant from the manual F5 matrix: when a turn ends
     // (turn_duration record), all active tool overlays must clear back to "Idle".
@@ -419,14 +383,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step(
-      'enabling Watch All Sessions + hooks OFF — external agent runs a tool that never replies',
-    );
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -495,12 +451,6 @@ test.describe('Hooks OFF / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('hooks OFF — sub-agent permission handled by the heuristic timer');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     const parentToolId = 'toolu-c14-task';
     const subToolId = 'toolu-c14-bash-sub';

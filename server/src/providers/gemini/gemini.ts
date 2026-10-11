@@ -141,8 +141,6 @@ export const geminiModule: AgentModule = {
     'list_mcp_resources',
   ]),
 
-  // Gemini sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

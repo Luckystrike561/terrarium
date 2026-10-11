@@ -133,7 +133,6 @@ export interface WorldRenderState {
   carpetTiles?: Array<CarpetTile | null>;
   areas?: AreaDefinition[];
   areaTiles?: Array<string | null>;
-  showAreas?: boolean;
   pets?: Pet[];
 }
 
@@ -234,7 +233,6 @@ export class OfficeSceneRenderer {
   private areaLabelContainer = new Container();
 
   private lastLayout: OfficeLayout | null = null;
-  private lastAreaOverlayKey = '';
 
   private furniturePool = new Map<string, Sprite>();
   private wallPool = new Map<string, Sprite>();
@@ -323,16 +321,10 @@ export class OfficeSceneRenderer {
       this.rebuildFloor(state);
       this.rebuildCarpet(state, cols, rows);
       this.rebuildAreaLabels(state);
-      this.lastAreaOverlayKey = '';
+      this.rebuildAreaOverlay(state, cols, rows);
       this.lastLayout = state.layout;
     }
 
-    const areaOverlayKey = state.showAreas ? 'shown' : 'hidden';
-    if (areaOverlayKey !== this.lastAreaOverlayKey) {
-      this.rebuildAreaOverlay(state, cols, rows);
-      this.lastAreaOverlayKey = areaOverlayKey;
-    }
-    this.areaLabelContainer.visible = !!state.showAreas;
     // Area labels anchor to the world, but render in device-pixel space for
     // crisp, zoom-clamped text. Reposition them whenever pan/zoom moves.
     this.repositionAreaLabels(offsetX, offsetY, state.zoom);
@@ -512,7 +504,6 @@ export class OfficeSceneRenderer {
 
   private rebuildAreaOverlay(state: WorldRenderState, cols: number, rows: number): void {
     this.areaOverlayGfx.clear();
-    if (!state.showAreas) return;
     const areaTiles = state.areaTiles;
     const areas = state.areas;
     if (!areaTiles || areaTiles.length === 0 || !areas || areas.length === 0) return;

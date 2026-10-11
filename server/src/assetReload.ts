@@ -3,93 +3,47 @@ import {
   loadCarpetTiles,
   loadCharacterSprites,
   loadDefaultLayout,
-  loadExternalCharacterSprites,
-  loadExternalPetSprites,
   loadFloorTiles,
   loadFurnitureAssets,
   loadPetSprites,
   loadWallTiles,
-  mergeCharacterSprites,
-  mergeLoadedAssets,
-  mergePetSprites,
 } from './assetLoader.js';
 import type { AssetCache } from './clientMessageHandler.js';
 import { setPaletteCount } from './paletteAssigner.js';
 
 /**
- * Shared asset-loading helpers used by the standalone server so external
- * asset directories behave identically across startup and reload.
- *
- * Asymmetry preserved deliberately: the bundled root uses the canonical loaders
- * (`loadCharacterSprites`/`loadPetSprites`), while external directories use the
- * flexible scanners (`loadExternalCharacterSprites`/`loadExternalPetSprites`).
- * Furniture uses `loadFurnitureAssets` for both. Callers pass `externalDirs`
- * (read from config) so these helpers stay pure and reusable.
+ * Shared asset-loading helpers used by the standalone server to build the
+ * in-memory asset cache from the bundled assets.
  */
-export async function loadAllFurniture(
-  assetsRoot: string,
-  externalDirs: string[],
-): Promise<LoadedAssets | null> {
-  let assets = await loadFurnitureAssets(assetsRoot);
-  for (const extraDir of externalDirs) {
-    const extra = await loadFurnitureAssets(extraDir);
-    if (extra) {
-      assets = assets ? mergeLoadedAssets(assets, extra) : extra;
-    }
-  }
-  return assets;
+export async function loadAllFurniture(assetsRoot: string): Promise<LoadedAssets | null> {
+  return loadFurnitureAssets(assetsRoot);
 }
 
 export async function loadAllCharacters(
   assetsRoot: string,
-  externalDirs: string[],
 ): Promise<LoadedCharacterSprites | null> {
-  let chars = await loadCharacterSprites(assetsRoot);
-  if (!chars) return null;
-  for (const extraDir of externalDirs) {
-    const extra = await loadExternalCharacterSprites(extraDir);
-    if (extra) chars = mergeCharacterSprites(chars, extra);
-  }
-  // Sync the server-side palette count so assignPaletteIfNeeded and the
-  // saveAgentSeats guard use the dynamic ceiling (external dirs can add
-  // char_N.png past the bundled sheets). Centralizing here means every entry
-  // point (startup, reload) sees the same count without scattered calls.
-  setPaletteCount(chars.characters.length);
+  const chars = await loadCharacterSprites(assetsRoot);
+  if (chars) setPaletteCount(chars.characters.length);
   return chars;
 }
 
-export async function loadAllPets(
-  assetsRoot: string,
-  externalDirs: string[],
-): Promise<LoadedPetSprites | null> {
-  let pets = await loadPetSprites(assetsRoot);
-  for (const extraDir of externalDirs) {
-    const extra = await loadExternalPetSprites(extraDir);
-    if (extra) {
-      pets = pets ? mergePetSprites(pets, extra) : extra;
-    }
-  }
-  return pets;
+export async function loadAllPets(assetsRoot: string): Promise<LoadedPetSprites | null> {
+  return loadPetSprites(assetsRoot);
 }
 
 /**
- * Build the full in-memory asset cache for the standalone server. External
- * directories contribute characters, pets, and furniture; floor/wall/carpet
- * tiles are bundled-only. Reproduces the wrap/unwrap shape `AssetCache` expects:
- * characters/pets/furniture are wrapper objects, while floor/wall/carpet are the
- * unwrapped sprite arrays.
+ * Build the full in-memory asset cache for the standalone server. Reproduces
+ * the wrap/unwrap shape `AssetCache` expects: characters/pets/furniture are
+ * wrapper objects, while floor/wall/carpet are the unwrapped sprite arrays.
  */
-export async function buildAssetCache(
-  distRoot: string,
-  externalDirs: string[],
-): Promise<AssetCache> {
+export async function buildAssetCache(distRoot: string): Promise<AssetCache> {
   return {
-    characters: await loadAllCharacters(distRoot, externalDirs),
-    pets: await loadAllPets(distRoot, externalDirs),
+    characters: await loadAllCharacters(distRoot),
+    pets: await loadAllPets(distRoot),
     floorTiles: await loadFloorTiles(distRoot).then((t) => t?.sprites ?? null),
     wallTiles: await loadWallTiles(distRoot).then((t) => t?.sets ?? null),
     carpetTiles: await loadCarpetTiles(distRoot).then((t) => t?.sets ?? null),
-    furniture: await loadAllFurniture(distRoot, externalDirs),
+    furniture: await loadAllFurniture(distRoot),
     defaultLayout: loadDefaultLayout(distRoot),
   };
 }

@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { toMajorMinor } from './changelogData.js';
-import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { ConnectionIndicator } from './components/ConnectionIndicator.js';
-import { DebugView } from './components/DebugView.js';
 import { IntroBubble } from './components/IntroBubble.js';
 import { MigrationNotice } from './components/MigrationNotice.js';
-import { SettingsModal } from './components/SettingsModal.js';
 import { Tooltip } from './components/Tooltip.js';
 import { Modal } from './components/ui/Modal.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
@@ -52,28 +49,20 @@ function App() {
 
   const {
     agents,
-    selectedAgent,
     setSelectedAgent,
     agentTools,
-    agentStatuses,
     subagentTools,
     subagentCharacters,
     layoutReady,
     layoutWasReset,
-    externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
-    watchAllSessions,
-    setWatchAllSessions,
-    alwaysShowLabels,
     hooksEnabled,
     hooksInstalled,
     hooksStatusSeq,
     hooksInfoShown,
     consentRequest,
     dismissConsentRequest,
-    showAreas,
-    setShowAreas,
   } = useExtensionMessages(getOfficeState);
 
   // Show migration notice once layout reset is detected
@@ -81,11 +70,8 @@ function App() {
   const showMigrationNotice = layoutWasReset && !migrationNoticeDismissed;
 
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHooksInfoOpen, setIsHooksInfoOpen] = useState(false);
   const [hooksTooltipDismissed, setHooksTooltipDismissed] = useState(false);
-  const [isDebugMode, setIsDebugMode] = useState(false);
-  const [alwaysShowOverlay, setAlwaysShowOverlay] = useState(false);
 
   const currentMajorMinor = toMajorMinor(extensionVersion);
 
@@ -98,27 +84,6 @@ function App() {
     transport.send({ type: 'setLastSeenVersion', version: currentMajorMinor });
   }, [currentMajorMinor]);
 
-  // Sync alwaysShowOverlay from persisted settings
-  useEffect(() => {
-    setAlwaysShowOverlay(alwaysShowLabels);
-  }, [alwaysShowLabels]);
-
-  const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), []);
-  const handleToggleAlwaysShowOverlay = useCallback(() => {
-    setAlwaysShowOverlay((prev) => {
-      const newVal = !prev;
-      transport.send({ type: 'setAlwaysShowLabels', enabled: newVal });
-      return newVal;
-    });
-  }, []);
-
-  const handleSelectAgent = useCallback(
-    (id: number) => {
-      setSelectedAgent(id);
-    },
-    [setSelectedAgent],
-  );
-
   // The Intro's wire-facing state machine — which asks survive being mooted,
   // when a hooksStatus is this tour's install verdict — lives in useIntroTour
   // (pure reducer in introTourState.ts); the App only wires it to the bubble.
@@ -130,25 +95,8 @@ function App() {
     onClose: handleIntroClose,
   } = useIntroTour({ consentRequest, hooksInstalled, hooksStatusSeq, dismissConsentRequest });
 
-  // The Settings surface renders one provider today; its checkbox binds to
-  // the Claude row of the per-provider install-state map.
+  // The hooks tooltip binds to the Claude row of the per-provider install-state map.
   const claudeHooksInstalled = hooksInstalled['claude'] === true;
-
-  // Toggle global Show Areas — persisted via setShowAreas message; runs server-
-  // side through configPersistence.
-  const onToggleShowAreas = useCallback(() => {
-    const next = !showAreas;
-    setShowAreas(next);
-    transport.send({ type: 'setShowAreas', enabled: next });
-  }, [showAreas, setShowAreas]);
-
-  // e2e: register the show-areas gate on the test-hooks namespace (module-load
-  // installTestHooks can't reach React state). Guarded on isE2E.
-  useEffect(() => {
-    if (!isE2E || typeof window === 'undefined') return;
-    const hooks = (window.__pixelAgentsTestHooks ??= {});
-    hooks.getShowAreas = () => showAreas;
-  }, [showAreas]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -168,7 +116,6 @@ function App() {
   );
 
   const officeState = getOfficeState();
-  const layoutHasAreas = (officeState.getLayout().areas?.length ?? 0) > 0;
 
   if (!layoutReady) {
     return <div className="w-full h-full flex items-center justify-center ">Loading...</div>;
@@ -181,41 +128,23 @@ function App() {
         onClick={handleClick}
         onZoomChange={setZoom}
         panRef={panRef}
-        showAreas={showAreas}
+      />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'var(--vignette)' }}
       />
 
-      {!isDebugMode ? (
-        <>
-          {/* Vignette overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'var(--vignette)' }}
-          />
-
-          <ToolOverlay
-            officeState={officeState}
-            agents={agents}
-            agentTools={agentTools}
-            subagentTools={subagentTools}
-            subagentCharacters={subagentCharacters}
-            containerRef={containerRef}
-            zoom={zoom}
-            panRef={panRef}
-            onCloseAgent={handleCloseAgent}
-            alwaysShowOverlay={alwaysShowOverlay}
-          />
-        </>
-      ) : (
-        <DebugView
-          agents={agents}
-          selectedAgent={selectedAgent}
-          agentTools={agentTools}
-          agentStatuses={agentStatuses}
-          subagentTools={subagentTools}
-          officeState={officeState}
-          onSelectAgent={handleSelectAgent}
-        />
-      )}
+      <ToolOverlay
+        officeState={officeState}
+        agents={agents}
+        agentTools={agentTools}
+        subagentTools={subagentTools}
+        subagentCharacters={subagentCharacters}
+        containerRef={containerRef}
+        zoom={zoom}
+        panRef={panRef}
+        onCloseAgent={handleCloseAgent}
+      />
 
       {/* Hooks first-run tooltip. Gated on hooksInstalled (the hooksStatus
           message), NOT the hooksEnabled preference: hooksEnabled defaults true
@@ -273,15 +202,10 @@ function App() {
             </button>
           </div>
           <p className="mt-8 text-xs text-text-muted text-center">
-            To disable, go to Settings {'>'} Instant Detection
+            To remove the hooks, run pixel-agents --uninstall-hooks
           </p>
         </div>
       </Modal>
-
-      <BottomToolbar
-        isSettingsOpen={isSettingsOpen}
-        onToggleSettings={() => setIsSettingsOpen((v) => !v)}
-      />
 
       <VersionIndicator
         currentVersion={extensionVersion}
@@ -296,42 +220,6 @@ function App() {
         isOpen={isChangelogOpen}
         onClose={() => setIsChangelogOpen(false)}
         currentVersion={extensionVersion}
-      />
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        isDebugMode={isDebugMode}
-        onToggleDebugMode={handleToggleDebugMode}
-        alwaysShowOverlay={alwaysShowOverlay}
-        onToggleAlwaysShowOverlay={handleToggleAlwaysShowOverlay}
-        externalAssetDirectories={externalAssetDirectories}
-        watchAllSessions={watchAllSessions}
-        onToggleWatchAllSessions={() => {
-          const newVal = !watchAllSessions;
-          setWatchAllSessions(newVal);
-          transport.send({ type: 'setWatchAllSessions', enabled: newVal });
-        }}
-        hooksInstalled={claudeHooksInstalled}
-        onToggleHooksEnabled={() => {
-          // Toggle the DISPLAYED state (actual install), not the preference: when the two disagree — preference on,
-          // nothing installed while consent is pending — toggling the preference would turn hooks OFF for a user
-          // asking for ON. No optimistic local update either; both backends answer with the truthful hooksStatus this
-          // checkbox renders, so it lands correct instead of flickering when an install fails. The providerId is
-          // ECHOED from that row (never originated here), so nothing sends until the row has arrived.
-          const [rowProviderId] =
-            Object.entries(hooksInstalled).find(([id]) => id === 'claude') ?? [];
-          if (rowProviderId !== undefined) {
-            transport.send({
-              type: 'setHooksEnabled',
-              providerId: rowProviderId,
-              enabled: !claudeHooksInstalled,
-            });
-          }
-        }}
-        showAreas={showAreas}
-        onToggleShowAreas={onToggleShowAreas}
-        showAreasAvailable={layoutHasAreas}
       />
 
       {showMigrationNotice && (
@@ -350,9 +238,7 @@ function App() {
           installPending={installPending}
           onChoice={handleConsentChoice}
           onClose={handleIntroClose}
-          escapeSuppressed={
-            isSettingsOpen || isChangelogOpen || isHooksInfoOpen || showMigrationNotice
-          }
+          escapeSuppressed={isChangelogOpen || isHooksInfoOpen || showMigrationNotice}
         />
       )}
     </div>

@@ -23,7 +23,6 @@ import { DismissalTracker } from './dismissalTracker.js';
 import {
   adoptExternalSessionFromHook,
   ensureProjectScan,
-  isTrackedProjectDir,
   reassignAgentToFile,
   scanForBackgroundAgentFiles,
   scanForTeammateFiles,
@@ -82,7 +81,6 @@ export class AgentRuntime {
   private staleCheckTimer: ReturnType<typeof setInterval> | null = null;
 
   // Configuration refs (mutable, shared with scanners)
-  readonly watchAllSessions = { current: false };
   /** Whether hooks are delivering for the transcript module, which turns its heuristic scanners down. Set through
    *  setHooksEnabled, never from another module's preference. */
   readonly hooksEnabled = { current: true };
@@ -164,7 +162,6 @@ export class AgentRuntime {
       this.permissionTimers,
       modules,
       new SessionRouter(),
-      this.watchAllSessions,
     );
 
     // Wire hook lifecycle callbacks to shared agent operations
@@ -300,22 +297,13 @@ export class AgentRuntime {
     return [...this.modules.agents, ...this.modules.multiplexers].find((m) => m.id === id);
   }
 
-  /** Whether the module announcing a session wants it on screen wherever it runs: every multiplexer pane is an
-   *  agent the user started, and an agent module can declare its sessions live outside the workspace. */
-  private adoptsSessionsOutsideWorkspace(moduleId: string): boolean {
-    const module = this.findModule(moduleId);
-    return module?.kind === 'multiplexer' || module?.adoptsSessionsOutsideWorkspace === true;
-  }
-
   /** Adopt a session whose first event after SessionStart arrived and that no agent reports yet. */
   private adoptConfirmedSession(pending: PendingExternalSession): void {
     const { sessionId, transcriptPath, cwd } = pending;
-    const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
     // Teammate session of a tracked lead? Attach it as a teammate character
-    // instead of adopting a generic external agent -- and regardless of the
-    // Watch All Sessions setting: tracking the lead is the opt-in for its
-    // team. (Newer harnesses run every spawned agent as an independent
-    // top-level session that fires its own hooks.)
+    // instead of adopting a generic external agent -- tracking the lead is
+    // the opt-in for its team. (Newer harnesses run every spawned agent as
+    // an independent top-level session that fires its own hooks.)
     if (transcriptPath) {
       const teamMeta = this.transcriptModule?.team?.getTeamMetadataForSession(transcriptPath);
       if (teamMeta?.teamName && teamMeta.agentName) {
@@ -347,19 +335,6 @@ export class AgentRuntime {
           if (pathsMatch(a.jsonlFile, transcriptPath)) return;
         }
       }
-    }
-    // The outside-the-workspace rule belongs to the module that announced the session: enabling herdr or omp never
-    // makes Claude adopt a session from an untracked project.
-    if (
-      !isTrackedProjectDir(projectDir) &&
-      !this.watchAllSessions.current &&
-      !pending.sourceIds.some((id) => this.adoptsSessionsOutsideWorkspace(id))
-    ) {
-      console.log(
-        `[Pixel Agents] Hook: external session ${sessionId.slice(0, 8)}... not adopted ` +
-          `(project untracked, Watch All Sessions off)`,
-      );
-      return;
     }
     const owner =
       pending.sourceIds.find((id) => this.findModule(id)?.kind === 'agent') ?? pending.sourceIds[0];
@@ -583,7 +558,6 @@ export class AgentRuntime {
       this.permissionTimers,
       this.jsonlPollTimers,
       () => this.store.persist(),
-      this.watchAllSessions,
       this.hooksEnabled,
     );
   }

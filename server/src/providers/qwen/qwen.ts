@@ -113,8 +113,6 @@ export const qwenModule: AgentModule = {
     'web_search',
   ]),
 
-  // Qwen Code sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

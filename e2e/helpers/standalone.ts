@@ -170,10 +170,8 @@ function installMockClaude(mockBinDir: string): void {
 }
 
 /**
- * Seed the isolated HOME before the server reads it. config.json always turns
- * labels on (overlay text is only assertable when labels render without hover)
- * and, by default, grants the Claude consent so the first-run Intro does not
- * cover the office.
+ * Seed the isolated HOME before the server reads it. By default, grants the
+ * Claude consent so the first-run Intro does not cover the office.
  */
 function seedHome(tmpHome: string, options: LaunchStandaloneOptions): void {
   const paDir = path.join(tmpHome, '.pixel-agents');
@@ -181,7 +179,6 @@ function seedHome(tmpHome: string, options: LaunchStandaloneOptions): void {
   const configPath = path.join(paDir, 'config.json');
   if (!fs.existsSync(configPath)) {
     const seedConfig = options.seedConfig ?? {
-      standalone: { alwaysShowLabels: true },
       ...((options.seedHooksConsent ?? true) ? { hooksConsent: { claude: 'granted' } } : {}),
     };
     fs.writeFileSync(configPath, JSON.stringify(seedConfig, null, 2));
@@ -307,7 +304,7 @@ async function waitForPrintedUrl(readOutput: () => string): Promise<string> {
 /** Open the SPA the way the operator does: by pasting in the URL the CLI printed. */
 async function openStandalonePage(page: Page, printedUrl: string): Promise<void> {
   await page.goto(printedUrl);
-  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
 }
 
 export async function launchStandalone(
@@ -396,7 +393,7 @@ export async function launchStandalone(
       },
       reloadPage: async () => {
         await page.reload();
-        await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible({
+        await expect(page.locator('canvas')).toBeVisible({
           timeout: 30_000,
         });
       },

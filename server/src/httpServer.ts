@@ -7,11 +7,7 @@ import Fastify from 'fastify';
 
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
-import type {
-  AssetCache,
-  ReloadAssetsSideEffect,
-  SetHooksEnabledSideEffect,
-} from './clientMessageHandler.js';
+import type { AssetCache, SetHooksEnabledSideEffect } from './clientMessageHandler.js';
 import { handleClientMessage } from './clientMessageHandler.js';
 import { HOOK_API_PREFIX, MAX_HOOK_BODY_SIZE, WS_CLOSE_FORBIDDEN_ORIGIN } from './constants.js';
 import type { AgentState } from './types.js';
@@ -34,10 +30,8 @@ export interface HttpServerOptions {
   assetCache?: AssetCache;
   /** Callback when a hook event is received */
   onHookEvent?: (providerId: string, event: Record<string, unknown>) => void;
-  /** Invoked when setHooksEnabled is toggled via WebSocket. Standalone installs/uninstalls hooks here. */
+  /** Invoked to install/uninstall a module's hooks when the user answers the consent dialog. */
   onSetHooksEnabled?: SetHooksEnabledSideEffect;
-  /** Invoked when an external asset directory is added/removed. Standalone reloads + re-broadcasts assets here. */
-  onReloadAssets?: ReloadAssetsSideEffect;
 }
 
 /** Result of createHttpServer(). */
@@ -194,7 +188,6 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
           runtime: options.runtime,
           cache: options.assetCache ?? null,
           onSetHooksEnabled: options.onSetHooksEnabled,
-          onReloadAssets: options.onReloadAssets,
           privileged,
         });
       } catch {
@@ -244,9 +237,9 @@ export function isAllowedWebSocketOrigin(
 
 /**
  * Whether this socket may send PRIVILEGED messages — the ones that reach
- * outside `~/.pixel-agents/`. Today that is `setHooksEnabled`, which grants
- * durable, machine-wide consent to modify `~/.claude/settings.json` and
- * installs (or removes) a 12-event hook set.
+ * outside `~/.pixel-agents/`. Today that is `hooksConsentResponse`, which can
+ * grant durable, machine-wide consent to modify `~/.claude/settings.json` and
+ * install (or remove) a 12-event hook set.
  *
  * The handshake must carry the server token in its `?token=` query. That token
  * is minted at startup (server.ts), printed by the CLI inside the LOCAL url it

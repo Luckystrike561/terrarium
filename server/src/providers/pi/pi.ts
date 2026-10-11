@@ -126,8 +126,6 @@ export const piModule: AgentModule = {
     'read_mcp_resource',
   ]),
 
-  // pi sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) => {
     const { root, depth } = sessionsRoot();
     // Windows: herdr's pi integration never reports a path, only pi's own session id. Key every session by that

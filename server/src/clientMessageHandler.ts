@@ -1,6 +1,5 @@
 import { CHAR_COUNT } from '../../core/src/assets/constants.js';
 import { resendAgentActivity } from './agentActivityResend.js';
-import { buildAgentDiagnostics } from './agentDiagnostics.js';
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import type { LoadedAssets, LoadedCharacterSprites, LoadedPetSprites } from './assetLoader.js';
@@ -38,13 +37,6 @@ export type SetHooksEnabledSideEffect = (
   enabled: boolean,
 ) => Promise<void> | void;
 
-/**
- * Reload server-side assets after an external-asset-directory change and
- * re-broadcast the updated sprites to the requesting client. Provided by cli.ts,
- * which owns the dist root needed to re-run the loaders.
- */
-export type ReloadAssetsSideEffect = (send: WsSend) => Promise<void> | void;
-
 /** Cached assets loaded at server startup. Sent to each WebSocket client on webviewReady. */
 export interface AssetCache {
   characters: LoadedCharacterSprites | null;
@@ -62,12 +54,10 @@ export interface ClientMessageContext {
   cache: AssetCache | null;
   /** Install/uninstall hooks side effect. Needs server url+token known only to cli.ts. */
   onSetHooksEnabled?: SetHooksEnabledSideEffect;
-  /** Reload assets after an external-asset-directory change. Needs the dist root, known only to cli.ts. */
-  onReloadAssets?: ReloadAssetsSideEffect;
   /**
    * Whether this client may send messages that reach OUTSIDE `~/.pixel-agents/`
-   * — today only `setHooksEnabled`, which grants machine-wide consent to modify
-   * `~/.claude/settings.json`. Decided per-connection by the transport
+   * — today only `hooksConsentResponse`, which grants machine-wide consent to
+   * modify `~/.claude/settings.json`. Decided per-connection by the transport
    * (httpServer's standaloneTokenValid); defaults to false so a caller that
    * forgets to pass it gets the safe answer.
    */
@@ -75,12 +65,8 @@ export interface ClientMessageContext {
 }
 
 // ── Setting key constants ──
-const KEY_SOUND_ENABLED = 'pixel-agents.soundEnabled';
 const KEY_LAST_SEEN_VERSION = 'pixel-agents.lastSeenVersion';
-const KEY_ALWAYS_SHOW_LABELS = 'pixel-agents.alwaysShowLabels';
-const KEY_WATCH_ALL_SESSIONS = 'pixel-agents.watchAllSessions';
 const KEY_HOOKS_INFO_SHOWN = 'pixel-agents.hooksInfoShown';
-const KEY_SHOW_AREAS = 'pixel-agents.showAreas';
 
 /**
  * Handle incoming ClientMessage from a WebSocket client.
@@ -115,11 +101,6 @@ export function handleClientMessage(
       }
       break;
     }
-
-    case 'requestDiagnostics':
-      // Point-to-point reply to the requesting socket (NOT a broadcast).
-      send({ type: 'agentDiagnostics', agents: buildAgentDiagnostics(store) });
-      break;
 
     case 'saveAgentSeats':
       if (msg.seats) {
@@ -161,53 +142,13 @@ export function handleClientMessage(
       }
       break;
 
-    case 'setSoundEnabled':
-      adapter?.setSetting(KEY_SOUND_ENABLED, msg.enabled);
-      break;
-
     case 'setLastSeenVersion':
       adapter?.setSetting(KEY_LAST_SEEN_VERSION, msg.version as string);
       break;
 
-    case 'setAlwaysShowLabels':
-      adapter?.setSetting(KEY_ALWAYS_SHOW_LABELS, msg.enabled);
-      break;
-
-    case 'setWatchAllSessions': {
-      const enabled = msg.enabled as boolean;
-      adapter?.setSetting(KEY_WATCH_ALL_SESSIONS, enabled);
-      if (runtime) runtime.watchAllSessions.current = enabled;
-      break;
-    }
-
-    case 'setHooksEnabled': {
-      const enabled = msg.enabled as boolean;
-      // The provider id is echoed by the client, never originated: an unknown
-      // id names nothing to install into, so it is dropped like a junk choice.
-      const module = findHookModule(modulesOf(ctx), msg.providerId);
-      if (!module) break;
-      if (!ctx.privileged) {
-        // No server token on this connection: the toggle would grant durable
-        // consent to modify a settings file on THIS machine, and only the
-        // operator — who was handed the tokened URL — gets to decide that.
-        // Answer with the truth so the checkbox still shows reality instead of
-        // silently appearing to have worked.
-        console.warn(
-          '[Pixel Agents] Ignoring setHooksEnabled from an untokened client — installing hooks needs approval from this machine (open the tokened URL the CLI printed).',
-        );
-        void module.hooks
-          .areHooksInstalled()
-          .then((installed) => send({ type: 'hooksStatus', providerId: module.id, installed }));
-        break;
-      }
-      void applyHooksPreference(ctx, send, module, enabled);
-      break;
-    }
-
     case 'hooksConsentResponse': {
       // Privilege: the request is only ever sent to tokened connections, so a
-      // response from an untokened one is a crafted message — ignored, same
-      // reasoning as setHooksEnabled above.
+      // response from an untokened one is a crafted message — ignored.
       if (!ctx.privileged) {
         console.warn(
           '[Pixel Agents] Ignoring hooksConsentResponse from an untokened client — installing hooks needs approval from this machine (open the tokened URL the CLI printed).',
@@ -226,30 +167,6 @@ export function handleClientMessage(
       adapter?.setSetting(KEY_HOOKS_INFO_SHOWN, true);
       break;
 
-    case 'addExternalAssetDirectory': {
-      const newPath = msg.path as string | undefined;
-      if (!newPath) break;
-      const cfg = readConfig();
-      if (!cfg.externalAssetDirectories.includes(newPath)) {
-        cfg.externalAssetDirectories.push(newPath);
-        writeConfig(cfg);
-      }
-      send({ type: 'externalAssetDirectoriesUpdated', dirs: cfg.externalAssetDirectories });
-      void ctx.onReloadAssets?.(send);
-      break;
-    }
-
-    case 'removeExternalAssetDirectory': {
-      const removePath = msg.path as string | undefined;
-      if (!removePath) break;
-      const cfg = readConfig();
-      cfg.externalAssetDirectories = cfg.externalAssetDirectories.filter((d) => d !== removePath);
-      writeConfig(cfg);
-      send({ type: 'externalAssetDirectoriesUpdated', dirs: cfg.externalAssetDirectories });
-      void ctx.onReloadAssets?.(send);
-      break;
-    }
-
     case 'saveAreaMappings': {
       const rawMappings = msg.mappings;
       if (!rawMappings || typeof rawMappings !== 'object') {
@@ -261,12 +178,6 @@ export function handleClientMessage(
       break;
     }
 
-    case 'setShowAreas': {
-      const enabled = msg.enabled as boolean;
-      adapter?.setSetting(KEY_SHOW_AREAS, enabled);
-      break;
-    }
-
     default:
       break;
   }
@@ -275,9 +186,9 @@ export function handleClientMessage(
 /**
  * Run the install/uninstall side effect, then persist the provider's preference — only after it settled and only when
  * the on-disk result agrees. Writing it first strands the user when an uninstall fails: entries keep firing while the
- * persisted hooks-off makes the next startup skip the gate entirely. Shared by the Settings toggle and the consent
- * dialog's Install (both are grants). Never rejects — it is fire-and-forget and bound by the ConsentEffects contract,
- * so a failure surfaces on the console here or nowhere.
+ * persisted hooks-off makes the next startup skip the gate entirely. Shared by the consent dialog's Install and the
+ * hooksConsentResponse flow (both are grants). Never rejects — it is fire-and-forget and bound by the
+ * ConsentEffects contract, so a failure surfaces on the console here or nowhere.
  */
 async function applyHooksPreference(
   ctx: ClientMessageContext,
@@ -390,20 +301,13 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
 
   // 4. Settings (from adapter, with sensible defaults when adapter is absent)
   const cfg = readConfig();
-  const watchAllSessions = adapter?.getSetting(KEY_WATCH_ALL_SESSIONS, false) ?? false;
   const hooksEnabled = anyHooksEnabled(modules);
-  const showAreas = adapter?.getSetting(KEY_SHOW_AREAS, false) ?? false;
   send({
     type: 'settingsLoaded',
-    soundEnabled: adapter?.getSetting(KEY_SOUND_ENABLED, true) ?? true,
     lastSeenVersion: adapter?.getSetting(KEY_LAST_SEEN_VERSION, '') ?? '',
     extensionVersion: process.env.PIXEL_AGENTS_VERSION ?? '',
-    watchAllSessions,
-    alwaysShowLabels: adapter?.getSetting(KEY_ALWAYS_SHOW_LABELS, false) ?? false,
     hooksEnabled,
     hooksInfoShown: adapter?.getSetting(KEY_HOOKS_INFO_SHOWN, false) ?? false,
-    externalAssetDirectories: cfg.externalAssetDirectories,
-    showAreas,
   });
 
   // 4a. Actual install state, distinct from the hooksEnabled preference —
@@ -452,7 +356,6 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // Sync runtime refs with the persisted settings so scanners behave correctly
   // from the first tick after a server restart.
   if (runtime) {
-    runtime.watchAllSessions.current = watchAllSessions;
     for (const module of hookModules(modules)) {
       runtime.setHooksEnabled(module.id, getHooksEnabled(module.id));
     }

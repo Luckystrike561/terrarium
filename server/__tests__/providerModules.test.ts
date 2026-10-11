@@ -271,7 +271,6 @@ describe('provider modules', () => {
         agents: [claudeModule, ompModule],
         multiplexers: [mux.module],
       });
-      runtime.watchAllSessions.current = true;
       const server = new PixelAgentsServer();
       const activeRuntime = runtime;
       server.onHookEvent((providerId, event) => activeRuntime.handleHookEvent(providerId, event));
@@ -311,28 +310,6 @@ describe('provider modules', () => {
       } finally {
         server.stop();
       }
-    });
-
-    it('enabling herdr and omp does not make Claude adopt sessions outside the tracked project dirs', () => {
-      const mux = fakeMultiplexer();
-      runtime = new AgentRuntime(store, {
-        agents: [claudeModule, ompModule],
-        multiplexers: [mux.module],
-      });
-      runtime.startModules();
-      const untracked = path.join(os.tmpdir(), 'pxl-untracked-claude');
-
-      runtime.handleHookEvent('claude', {
-        hook_event_name: 'SessionStart',
-        session_id: 'claude-foreign',
-        cwd: untracked,
-      });
-      runtime.handleHookEvent('claude', { hook_event_name: 'Stop', session_id: 'claude-foreign' });
-      expect(store.size).toBe(0);
-
-      // The same untracked directory is adopted when the multiplexer reports a pane there.
-      mux.publish([pane({ agentKind: 'claude', cwd: untracked })]);
-      expect(store.size).toBe(1);
     });
   });
 });
