@@ -178,10 +178,6 @@ export function ConnectionsMenu({
       setError('SSH target is required.');
       return;
     }
-    if (kind === 'local' && !trimmedSession) {
-      setError('herdr session is required for a local connection.');
-      return;
-    }
     setIsPending(true);
     const addError = await addConnection({
       label: trimmedLabel,
@@ -238,7 +234,7 @@ export function ConnectionsMenu({
         <input
           type="text"
           aria-label="herdr session"
-          placeholder={kind === 'local' ? 'herdr session (required)' : 'herdr session (optional)'}
+          placeholder="herdr session (optional)"
           value={session}
           onChange={(e) => setSession(e.target.value)}
           disabled={isPending}
