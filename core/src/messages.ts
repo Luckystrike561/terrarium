@@ -35,7 +35,9 @@ export type ServerMessage =
   | SettingsLoaded
   | HooksStatus
   | HooksConsentRequest
-  | AreaMappingsLoaded;
+  | AreaMappingsLoaded
+  | ConnectionsLoaded
+  | ConnectionAddResult;
 
 export type ClientMessage =
   | WebviewReady
@@ -44,7 +46,10 @@ export type ClientMessage =
   | SetLastSeenVersion
   | HooksConsentResponse
   | SetHooksInfoShown
-  | SaveAreaMappings;
+  | SaveAreaMappings
+  | AddConnection
+  | UpdateConnection
+  | RemoveConnection;
 
 export interface ProviderCapabilities {
   type: 'providerCapabilities';
@@ -277,6 +282,32 @@ export interface AreaMappingsLoaded {
   mappings: Record<string, string[]>;
 }
 
+export interface ConnectionsLoaded {
+  type: 'connectionsLoaded';
+  connections: Connection[];
+}
+
+export interface Connection {
+  id: string;
+  label: string;
+  kind: ConnectionKind;
+  target?: string;
+  session?: string;
+  enabled: boolean;
+  state: ConnectionState;
+  message?: string;
+}
+
+export type ConnectionKind = 'local' | 'ssh';
+
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'error' | 'disabled';
+
+export interface ConnectionAddResult {
+  type: 'connectionAddResult';
+  requestId: string;
+  error?: string;
+}
+
 export interface WebviewReady {
   type: 'webviewReady';
 }
@@ -317,4 +348,25 @@ export interface SetHooksInfoShown {
 export interface SaveAreaMappings {
   type: 'saveAreaMappings';
   mappings: Record<string, string[]>;
+}
+
+export interface AddConnection {
+  type: 'addConnection';
+  requestId: string;
+  label: string;
+  kind: ConnectionKind;
+  target?: string;
+  session?: string;
+}
+
+export interface UpdateConnection {
+  type: 'updateConnection';
+  id: string;
+  label?: string;
+  enabled?: boolean;
+}
+
+export interface RemoveConnection {
+  type: 'removeConnection';
+  id: string;
 }

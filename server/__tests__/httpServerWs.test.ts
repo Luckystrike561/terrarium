@@ -17,6 +17,7 @@ vi.mock('os', async () => {
 
 const { PixelAgentsServer } = await import('../src/server.js');
 const { AgentStateStore } = await import('../src/agentStateStore.js');
+const { AgentRuntime } = await import('../src/agentRuntime.js');
 const { grantHooksConsent } = await import('../src/configPersistence.js');
 
 /** How long to wait, after the handshake, for a server-side rejection close.
@@ -439,5 +440,152 @@ describe('/ws privileged-message gate', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(sideEffects).toEqual([true]);
     expect(readHooksConsent()).toBe(true);
+  });
+});
+
+/**
+ * Adding, editing or removing a connection makes the server open (or drop) SSH sessions to other machines, so the
+ * connection messages ride the same token gate as the hooks toggle. The list itself names SSH targets and is only
+ * sent to tokened clients.
+ */
+describe('/ws connection messages', () => {
+  let server: InstanceType<typeof PixelAgentsServer>;
+  let runtime: InstanceType<typeof AgentRuntime>;
+  const sockets: WebSocket[] = [];
+  let probes: number;
+
+  beforeEach(() => {
+    tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-ws-conn-'));
+    fs.mkdirSync(path.join(tmpBase, '.pixel-agents'), { recursive: true });
+    probes = 0;
+    server = new PixelAgentsServer();
+  });
+
+  afterEach(() => {
+    for (const socket of sockets) socket.terminate();
+    sockets.length = 0;
+    runtime?.dispose();
+    server?.stop();
+    fs.rmSync(tmpBase, { recursive: true, force: true });
+  });
+
+  async function startWithHerdr(): Promise<{ port: number; token: string }> {
+    const store = new AgentStateStore();
+    runtime = new AgentRuntime(store, {
+      agents: [],
+      multiplexers: [
+        {
+          kind: 'multiplexer',
+          id: 'herdr',
+          displayName: 'Fake herdr',
+          connect: (_endpoint, watcher) => {
+            watcher.onState('connected');
+            return { stop: () => {} };
+          },
+          probe: () => {
+            probes++;
+            return Promise.resolve(undefined);
+          },
+        },
+      ],
+    });
+    const config = await server.start({ store, runtime });
+    runtime.startModules();
+    return { port: config.port, token: config.token };
+  }
+
+  async function open(port: number, token?: string): Promise<WebSocket> {
+    const query = token ? `?token=${encodeURIComponent(token)}` : '';
+    const result = await connectTo(`ws://127.0.0.1:${port.toString()}/ws${query}`, {
+      Origin: `http://127.0.0.1:${port.toString()}`,
+    });
+    sockets.push(result.socket);
+    return result.socket;
+  }
+
+  function savedConnections(): unknown {
+    const raw = fs.readFileSync(path.join(tmpBase, '.pixel-agents', 'config.json'), 'utf-8');
+    return (JSON.parse(raw) as { connections?: unknown }).connections;
+  }
+
+  it('refuses add, edit and remove from an untokened client and never sends it the list', async () => {
+    const { port } = await startWithHerdr();
+    const socket = await open(port);
+
+    const list = waitForMessage(socket, 'connectionsLoaded');
+    socket.send(JSON.stringify({ type: 'webviewReady' }));
+    expect(await list).toBeNull();
+
+    const result = waitForMessage(socket, 'connectionAddResult');
+    socket.send(
+      JSON.stringify({
+        type: 'addConnection',
+        requestId: 'r1',
+        label: 'Build box',
+        kind: 'ssh',
+        target: 'buildbox',
+      }),
+    );
+    expect(await result).toEqual({
+      type: 'connectionAddResult',
+      requestId: 'r1',
+      error: 'Changing connections needs the tokened URL the server printed at startup',
+    });
+    socket.send(JSON.stringify({ type: 'updateConnection', id: 'local', enabled: false }));
+    socket.send(JSON.stringify({ type: 'removeConnection', id: 'local' }));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(probes).toBe(0);
+    expect(runtime.connections?.list()).toMatchObject([{ id: 'local', enabled: true }]);
+    expect(fs.existsSync(path.join(tmpBase, '.pixel-agents', 'config.json'))).toBe(false);
+  });
+
+  it('lets a tokened client add, disable and remove, and keeps it informed', async () => {
+    const { port, token } = await startWithHerdr();
+    const socket = await open(port, token);
+
+    const initial = waitForMessage(socket, 'connectionsLoaded');
+    socket.send(JSON.stringify({ type: 'webviewReady' }));
+    expect(await initial).toMatchObject({
+      connections: [{ id: 'local', kind: 'local', enabled: true, state: 'connected' }],
+    });
+
+    const result = waitForMessage(socket, 'connectionAddResult');
+    socket.send(
+      JSON.stringify({
+        type: 'addConnection',
+        requestId: 'r2',
+        label: 'Night shift',
+        kind: 'local',
+        session: 'night',
+      }),
+    );
+    expect(await result).toEqual({ type: 'connectionAddResult', requestId: 'r2' });
+    expect(probes).toBe(1);
+    const added = runtime.connections?.list()[1];
+    expect(added).toMatchObject({ label: 'Night shift', session: 'night', state: 'connected' });
+
+    socket.send(JSON.stringify({ type: 'updateConnection', id: added?.id, enabled: false }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(runtime.connections?.list()[1]).toMatchObject({ enabled: false, state: 'disabled' });
+
+    socket.send(JSON.stringify({ type: 'removeConnection', id: 'local' }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(savedConnections()).toEqual([
+      { label: 'Night shift', kind: 'local', session: 'night', id: added?.id, enabled: false },
+    ]);
+  });
+
+  it('sends list changes only to the socket that may change the list', async () => {
+    const { port, token } = await startWithHerdr();
+    const viewer = await open(port);
+    const owner = await open(port, token);
+
+    const leaked = waitForMessage(viewer, 'connectionsLoaded');
+    const heard = waitForMessage(owner, 'connectionsLoaded');
+    owner.send(JSON.stringify({ type: 'updateConnection', id: 'local', enabled: false }));
+
+    expect(await heard).toMatchObject({ connections: [{ id: 'local', enabled: false }] });
+    expect(await leaked).toBeNull();
   });
 });

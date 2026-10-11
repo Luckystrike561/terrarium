@@ -98,3 +98,13 @@ export const CONFIG_FILE_NAME = 'config.json';
  *  clientMessageHandler to guard saveAgentSeats payloads from a remote or
  *  hand-edited source corrupting the stored values with out-of-range values. */
 export const HUE_SHIFT_MAX_DEG = 360;
+
+// ── Multiplexer connections ─────────────────────────────────
+/** Id of the connection to this machine's default herdr session, present until the user removes it. */
+export const DEFAULT_CONNECTION_ID = 'local';
+export const DEFAULT_CONNECTION_LABEL = 'This machine';
+/** Random bytes in a generated connection id. Short: the id is part of a forwarded socket's path, which Unix caps
+ *  near 104 bytes. */
+export const CONNECTION_ID_BYTES = 4;
+export const SSH_TARGET_MAX_CHARS = 255;
+export const HERDR_SESSION_NAME_MAX_CHARS = 64;

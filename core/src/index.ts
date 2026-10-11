@@ -19,8 +19,10 @@ export type {
   ModuleHost,
   MultiplexedAgent,
   MultiplexedAgentStatus,
-  MultiplexerConnection,
+  MultiplexerEndpoint,
+  MultiplexerLinkState,
   MultiplexerModule,
+  MultiplexerWatcher,
   ProviderModule,
   RunningAgentModule,
 } from './provider.js';

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { toMajorMinor } from './changelogData.js';
+import { BottomToolbar } from './components/BottomToolbar.js';
 import { ChangelogModal } from './components/ChangelogModal.js';
 import { ConnectionIndicator } from './components/ConnectionIndicator.js';
+import { ConnectionsMenu } from './components/ConnectionsMenu.js';
 import { IntroBubble } from './components/IntroBubble.js';
 import { MigrationNotice } from './components/MigrationNotice.js';
 import { Tooltip } from './components/Tooltip.js';
@@ -63,6 +65,8 @@ function App() {
     hooksInfoShown,
     consentRequest,
     dismissConsentRequest,
+    connections,
+    addConnection,
   } = useExtensionMessages(getOfficeState);
 
   // Show migration notice once layout reset is detected
@@ -70,6 +74,7 @@ function App() {
   const showMigrationNotice = layoutWasReset && !migrationNoticeDismissed;
 
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+  const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
   const [isHooksInfoOpen, setIsHooksInfoOpen] = useState(false);
   const [hooksTooltipDismissed, setHooksTooltipDismissed] = useState(false);
 
@@ -207,6 +212,13 @@ function App() {
         </div>
       </Modal>
 
+      {connections !== null && (
+        <BottomToolbar
+          isConnectionsOpen={isConnectionsOpen}
+          onToggleConnections={() => setIsConnectionsOpen((v) => !v)}
+        />
+      )}
+
       <VersionIndicator
         currentVersion={extensionVersion}
         lastSeenVersion={lastSeenVersion}
@@ -221,6 +233,15 @@ function App() {
         onClose={() => setIsChangelogOpen(false)}
         currentVersion={extensionVersion}
       />
+
+      {connections !== null && (
+        <ConnectionsMenu
+          isOpen={isConnectionsOpen}
+          onClose={() => setIsConnectionsOpen(false)}
+          connections={connections}
+          addConnection={addConnection}
+        />
+      )}
 
       {showMigrationNotice && (
         <MigrationNotice onDismiss={() => setMigrationNoticeDismissed(true)} />
@@ -238,7 +259,9 @@ function App() {
           installPending={installPending}
           onChoice={handleConsentChoice}
           onClose={handleIntroClose}
-          escapeSuppressed={isChangelogOpen || isHooksInfoOpen || showMigrationNotice}
+          escapeSuppressed={
+            isConnectionsOpen || isChangelogOpen || isHooksInfoOpen || showMigrationNotice
+          }
         />
       )}
     </div>

@@ -32,11 +32,11 @@ The code and the CLI are still named `pixel-agents`, and nothing from this fork 
 
 What the office shows comes from provider modules, and any combination of them can run in one server. There are two kinds: a **multiplexer** module knows which agents a terminal multiplexer hosts, and an **agent** module knows what one agent CLI is doing. Pick them with `--provider`, comma-separated. The choice is saved in `~/.pixel-agents/config.json` and reused by later runs:
 
-| Module             | Kind        | What you see                                                                                                | How it works                                                                                                                                                   |
-| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `herdr`            | multiplexer | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task.          | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock`. Hands each pane to the agent module for its kind, when that module runs, for the tool activity. |
-| `omp`              | agent       | omp sessions with their tool activity ("Reading PLAN.md"), working while a turn runs and idle when it ends. | Tails the transcripts in omp's session store (`~/.omp/agent/sessions/`), with or without herdr.                                                                |
-| `claude` (default) | agent       | Every Claude Code session on the machine.                                                                   | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                           |
+| Module             | Kind        | What you see                                                                                                | How it works                                                                                                                                                                                                                                          |
+| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `herdr`            | multiplexer | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task.          | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock`, and any other herdr session or SSH host added under [Connections](#connections). Hands each local pane to the agent module for its kind, when that module runs, for the tool activity. |
+| `omp`              | agent       | omp sessions with their tool activity ("Reading PLAN.md"), working while a turn runs and idle when it ends. | Tails the transcripts in omp's session store (`~/.omp/agent/sessions/`), with or without herdr.                                                                                                                                                       |
+| `claude` (default) | agent       | Every Claude Code session on the machine.                                                                   | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                                                                                                                  |
 
 With `herdr,omp`, an omp session running in a herdr pane is one character: omp supplies what it is doing, herdr its name, its task and any pending approval. omp sessions outside herdr show up too. Agents in herdr panes whose CLI has no running agent module show their status only. Only the Claude module writes anything outside `~/.pixel-agents/`.
 
@@ -112,7 +112,21 @@ Binding to `0.0.0.0` exposes the office and its WebSocket to your network. Do it
 
 ### The token in the URL
 
-Anyone who can reach the server can watch the office. Changing hook installation (which edits your agent's own settings file, such as `~/.claude/settings.json`) is only allowed for a browser that opened the URL with its `?token=`. Treat that URL as a secret: the token works from anywhere the server is reachable, and it also lands in your browser history and the server's request log.
+Anyone who can reach the server can watch the office. Changing hook installation (which edits your agent's own settings file, such as `~/.claude/settings.json`) and adding, editing or removing [connections](#connections) (which opens SSH sessions to other machines) is only allowed for a browser that opened the URL with its `?token=`. Treat that URL as a secret: the token works from anywhere the server is reachable, and it also lands in your browser history and the server's request log.
+
+## Connections
+
+With the `herdr` module, the **Connections** entry on the bottom plank lists every herdr server the office listens to, with its live state: connected, connecting, reconnecting, or an error with the SSH or herdr message. Agents from every enabled connection join the same office. A character from any connection but this machine's default session carries the connection's label after its name (`api @Build box`), and two agents with the same pane id on different servers stay two characters.
+
+- **This machine** is there from the start and is today's behaviour: herdr's socket, found the way herdr finds it (`HERDR_SOCKET_PATH`, then `HERDR_SESSION`, then `~/.config/herdr/herdr.sock`).
+- **Local session** reaches another herdr session on this machine (`~/.config/herdr/sessions/<name>/herdr.sock`). Left empty, it reaches this machine's default herdr, which is how to get **This machine** back after removing it.
+- **SSH** reaches herdr on another machine. The target is an SSH destination: `host`, `user@host`, a bare IPv6 address, `ssh://user@host:2222` (also `ssh://[::1]:2222`) or a `~/.ssh/config` alias, plus an optional herdr session name. Shell metacharacters are refused, since OpenSSH substitutes the target unquoted into `ProxyCommand` and `Match exec` lines of your `~/.ssh/config`.
+
+Adding a connection checks it first (one `ping` round-trip with herdr) and saves it only when herdr answered. Otherwise the menu shows why. Connections are saved in `~/.pixel-agents/config.json` and come back after a restart. Disabling or removing one removes its characters and closes its SSH process. When herdr stops on a connection, its characters leave and the connection reads as reconnecting or error until herdr is back, with no action from you.
+
+**SSH requirements.** herdr has no network listener, so an SSH connection runs OpenSSH's `ssh` on this machine and forwards the remote herdr socket to a local one (`ssh -N -L`, owner-only, under `~/.pixel-agents/herdr/`). It needs `ssh` on this machine's `PATH`, herdr running on the remote, a remote sshd that allows Unix-socket forwarding (OpenSSH's default), and a POSIX `sh` there. The SSH session runs in batch mode: it never prompts, so authentication must already work non-interactively through your SSH agent, keys and `~/.ssh/config`, and the remote host key must already be in `known_hosts` (run `ssh <target>` once by hand). **No passwords, keys or other credentials are stored**, only the target and the session name. The Docker image has no OpenSSH client, so SSH connections need the server on the host, or a derived image with `openssh-client` and your keys and `known_hosts` mounted.
+
+Remote agents show herdr's status, name and task. Their tool activity is not shown: the transcripts it comes from are files on the other machine.
 
 ## Customizing the office
 
@@ -168,7 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/
 
 ## Troubleshooting
 
-- **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. The server logs `Herdr not reachable` until it can connect.
+- **The office stays empty with `--provider herdr`.** Check that herdr is running and that its socket exists (`HERDR_SOCKET_PATH`, else `~/.config/herdr/sessions/$HERDR_SESSION/herdr.sock`, else `~/.config/herdr/herdr.sock`). In a browser opened with the printed `?token=` URL, **Connections** shows the error for each herdr server the office cannot reach. The server log carries the same state changes.
 - **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
 - **A Claude session is missing.** The server logs `Hooks installed` at startup when Claude hooks are active. Without hooks, sessions are found by scanning `~/.claude/projects/` every few seconds, so a new one can take a moment to appear.
 

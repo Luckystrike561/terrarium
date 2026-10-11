@@ -74,10 +74,12 @@ function fakeMultiplexer(): {
       kind: 'multiplexer',
       id: 'herdr',
       displayName: 'Fake herdr',
-      connect(callback) {
-        onSnapshot = callback;
-        return { connected: Promise.resolve(true), stop: () => {} };
+      connect(_endpoint, watcher) {
+        onSnapshot = (agents) => watcher.onSnapshot(agents);
+        watcher.onState('connected');
+        return { stop: () => {} };
       },
+      probe: () => Promise.resolve(undefined),
     },
     publish: (agents) => onSnapshot(agents),
   };

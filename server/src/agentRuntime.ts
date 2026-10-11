@@ -39,7 +39,7 @@ import {
 } from './fileWatcher.js';
 import type { HookEvent } from './hookEventHandler.js';
 import { HookEventHandler } from './hookEventHandler.js';
-import { MultiplexerFeed } from './multiplexerFeed.js';
+import { MultiplexerConnections } from './multiplexerConnections.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import { PathSet, pathsMatch } from './pathKey.js';
 import type { ModuleSet } from './providers/index.js';
@@ -96,6 +96,8 @@ export class AgentRuntime {
   readonly transcriptModule: AgentModule | undefined;
   /** Modules started by startModules, stopped on dispose. */
   private readonly runningModules: ModuleHandle[] = [];
+  /** The herdr servers this process listens to, once startModules ran with a multiplexer module enabled. */
+  connections: MultiplexerConnections | undefined;
 
   constructor(
     private readonly store: AgentStateStore,
@@ -365,8 +367,8 @@ export class AgentRuntime {
     if (moduleId === this.transcriptModule?.id) this.hooksEnabled.current = enabled;
   }
 
-  /** Start every enabled module that runs on its own: agent modules' session discovery, and one feed per
-   *  multiplexer handing each pane to the running agent module for its kind. */
+  /** Start every enabled module that runs on its own: agent modules' session discovery, and the multiplexer
+   *  connections, whose feeds hand each local pane to the running agent module for its kind. */
   startModules(): void {
     const running = new Map<string, RunningAgentModule>();
     for (const module of this.modules.agents) {
@@ -386,16 +388,15 @@ export class AgentRuntime {
       running.set(transcriptModule.id, follower);
       this.runningModules.push(follower);
     }
-    for (const multiplexer of this.modules.multiplexers) {
-      const feed = new MultiplexerFeed(multiplexer, this.hostFor(multiplexer), running);
-      this.runningModules.push(feed);
-      void feed.start().then((connected) => {
-        console.log(
-          connected
-            ? `[Pixel Agents] ${multiplexer.displayName} connected - office reflects its live agents`
-            : `[Pixel Agents] ${multiplexer.displayName} not reachable (is it running?) - retrying in the background`,
-        );
+    if (this.modules.multiplexers.length > 0) {
+      const connections = new MultiplexerConnections({
+        multiplexers: this.modules.multiplexers,
+        hostFor: (multiplexer) => this.hostFor(multiplexer),
+        agentModules: running,
       });
+      this.connections = connections;
+      this.runningModules.push(connections);
+      connections.start();
     }
   }
 

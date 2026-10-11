@@ -4,103 +4,18 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { MultiplexedAgent } from '../../core/src/provider.js';
+import type { MultiplexedAgent, MultiplexerLinkState } from '../../core/src/provider.js';
 import {
   HERDR_EVENT_RECONNECT_MS,
   HERDR_RPC_TIMEOUT_MS,
   HERDR_SNAPSHOT_INTERVAL_MS,
 } from '../src/providers/herdr/constants.js';
-import { HerdrBridge } from '../src/providers/herdr/herdrBridge.js';
-
-interface RawAgentSession {
-  kind?: string;
-  value?: string;
-}
-
-interface RawAgent {
-  name?: string;
-  agent?: string;
-  agent_status?: string;
-  cwd?: string;
-  foreground_cwd?: string;
-  workspace_id?: string;
-  tab_id?: string;
-  pane_id?: string;
-  terminal_title_stripped?: string;
-  agent_session?: RawAgentSession | null;
-}
-
-interface RawLabeled {
-  workspace_id?: string;
-  tab_id?: string;
-  label?: string;
-}
-
-type AgentListMode = 'ok' | 'malformed' | 'hang';
-
-interface FakeHerdrState {
-  agents: RawAgent[];
-  workspaces: RawLabeled[];
-  tabs: RawLabeled[];
-  agentListMode: AgentListMode;
-}
-
-function defaultState(): FakeHerdrState {
-  return { agents: [], workspaces: [], tabs: [], agentListMode: 'ok' };
-}
+import { HerdrBridge, herdrRequest } from '../src/providers/herdr/herdrBridge.js';
+import { defaultState, startFakeHerdr } from './fakeHerdr.js';
 
 /** paneId-keyed view of a snapshot, for assertions that read a handful of known panes out of it. */
 function byPaneId(agents: readonly MultiplexedAgent[]): Record<string, MultiplexedAgent> {
   return Object.fromEntries(agents.map((agent) => [agent.paneId, agent]));
-}
-
-/** A herdr stand-in: a JSON-RPC 2.0 server over a unix socket, matching the real one-shot-vs-subscription
- *  connection semantics the bridge depends on. Resolves only once the socket is actually bound, so a caller that
- *  immediately fires a reconnect attempt against it never races the bind. */
-async function startFakeHerdr(
-  socketPath: string,
-  state: FakeHerdrState,
-): Promise<{ server: net.Server; liveConnections: () => number }> {
-  const sockets = new Set<net.Socket>();
-  const server = net.createServer((socket) => {
-    sockets.add(socket);
-    socket.on('close', () => sockets.delete(socket));
-    socket.on('error', () => {}); // a client that resets mid-reply is not a bridge concern here
-    socket.setEncoding('utf8');
-    let buffered = '';
-    socket.on('data', (chunk: string) => {
-      buffered += chunk;
-      let idx: number;
-      while ((idx = buffered.indexOf('\n')) >= 0) {
-        const line = buffered.slice(0, idx);
-        buffered = buffered.slice(idx + 1);
-        if (!line.trim()) continue;
-        let request: { id?: string; method?: string };
-        try {
-          request = JSON.parse(line) as { id?: string; method?: string };
-        } catch {
-          continue;
-        }
-        if (request.method === 'events.subscribe') continue; // long-lived: never replied to, never closed
-        const reply = (result: unknown): void => {
-          socket.write(`${JSON.stringify({ jsonrpc: '2.0', id: request.id, result })}\n`);
-          socket.end();
-        };
-        if (request.method === 'agent.list') {
-          if (state.agentListMode === 'hang') continue; // simulate an unanswered poll
-          reply(
-            state.agentListMode === 'malformed' ? { notAgents: true } : { agents: state.agents },
-          );
-        } else if (request.method === 'workspace.list') {
-          reply({ workspaces: state.workspaces });
-        } else if (request.method === 'tab.list') {
-          reply({ tabs: state.tabs });
-        }
-      }
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(socketPath, resolve));
-  return { server, liveConnections: () => sockets.size };
 }
 
 /** Waits for a real event-loop tick regardless of whether timers are faked, so assertions can follow real socket
@@ -126,11 +41,13 @@ describe('HerdrBridge', () => {
   let server: net.Server | undefined;
   let bridge: HerdrBridge | undefined;
   let snapshots: (readonly MultiplexedAgent[])[];
+  let states: { state: MultiplexerLinkState; message?: string }[];
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-herdr-'));
     socketPath = path.join(tmpDir, 'herdr.sock');
     snapshots = [];
+    states = [];
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
   });
 
@@ -150,9 +67,14 @@ describe('HerdrBridge', () => {
   function connectBridge(): HerdrBridge {
     bridge = new HerdrBridge({
       socketPath,
-      log: () => {},
-      onSnapshot: (agents) => {
-        snapshots = [...snapshots, agents];
+      watcher: {
+        log: () => {},
+        onSnapshot: (agents) => {
+          snapshots = [...snapshots, agents];
+        },
+        onState: (state, message) => {
+          states = [...states, { state, message }];
+        },
       },
     });
     return bridge;
@@ -169,8 +91,8 @@ describe('HerdrBridge', () => {
     ];
     ({ server } = await startFakeHerdr(socketPath, state));
 
-    const connected = await connectBridge().start();
-    expect(connected).toBe(true);
+    connectBridge().start();
+    await waitUntil(() => states.some((s) => s.state === 'connected'));
     await waitUntil(() => snapshots.length > 0);
 
     const panes = byPaneId(snapshots[0]);
@@ -219,7 +141,7 @@ describe('HerdrBridge', () => {
     ];
     ({ server } = await startFakeHerdr(socketPath, state));
 
-    await connectBridge().start();
+    connectBridge().start();
     await waitUntil(() => snapshots.length > 0);
 
     const panes = byPaneId(snapshots[0]);
@@ -247,7 +169,7 @@ describe('HerdrBridge', () => {
     ];
     ({ server } = await startFakeHerdr(socketPath, state));
 
-    await connectBridge().start();
+    connectBridge().start();
     await waitUntil(() => snapshots.length > 0);
 
     const panes = byPaneId(snapshots[0]);
@@ -273,7 +195,7 @@ describe('HerdrBridge', () => {
     ];
     ({ server } = await startFakeHerdr(socketPath, state));
 
-    await connectBridge().start();
+    connectBridge().start();
     await waitUntil(() => snapshots.length > 0);
 
     const paneIds = snapshots[0].map((agent) => agent.paneId);
@@ -302,7 +224,7 @@ describe('HerdrBridge', () => {
     ];
     ({ server } = await startFakeHerdr(socketPath, state));
 
-    await connectBridge().start();
+    connectBridge().start();
     await waitUntil(() => snapshots.length > 0);
 
     const panes = byPaneId(snapshots[0]);
@@ -317,7 +239,7 @@ describe('HerdrBridge', () => {
     ({ server } = await startFakeHerdr(socketPath, state));
     const activeBridge = connectBridge();
 
-    await activeBridge.start();
+    activeBridge.start();
     await waitUntil(() => snapshots.length > 0);
     expect(snapshots).toHaveLength(1);
 
@@ -351,10 +273,13 @@ describe('HerdrBridge', () => {
   it('reports herdr as unreachable when its socket does not exist, and recovers once it starts up', async () => {
     const activeBridge = connectBridge(); // no server listening yet
 
-    const firstAttempt = await activeBridge.start();
-    expect(firstAttempt).toBe(false);
+    activeBridge.start();
+    await waitUntil(() => states.some((s) => s.state === 'error'));
+    expect(states).toEqual([
+      { state: 'connecting', message: undefined },
+      { state: 'error', message: `no herdr socket at ${socketPath} (is herdr running?)` },
+    ]);
     expect(snapshots).toHaveLength(0);
-    await settle(5); // let the 'close' handler (which runs after 'error') schedule the reconnect
 
     const state = defaultState();
     state.agents = [{ pane_id: 'p1', agent: 'omp', agent_status: 'working' }];
@@ -364,6 +289,7 @@ describe('HerdrBridge', () => {
     await waitUntil(() => snapshots.length > 0);
 
     expect(snapshots[0].map((agent) => agent.paneId)).toEqual(['p1']);
+    expect(states.at(-1)?.state).toBe('connected');
   });
 
   it('stops polling and closes its socket on dispose', async () => {
@@ -373,7 +299,7 @@ describe('HerdrBridge', () => {
     server = fake.server;
     const activeBridge = connectBridge();
 
-    await activeBridge.start();
+    activeBridge.start();
     await waitUntil(() => snapshots.length > 0);
     await waitUntil(() => fake.liveConnections() === 1); // only the long-lived events socket remains open
 
@@ -389,5 +315,94 @@ describe('HerdrBridge', () => {
     await vi.advanceTimersByTimeAsync(HERDR_EVENT_RECONNECT_MS);
     await settle();
     expect(snapshots).toHaveLength(snapshotCountAtStop);
+  });
+
+  it('reads as connected only once herdr answers the subscription, not when the socket merely accepts', async () => {
+    const state = defaultState();
+    state.subscribeMode = 'hangUp';
+    ({ server } = await startFakeHerdr(socketPath, state));
+
+    connectBridge().start();
+    await waitUntil(() => states.length > 1);
+
+    expect(states).toEqual([
+      { state: 'connecting', message: undefined },
+      { state: 'error', message: 'herdr closed the connection without answering' },
+    ]);
+    expect(snapshots).toHaveLength(0);
+  });
+
+  it("reports a refused subscription with herdr's own error text", async () => {
+    const state = defaultState();
+    state.subscribeMode = 'refuse';
+    ({ server } = await startFakeHerdr(socketPath, state));
+
+    connectBridge().start();
+    await waitUntil(() => states.length > 1);
+
+    expect(states.at(-1)).toEqual({
+      state: 'error',
+      message: 'herdr refused the request: no events here',
+    });
+  });
+
+  it('reads as reconnecting when a working connection is lost, and connected again once herdr is back', async () => {
+    const state = defaultState();
+    state.agents = [{ pane_id: 'p1', agent: 'omp', agent_status: 'working' }];
+    const fake = await startFakeHerdr(socketPath, state);
+    server = fake.server;
+    connectBridge().start();
+    await waitUntil(() => snapshots.length > 0);
+
+    fake.closeAll();
+    await new Promise<void>((resolve) => fake.server.close(() => resolve()));
+    await waitUntil(() => states.at(-1)?.state === 'reconnecting');
+    expect(states.at(-1)?.message).toBe('herdr closed the connection');
+
+    ({ server } = await startFakeHerdr(socketPath, state));
+    await vi.advanceTimersByTimeAsync(HERDR_EVENT_RECONNECT_MS);
+    await waitUntil(() => states.at(-1)?.state === 'connected');
+  });
+});
+
+describe('herdrRequest', () => {
+  let tmpDir: string;
+  let socketPath: string;
+  let server: net.Server | undefined;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-herdr-rpc-'));
+    socketPath = path.join(tmpDir, 'herdr.sock');
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
+    server = undefined;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("returns herdr's result for an answered request", async () => {
+    ({ server } = await startFakeHerdr(socketPath, defaultState()));
+
+    expect(await herdrRequest(socketPath, 'ping', HERDR_RPC_TIMEOUT_MS)).toEqual({
+      result: { type: 'pong' },
+    });
+  });
+
+  it('explains a missing socket instead of resolving with nothing', async () => {
+    expect(await herdrRequest(socketPath, 'ping', HERDR_RPC_TIMEOUT_MS)).toEqual({
+      error: `no herdr socket at ${socketPath} (is herdr running?)`,
+    });
+  });
+
+  it('gives up on a request herdr never answers', async () => {
+    const state = defaultState();
+    state.agentListMode = 'hang';
+    ({ server } = await startFakeHerdr(socketPath, state));
+    const timeoutMs = 50;
+
+    expect(await herdrRequest(socketPath, 'agent.list', timeoutMs)).toEqual({
+      error: `herdr did not answer agent.list within ${timeoutMs} ms`,
+    });
   });
 });

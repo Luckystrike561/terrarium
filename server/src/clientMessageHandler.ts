@@ -10,8 +10,10 @@ import {
   setHooksEnabled,
   writeConfig,
 } from './configPersistence.js';
+import { parseNewConnection } from './connectionSettings.js';
 import { HUE_SHIFT_MAX_DEG } from './constants.js';
 import { readLayoutFromFile } from './layoutPersistence.js';
+import type { MultiplexerConnections } from './multiplexerConnections.js';
 import type { ConsentEffects } from './providers/consentExecutor.js';
 import { applyConsentChoice } from './providers/consentExecutor.js';
 import { hooksConsentRequest } from './providers/consentGate.js';
@@ -55,9 +57,10 @@ export interface ClientMessageContext {
   /** Install/uninstall hooks side effect. Needs server url+token known only to cli.ts. */
   onSetHooksEnabled?: SetHooksEnabledSideEffect;
   /**
-   * Whether this client may send messages that reach OUTSIDE `~/.pixel-agents/`
-   * — today only `hooksConsentResponse`, which grants machine-wide consent to
-   * modify `~/.claude/settings.json`. Decided per-connection by the transport
+   * Whether this client may send messages that reach OUTSIDE `~/.pixel-agents/`:
+   * `hooksConsentResponse`, which grants machine-wide consent to modify
+   * `~/.claude/settings.json`, and the connection messages, which open SSH
+   * sessions to other machines. Decided per-connection by the transport
    * (httpServer's standaloneTokenValid); defaults to false so a caller that
    * forgets to pass it gets the safe answer.
    */
@@ -178,9 +181,57 @@ export function handleClientMessage(
       break;
     }
 
+    case 'addConnection': {
+      const requestId = typeof msg.requestId === 'string' ? msg.requestId : '';
+      const connections = changeableConnections(ctx);
+      if (typeof connections === 'string') {
+        send({ type: 'connectionAddResult', requestId, error: connections });
+        break;
+      }
+      const connection = parseNewConnection(msg);
+      if ('error' in connection) {
+        send({ type: 'connectionAddResult', requestId, error: connection.error });
+        break;
+      }
+      void connections
+        .add(connection)
+        .then((error) => send({ type: 'connectionAddResult', requestId, error }));
+      break;
+    }
+
+    case 'updateConnection': {
+      const connections = changeableConnections(ctx);
+      const error =
+        typeof connections === 'string' ? connections : connections.update(String(msg.id), msg);
+      if (error) console.warn(`[Pixel Agents] updateConnection ignored: ${error}`);
+      break;
+    }
+
+    case 'removeConnection': {
+      const connections = changeableConnections(ctx);
+      const error =
+        typeof connections === 'string' ? connections : connections.remove(String(msg.id));
+      if (error) console.warn(`[Pixel Agents] removeConnection ignored: ${error}`);
+      break;
+    }
+
     default:
       break;
   }
+}
+
+/**
+ * The connection list this client may change, or why it may not. Adding, editing or removing a connection makes this
+ * server open or close SSH sessions to other machines, so it takes the server token, like a hooks install.
+ */
+function changeableConnections(ctx: ClientMessageContext): MultiplexerConnections | string {
+  if (!ctx.privileged) {
+    return 'Changing connections needs the tokened URL the server printed at startup';
+  }
+  return (
+    ctx.runtime?.connections ??
+    'herdr is not enabled on this server (start it with --provider herdr)'
+  );
 }
 
 /**
@@ -352,6 +403,11 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     type: 'areaMappingsLoaded',
     mappings: cfg.standalone.areaMappings ?? {},
   });
+
+  // 4c. Connections, for the clients that may change them (the list names SSH targets).
+  if (ctx.privileged && runtime?.connections) {
+    send({ type: 'connectionsLoaded', connections: runtime.connections.list() });
+  }
 
   // Sync runtime refs with the persisted settings so scanners behave correctly
   // from the first tick after a server restart.

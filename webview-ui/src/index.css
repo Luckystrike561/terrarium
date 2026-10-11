@@ -39,9 +39,13 @@
   --color-status-idle: #8891a8;
   --color-status-error: var(--color-danger);
 
-  /* Paper HUD (memos, tags, tacks) */
+  /* Office furnishings (HUD plank, connections clipboard) and paper HUD */
+  --color-wood: #8a5a32;
+  --color-wood-light: #a5703f;
   --color-wood-dark: #4f3018;
   --color-brass: #e0b95a;
+  --color-metal: #a7adb9;
+  --color-metal-dark: #5a5f6b;
   --color-paper: #f1e6c8;
   --color-paper-dark: #e2d2a8;
   --color-paper-line: #d6c49b;
@@ -95,8 +99,12 @@
   --color-status-success: var(--color-status-success);
   --color-status-idle: var(--color-status-idle);
   --color-status-error: var(--color-status-error);
+  --color-wood: var(--color-wood);
+  --color-wood-light: var(--color-wood-light);
   --color-wood-dark: var(--color-wood-dark);
   --color-brass: var(--color-brass);
+  --color-metal: var(--color-metal);
+  --color-metal-dark: var(--color-metal-dark);
   --color-paper: var(--color-paper);
   --color-paper-dark: var(--color-paper-dark);
   --color-paper-line: var(--color-paper-line);
@@ -134,6 +142,22 @@
   /* Square paper-tack pinning a memo. */
   .paper-pin {
     @apply absolute -top-7 left-1/2 -translate-x-1/2 w-12 h-12 bg-brass border-2 border-wood-dark rounded-none shadow-pixel;
+  }
+
+  /* Wooden plank mounted on the office wall: hard-edged grain bands, no blur. */
+  .wood-plank {
+    @apply border-2 border-wood-dark rounded-none shadow-pixel;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--color-wood) 0 10px,
+      var(--color-wood-light) 10px 12px,
+      var(--color-wood) 12px 22px,
+      var(--color-wood-dark) 22px 24px
+    );
+  }
+
+  .metal-clip {
+    @apply bg-metal border-2 border-metal-dark rounded-none shadow-pixel;
   }
 
   /* Memo paper. Re-points the palette variables so the shared ghost Button

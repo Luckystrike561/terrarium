@@ -4,7 +4,8 @@ import type {
   ModuleHost,
   MultiplexedAgent,
   MultiplexedAgentStatus,
-  MultiplexerConnection,
+  MultiplexerEndpoint,
+  MultiplexerLinkState,
   MultiplexerModule,
   RunningAgentModule,
 } from '../../core/src/provider.js';
@@ -22,38 +23,74 @@ interface AnnouncedPane {
   status: MultiplexedAgentStatus | null;
 }
 
+export interface MultiplexerFeedOptions {
+  readonly multiplexer: MultiplexerModule;
+  readonly endpoint: MultiplexerEndpoint;
+  readonly host: ModuleHost;
+  readonly agentModules: ReadonlyMap<string, RunningAgentModule>;
+  /** Appended to every pane's name as ` @<label>`, so a character shows which machine or session it runs on. */
+  readonly label?: string;
+  onState(state: MultiplexerLinkState, message?: string): void;
+}
+
 /**
- * Turns a multiplexer's snapshots into AgentEvents, attributed to the multiplexer.
+ * Turns the snapshots of one multiplexer endpoint into AgentEvents, attributed to the multiplexer.
  *
- * Each pane is announced under `<multiplexer id>-<pane id>` with the pane's session ref as its `sessionRef`
- * identity. When the agent module for the pane's kind is running, that module takes the session over
- * (`followSession`) and reports what the agent is doing, including when its turns start and end; the multiplexer
- * then adds only what a transcript cannot say: the name, the task, and a pending approval. A pane the multiplexer
- * knows no session for is bound to the module's one live session in the pane's directory, once there is exactly
- * one. With no such module the pane's status level is all there is, and it is reported in full.
+ * Each pane is announced under `<multiplexer id>-<endpoint id>-<pane id>` (pane ids are only unique within one
+ * server) with the pane's session ref as its `sessionRef` identity. When the agent module for the pane's kind is
+ * running, that module takes the session over (`followSession`) and reports what the agent is doing, including when
+ * its turns start and end. The multiplexer then adds only what a transcript cannot say: the name, the task, and a
+ * pending approval. A pane the multiplexer knows no session for is bound to the module's one live session in the
+ * pane's directory, once there is exactly one. With no such module the pane's status level is all there is, and it
+ * is reported in full.
+ *
+ * A pane on another machine is never handed to an agent module: its session ref names a file or session on that
+ * machine, which this one cannot read and must not mistake for one of its own. It reports status alone.
+ *
+ * Losing the connection ends every pane: nothing says those agents still exist until the multiplexer answers again.
  */
 export class MultiplexerFeed {
   private readonly panes = new Map<string, AnnouncedPane>();
-  private connection: MultiplexerConnection | null = null;
+  private connection: ModuleHandle | null = null;
+  private readonly isRemote: boolean;
+  private label: string | undefined;
+  /** A snapshot from a reconcile that outlived the link would re-announce panes endAll() already removed. */
+  private isLinkUp = false;
 
-  constructor(
-    private readonly multiplexer: MultiplexerModule,
-    private readonly host: ModuleHost,
-    private readonly agentModules: ReadonlyMap<string, RunningAgentModule>,
-  ) {}
-
-  /** Connect, resolving with whether the multiplexer answered the first attempt. */
-  start(): Promise<boolean> {
-    this.connection = this.multiplexer.connect(
-      (agents) => this.applySnapshot(agents),
-      (message) => this.host.log(message),
-    );
-    return this.connection.connected;
+  constructor(private readonly options: MultiplexerFeedOptions) {
+    this.isRemote = options.endpoint.kind === 'ssh';
+    this.label = options.label;
   }
 
+  /** Rename every character from the next snapshot on. */
+  relabel(label: string | undefined): void {
+    this.label = label;
+  }
+
+  start(): void {
+    const { multiplexer, endpoint, host } = this.options;
+    this.connection = multiplexer.connect(endpoint, {
+      onSnapshot: (agents) => {
+        if (this.isLinkUp) this.applySnapshot(agents);
+      },
+      onState: (state, message) => {
+        this.isLinkUp = state === 'connected';
+        if (!this.isLinkUp) this.endAll();
+        this.options.onState(state, message);
+      },
+      log: (message) => host.log(message),
+    });
+  }
+
+  /** Disconnect and end every pane this feed announced. */
   stop(): void {
     this.connection?.stop();
-    for (const pane of this.panes.values()) pane.followed?.stop();
+    this.connection = null;
+    this.endAll();
+  }
+
+  private endAll(): void {
+    for (const pane of this.panes.values()) this.end(pane);
     this.panes.clear();
   }
 
@@ -61,8 +98,10 @@ export class MultiplexerFeed {
     const live = new Set<string>();
     for (const agent of agents) {
       live.add(agent.paneId);
-      const module = this.agentModules.get(agent.agentKind);
-      const sessionRef = agent.sessionRef ?? module?.sessionInDirectory?.(agent.cwd);
+      const module = this.isRemote ? undefined : this.options.agentModules.get(agent.agentKind);
+      const sessionRef = this.isRemote
+        ? undefined
+        : (agent.sessionRef ?? module?.sessionInDirectory?.(agent.cwd));
       const follower = sessionRef ? module : undefined;
       const binding = follower ? `${agent.agentKind}:${sessionRef}` : '';
       let pane = this.panes.get(agent.paneId);
@@ -89,9 +128,10 @@ export class MultiplexerFeed {
     binding: string,
     follower: RunningAgentModule | undefined,
   ): AnnouncedPane {
-    const sessionId = `${this.multiplexer.id}-${agent.paneId}`;
-    this.host.log(`agent detected: ${agent.name} (${agent.paneId}, ${agent.cwd || 'no cwd'})`);
-    this.host.emit(sessionId, {
+    const { multiplexer, endpoint, host } = this.options;
+    const sessionId = `${multiplexer.id}-${endpoint.id}-${agent.paneId}`;
+    host.log(`agent detected: ${agent.name} (${agent.paneId}, ${agent.cwd || 'no cwd'})`);
+    host.emit(sessionId, {
       kind: 'sessionStart',
       source: 'startup',
       cwd: agent.cwd,
@@ -102,22 +142,24 @@ export class MultiplexerFeed {
   }
 
   private report(pane: AnnouncedPane, agent: MultiplexedAgent): void {
-    if (agent.name !== pane.name || agent.task !== pane.task) {
-      pane.name = agent.name;
+    const { host } = this.options;
+    const name = this.label ? `${agent.name} @${this.label}` : agent.name;
+    if (name !== pane.name || agent.task !== pane.task) {
+      pane.name = name;
       pane.task = agent.task;
-      this.host.emit(pane.sessionId, { kind: 'sessionInfo', name: agent.name, task: agent.task });
+      host.emit(pane.sessionId, { kind: 'sessionInfo', name, task: agent.task });
     }
     if (agent.status === pane.status) return;
     pane.status = agent.status;
     const event = pane.followed ? approvalEvent(agent.status) : statusEvent(agent.status);
-    if (event) this.host.emit(pane.sessionId, event);
+    if (event) host.emit(pane.sessionId, event);
   }
 
   private end(pane: AnnouncedPane): void {
-    this.host.log(`agent ended: ${pane.name} (${pane.sessionId})`);
+    this.options.host.log(`agent ended: ${pane.name} (${pane.sessionId})`);
     // A followed session belongs to its agent module, which ends it once nothing else tracks it.
     if (pane.followed) pane.followed.stop();
-    else this.host.emit(pane.sessionId, { kind: 'sessionEnd', reason: 'exit' });
+    else this.options.host.emit(pane.sessionId, { kind: 'sessionEnd', reason: 'exit' });
   }
 }
 
