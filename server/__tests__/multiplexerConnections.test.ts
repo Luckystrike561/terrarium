@@ -202,6 +202,14 @@ describe('MultiplexerConnections', () => {
     expect(readConnections()).toEqual([]);
   });
 
+  it('stop ends every running link, the path a server shutdown takes', () => {
+    const { mux, connections } = setUp();
+
+    connections.stop();
+
+    expect(mux.links.size).toBe(0);
+  });
+
   it('reads connections back after a restart, starting only the enabled ones', async () => {
     const first = setUp();
     await first.connections.add({ label: 'Night', kind: 'local', session: 'night' });

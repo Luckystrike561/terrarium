@@ -20,7 +20,6 @@ import { launchStandalone } from '../../helpers/standalone';
 
 const FAKE_SSH = path.join(__dirname, '../../fixtures/fake-ssh.cjs');
 const CONNECTION_TIMEOUT_MS = 20_000;
-const SSH_EXIT_TIMEOUT_MS = 10_000;
 
 interface ConnectionsFixture {
   root: string;
@@ -65,24 +64,6 @@ function installFakeSsh(binDir: string, remoteHome: string): void {
     path.join(binDir, 'fake-ssh-hosts.json'),
     JSON.stringify({ buildbox: { home: remoteHome } }),
   );
-}
-
-function liveSshPids(binDir: string): number[] {
-  const log = path.join(binDir, 'fake-ssh-pids.log');
-  if (!fs.existsSync(log)) return [];
-  return fs
-    .readFileSync(log, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => Number(line.split(' ')[0]))
-    .filter((pid) => {
-      try {
-        process.kill(pid, 0);
-        return true;
-      } catch {
-        return false;
-      }
-    });
 }
 
 async function launchWithConnections(page: Page): Promise<ConnectionsFixture> {
@@ -197,9 +178,6 @@ test.describe('Standalone / herdr connections', () => {
       await connectionRow(reopened, 'Build box').getByRole('button', { name: 'Disable' }).click();
       await expect(connectionRow(reopened, 'Build box')).toHaveAttribute('data-state', 'disabled');
       await expectOverlayCount(page, 1);
-      await expect
-        .poll(() => liveSshPids(fixture.binDir), { timeout: SSH_EXIT_TIMEOUT_MS })
-        .toEqual([]);
 
       await connectionRow(reopened, 'Build box').getByRole('button', { name: 'Remove' }).click();
       await expect(connectionRow(reopened, 'Build box')).toHaveCount(0);

@@ -193,9 +193,9 @@ This section is auto-generated. Do not edit between the markers; CI fails on dri
 
 ### `@area:standalone` (14 tests)
 
-- `e2e/standalone/connections.spec.ts:139` — connections: an SSH host joins the office, follows its herdr up and down, and survives a restart (Standalone / herdr connections)
-- `e2e/standalone/connections.spec.ts:215` — connections: an unreachable SSH target is refused with the ssh error and nothing is saved (Standalone / herdr connections)
-- `e2e/standalone/connections.spec.ts:236` — connections: a local connection to a named herdr session shows that session's agents (Standalone / herdr connections)
+- `e2e/standalone/connections.spec.ts:120` — connections: an SSH host joins the office, follows its herdr up and down, and survives a restart (Standalone / herdr connections)
+- `e2e/standalone/connections.spec.ts:193` — connections: an unreachable SSH target is refused with the ssh error and nothing is saved (Standalone / herdr connections)
+- `e2e/standalone/connections.spec.ts:214` — connections: a local connection to a named herdr session shows that session's agents (Standalone / herdr connections)
 - `e2e/standalone/herdr.spec.ts:94` — herdr: one character per live pane, named by workspace and tab, task read from the title (Standalone / herdr provider)
 - `e2e/standalone/herdr.spec.ts:162` — herdr: a shell-prompt title never creates a character, and a live agent is removed when it returns to the shell (Standalone / herdr provider)
 - `e2e/standalone/herdr.spec.ts:209` — herdr: a terminal title change updates the task text (Standalone / herdr provider)
