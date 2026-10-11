@@ -8,6 +8,7 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const HOSTS_FILE = path.join(__dirname, 'fake-ssh-hosts.json');
 const PID_LOG = path.join(__dirname, 'fake-ssh-pids.log');
@@ -84,10 +85,14 @@ if (!host) fail(`ssh: Could not resolve hostname ${target}: Name or service not 
 if (host.refuse) fail(host.refuse);
 
 if (command.length > 0) {
-  const env = host.env ?? {};
-  process.stdout.write(
-    `${host.home}\n${env.HERDR_SOCKET_PATH ?? ''}\n${env.HERDR_SESSION ?? ''}\n`,
-  );
-  process.exit(0);
+  // sshd hands the joined command to the remote login shell, so run it rather than echoing the hosts file.
+  const result = spawnSync('/bin/sh', ['-c', command.join(' ')], {
+    env: { PATH: process.env.PATH, HOME: host.home, ...(host.env ?? {}) },
+    encoding: 'utf8',
+  });
+  if (result.error) fail(`ssh: ${result.error.message}`);
+  process.stdout.write(result.stdout);
+  process.stderr.write(result.stderr);
+  process.exit(result.status ?? SSH_FAILURE_EXIT_CODE);
 }
 if (forwardSpec) forward(forwardSpec);
