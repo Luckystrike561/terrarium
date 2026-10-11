@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { CONNECTION_LABEL_MAX_CHARS } from '../../../core/src/constants.js';
 import type {
   AddConnection,
   Connection,
@@ -54,6 +55,7 @@ function ConnectionRow({ connection }: { connection: Connection }) {
               aria-label="Connection label"
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
+              maxLength={CONNECTION_LABEL_MAX_CHARS}
               className="w-full text-sm py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
             />
           ) : (
@@ -85,9 +87,8 @@ function ConnectionRow({ connection }: { connection: Connection }) {
               size="sm"
               onClick={() => {
                 const label = labelDraft.trim();
-                if (label) {
-                  transport.send({ type: 'updateConnection', id: connection.id, label });
-                }
+                if (!label) return;
+                transport.send({ type: 'updateConnection', id: connection.id, label });
                 setIsRenaming(false);
               }}
             >
@@ -216,6 +217,7 @@ export function ConnectionsMenu({
           aria-label="New connection label"
           placeholder="Label"
           value={label}
+          maxLength={CONNECTION_LABEL_MAX_CHARS}
           onChange={(e) => setLabel(e.target.value)}
           disabled={isPending}
           className="text-xs py-2 px-4 bg-bg border-2 border-border rounded-none text-text"

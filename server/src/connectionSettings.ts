@@ -1,6 +1,6 @@
+import { CONNECTION_LABEL_MAX_CHARS } from '../../core/src/constants.js';
 import type { ConnectionKind } from '../../core/src/messages.js';
 import {
-  CONNECTION_LABEL_MAX_CHARS,
   DEFAULT_CONNECTION_ID,
   DEFAULT_CONNECTION_LABEL,
   HERDR_SESSION_NAME_MAX_CHARS,

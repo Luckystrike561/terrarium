@@ -106,6 +106,5 @@ export const DEFAULT_CONNECTION_LABEL = 'This machine';
 /** Random bytes in a generated connection id. Short: the id is part of a forwarded socket's path, which Unix caps
  *  near 104 bytes. */
 export const CONNECTION_ID_BYTES = 4;
-export const CONNECTION_LABEL_MAX_CHARS = 64;
 export const SSH_TARGET_MAX_CHARS = 255;
 export const HERDR_SESSION_NAME_MAX_CHARS = 64;
