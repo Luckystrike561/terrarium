@@ -86,8 +86,24 @@ export class SshForward {
   private stderrLines: string[] = [];
   private closed = false;
   private exitListener: ((message: string) => void) | null = null;
+  /** Set once this forward removed whatever sat at the socket path, so close() only unlinks a socket it prepared. */
+  private ownsLocalSocket = false;
 
   constructor(private readonly options: SshTransportOptions) {}
+
+  /** Create the socket's directory and clear the path for it. Resolves with why the path is unusable, or undefined. */
+  private prepareLocalSocket(): string | undefined {
+    const { localSocketPath } = this.options;
+    try {
+      fs.mkdirSync(path.dirname(localSocketPath), { recursive: true, mode: SSH_FORWARD_DIR_MODE });
+      // The readiness check is the socket file appearing, so a stale one must not answer for it.
+      fs.rmSync(localSocketPath, { force: true });
+    } catch (err) {
+      return `cannot prepare ${localSocketPath}: ${(err as Error).message}`;
+    }
+    this.ownsLocalSocket = true;
+    return undefined;
+  }
 
   /** Resolve the remote socket and bind the local end. Resolves with the error text, or undefined once the local
    *  socket accepts connections. */
@@ -95,10 +111,9 @@ export class SshForward {
     const resolved = await resolveRemoteSocketPath(this.options);
     if ('error' in resolved) return resolved.error;
     if (this.closed) return 'the forward was closed while it was being set up';
+    const prepareError = this.prepareLocalSocket();
+    if (prepareError) return prepareError;
     const { localSocketPath } = this.options;
-    fs.mkdirSync(path.dirname(localSocketPath), { recursive: true, mode: SSH_FORWARD_DIR_MODE });
-    // The readiness check below is the socket file appearing, so a stale one must not answer for it.
-    fs.rmSync(localSocketPath, { force: true });
 
     const child = spawn(
       this.options.sshCommand ?? SSH_COMMAND,
@@ -173,7 +188,10 @@ export class SshForward {
     this.closed = true;
     this.child?.kill();
     this.child = null;
-    fs.rmSync(this.options.localSocketPath, { force: true });
+    if (this.ownsLocalSocket) {
+      this.ownsLocalSocket = false;
+      fs.rmSync(this.options.localSocketPath, { force: true });
+    }
   }
 
   private recordStderr(chunk: string): void {

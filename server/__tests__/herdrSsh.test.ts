@@ -172,6 +172,14 @@ describe.skipIf(process.platform === 'win32')('herdr over SSH (fake OpenSSH clie
       await waitFor(() => sshPids().every((pid) => !isAlive(pid)));
     });
 
+    it('reports an unusable local socket path instead of throwing', async () => {
+      const socketPath = options('buildbox').localSocketPath;
+      fs.mkdirSync(path.dirname(socketPath), { recursive: true });
+      fs.mkdirSync(socketPath);
+
+      await expect(probeOverSsh(options('buildbox'))).resolves.toMatch(/cannot prepare/);
+    });
+
     it('reports an unreachable host with the SSH error text', async () => {
       expect(await probeOverSsh(options('nowhere'))).toBe(
         'ssh: Could not resolve hostname nowhere: Name or service not known',
