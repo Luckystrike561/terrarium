@@ -42,7 +42,7 @@ With `herdr,omp`, an omp session running in a herdr pane is one character: omp s
 
 ## Getting started
 
-Requirements: Node.js 22.13 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
+Requirements: Node.js 22.13 or later (or Docker, see [Docker](#docker)), and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
 
 ```bash
 git clone https://github.com/Luckystrike561/terrarium.git
@@ -66,6 +66,35 @@ node /path/to/terrarium/dist/cli.js
 The server picks a free port and prints a URL like `http://127.0.0.1:43123/?token=…`. Open it in a browser. If herdr is not running yet, the server keeps retrying in the background and the office fills in once herdr is up.
 
 With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr and omp modules on `127.0.0.1:8790`.
+
+### Docker
+
+The image builds the server from this checkout and starts it with the herdr and omp modules on port 8790:
+
+```bash
+docker build -t terrarium .
+docker run -d --name terrarium \
+  -p 127.0.0.1:8790:8790 \
+  -v "$HOME/.config/herdr:/home/node/.config/herdr:ro" \
+  -v "$HOME/.omp/agent/sessions:$HOME/.omp/agent/sessions:ro" \
+  -v terrarium-data:/home/node/.pixel-agents \
+  terrarium
+docker logs terrarium
+```
+
+The log prints `http://127.0.0.1:8790/?token=…`. Open it on the host. Each mount has one job:
+
+- **`~/.config/herdr`**: the server connects to herdr's socket, `~/.config/herdr/herdr.sock`. Mounting the directory rather than the socket file keeps the connection working after herdr restarts and recreates the socket. Without it the server still starts and keeps retrying, like a herdr that is not running yet.
+- **`~/.omp/agent/sessions`, at the same absolute path**: herdr reports each omp session by its transcript's path on the host, and the omp module reads it from there. Without it, omp agents show their status but no tool activity.
+- **`terrarium-data`**: everything under `~/.pixel-agents/` (settings, seats, and a `layout.json` if you add one) survives `docker rm` and image rebuilds.
+
+Keep the host port equal to the container port: the printed URL carries the port the server listens on inside the container. `-p 127.0.0.1:8790:8790` keeps the office on this machine, while `-p 8790:8790` publishes it on every network interface.
+
+herdr's socket is readable only by its owner, and the image runs as UID 1000. If `id -u` prints something else, add `--user "$(id -u):$(id -g)"` and keep the state in a directory you own instead of the named volume: `mkdir -p ~/.local/share/terrarium` and `-v "$HOME/.local/share/terrarium:/home/node/.pixel-agents"`.
+
+**The token ends up in the container log.** Anyone who can run `docker logs` on this machine, or read wherever your log driver ships container output, can read the URL. Treat that log like the URL itself (see [The token in the URL](#the-token-in-the-url)).
+
+The image runs the herdr and omp modules only. The Claude module does not work from a container: the hooks it installs would point at paths inside the container.
 
 ### Options
 
