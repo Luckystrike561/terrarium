@@ -575,4 +575,17 @@ describe('/ws connection messages', () => {
       { label: 'Night shift', kind: 'local', session: 'night', id: added?.id, enabled: false },
     ]);
   });
+
+  it('sends list changes only to the socket that may change the list', async () => {
+    const { port, token } = await startWithHerdr();
+    const viewer = await open(port);
+    const owner = await open(port, token);
+
+    const leaked = waitForMessage(viewer, 'connectionsLoaded');
+    const heard = waitForMessage(owner, 'connectionsLoaded');
+    owner.send(JSON.stringify({ type: 'updateConnection', id: 'local', enabled: false }));
+
+    expect(await heard).toMatchObject({ connections: [{ id: 'local', enabled: false }] });
+    expect(await leaked).toBeNull();
+  });
 });
