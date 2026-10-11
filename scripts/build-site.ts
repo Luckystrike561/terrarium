@@ -119,8 +119,8 @@ function assertCoverageMatchesRegistry(): void {
 
 function renderCoverageCell(label: string, isShown: boolean): string {
   const mark = isShown
-    ? '<span class="mark mark-yes" aria-label="yes">&#10003;</span>'
-    : '<span class="mark mark-no" aria-label="no">&mdash;</span>';
+    ? '<span class="mark mark-yes" role="img" aria-label="yes">&#10003;</span>'
+    : '<span class="mark mark-no" role="img" aria-label="no">&mdash;</span>';
   return `<td data-label="${label}">${mark}</td>`;
 }
 
