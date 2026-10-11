@@ -26,7 +26,7 @@ The code and the CLI are still named `pixel-agents`, and nothing from this fork 
 - **Lounge.** Idle agents leave their desks and sit on the sofas around the coffee table.
 - **Status badges and context gauge.** A badge above every character shows its state. For Claude Code agents, a gauge shows how full the context window is.
 - **Sub-agents and Agent Teams** (Claude Code). Sub-agents and teammates appear as their own characters next to the agent that spawned them.
-- **Sound notifications.** An optional chime when an agent finishes its turn or asks for permission.
+- **Sound notifications.** A chime when an agent finishes its turn or asks for permission.
 
 ## Providers
 
@@ -36,13 +36,13 @@ What the office shows comes from provider modules, and any combination of them c
 | ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `herdr`            | multiplexer | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task.          | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock`, and any other herdr session or SSH host added under [Connections](#connections). Hands each local pane to the agent module for its kind, when that module runs, for the tool activity. |
 | `omp`              | agent       | omp sessions with their tool activity ("Reading PLAN.md"), working while a turn runs and idle when it ends. | Tails the transcripts in omp's session store (`~/.omp/agent/sessions/`), with or without herdr.                                                                                                                                                       |
-| `claude` (default) | agent       | Claude Code sessions in the current workspace, or every session with **Watch All Sessions**.                | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                                                                                                                  |
+| `claude` (default) | agent       | Every Claude Code session on the machine.                                                                   | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                                                                                                                  |
 
 With `herdr,omp`, an omp session running in a herdr pane is one character: omp supplies what it is doing, herdr its name, its task and any pending approval. omp sessions outside herdr show up too. Agents in herdr panes whose CLI has no running agent module show their status only. Only the Claude module writes anything outside `~/.pixel-agents/`.
 
 ## Getting started
 
-Requirements: Node.js 22.13 or later, and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
+Requirements: Node.js 22.13 or later (or Docker, see [Docker](#docker)), and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
 
 ```bash
 git clone https://github.com/Luckystrike561/terrarium.git
@@ -57,10 +57,9 @@ With herdr and omp:
 node dist/cli.js --provider herdr,omp
 ```
 
-With Claude Code, run it from the workspace whose sessions you want to see:
+With Claude Code:
 
 ```bash
-cd /path/to/your/project
 node /path/to/terrarium/dist/cli.js
 ```
 
@@ -68,16 +67,48 @@ The server picks a free port and prints a URL like `http://127.0.0.1:43123/?toke
 
 With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr and omp modules on `127.0.0.1:8790`.
 
+### Docker
+
+The image builds the server from this checkout and starts it with the herdr and omp modules on port 8790:
+
+```bash
+docker build -t terrarium .
+docker run -d --name terrarium \
+  -p 127.0.0.1:8790:8790 \
+  -v "$HOME/.config/herdr:/home/node/.config/herdr:ro" \
+  -v "$HOME/.omp/agent/sessions:$HOME/.omp/agent/sessions:ro" \
+  -v terrarium-data:/home/node/.pixel-agents \
+  terrarium
+docker logs terrarium
+```
+
+The log prints `http://127.0.0.1:8790/?token=…`. Open it on the host. Each mount has one job:
+
+- **`~/.config/herdr`**: the server connects to herdr's socket, `~/.config/herdr/herdr.sock`. Mounting the directory rather than the socket file keeps the connection working after herdr restarts and recreates the socket. Without it the server still starts and keeps retrying, like a herdr that is not running yet.
+- **`~/.omp/agent/sessions`, at the same absolute path**: herdr reports each omp session by its transcript's path on the host, and the omp module reads it from there. Without it, omp agents show their status but no tool activity.
+- **`terrarium-data`**: everything under `~/.pixel-agents/` (settings, seats, and a `layout.json` if you add one) survives `docker rm` and image rebuilds.
+
+Keep the host port equal to the container port: the printed URL carries the port the server listens on inside the container. `-p 127.0.0.1:8790:8790` keeps the office on this machine, while `-p 8790:8790` publishes it on every network interface.
+
+herdr's socket is readable only by its owner, and the image runs as UID 1000. If `id -u` prints something else, add `--user "$(id -u):$(id -g)"` and keep the state in a directory you own instead of the named volume: `mkdir -p ~/.local/share/terrarium` and `-v "$HOME/.local/share/terrarium:/home/node/.pixel-agents"`.
+
+**The token ends up in the container log.** Anyone who can run `docker logs` on this machine, or read wherever your log driver ships container output, can read the URL. Treat that log like the URL itself (see [The token in the URL](#the-token-in-the-url)).
+
+The image runs the herdr and omp modules only. The Claude module does not work from a container: the hooks it installs would point at paths inside the container.
+
 ### Options
 
 ```bash
 node dist/cli.js --provider herdr,omp  # herdr, claude, or any agent module (omp, pi, codex, copilot, cursor, opencode, kilo, kimi, droid, devin, hermes, qodercli, qwen, letta, mastracode, agy, grok, kiro, maki, gemini, cline); saved for later runs
 node dist/cli.js --port 3100           # fixed port instead of a free one
 node dist/cli.js --host 127.0.0.1      # bind address (default 127.0.0.1)
+node dist/cli.js --uninstall-hooks     # remove the hooks from ~/.claude/settings.json and exit
 node dist/cli.js --help
 ```
 
 Binding to `0.0.0.0` exposes the office and its WebSocket to your network. Do it only on a trusted network.
+
+`--uninstall-hooks` removes only the entries Terrarium added and keeps hooks off on later runs. It exits with a non-zero status when the settings file could not be cleaned. To have the hooks installed again, delete `hooksEnabled.claude` from `~/.pixel-agents/config.json` and restart the server.
 
 ### The token in the URL
 
@@ -102,8 +133,6 @@ Remote agents show herdr's status, name and task. Their tool activity is not sho
 The office comes from the bundled default layout. There is no in-app layout editor for now: the previous one was removed and will be redesigned. If `~/.pixel-agents/layout.json` exists (for example one saved by an older version), the server loads it instead, including its carpets, pets and named areas. Map workspace folders to those areas under `standalone.areaMappings` in `~/.pixel-agents/config.json` (`{ "folder-name": ["Area label"] }`) so new agents sit in their area.
 
 Click a character, then a free seat, to move it there. Desks with an agent at them switch their electronics on.
-
-Use **Settings → Add Asset Directory** to load external characters, pets and furniture. See [docs/external-assets.md](docs/external-assets.md) for the furniture manifest format.
 
 The bundled furniture, characters and default office are generated from code: `npx tsx scripts/iso-art/generate.ts` rewrites the sprites, and `npx tsx scripts/iso-art/layout.ts` rebuilds the default layout.
 
@@ -155,8 +184,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/
 
 - **The office stays empty with `--provider herdr`.** Check that herdr is running and that `~/.config/herdr/herdr.sock` exists. **Connections** shows the error for each herdr server the office cannot reach.
 - **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
-- **A Claude session is missing.** Check that **Settings → Instant Detection (Hooks)** is on and that the session belongs to the current workspace, or turn on **Watch All Sessions**.
-- **The office looks disconnected.** **Settings → Debug View** shows the server connection and the latest data for each agent.
+- **A Claude session is missing.** The server logs `Hooks installed` at startup when Claude hooks are active. Without hooks, sessions are found by scanning `~/.claude/projects/` every few seconds, so a new one can take a moment to appear.
 
 ## License and credits
 

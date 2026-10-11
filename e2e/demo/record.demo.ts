@@ -137,8 +137,7 @@ test('record the README demo', async ({ page }) => {
   fs.writeFileSync(
     path.join(tmpHome, '.pixel-agents', 'config.json'),
     JSON.stringify({
-      // Without it the "Updated to …" toast covers a corner of the footage.
-      standalone: { alwaysShowLabels: true, lastSeenVersion: CURRENT_MAJOR_MINOR },
+      standalone: { lastSeenVersion: CURRENT_MAJOR_MINOR },
       hooksConsent: { claude: 'granted' },
     }),
   );

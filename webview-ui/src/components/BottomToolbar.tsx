@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { CONNECTIONS_ICON, SETTINGS_ICON } from './hudIcons.js';
+import { CONNECTIONS_ICON } from './hudIcons.js';
 import { PixelIcon } from './ui/PixelIcon.js';
 
 interface PlankButtonProps {
@@ -35,20 +35,11 @@ function PlankNail({ position }: { position: string }) {
 }
 
 interface BottomToolbarProps {
-  isSettingsOpen: boolean;
-  onToggleSettings: () => void;
   isConnectionsOpen: boolean;
   onToggleConnections: () => void;
-  connectionsAvailable: boolean;
 }
 
-export function BottomToolbar({
-  isSettingsOpen,
-  onToggleSettings,
-  isConnectionsOpen,
-  onToggleConnections,
-  connectionsAvailable,
-}: BottomToolbarProps) {
+export function BottomToolbar({ isConnectionsOpen, onToggleConnections }: BottomToolbarProps) {
   return (
     <div className="absolute bottom-10 left-10 z-20 flex items-center gap-4 wood-plank py-6 px-14">
       <PlankNail position="top-3 left-3" />
@@ -56,21 +47,12 @@ export function BottomToolbar({
       <PlankNail position="bottom-3 left-3" />
       <PlankNail position="bottom-3 right-3" />
       <PlankButton
-        icon={SETTINGS_ICON}
-        label="Settings"
-        pressed={isSettingsOpen}
-        onClick={onToggleSettings}
-        title="Settings"
+        icon={CONNECTIONS_ICON}
+        label="Connections"
+        pressed={isConnectionsOpen}
+        onClick={onToggleConnections}
+        title="Connections"
       />
-      {connectionsAvailable && (
-        <PlankButton
-          icon={CONNECTIONS_ICON}
-          label="Connections"
-          pressed={isConnectionsOpen}
-          onClick={onToggleConnections}
-          title="Connections"
-        />
-      )}
     </div>
   );
 }

@@ -22,7 +22,6 @@ import {
   buildAssistantUsageRecord,
   buildUserToolResultRecord,
 } from '../../../helpers/team';
-import { setSettings } from '../../../helpers/webview';
 
 test.describe('Hooks ON / spawn paths', () => {
   test('external session spawns agent and Task subagent appears then despawns @area:spawn', async ({
@@ -102,11 +101,6 @@ test.describe('Hooks ON / spawn paths', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so the hooks-only session gets adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     narrator.step('waiting for the hook install to be ready');
     await waitForClaudeHookSetup(tmpHome);

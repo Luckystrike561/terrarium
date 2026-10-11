@@ -111,46 +111,43 @@ export function buildSeedLayout(opts: SeedLayoutOptions = {}): Record<string, un
 }
 
 /**
- * Mirrors server/src/configPersistence.ts DEFAULT_ADAPTER_SETTINGS, except
- * alwaysShowLabels — the e2e baseline turns labels on so overlay text is
- * assertable without hover (same default the fixture-level seed applies when a
- * test passes no seedConfig; see e2e/helpers/standalone.ts).
+ * Mirrors server/src/configPersistence.ts DEFAULT_ADAPTER_SETTINGS.
  */
 const DEFAULT_ADAPTER_SETTINGS = {
-  soundEnabled: true,
   lastSeenVersion: '',
-  alwaysShowLabels: true,
-  watchAllSessions: false,
   hooksInfoShown: false,
-  showAreas: false,
   areaMappings: {} as Record<string, string[]>,
 };
 
 export interface SeedConfigOptions {
   /** Folder name → Area labels. */
   areaMappings?: Record<string, string[]>;
-  /** Persisted Show Areas state. */
-  showAreas?: boolean;
-  /** Adopt external sessions outside the scanned workspace project dir —
-   *  needed to pick up an external session rooted in a subfolder. */
-  watchAllSessions?: boolean;
+  /** Per-provider hooks preference; defaults to on (hooks-on seed). */
+  hooksEnabled?: boolean;
 }
 
 /**
  * Build a full PixelAgentsConfig for `test.use({ seedConfig })`, setting the
- * standalone namespace's areaMappings / showAreas / watchAllSessions.
+ * standalone namespace's areaMappings.
  */
 export function buildSeedConfig(opts: SeedConfigOptions = {}): Record<string, unknown> {
   return {
     standalone: {
       ...DEFAULT_ADAPTER_SETTINGS,
-      showAreas: opts.showAreas ?? false,
       areaMappings: opts.areaMappings ?? {},
-      watchAllSessions: opts.watchAllSessions ?? false,
     },
-    externalAssetDirectories: [],
     // Same baseline as the fixture-level seed: skip the first-run consent prompt
     // so hook installation proceeds at startup (see e2e/helpers/standalone.ts).
     hooksConsent: { claude: 'granted' },
+    ...(opts.hooksEnabled !== undefined ? { hooksEnabled: { claude: opts.hooksEnabled } } : {}),
+  };
+}
+
+/** Seed config for hooks-off mode: hooks are never installed, the server
+ *  starts with the heuristic scanners instead. */
+export function buildHooksOffSeedConfig(): Record<string, unknown> {
+  return {
+    hooksConsent: { claude: 'granted' },
+    hooksEnabled: { claude: false },
   };
 }

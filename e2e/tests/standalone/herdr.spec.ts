@@ -16,7 +16,6 @@ import {
 } from '../../helpers/office';
 import type { RecordedServerMessage, StandaloneSession } from '../../helpers/standalone';
 import { launchStandalone } from '../../helpers/standalone';
-import { setSettings } from '../../helpers/webview';
 
 /**
  * Herdr is an external process (a local session multiplexer), so per the
@@ -75,7 +74,6 @@ async function launchHerdrStandalone(page: Page, provider = 'herdr'): Promise<He
     workspaceDir,
     provider,
   });
-  await setSettings(page, { alwaysShowLabels: true });
   await standalone.drainMessages();
 
   return { tmpHome, workspaceDir, fakeHerdr, standalone };

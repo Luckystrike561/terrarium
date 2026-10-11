@@ -72,7 +72,6 @@ export class HookEventHandler {
     private permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
     modules: ModuleSet,
     private sessionRouter: SessionRouter,
-    private watchAllSessionsRef?: { current: boolean },
   ) {
     this.modulesById = new Map(
       [...modules.agents, ...modules.multiplexers].map((m) => [m.id, m] as const),
@@ -121,16 +120,6 @@ export class HookEventHandler {
       ]);
     }
     return module?.subagentToolNames ?? new Set();
-  }
-
-  /** Check if a session is tracked (in workspace project dir, or Watch All Sessions ON). */
-  private isTrackedSession(transcriptPath?: string, cwd?: string): boolean {
-    if (this.watchAllSessionsRef?.current) return true;
-    const projectDir = transcriptPath ? path.dirname(transcriptPath) : cwd;
-    if (!projectDir) return false;
-    return [...this.agents.values()].some(
-      (a) => path.resolve(a.projectDir).toLowerCase() === path.resolve(projectDir).toLowerCase(),
-    );
   }
 
   /**
@@ -252,8 +241,7 @@ export class HookEventHandler {
       const source = normEvent.source ?? 'unknown';
       const transcriptPath = normEvent.transcriptPath;
       const cwd = normEvent.cwd;
-      const tracked = this.isTrackedSession(transcriptPath, cwd);
-      if (debug && tracked)
+      if (debug)
         console.log(`[Pixel Agents] Hook: SessionStart(source=${source}, session=${sid}...)`);
 
       // Check registered mapping
@@ -316,7 +304,7 @@ export class HookEventHandler {
         if (normEvent.source === 'resume' && transcriptPath) {
           this.lifecycleCallbacks.onSessionResume?.(transcriptPath);
         }
-        if (debug && tracked)
+        if (debug)
           console.log(
             `[Pixel Agents] Hook: SessionStart(source=${source}) -> pending external session ${sid}..., awaiting confirmation`,
           );
@@ -328,7 +316,7 @@ export class HookEventHandler {
           sourceIds: [sourceId],
         });
       } else {
-        if (debug && tracked)
+        if (debug)
           console.log(
             `[Pixel Agents] Hook: SessionStart -> unknown session ${sid}..., no transcript_path`,
           );
@@ -377,8 +365,7 @@ export class HookEventHandler {
       // Buffer if: pending external session, already buffering for this session,
       // OR agents exist that haven't been registered yet (internal agent race:
       // hook event arrives before registerAgent is called after launchNewTerminal).
-      // Silently drop events for sessions we have no record of
-      // (e.g. other projects with Watch All OFF).
+      // Silently drop events for sessions we have no record of.
       const isPending = this.sessionRouter.hasPending(event.session_id);
       const hasBuffered = this.sessionRouter.hasBuffered(event.session_id);
       const hasUnregisteredAgents = [...this.agents.values()].some(

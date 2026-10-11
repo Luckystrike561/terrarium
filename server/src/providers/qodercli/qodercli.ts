@@ -92,8 +92,6 @@ export const qodercliModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch']),
 
-  // Qoder sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

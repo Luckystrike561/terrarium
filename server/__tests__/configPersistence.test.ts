@@ -261,20 +261,17 @@ describe('configPersistence: areas', () => {
   // ── readConfig / writeConfig round-trip ──────────────────────
 
   describe('readConfig + writeConfig round-trip for area settings', () => {
-    it('returns defaults (showAreas=false, areaMappings={}) when no config file exists', () => {
+    it('returns defaults (areaMappings={}) when no config file exists', () => {
       const cfg = readConfig();
-      expect(cfg.standalone.showAreas).toBe(false);
       expect(cfg.standalone.areaMappings).toEqual({});
     });
 
-    it('round-trips showAreas + areaMappings', () => {
+    it('round-trips areaMappings', () => {
       const cfg = readConfig();
-      cfg.standalone.showAreas = true;
       cfg.standalone.areaMappings = { backend: ['Platform'] };
       writeConfig(cfg);
 
       const reloaded = readConfig();
-      expect(reloaded.standalone.showAreas).toBe(true);
       expect(reloaded.standalone.areaMappings).toEqual({ backend: ['Platform'] });
     });
 
@@ -284,14 +281,12 @@ describe('configPersistence: areas', () => {
       fs.writeFileSync(
         path.join(configDir, 'config.json'),
         JSON.stringify({
-          standalone: { showAreas: 'yes please', areaMappings: 'not-an-object' },
+          standalone: { areaMappings: 'not-an-object' },
         }),
         'utf-8',
       );
 
       const cfg = readConfig();
-      // showAreas: 'yes please' is not a boolean → default false
-      expect(cfg.standalone.showAreas).toBe(false);
       expect(cfg.standalone.areaMappings).toEqual({});
     });
 
@@ -301,14 +296,13 @@ describe('configPersistence: areas', () => {
       fs.writeFileSync(
         path.join(configDir, 'config.json'),
         JSON.stringify({
-          vscode: { showAreas: true, areaMappings: { frontend: ['Engineering'] } },
-          standalone: { showAreas: false, areaMappings: { backend: ['Platform'] } },
+          vscode: { areaMappings: { frontend: ['Engineering'] } },
+          standalone: { areaMappings: { backend: ['Platform'] } },
         }),
         'utf-8',
       );
 
       const cfg = readConfig();
-      expect(cfg.standalone.showAreas).toBe(false);
       expect(cfg.standalone.areaMappings).toEqual({ backend: ['Platform'] });
 
       writeConfig(cfg);
@@ -318,6 +312,31 @@ describe('configPersistence: areas', () => {
       expect('vscode' in raw).toBe(false);
       const reread = readConfig();
       expect(reread.standalone.areaMappings).toEqual({ backend: ['Platform'] });
+    });
+
+    it('ignores removed legacy setting keys in a hand-edited config.json and keeps only the remaining settings', () => {
+      const configDir = path.join(tempHome, '.pixel-agents');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.json'),
+        JSON.stringify({
+          standalone: {
+            watchAllSessions: false,
+            soundEnabled: false,
+            alwaysShowLabels: true,
+            showAreas: true,
+          },
+          externalAssetDirectories: ['/x'],
+        }),
+        'utf-8',
+      );
+
+      const cfg = readConfig();
+      expect(cfg.standalone).toEqual({
+        lastSeenVersion: '',
+        hooksInfoShown: false,
+        areaMappings: {},
+      });
     });
   });
 });

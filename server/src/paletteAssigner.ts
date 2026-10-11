@@ -11,11 +11,10 @@ import type { AgentStateStore } from './agentStateStore.js';
 import type { AgentState } from './types.js';
 
 /**
- * Runtime palette count. External asset directories can add char_N.png
- * beyond the bundled sheets (loadExternalCharacterSprites accepts any N), so
- * the count is dynamic. Defaults to CHAR_COUNT until setPaletteCount is
- * called after assets load. Mirrors the setTranscriptModule / setTeamSwitch
- * module-level setter pattern in transcriptParser.ts.
+ * Runtime palette count: the number of character sheets that actually
+ * loaded. Defaults to CHAR_COUNT until setPaletteCount is called after assets
+ * load. Mirrors the setTranscriptModule / setTeamSwitch module-level setter
+ * pattern in transcriptParser.ts.
  */
 let currentPaletteCount = CHAR_COUNT;
 

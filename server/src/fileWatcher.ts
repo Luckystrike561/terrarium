@@ -919,7 +919,6 @@ export function startExternalSessionScanning(
   _jsonlPollTimers: Map<number, ReturnType<typeof setInterval>>,
 
   persistAgents: () => void,
-  watchAllSessionsRef?: { current: boolean },
   hooksEnabledRef?: { current: boolean },
 ): ReturnType<typeof setInterval> {
   return setInterval(() => {
@@ -940,19 +939,16 @@ export function startExternalSessionScanning(
         hooksEnabledRef,
       );
     }
-    // If "Watch All Sessions" is ON, also scan all global project dirs
-    if (watchAllSessionsRef?.current) {
-      scanGlobalProjectDirs(
-        knownJsonlFiles,
-        nextAgentIdRef,
-        agents,
-        fileWatchers,
-        pollingTimers,
-        waitingTimers,
-        permissionTimers,
-        persistAgents,
-      );
-    }
+    scanGlobalProjectDirs(
+      knownJsonlFiles,
+      nextAgentIdRef,
+      agents,
+      fileWatchers,
+      pollingTimers,
+      waitingTimers,
+      permissionTimers,
+      persistAgents,
+    );
   }, EXTERNAL_SCAN_INTERVAL_MS);
 }
 
@@ -1115,8 +1111,8 @@ function folderNameFromProjectDir(dirName: string): string {
   return parts[parts.length - 1] || dirName;
 }
 
-/** Scan every session root the active provider exposes for active sessions
- *  (global discovery — powers the "Watch All Sessions" toggle). */
+/** Scan every session root the active provider exposes for active sessions, for machine-wide
+ *  session discovery (always on, not gated by any setting). */
 function scanGlobalProjectDirs(
   knownJsonlFiles: Set<string>,
   nextAgentIdRef: { current: number },

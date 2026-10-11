@@ -6,7 +6,7 @@ import type {
   Connection,
   HooksConsentRequest,
 } from '../../../core/src/messages.js';
-import { playDoneSound, playPermissionSound, setSoundEnabled } from '../notificationSound.js';
+import { playDoneSound, playPermissionSound } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
 import type { OfficeState } from '../office/engine/officeState.js';
@@ -66,17 +66,12 @@ interface ExtensionMessageState {
   subagentCharacters: SubagentCharacter[];
   layoutReady: boolean;
   layoutWasReset: boolean;
-  externalAssetDirectories: string[];
   lastSeenVersion: string;
   extensionVersion: string;
-  watchAllSessions: boolean;
-  setWatchAllSessions: (v: boolean) => void;
-  alwaysShowLabels: boolean;
   hooksEnabled: boolean;
-  setHooksEnabled: (v: boolean) => void;
   /** Actual install state per provider (hooksStatus messages) — absent/false
    *  while first-run consent is pending, unlike hooksEnabled which defaults
-   *  true. Keyed by providerId; today's Settings checkbox reads 'claude'. */
+   *  true. Keyed by providerId; the hooks tooltip reads 'claude'. */
   hooksInstalled: Record<string, boolean>;
   /** Bumped per provider on every hooksStatus message. `hooksInstalled` alone cannot say "the server answered": a
    *  failed install re-reports the `false` already held, so no effect runs. The Intro needs the ARRIVAL to tell a
@@ -92,9 +87,6 @@ interface ExtensionMessageState {
    *  to tokened clients with a multiplexer enabled: null hides the Connections menu. */
   connections: Connection[] | null;
   addConnection: (input: Omit<AddConnection, 'type' | 'requestId'>) => Promise<string | undefined>;
-  // Areas
-  showAreas: boolean;
-  setShowAreas: (v: boolean) => void;
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -112,11 +104,8 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   const [subagentCharacters, setSubagentCharacters] = useState<SubagentCharacter[]>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const [layoutWasReset, setLayoutWasReset] = useState(false);
-  const [externalAssetDirectories, setExternalAssetDirectories] = useState<string[]>([]);
   const [lastSeenVersion, setLastSeenVersion] = useState('');
   const [extensionVersion, setExtensionVersion] = useState('');
-  const [watchAllSessions, setWatchAllSessions] = useState(false);
-  const [alwaysShowLabels, setAlwaysShowLabels] = useState(false);
   const [hooksEnabled, setHooksEnabled] = useState(true);
   const [hooksInstalled, setHooksInstalled] = useState<Record<string, boolean>>({});
   const [hooksStatusSeq, setHooksStatusSeq] = useState<Record<string, number>>({});
@@ -126,7 +115,6 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   // than dropping it — the server sends one request per provider on the same handshake.
   const [consentQueue, setConsentQueue] = useState<HooksConsentRequest[]>([]);
   const consentRequest = consentQueue[0] ?? null;
-  const [showAreas, setShowAreas] = useState(false);
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const pendingConnectionAddsRef = useRef<Map<string, (error: string | undefined) => void>>(
     new Map(),
@@ -578,25 +566,11 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         const mappings = (msg.mappings ?? {}) as Record<string, string[]>;
         os.setAreaMappings(mappings);
       } else if (msg.type === 'settingsLoaded') {
-        const soundOn = msg.soundEnabled as boolean;
-        setSoundEnabled(soundOn);
-        if (typeof msg.watchAllSessions === 'boolean') {
-          setWatchAllSessions(msg.watchAllSessions as boolean);
-        }
-        if (typeof msg.alwaysShowLabels === 'boolean') {
-          setAlwaysShowLabels(msg.alwaysShowLabels as boolean);
-        }
         if (typeof msg.hooksEnabled === 'boolean') {
           setHooksEnabled(msg.hooksEnabled as boolean);
         }
         if (typeof msg.hooksInfoShown === 'boolean') {
           setHooksInfoShown(msg.hooksInfoShown as boolean);
-        }
-        if (typeof msg.showAreas === 'boolean') {
-          setShowAreas(msg.showAreas as boolean);
-        }
-        if (Array.isArray(msg.externalAssetDirectories)) {
-          setExternalAssetDirectories(msg.externalAssetDirectories as string[]);
         }
         if (typeof msg.lastSeenVersion === 'string') {
           setLastSeenVersion(msg.lastSeenVersion as string);
@@ -611,7 +585,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           setHooksInstalled((m) => ({ ...m, [providerId]: installed }));
           setHooksStatusSeq((m) => ({ ...m, [providerId]: (m[providerId] ?? 0) + 1 }));
           if (installed) {
-            // Moot once THIS provider's hooks are installed — the Settings toggle or another tab granted consent
+            // Moot once THIS provider's hooks are installed — the hooks tooltip or another tab granted consent
             // while the dialog was open. Drop it from the queue (head or queued) rather than let a stale approval
             // re-install; another provider's status is not about this ask.
             setConsentQueue((q) => q.filter((r) => r.providerId !== providerId));
@@ -648,10 +622,6 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
             pendingConnectionAddsRef.current.delete(msg.requestId as string);
             resolve(typeof msg.error === 'string' ? (msg.error as string) : undefined);
           }
-        }
-      } else if (msg.type === 'externalAssetDirectoriesUpdated') {
-        if (Array.isArray(msg.dirs)) {
-          setExternalAssetDirectories(msg.dirs as string[]);
         }
       } else if (msg.type === 'furnitureAssetsLoaded') {
         try {
@@ -715,16 +685,11 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
     subagentCharacters,
     layoutReady,
     layoutWasReset,
-    externalAssetDirectories,
     lastSeenVersion,
     extensionVersion,
-    watchAllSessions,
-    setWatchAllSessions,
-    alwaysShowLabels,
     hooksEnabled,
     hooksInstalled,
     hooksStatusSeq,
-    setHooksEnabled,
     hooksInfoShown,
     consentRequest,
     // Called when a tour ends (answer + Let's Go, the X, Escape) with the providerId that tour was ABOUT, removing
@@ -748,7 +713,5 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         }),
       [],
     ),
-    showAreas,
-    setShowAreas,
   };
 }

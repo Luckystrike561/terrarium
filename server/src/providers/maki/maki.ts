@@ -118,8 +118,6 @@ export const makiModule: AgentModule = {
     'skill',
   ]),
 
-  // Maki's session store is a single flat directory, independent of any workspace.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

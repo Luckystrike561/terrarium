@@ -56,7 +56,6 @@ import {
   getClaudeProjectDir,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { getSettingChecked, setSettings } from '../../../helpers/webview';
 
 const PARALLEL_PARENT_TOOL_ID = 'toolu-b5-parent';
 const SECOND_TEAMMATE_ALIAS = 'reviewer';
@@ -77,9 +76,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'clear-reassign-session';
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, { watchAllSessions: true });
 
     await waitForClaudeHookSetup(tmpHome);
     narrator.step(
@@ -155,9 +151,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'resume-grace-session';
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, { watchAllSessions: true });
 
     await waitForClaudeHookSetup(tmpHome);
     narrator.step('arranging a /resume — session ends then restarts inside the 2s grace window');
@@ -238,11 +231,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const mainSessionId = 'clear-edge-main-session';
-
-    narrator.step('enabling Watch All Sessions so both external sessions are adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     await waitForClaudeHookSetup(tmpHome);
     narrator.step('arranging a /clear on the main agent while a sibling shares its project dir');
@@ -336,11 +324,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
 
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
-
     await waitForClaudeHookSetup(tmpHome);
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -423,9 +406,6 @@ test.describe('Hooks ON / lifecycle', () => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'parallel-subagents-session';
 
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, { watchAllSessions: true });
-
     await waitForClaudeHookSetup(tmpHome);
     narrator.step('arranging one turn with three parallel Task tool_uses');
     await spawnExternalClaudeScenario({
@@ -499,9 +479,6 @@ test.describe('Hooks ON / lifecycle', () => {
     narrator.step('seeding a team config with a lead + one inline teammate');
     const configPath = seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE]);
 
-    narrator.step('enabling Watch All Sessions so the external lead session is adopted');
-    await setSettings(page, { watchAllSessions: true });
-
     await waitForClaudeHookSetup(tmpHome);
     narrator.step('the scenario rewrites the config to lead-only at t+8s');
     await spawnExternalClaudeScenario({
@@ -561,11 +538,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const teamName = uniqueTeamName('lead-cascade-hooks-on');
-
-    narrator.step('enabling Watch All Sessions so the external lead session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     narrator.step('seeding a team of lead + two inline teammates');
     seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE, SECOND_TEAMMATE_ROLE]);
@@ -648,11 +620,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
 
-    narrator.step('enabling Watch All Sessions so the external lead session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
-
     await waitForClaudeHookSetup(tmpHome);
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -718,11 +685,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const teamName = uniqueTeamName('teammate-permission-hooks-on');
-
-    narrator.step('enabling Watch All Sessions so the external lead session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     narrator.step('seeding a team of lead + one inline teammate');
     seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE]);
@@ -808,11 +770,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const teamName = uniqueTeamName('targeted-teammate-idle-hooks-on');
-
-    narrator.step('enabling Watch All Sessions so the external lead session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     narrator.step('seeding a team of lead + two inline teammates');
     seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE, SECOND_TEAMMATE_ROLE]);
@@ -924,9 +881,6 @@ test.describe('Hooks ON / lifecycle', () => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'rapid-clear-session';
 
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, { watchAllSessions: true });
-
     await waitForClaudeHookSetup(tmpHome);
     narrator.step(
       'arranging a time-compressed /clear — end, restart, fresh tool + a ghost tool all within ~500ms',
@@ -997,11 +951,6 @@ test.describe('Hooks ON / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so external sessions are adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     await waitForClaudeHookSetup(tmpHome);
     await spawnExternalClaudeScenario({
@@ -1088,20 +1037,15 @@ test.describe('Hooks ON / lifecycle', () => {
 
   // verify playDoneSound() fires on agentStatus: 'waiting'.
   // The webview's notificationSound.ts records every invocation into
-  // window.__pixelAgentsTestHooks.playedSounds (a test-only marker that runs BEFORE the
-  // soundEnabled gate). We trigger waiting state by sending an idle_prompt
-  // notification hook (the same hook path the spawn-paths test uses to surface "Might be waiting for
+  // window.__pixelAgentsTestHooks.playedSounds (a test-only marker). We
+  // trigger waiting state by sending an idle_prompt notification hook (the
+  // same hook path the spawn-paths test uses to surface "Might be waiting for
   // input") and assert the sound was dispatched.
   test('done sound chime fires on agentStatus waiting @area:cross-cutting', async ({
     page,
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, hookServerConfig, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     await waitForClaudeHookSetup(tmpHome);
     const sessionId = 'done-chime-session';
@@ -1185,9 +1129,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'restore-skip-spawn-session';
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, { watchAllSessions: true });
 
     await waitForClaudeHookSetup(tmpHome);
     narrator.step('spawning an agent, then reloading the page to force a fresh restore');
@@ -1276,11 +1217,6 @@ test.describe('Hooks ON / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     await waitForClaudeHookSetup(tmpHome);
     const sessionId = 'tool-status-matrix-session';
@@ -1371,11 +1307,6 @@ test.describe('Hooks ON / lifecycle', () => {
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, hookServerConfig, narrator } = standalone;
 
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
-
     await waitForClaudeHookSetup(tmpHome);
     const sessionId = 'permission-chime-session';
 
@@ -1429,11 +1360,10 @@ test.describe('Hooks ON / lifecycle', () => {
     narrator.check('playedSounds contains a "permission" entry');
   });
 
-  // Toggling "Instant Detection (Hooks)" in Settings writes (install) or
-  // rewrites (uninstall) ~/.claude/settings.json. Historical bugs around
-  // clobbering pre-existing third-party hook entries make this a real bug
-  // surface; unit tests cover the installer with mocked fs, this e2e covers the
-  // actual round-trip from the Settings toggle to the file on disk.
+  // The server installs the pixel-agents hook into ~/.claude/settings.json on
+  // startup. Historical bugs around clobbering pre-existing third-party hook
+  // entries make this a real bug surface; unit tests cover the installer with
+  // mocked fs, this e2e covers the actual install landing on disk.
   //
   // These helpers match our hook entries on the script name alone
   // ('claude-hook.js' or the legacy 'pixel-agents-hook.js'), which is fine
@@ -1465,20 +1395,6 @@ test.describe('Hooks ON / lifecycle', () => {
     return false;
   }
 
-  function thirdPartyHookPresent(
-    settings: ClaudeHookSettings,
-    eventName: string,
-    marker: string,
-  ): boolean {
-    const entries = settings.hooks?.[eventName] ?? [];
-    for (const entry of entries) {
-      for (const h of entry.hooks ?? []) {
-        if (h.command?.includes(marker)) return true;
-      }
-    }
-    return false;
-  }
-
   // the server installs the pixel-agents hook on startup with the default
   // hooksEnabled=true. Sanity check — if this fails, claudeHookInstaller never
   // ran, and every other hooks-on test is operating against an empty
@@ -1502,57 +1418,6 @@ test.describe('Hooks ON / lifecycle', () => {
     );
   });
 
-  // toggling "Instant Detection" off uninstalls the pixel-agents hook;
-  // toggling it back on reinstalls. Round-trip is idempotent (no duplicate
-  // entries on the second install).
-  test('hook install and uninstall round-trip via the Settings toggle @area:cross-cutting', async ({
-    page,
-    standalone,
-  }) => {
-    const { tmpHome, narrator } = standalone;
-
-    await waitForClaudeHookSetup(tmpHome);
-    expect(pixelAgentsHookPresent(readClaudeSettings(tmpHome), 'PreToolUse')).toBe(true);
-    narrator.check('pixel-agents hook present under PreToolUse at startup');
-
-    // Uninstall: toggle hooks off.
-    narrator.step('toggling Hooks OFF in Settings — the hook entry should disappear');
-    await setSettings(page, { hooksEnabled: false });
-    await expect
-      .poll(() => pixelAgentsHookPresent(readClaudeSettings(tmpHome), 'PreToolUse'), {
-        timeout: 5_000,
-      })
-      .toBe(false);
-    narrator.check('hook entry gone from settings.json after toggling off');
-
-    // Reinstall: toggle hooks back on. hooksEnabled:true is the product
-    // default, but here it is a mid-test ACTION (re-enable after the
-    // uninstall above), not a redundant default — do not trim it.
-    narrator.step('toggling Hooks back ON — the entry should reappear');
-    await setSettings(page, { hooksEnabled: true });
-    await expect
-      .poll(() => pixelAgentsHookPresent(readClaudeSettings(tmpHome), 'PreToolUse'), {
-        timeout: 5_000,
-      })
-      .toBe(true);
-    narrator.check('hook entry back in settings.json after toggling on');
-
-    // No duplication: exactly one pixel-agents entry across all PreToolUse hooks.
-    const settings = readClaudeSettings(tmpHome);
-    const preTool = settings.hooks?.['PreToolUse'] ?? [];
-    const pixelAgentsCount = preTool.reduce((acc, entry) => {
-      return (
-        acc +
-        (entry.hooks ?? []).filter(
-          (h) =>
-            h.command?.includes('claude-hook.js') || h.command?.includes('pixel-agents-hook.js'),
-        ).length
-      );
-    }, 0);
-    expect(pixelAgentsCount).toBe(1);
-    narrator.check('exactly one pixel-agents entry — no duplicate installs');
-  });
-
   // A fresh PreToolUse clears any stale "Needs approval" bubble unless the new
   // tool itself requests permission — otherwise the bubble would linger across
   // tool transitions inside the same session.
@@ -1561,11 +1426,6 @@ test.describe('Hooks ON / lifecycle', () => {
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
-
-    narrator.step('enabling Watch All Sessions so the external session is adopted');
-    await setSettings(page, {
-      watchAllSessions: true,
-    });
 
     await waitForClaudeHookSetup(tmpHome);
     const sessionId = 'permission-bubble-clear-session';
@@ -1614,86 +1474,5 @@ test.describe('Hooks ON / lifecycle', () => {
     await expectOverlayVisible(page, 'Reading foo.ts');
     await expectNoOverlay(page, 'Needs approval', 2_000);
     narrator.check('overlay swaps to "Reading foo.ts"; the stale approval bubble is gone');
-  });
-
-  // persisted settings survive a webview reload.
-  //
-  // The webview's settings UI is hydrated from `settingsLoaded` on every
-  // `webviewReady`. The server reads from its persisted state
-  // (~/.pixel-agents/config.json) and resends. A regression in
-  // FileStateAdapter.setSetting, configPersistence, or the webviewReady handler
-  // would surface as "I turned X off, reloaded, X is back on."
-  //
-  // Trigger: toggle Always Show Labels off, reload the page (forces a fresh
-  // webviewReady against the still-running server), open the Settings modal,
-  // read the indicator state. It must still be unchecked.
-  test('settings toggles persist across a webview reload @area:cross-cutting', async ({
-    page,
-    standalone,
-  }) => {
-    const { narrator } = standalone;
-
-    // Read whatever the fixture default is, then flip it. The persistence
-    // assertion is about the FLIPPED state surviving a reload, not about the
-    // initial default value.
-    const initial = await getSettingChecked(page, 'Always Show Labels');
-    narrator.step('flipping "Always Show Labels" in Settings');
-    await setSettings(page, { alwaysShowLabels: !initial });
-    expect(await getSettingChecked(page, 'Always Show Labels')).toBe(!initial);
-    narrator.check('toggle is now flipped');
-
-    narrator.step('reloading the page to force a fresh webview');
-    await standalone.reloadPage();
-
-    // After settingsLoaded re-hydrates, the toggle must still be in the
-    // flipped state — not back to the fixture default.
-    expect(await getSettingChecked(page, 'Always Show Labels')).toBe(!initial);
-    narrator.check('flipped state survives the reload — persisted through config.json');
-  });
-
-  // the regression that historically bit users. A third-party hook
-  // entry pre-existing in settings.json must survive an uninstall of the
-  // pixel-agents hook untouched.
-  test('hook uninstall preserves a pre-existing third-party hook entry @area:cross-cutting', async ({
-    page,
-    standalone,
-  }) => {
-    const { tmpHome, narrator } = standalone;
-
-    await waitForClaudeHookSetup(tmpHome);
-    const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
-
-    // Inject a third-party hook entry alongside our install.
-    narrator.step('planting a fake third-party hook next to the pixel-agents entry');
-    const THIRD_PARTY_MARKER = '/usr/local/bin/third-party-hook.js';
-    const settings = readClaudeSettings(tmpHome);
-    if (!settings.hooks) settings.hooks = {};
-    if (!settings.hooks['PreToolUse']) settings.hooks['PreToolUse'] = [];
-    settings.hooks['PreToolUse'].push({
-      matcher: '',
-      hooks: [{ command: THIRD_PARTY_MARKER }],
-    });
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-
-    // Sanity: both entries present before uninstall.
-    let now = readClaudeSettings(tmpHome);
-    expect(pixelAgentsHookPresent(now, 'PreToolUse')).toBe(true);
-    expect(thirdPartyHookPresent(now, 'PreToolUse', THIRD_PARTY_MARKER)).toBe(true);
-    narrator.check('both the pixel-agents and third-party hooks present before uninstall');
-
-    // Uninstall via Settings toggle.
-    narrator.step('toggling Hooks OFF — only the pixel-agents entry should be removed');
-    await setSettings(page, { hooksEnabled: false });
-    await expect
-      .poll(() => pixelAgentsHookPresent(readClaudeSettings(tmpHome), 'PreToolUse'), {
-        timeout: 5_000,
-      })
-      .toBe(false);
-    narrator.check('pixel-agents hook removed from settings.json');
-
-    // The third-party hook must still be there.
-    now = readClaudeSettings(tmpHome);
-    expect(thirdPartyHookPresent(now, 'PreToolUse', THIRD_PARTY_MARKER)).toBe(true);
-    narrator.check('the third-party hook survived — surgical uninstall');
   });
 });

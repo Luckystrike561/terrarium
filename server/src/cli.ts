@@ -12,24 +12,20 @@ import * as path from 'path';
 
 import { AgentRuntime } from './agentRuntime.js';
 import { AgentStateStore } from './agentStateStore.js';
-import {
-  buildAssetCache,
-  loadAllCharacters,
-  loadAllFurniture,
-  loadAllPets,
-} from './assetReload.js';
-import type { AssetCache, ReloadAssetsSideEffect } from './clientMessageHandler.js';
+import { buildAssetCache } from './assetReload.js';
+import type { AssetCache } from './clientMessageHandler.js';
 import {
   getHooksConsent,
   getHooksEnabled,
   grantHooksConsent,
-  readConfig,
   setEnabledModuleIds,
+  setHooksEnabled,
 } from './configPersistence.js';
 import { MAX_PORT, MIN_PORT } from './constants.js';
 import { FileStateAdapter } from './fileStateAdapter.js';
 import type { HookModule } from './providers/index.js';
 import {
+  allHookModules,
   findHookModule,
   hookModules,
   loadEnabledModules,
@@ -47,6 +43,8 @@ export interface CliArgs {
   host: string;
   /** Provider modules chosen with --provider. Unset -> the set saved by the last --provider, else the default. */
   moduleIds?: string[];
+  /** --uninstall-hooks: remove every registered provider's hooks and exit, no server started. */
+  uninstallHooks: boolean;
 }
 
 /** Thrown by parseArgs on an invalid argument. Kept separate from process.exit so
@@ -74,7 +72,7 @@ function parseModuleIds(raw: string): string[] {
 }
 
 export function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { host: '127.0.0.1' };
+  const args: CliArgs = { host: '127.0.0.1', uninstallHooks: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--port' || argv[i] === '-p') {
       const raw = argv[i + 1];
@@ -103,6 +101,8 @@ export function parseArgs(argv: string[]): CliArgs {
       }
       args.moduleIds = parseModuleIds(raw);
       i++;
+    } else if (argv[i] === '--uninstall-hooks') {
+      args.uninstallHooks = true;
     } else if (argv[i] === '--help') {
       console.log(`Usage: pixel-agents [options]
 
@@ -111,6 +111,7 @@ Options:
   --host <string>       Host to bind to (default: 127.0.0.1)
   --provider <ids>      Provider modules to run, comma-separated: ${registeredModuleIds.join(', ')}.
                         Saved for later runs (default: the last saved set, else "claude")
+  --uninstall-hooks     Remove Pixel Agents hooks from every provider's settings file and exit
   --help                Show this help message`);
       process.exit(0);
     }
@@ -152,7 +153,8 @@ async function installHooksOnStartup(
     // Without this line, a persisted hooks-off makes startup skip the entire
     // consent/install flow with zero output: indistinguishable from a bug.
     console.log(
-      `[Pixel Agents] Hooks disabled for ${module.displayName} — enable "Instant Detection (Hooks)" in the UI settings to install them.`,
+      `[Pixel Agents] Hooks are off for ${module.displayName}. Delete hooksEnabled.${module.id} ` +
+        `from ~/.pixel-agents/config.json to reinstall them on the next start.`,
     );
     return;
   }
@@ -183,6 +185,35 @@ async function installHooksOnStartup(
   }
 }
 
+/**
+ * The `--uninstall-hooks` command. Hooks-off is persisted per module only once the on-disk read agrees the entries
+ * are gone: persisting it over live entries would make the next start skip the consent gate while they keep firing.
+ */
+async function uninstallHooksCommand(modules: readonly HookModule[]): Promise<boolean> {
+  let allRemoved = true;
+  for (const module of modules) {
+    try {
+      const wasInstalled = await module.hooks.areHooksInstalled();
+      await module.hooks.uninstallHooks();
+      if (await module.hooks.areHooksInstalled()) {
+        throw new Error('its entries are still present after the uninstall');
+      }
+      setHooksEnabled(module.id, false);
+      console.log(
+        wasInstalled
+          ? `[Pixel Agents] ${module.displayName} hooks removed.`
+          : `[Pixel Agents] No ${module.displayName} hooks were installed. They stay off.`,
+      );
+    } catch (err) {
+      console.error(
+        `[Pixel Agents] Could not remove ${module.displayName}'s hooks: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      allRemoved = false;
+    }
+  }
+  return allRemoved;
+}
+
 // ── Main ──────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -194,19 +225,19 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  if (args.uninstallHooks) {
+    const ok = await uninstallHooksCommand(allHookModules);
+    process.exit(ok ? 0 : 1);
+  }
+
   // dist/ contains both the CLI bundle and the assets/ + webview/ directories
   const distRoot = __dirname;
   const packageRoot = path.dirname(distRoot);
   const staticDir = path.join(distRoot, 'webview');
 
   // ── Load assets on startup ──
-  // External asset directories are merged at startup too, so directories added
-  // in a previous session survive a restart.
   console.log('[Pixel Agents] Loading assets...');
-  const assetCache: AssetCache = await buildAssetCache(
-    distRoot,
-    readConfig().externalAssetDirectories,
-  );
+  const assetCache: AssetCache = await buildAssetCache(distRoot);
   const charCount = assetCache.characters?.characters.length ?? 0;
   const petCount = assetCache.pets?.pets.length ?? 0;
   const furnitureCount = assetCache.furniture?.catalog.length ?? 0;
@@ -269,47 +300,6 @@ async function main(): Promise<void> {
       }
     };
 
-    // onReloadAssets side effect: re-run the shared loaders (bundled + external
-    // dirs) after an external-asset-directory change, then re-broadcast the
-    // updated sprites to the requesting client. Mutates the assetCache object in
-    // place so already-open sockets (which captured the same reference) and
-    // future webviewReady handshakes both observe the new assets. Only
-    // characters/pets/furniture can come from external dirs, so only those three
-    // are reloaded and re-sent.
-    const onReloadAssets: ReloadAssetsSideEffect = async (send): Promise<void> => {
-      const externalDirs = readConfig().externalAssetDirectories;
-      const [characters, pets, furniture] = await Promise.all([
-        loadAllCharacters(distRoot, externalDirs),
-        loadAllPets(distRoot, externalDirs),
-        loadAllFurniture(distRoot, externalDirs),
-      ]);
-      assetCache.characters = characters;
-      assetCache.pets = pets;
-      assetCache.furniture = furniture;
-      if (characters) {
-        send({
-          type: 'characterSpritesLoaded',
-          characters: characters.characters,
-          cto: characters.cto,
-        });
-      }
-      if (pets) {
-        send({
-          type: 'petSpritesLoaded',
-          pets: pets.pets,
-          petNames: pets.manifests.map((m) => m.name),
-        });
-      }
-      if (furniture) {
-        send({
-          type: 'furnitureAssetsLoaded',
-          catalog: furniture.catalog,
-          sprites: Object.fromEntries(furniture.sprites),
-        });
-      }
-      console.log('[Pixel Agents] Assets reloaded (external directory change)');
-    };
-
     const config = await server.start({
       store,
       runtime,
@@ -318,7 +308,6 @@ async function main(): Promise<void> {
       staticDir,
       assetCache,
       onSetHooksEnabled,
-      onReloadAssets,
     });
     currentConfig = { port: config.port, token: config.token };
 
@@ -326,7 +315,6 @@ async function main(): Promise<void> {
     for (const module of hookModules(modules)) {
       runtime.setHooksEnabled(module.id, getHooksEnabled(module.id));
     }
-    runtime.watchAllSessions.current = adapter.getSetting('pixel-agents.watchAllSessions', false);
 
     runtime.startModules();
 

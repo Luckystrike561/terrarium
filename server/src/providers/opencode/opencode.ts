@@ -53,8 +53,6 @@ export const opencodeModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: OPENCODE_TOOL_VOCAB.reading,
 
-  // OpenCode sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

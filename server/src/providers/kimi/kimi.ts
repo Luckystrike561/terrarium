@@ -140,8 +140,6 @@ export const kimiModule: AgentModule = {
     'TaskOutput',
   ]),
 
-  // Kimi Code sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) => {
     const home =
       process.env[KIMI_CODE_HOME_ENV] || path.join(os.homedir(), KIMI_DEFAULT_HOME_DIR_NAME);

@@ -145,6 +145,11 @@ describe('parseArgs', () => {
   it('rejects --provider when its value is missing', () => {
     expect(() => parseArgs(['--provider'])).toThrow(/Missing value/);
   });
+
+  it('parses --uninstall-hooks, off unless given', () => {
+    expect(parseArgs([]).uninstallHooks).toBe(false);
+    expect(parseArgs(['--uninstall-hooks']).uninstallHooks).toBe(true);
+  });
 });
 
 // The TTY consent prompt is gone: first-run consent is asked in the app, as
@@ -176,6 +181,7 @@ describe('dist/cli.js entry-point guard', () => {
     const { code, stdout } = await runCli(['--help']);
     expect(code).toBe(0);
     expect(stdout).toContain('Usage: pixel-agents');
+    expect(stdout).toContain('--uninstall-hooks');
   });
 
   // 12. Direct execution still runs main()'s port validation (rejects before listen())
@@ -499,4 +505,87 @@ describe('dist/cli.js entry-point guard', () => {
       expect(output()).toContain('[Pixel Agents] Provider modules: omp, herdr');
     });
   });
+
+  /** Run `--uninstall-hooks` against an isolated HOME. It must exit on its own: no server is started. */
+  function runUninstallHooks(
+    tmpHome: string,
+  ): Promise<{ code: number | null; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+      const child = spawn(process.execPath, [CLI_BUNDLE, '--uninstall-hooks'], {
+        env: { ...process.env, HOME: tmpHome, USERPROFILE: tmpHome },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: CLI_START_TIMEOUT_MS,
+      });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
+      child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
+      child.on('close', (code) => resolve({ code, stdout, stderr }));
+    });
+  }
+
+  function readHooksEnabled(tmpHome: string): unknown {
+    const configPath = path.join(tmpHome, '.pixel-agents', 'config.json');
+    if (!fs.existsSync(configPath)) return undefined;
+    const config: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (config === null || typeof config !== 'object' || !('hooksEnabled' in config)) {
+      return undefined;
+    }
+    return config.hooksEnabled;
+  }
+
+  itBuilt(
+    '--uninstall-hooks removes our entries, keeps third-party ones and persists hooks-off',
+    async () => {
+      const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-uninstall-'));
+      try {
+        const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        const ourCommand = `node "${path.join(tmpHome, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
+        const thirdParty = { type: 'command', command: 'node /elsewhere/other-tool.js' };
+        const hooks = Object.fromEntries(
+          CLAUDE_HOOK_EVENTS.map((event) => [
+            event,
+            [{ matcher: '', hooks: [{ type: 'command', command: ourCommand, timeout: 5 }] }],
+          ]),
+        ) as Record<string, Array<{ matcher: string; hooks: Array<Record<string, unknown>> }>>;
+        hooks[CLAUDE_HOOK_EVENTS[0]][0].hooks.push(thirdParty);
+        fs.writeFileSync(settingsPath, JSON.stringify({ hooks }, null, 2));
+
+        const { code, stdout } = await runUninstallHooks(tmpHome);
+
+        expect(code).toBe(0);
+        expect(stdout).toContain('Claude Code hooks removed.');
+        expect(stdout).not.toContain('server running');
+        const after = fs.readFileSync(settingsPath, 'utf-8');
+        expect(after).not.toContain('claude-hook.js');
+        expect(after).toContain(thirdParty.command);
+        expect(readHooksEnabled(tmpHome)).toEqual({ claude: false });
+      } finally {
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+      }
+    },
+  );
+
+  itBuilt(
+    '--uninstall-hooks exits 1 and persists nothing when settings.json cannot be cleaned',
+    async () => {
+      const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-uninstall-fail-'));
+      try {
+        const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+        fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+        const unparseable = '{ "hooks": { not json';
+        fs.writeFileSync(settingsPath, unparseable);
+
+        const { code, stderr } = await runUninstallHooks(tmpHome);
+
+        expect(code).toBe(1);
+        expect(stderr).toContain("Could not remove Claude Code's hooks");
+        expect(fs.readFileSync(settingsPath, 'utf-8')).toBe(unparseable);
+        expect(readHooksEnabled(tmpHome)).toBeUndefined();
+      } finally {
+        fs.rmSync(tmpHome, { recursive: true, force: true });
+      }
+    },
+  );
 });

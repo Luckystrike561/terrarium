@@ -24,7 +24,7 @@ import {
   buildUserToolResultRecord,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { setSettings } from '../../../helpers/webview';
+import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 
 async function expectLeadActivity(page: Page, text: string): Promise<void> {
   await expectOverlayVisibleWithTexts(page, ['LEAD', text]);
@@ -41,20 +41,14 @@ async function expectExternalAgentAdoption(page: Page): Promise<void> {
 }
 
 test.describe('Hooks OFF / matrix', () => {
+  test.use({ seedConfig: buildHooksOffSeedConfig() });
+
   test('external basic spawn adopted via JSONL polling @area:matrix', async ({
     page,
     standalone,
   }) => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const sessionId = 'hooks-off-external-basic-session';
-
-    narrator.step(
-      'enabling Watch All Sessions, hooks OFF — an outside session adopted by the scanner',
-    );
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     await spawnExternalClaudeScenario({
       tmpHome,
@@ -96,12 +90,6 @@ test.describe('Hooks OFF / matrix', () => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const teamName = uniqueTeamName('hooks-off-external-inline');
     const sessionId = 'hooks-off-external-inline-session';
-
-    narrator.step('enabling Watch All Sessions, hooks OFF — external team discovered via JSONL');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     narrator.step('seeding the team config: a lead plus a web-researcher teammate');
     seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE]);
@@ -156,12 +144,6 @@ test.describe('Hooks OFF / matrix', () => {
     const { tmpHome, workspaceDir, mockLogFile, narrator } = standalone;
     const teamName = uniqueTeamName('hooks-off-external-tmux');
     const sessionId = 'hooks-off-external-tmux-session';
-
-    narrator.step('enabling Watch All Sessions, hooks OFF — external tmux team found via JSONL');
-    await setSettings(page, {
-      watchAllSessions: true,
-      hooksEnabled: false,
-    });
 
     narrator.step('seeding the team config: a lead plus a web-researcher teammate');
     seedTeamConfig(tmpHome, teamName, ['lead', INLINE_TEAMMATE_ROLE]);

@@ -8,18 +8,13 @@ import { AgentStateStore } from '../src/agentStateStore.js';
 import { claudeModule } from '../src/providers/claude/claude.js';
 
 /**
- * D5 gate (tier-3 multi-server hook fan-out plan): the hook script now
- * broadcasts every event to every live server (server/src/providers/claude/
- * hooks/claude-hook.ts), so a server must never adopt a session it
- * doesn't own just because it received the event. HookEventHandler's own
- * isTrackedSession only gates debug logging (hookEventHandler.ts:173-174);
- * the actual gate is one hop downstream, in AgentRuntime's
- * onExternalSessionDetected callback (agentRuntime.ts:96-101), which drops
- * the session unless its project dir was scanned by this instance
- * (isTrackedProjectDir) or watchAllSessions is on. These tests exercise
- * that real callback end-to-end via handleHookEvent, not a mock.
+ * Multi-server hook fan-out: the hook script broadcasts every event to every
+ * live server (server/src/providers/claude/hooks/claude-hook.ts), so every
+ * session on the machine -- tracked project dir or not -- is adopted. These
+ * tests exercise AgentRuntime's onExternalSessionDetected callback end-to-end
+ * via handleHookEvent, not a mock.
  */
-describe('AgentRuntime -- D5 foreign-session gate', () => {
+describe('AgentRuntime -- external session adoption', () => {
   let runtime: AgentRuntime;
   let store: AgentStateStore;
 
@@ -30,10 +25,10 @@ describe('AgentRuntime -- D5 foreign-session gate', () => {
 
   /** A directory guaranteed untracked by any other test in this file or
    *  process (isTrackedProjectDir's backing Set is module-level and only
-   *  ever grows -- see fileWatcher.ts -- so uniqueness is what keeps tests
+   *  ever grows -- see fileWatcher.ts -- so uniqueness keeps tests
    *  from leaking into each other). */
   function untrackedDir(): string {
-    return path.join(os.tmpdir(), `pxl-d5-test-${crypto.randomUUID()}`);
+    return path.join(os.tmpdir(), `pxl-session-test-${crypto.randomUUID()}`);
   }
 
   function fireSessionStartThenStop(sessionId: string, cwd: string): void {
@@ -49,30 +44,19 @@ describe('AgentRuntime -- D5 foreign-session gate', () => {
     });
   }
 
-  it('drops a foreign session (unowned dir, watchAllSessions off): no agent created', () => {
+  it('adopts a session in a directory this instance never scanned', () => {
     store = new AgentStateStore();
     runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-    // watchAllSessions defaults to false; this dir was never scanned/owned
-    // by this instance -- exactly the "other server's session" scenario
-    // fan-out introduces.
-    fireSessionStartThenStop('d5-foreign-off', untrackedDir());
-    expect(store.size).toBe(0);
-  });
-
-  it('adopts a foreign session when watchAllSessions is on', () => {
-    store = new AgentStateStore();
-    runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
-    runtime.watchAllSessions.current = true;
-    fireSessionStartThenStop('d5-foreign-on', untrackedDir());
+    fireSessionStartThenStop('untracked-dir-session', untrackedDir());
     expect(store.size).toBe(1);
   });
 
-  it('adopts a session under a project dir this instance has scanned, even with watchAllSessions off', () => {
+  it('adopts a session under a project dir this instance has scanned', () => {
     store = new AgentStateStore();
     runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [] });
     const dir = untrackedDir();
-    runtime.startProjectScan(dir); // marks `dir` as owned/tracked
-    fireSessionStartThenStop('d5-tracked-dir', dir);
+    runtime.startProjectScan(dir);
+    fireSessionStartThenStop('tracked-dir-session', dir);
     expect(store.size).toBe(1);
   });
 });

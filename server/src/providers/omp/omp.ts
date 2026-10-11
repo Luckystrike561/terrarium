@@ -82,8 +82,6 @@ export const ompModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['read', 'grep', 'glob', 'lsp', 'fetch', 'web_search']),
 
-  // omp sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

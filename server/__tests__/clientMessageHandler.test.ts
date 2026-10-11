@@ -9,16 +9,9 @@ import {
   type ClientMessageContext,
   handleClientMessage,
 } from '../src/clientMessageHandler.js';
-import { getHooksEnabled, readConfig, setHooksEnabled } from '../src/configPersistence.js';
+import { readConfig } from '../src/configPersistence.js';
 import { FileStateAdapter } from '../src/fileStateAdapter.js';
-import { CLAUDE_HOOK_EVENTS } from '../src/providers/claude/constants.js';
 import type { AgentState } from '../src/types.js';
-
-/** Let the setHooksEnabled dispatch's async chain (side effect →
- *  areHooksInstalled → persist → send) run to completion. */
-function settle(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 20));
-}
 
 function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
@@ -118,20 +111,6 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
     });
   });
 
-  // ── setShowAreas ─────────────────────────────────────────────
-
-  describe('setShowAreas', () => {
-    it('persists the boolean via the adapter (standalone namespace)', () => {
-      handleClientMessage({ type: 'setShowAreas', enabled: true }, (m) => sent.push(m), ctx);
-
-      const adapter = store.getAdapter()!;
-      expect(adapter.getSetting('pixel-agents.showAreas', false)).toBe(true);
-
-      handleClientMessage({ type: 'setShowAreas', enabled: false }, (m) => sent.push(m), ctx);
-      expect(adapter.getSetting('pixel-agents.showAreas', true)).toBe(false);
-    });
-  });
-
   // ── hooksStatus (actual install state, not the hooksEnabled setting) ──
 
   describe('hooksStatus', () => {
@@ -143,147 +122,14 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
       const status = sent.find((m) => m.type === 'hooksStatus');
       expect(status).toEqual({ type: 'hooksStatus', providerId: 'claude', installed: false });
     });
-
-    it('setHooksEnabled reports the actual outcome after the side effect settles', async () => {
-      let sideEffectRan = false;
-      ctx.privileged = true;
-      ctx.onSetHooksEnabled = async () => {
-        sideEffectRan = true;
-      };
-      handleClientMessage(
-        { type: 'setHooksEnabled', providerId: 'claude', enabled: true },
-        (m) => sent.push(m),
-        ctx,
-      );
-      await settle();
-
-      expect(sideEffectRan).toBe(true);
-      // The side effect installed nothing (stub), so the truthful answer is false
-      // even though the user just toggled the setting ON.
-      const status = sent.find((m) => m.type === 'hooksStatus');
-      expect(status).toEqual({ type: 'hooksStatus', providerId: 'claude', installed: false });
-    });
-  });
-
-  // ── setHooksEnabled: preference vs reality ───────────────────
-
-  describe('setHooksEnabled persistence', () => {
-    /** Put our command on every installed event, as a real install would. */
-    function seedInstalledHooks(): void {
-      const command = `node "${path.join(tempHome, '.pixel-agents', 'hooks', 'claude-hook.js')}"`;
-      const entry = { matcher: '', hooks: [{ type: 'command', command, timeout: 5 }] };
-      fs.mkdirSync(path.join(tempHome, '.claude'), { recursive: true });
-      fs.writeFileSync(
-        path.join(tempHome, '.claude', 'settings.json'),
-        JSON.stringify({
-          hooks: Object.fromEntries(CLAUDE_HOOK_EVENTS.map((e) => [e, [entry]])),
-        }),
-      );
-    }
-
-    // THE stranding bug: the preference was written BEFORE the uninstall, so a
-    // failed removal left the entries on disk and still firing while the
-    // persisted hooks-off made the next startup skip the consent/install path
-    // entirely — never asked again, no route left to remove them.
-    it('does not persist hooks-off when the uninstall failed', async () => {
-      seedInstalledHooks();
-      ctx.privileged = true;
-      ctx.onSetHooksEnabled = () => {
-        /* the uninstall failed: settings.json still carries our entries */
-      };
-
-      handleClientMessage(
-        { type: 'setHooksEnabled', providerId: 'claude', enabled: false },
-        (m) => sent.push(m),
-        ctx,
-      );
-      await settle();
-
-      // The preference still says ON, so the next startup re-runs the install
-      // path and the user keeps a way to turn hooks off.
-      expect(getHooksEnabled('claude')).toBe(true);
-      // ...and the checkbox is told the truth: they are still installed.
-      expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
-        type: 'hooksStatus',
-        providerId: 'claude',
-        installed: true,
-      });
-    });
-
-    // The mirror case: an install that did not happen must not persist ON.
-    it('does not persist hooks-on when the install failed', async () => {
-      setHooksEnabled('claude', false);
-      ctx.privileged = true;
-      ctx.onSetHooksEnabled = () => {
-        /* the install failed: settings.json stays empty */
-      };
-
-      handleClientMessage(
-        { type: 'setHooksEnabled', providerId: 'claude', enabled: true },
-        (m) => sent.push(m),
-        ctx,
-      );
-      await settle();
-
-      expect(getHooksEnabled('claude')).toBe(false);
-    });
-
-    // The happy path still persists, or the toggle would do nothing at all.
-    it('persists the preference when the outcome matches the request', async () => {
-      ctx.privileged = true;
-      ctx.onSetHooksEnabled = () => seedInstalledHooks();
-
-      handleClientMessage(
-        { type: 'setHooksEnabled', providerId: 'claude', enabled: true },
-        (m) => sent.push(m),
-        ctx,
-      );
-      await settle();
-
-      expect(getHooksEnabled('claude')).toBe(true);
-      expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
-        type: 'hooksStatus',
-        providerId: 'claude',
-        installed: true,
-      });
-    });
-
-    // A non-local client (LAN peer, rebound page) never reaches the side effect
-    // at all: granting consent to modify ~/.claude/settings.json is not a
-    // decision a remote peer gets to make. See httpServerWs.test.ts.
-    it('ignores the toggle entirely when the client is not privileged', async () => {
-      let sideEffectRan = false;
-      ctx.privileged = false;
-      ctx.onSetHooksEnabled = () => {
-        sideEffectRan = true;
-      };
-
-      handleClientMessage(
-        { type: 'setHooksEnabled', providerId: 'claude', enabled: true },
-        (m) => sent.push(m),
-        ctx,
-      );
-      await settle();
-
-      expect(sideEffectRan).toBe(false);
-      expect(getHooksEnabled('claude')).toBe(true);
-      // It still hears the truth, so a LAN viewer's checkbox shows reality
-      // rather than appearing to have worked.
-      expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
-        type: 'hooksStatus',
-        providerId: 'claude',
-        installed: false,
-      });
-    });
   });
 
   // ── handleWebviewReady ordering ──────────────────────────────
 
   describe('handleWebviewReady ordering', () => {
-    it('emits settingsLoaded with showAreas before areaMappingsLoaded before existingAgents', () => {
+    it('emits settingsLoaded before areaMappingsLoaded before existingAgents', () => {
       // Seed config so the assertion proves the values round-trip via the
       // dispatch rather than just relying on hard-coded defaults.
-      handleClientMessage({ type: 'setShowAreas', enabled: true }, (m) => sent.push(m), ctx);
       handleClientMessage(
         { type: 'saveAreaMappings', mappings: { frontend: ['Engineering'] } },
         (m) => sent.push(m),
@@ -304,9 +150,6 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
       expect(iExistingAgents).toBeGreaterThanOrEqual(0);
       expect(iSettings).toBeLessThan(iAreaMappings);
       expect(iAreaMappings).toBeLessThan(iExistingAgents);
-
-      const settings = sent[iSettings] as { showAreas?: boolean };
-      expect(settings.showAreas).toBe(true);
 
       const mappings = sent[iAreaMappings] as { mappings?: Record<string, string[]> };
       expect(mappings.mappings).toEqual({ frontend: ['Engineering'] });

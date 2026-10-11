@@ -6,11 +6,7 @@ import * as path from 'path';
 
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
-import type {
-  AssetCache,
-  ReloadAssetsSideEffect,
-  SetHooksEnabledSideEffect,
-} from './clientMessageHandler.js';
+import type { AssetCache, SetHooksEnabledSideEffect } from './clientMessageHandler.js';
 import {
   SERVER_JSON_DIR,
   SERVER_JSON_NAME,
@@ -66,7 +62,6 @@ export class PixelAgentsServer {
     staticDir?: string;
     assetCache?: AssetCache;
     onSetHooksEnabled?: SetHooksEnabledSideEffect;
-    onReloadAssets?: ReloadAssetsSideEffect;
   }): Promise<ServerConfig> {
     // Port-aware reuse: only reuse an existing registry entry when the caller
     // passed an explicit port that matches it. With no explicit port (the
@@ -97,7 +92,6 @@ export class PixelAgentsServer {
       assetCache: options?.assetCache,
       onHookEvent: (providerId, event) => this.callback?.(providerId, event),
       onSetHooksEnabled: options?.onSetHooksEnabled,
-      onReloadAssets: options?.onReloadAssets,
     });
 
     this.app = app;
@@ -227,7 +221,7 @@ export class PixelAgentsServer {
           fs.unlinkSync(filePath);
           continue;
         }
-        if (isProcessRunning(entry.pid)) {
+        if (isRegisteredProcessRunning(entry)) {
           live.push(entry);
         } else {
           fs.unlinkSync(filePath);
@@ -279,4 +273,13 @@ function isProcessRunning(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+/** Whether the server that wrote a registry entry is still alive. An entry carrying our own PID
+ *  was written by this process only if it is not older than the process: in a container every
+ *  server is PID 1, so an entry a killed predecessor left in a persisted home would otherwise
+ *  pass as live and be "reused" while nothing listens. */
+function isRegisteredProcessRunning(entry: ServerConfig): boolean {
+  if (entry.pid === process.pid) return entry.startedAt >= performance.timeOrigin;
+  return isProcessRunning(entry.pid);
 }

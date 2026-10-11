@@ -100,8 +100,6 @@ export const devinModule: AgentModule = {
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['read', 'grep', 'ls', 'glob', 'fetch', 'web_search']),
 
-  // Devin sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

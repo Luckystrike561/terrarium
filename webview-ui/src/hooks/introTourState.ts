@@ -77,8 +77,8 @@ export function reduceIntroTour(state: IntroTourState, event: IntroTourEvent): I
       return { ...state, intro: null };
 
     case 'statusArrived':
-      // Only an armed wait reads a status as its verdict; every other arrival (the handshake's initial report, a
-      // Settings toggle in another tab, another provider's install) is about someone else's write. The provider comes
+      // Only an armed wait reads a status as its verdict; every other arrival (the handshake's initial report, an
+      // install succeeding in another tab, another provider's install) is about someone else's write. The provider comes
       // from the snapshot request — this tour's install was sent for exactly that one.
       if (!state.awaitingOutcome) return state;
       if (state.intro !== null && event.providerId !== state.intro.providerId) return state;

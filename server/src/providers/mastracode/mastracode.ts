@@ -129,8 +129,6 @@ export const mastracodeModule: AgentModule = {
     'web_extract',
   ]),
 
-  // mastracode sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(
       host,

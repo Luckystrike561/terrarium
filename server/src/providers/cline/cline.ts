@@ -146,8 +146,6 @@ export const clineModule: AgentModule = {
     'skills',
   ]),
 
-  // Cline sessions run in whatever directory the user started them in.
-  adoptsSessionsOutsideWorkspace: true,
   start: (host) =>
     new SessionStoreTracker(host, clineSessionStore(sessionsRoot()), DEFAULT_SESSION_STORE_TIMING),
 };

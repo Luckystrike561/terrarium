@@ -6,7 +6,6 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../../../fixtures/standalone';
 import { ourHookEvents } from '../../../helpers/hooks';
 import { advanceIntroToConsentStep, finishIntro } from '../../../helpers/intro';
-import { getSettingChecked, setSettings } from '../../../helpers/webview';
 
 /**
  * The Intro — the four-step first-run tour — and, inside it, the consent gate for modifying ~/.claude/settings.json.
@@ -19,12 +18,11 @@ import { getSettingChecked, setSettings } from '../../../helpers/webview';
  */
 
 const NO_CONSENT_CONFIG = {
-  standalone: { alwaysShowLabels: true },
   // hooksConsent deliberately absent -> parses to unanswered -> dialog shows.
 };
 
 /** The in-app Intro. IntroBubble is the only role="dialog" element
- *  in the webview (the Settings/changelog modals don't carry the role). */
+ *  in the webview (the changelog and hooks-info modals don't carry the role). */
 function consentDialog(page: Page): Locator {
   return page.getByRole('dialog');
 }
@@ -168,7 +166,7 @@ test.describe('Hooks consent gate', () => {
     expect(text).toContain('127.0.0.1');
     // The LAST sentence of the disclosure — asserted at the tail so a clipped
     // or half-rendered body fails here rather than passing on its opening.
-    expect(text).toContain('Instant Detection (Hooks)');
+    expect(text).toContain('pixel-agents --uninstall-hooks');
     narrator.check(
       'the consent step discloses event scope, payload destination, and how to remove',
     );
@@ -205,12 +203,6 @@ test.describe('Hooks consent gate', () => {
     // Closing the tour despawns the greeter (matrix effect, then removal).
     await expect.poll(() => greeterPresent(page), { timeout: 15_000 }).toBe(false);
     narrator.check('the greeter despawned once the tour ended');
-
-    // The checkbox reflects ACTUAL install state, fed by the hooksStatus message.
-    await expect
-      .poll(() => getSettingChecked(page, 'Instant Detection (Hooks)'), { timeout: 15_000 })
-      .toBe(true);
-    narrator.check('Settings shows Instant Detection ON');
   });
 
   test('Not Now writes nothing, continues the tour, and leaves consent ungranted @area:cross-cutting', async ({
@@ -236,9 +228,6 @@ test.describe('Hooks consent gate', () => {
     // the office.
     expect(readHooksEnabled(tmpHome)).not.toBe(false);
     narrator.check('settings.json never created, consent still ungranted');
-
-    expect(await getSettingChecked(page, 'Instant Detection (Hooks)')).toBe(false);
-    narrator.check('Settings shows Instant Detection OFF — the checkbox tells the truth');
   });
 
   test("Don't Ask Again writes nothing and persists hooks off @area:cross-cutting", async ({
@@ -324,9 +313,6 @@ test.describe('Hooks consent gate', () => {
     narrator.check('hooks removed from disk and hooks-off persisted — a real undo');
 
     await finishIntro(dialog);
-    // The checkbox tells the truth about the revised state.
-    expect(await getSettingChecked(page, 'Instant Detection (Hooks)')).toBe(false);
-    narrator.check('Settings shows Instant Detection OFF');
   });
 
   // The other stranding cell of the revision matrix: "Don't Ask Again", Back,
@@ -466,8 +452,7 @@ test.describe('Hooks consent gate / pre-consent install', () => {
   // all, just the migration. The reinstall only ever REDUCES scope — it drops
   // UserPromptSubmit and TaskCreated, the two events that forwarded prompt text
   // and were consumed by nothing — so a prompt would buy this user nothing they
-  // do not already have. The removal route the disclosure promises is the
-  // Settings toggle, exercised end-to-end by the next test.
+  // do not already have.
   test('a pre-consent 14-event install migrates to 12 with no prompt @area:cross-cutting', async ({
     page,
     standalone,
@@ -496,98 +481,5 @@ test.describe('Hooks consent gate / pre-consent install', () => {
     await expect(consentDialog(page)).toHaveCount(0);
     await expect(page.getByText(/remove the hooks at any time/i)).toHaveCount(0);
     narrator.check('no consent dialog was ever raised');
-
-    // Migrated hooks are live, and the checkbox says so.
-    await expect
-      .poll(() => getSettingChecked(page, 'Instant Detection (Hooks)'), { timeout: 15_000 })
-      .toBe(true);
-    narrator.check('Settings shows Instant Detection ON');
-  });
-
-  // The undo route the disclosure PROMISES ("You can remove the hooks at any
-  // time from Settings → Instant Detection (Hooks)"), driven for exactly the
-  // population that gets no prompt. With the Remove Hooks button gone this is
-  // their ONLY removal route, so it is asserted end-to-end — toggle off,
-  // entries gone from disk — rather than assumed from the toggle existing.
-  test('Settings toggle removes the migrated hooks and keeps third-party entries @area:cross-cutting', async ({
-    page,
-    standalone,
-  }) => {
-    const { tmpHome, narrator } = standalone;
-
-    // The silent migration lands first, so the toggle below is a genuine state
-    // change over live hooks rather than a no-op click.
-    await expect.poll(() => ourHookEvents(tmpHome).length, { timeout: 30_000 }).toBe(12);
-    expect(await getSettingChecked(page, 'Instant Detection (Hooks)')).toBe(true);
-    narrator.check('migrated hooks installed and the checkbox reads ON');
-
-    narrator.step('toggling Instant Detection (Hooks) OFF');
-    await setSettings(page, { hooksEnabled: false });
-
-    await expect.poll(() => ourHookEvents(tmpHome).length, { timeout: 15_000 }).toBe(0);
-    expect(JSON.stringify(readSettings(tmpHome))).toContain(THIRD_PARTY);
-    await expect.poll(() => readHooksEnabled(tmpHome), { timeout: 15_000 }).toBe(false);
-    // Removal turns hooks OFF; it does not revoke the consent the migration
-    // recorded, so re-enabling later installs without re-asking.
-    expect(readConsent(tmpHome)).toBe(true);
-    narrator.check('our entries gone, third-party hook kept, hooks persisted off');
-
-    expect(await getSettingChecked(page, 'Instant Detection (Hooks)')).toBe(false);
-    narrator.check('Settings shows Instant Detection OFF');
-  });
-});
-
-/**
- * The ordinary Settings toggle, when the uninstall CANNOT succeed.
- *
- * The preference used to be persisted before the removal was attempted, so a
- * failed uninstall stranded the user: the entries stayed on disk and kept
- * firing, while the persisted hooks-off made the next startup skip the
- * consent/install path entirely — never asked again, and the checkbox read
- * "off" so clicking it would install rather than remove.
- *
- * Consent is seeded, so this is the ordinary toggle path and not the gate. The
- * failure is forced by making ~/.claude unwritable AFTER a real install, which
- * is the state that matters: hooks genuinely installed and firing, checkbox
- * genuinely ON, and a removal that cannot land.
- */
-test.describe('Hooks consent gate / toggle-off failure', () => {
-  test.use({
-    seedConfig: { standalone: { alwaysShowLabels: true }, hooksConsent: { claude: 'granted' } },
-  });
-
-  test.skip(process.platform === 'win32', 'chmod-based write failure is not meaningful on Windows');
-
-  test('a failed uninstall does not persist hooks-off @area:cross-cutting', async ({
-    page,
-    standalone,
-  }) => {
-    const { tmpHome, narrator } = standalone;
-    const claudeDir = path.join(tmpHome, '.claude');
-
-    // Startup installed for real (consent seeded), so the checkbox is ON and
-    // the toggle below is a genuine state change rather than a no-op click.
-    await expect.poll(() => ourHookEvents(tmpHome).length, { timeout: 30_000 }).toBe(12);
-    expect(await getSettingChecked(page, 'Instant Detection (Hooks)')).toBe(true);
-    narrator.check('hooks installed and the checkbox reads ON');
-
-    const before = fs.readFileSync(settingsPath(tmpHome), 'utf8');
-    try {
-      fs.chmodSync(claudeDir, 0o500); // read+execute only: no write can land
-      narrator.step('toggling hooks OFF while ~/.claude cannot be written');
-      await setSettings(page, { hooksEnabled: false });
-
-      // Settle: the persist, had it happened, lands well inside this window.
-      await page.waitForTimeout(3_000);
-
-      // The entries are still there and still firing...
-      expect(fs.readFileSync(settingsPath(tmpHome), 'utf8')).toBe(before);
-      // ...so the preference must NOT say hooks-off, or the next startup
-      // skips the install path and the user is never asked again.
-      expect(readHooksEnabled(tmpHome)).not.toBe(false);
-      narrator.check('hooks still installed and hooksEnabled not persisted off');
-    } finally {
-      fs.chmodSync(claudeDir, 0o700); // or teardown cannot remove tmpHome
-    }
   });
 });

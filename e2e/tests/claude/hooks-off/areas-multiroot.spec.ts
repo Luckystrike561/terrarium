@@ -20,9 +20,9 @@ import { readAgentSeats, type TestHooksWindow } from '../../../helpers/office';
  * layout. Both are seeded directly.
  *
  * A subfolder's cwd hashes to a DIFFERENT Claude project dir than the one the
- * server tracks for its own `workspaceDir` (the Claude agent module's session dirs),
- * so Watch All Sessions must be on for the periodic global scanner to adopt it
- * (server/src/fileWatcher.ts scanGlobalProjectDirs).
+ * server tracks for its own `workspaceDir` (the Claude agent module's session dirs);
+ * the periodic global scanner adopts it regardless (server/src/fileWatcher.ts
+ * scanGlobalProjectDirs — every session on the machine is tracked).
  *
  * Seat-preference is asserted by AREA MEMBERSHIP (the seated agent's area ===
  * the mapped label). Every seeded chair faces a PC, so all three seats are work
@@ -36,9 +36,8 @@ const ENGINEERING = 'Engineering';
 /**
  * Spawn an external mock session whose cwd is `<workspaceDir>/<folder>`, so
  * its Claude project-dir basename — and therefore its reported folderName
- * (server/src/fileWatcher.ts folderNameFromProjectDir) — is exactly `folder`.
- * Waits until the office has adopted it (Watch All Sessions must already be
- * on, via `seedConfig`).
+ * (server/src/fileWatcher.ts folderNameFromProjectDir)
+ * is exactly `folder`. Waits until the office has adopted it.
  *
  * The init record is padded past `GLOBAL_SCAN_ACTIVE_MIN_SIZE`
  * (server/src/constants.ts, 3KB) — the floor that gates a subfolder's
@@ -86,7 +85,6 @@ test.describe('Areas (folder-mapped agents)', () => {
    */
   test.use({
     seedConfig: buildSeedConfig({
-      watchAllSessions: true,
       areaMappings: { [ALPHA]: [ENGINEERING] },
     }),
     seedLayout: buildSeedLayout({
