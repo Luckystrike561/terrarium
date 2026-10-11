@@ -77,7 +77,7 @@ export function emitSessionReassigned(host: ModuleHost, id: number, agent: Claud
 }
 
 function teamOf(agent: ClaudeAgentState): TeamMembership | undefined {
-  if (!agent.teamName && agent.leadAgentId === undefined) return undefined;
+  if (!agent.teamName && agent.leadAgentId === undefined && !agent.isTeamLead) return undefined;
   return {
     teamName: agent.teamName,
     agentName: agent.agentName,

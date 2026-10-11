@@ -12,6 +12,7 @@ import { getSessionDirs } from '../src/providers/claude/claudeVocabulary.js';
 import {
   EXTERNAL_SCAN_INTERVAL_MS,
   FILE_WATCHER_POLL_INTERVAL_MS,
+  PROJECT_SCAN_INTERVAL_MS,
 } from '../src/providers/claude/constants.js';
 
 // The Claude module reads ~/.claude: keep it in a temp home.
@@ -225,5 +226,18 @@ describe('Claude background teammates through the runtime', () => {
       id: leadId,
       parentToolId: 'toolu_spawn_1',
     });
+  });
+
+  it('a restart keeps the LEAD badge of a lead whose named spawn is still live', () => {
+    const leadId = startLead();
+    spawnTeammate('toolu_spawn_1', 'a1b2c3', 'ghost-writer');
+    runtime!.dispose();
+
+    start();
+    expect(store.get(leadId)?.team?.isTeamLead).toBe(true);
+
+    vi.advanceTimersByTime(PROJECT_SCAN_INTERVAL_MS);
+    expect([...store.values()].some((a) => a.team?.agentName === 'ghost-writer')).toBe(true);
+    expect(store.get(leadId)?.team?.isTeamLead).toBe(true);
   });
 });
