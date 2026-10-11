@@ -35,11 +35,23 @@ export const SSH_COMMAND = 'ssh';
 export const SSH_RESOLVE_TIMEOUT_MS = 20_000;
 
 /** Options every SSH invocation carries. BatchMode: no TTY to answer a password or host-key prompt, so authentication
- *  is the SSH agent, keys and `~/.ssh/config`, and an unknown host key fails with OpenSSH's own message. */
+ *  is the SSH agent, keys and `~/.ssh/config`, and an unknown host key fails with OpenSSH's own message.
+ *  ControlPath none: a shared master from ssh_config would own the forward and outlive the `ssh` we kill, and it skips
+ *  a forward it already holds without binding it again, so the next set-up never sees its socket. ControlMaster no on
+ *  its own still joins an existing master. No agent or X11 forwarding: the target comes from a browser, not from the
+ *  user's shell. */
 export const SSH_BASE_OPTIONS = [
   '-T',
   '-o',
   'BatchMode=yes',
+  '-o',
+  'ControlMaster=no',
+  '-o',
+  'ControlPath=none',
+  '-o',
+  'ForwardAgent=no',
+  '-o',
+  'ForwardX11=no',
   '-o',
   'ConnectTimeout=10',
   '-o',
