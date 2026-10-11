@@ -52,9 +52,22 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
 
     // Scenario 1/5 fixtures must exist BEFORE the module starts: file1 simulates an
     // already-running session the project scan discovers, file3 simulates one that
-    // is seeded but never touched again (never adopted by discovery).
+    // is seeded but never touched again (never adopted by discovery). file3's last
+    // turn left a tool call unanswered, which a restore that replays history would
+    // surface as a live tool.
     fs.writeFileSync(file1, jsonl([{ type: 'system', subtype: 'init' }]));
-    fs.writeFileSync(file3, jsonl([{ type: 'system', subtype: 'init' }]));
+    fs.writeFileSync(
+      file3,
+      jsonl([
+        { type: 'system', subtype: 'init' },
+        {
+          type: 'assistant',
+          message: {
+            content: [{ type: 'tool_use', id: 'stale-t1', name: 'Bash', input: { command: 'ls' } }],
+          },
+        },
+      ]),
+    );
 
     cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(workspaceDir);
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
@@ -171,20 +184,17 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
     });
 
     // ── 5. restoreSession resumes an undiscovered session at EOF, with no history replay ──
-    const beforeRestore = recorded.length;
     runningModule.restoreSession!({
       sessionRef: SESSION_3,
       team: undefined,
       backgroundToolIds: [],
     });
-    const restoreEvents = recorded.slice(beforeRestore);
+    await vi.advanceTimersByTimeAsync(FILE_WATCHER_POLL_INTERVAL_MS);
 
-    expect(restoreEvents).toHaveLength(1);
-    expect(restoreEvents[0]).toMatchObject({
-      sessionId: 'claude-3',
-      event: { kind: 'sessionStart', sessionRef: SESSION_3 },
-    });
-    expect(restoreEvents.some((r) => r.event.kind === 'toolShown')).toBe(false);
+    const claude3Events = recorded.filter((r) => r.sessionId === 'claude-3').map((r) => r.event);
+    expect(claude3Events).toEqual([
+      expect.objectContaining({ kind: 'sessionStart', sessionRef: SESSION_3 }),
+    ]);
 
     // ── 6. dismissSession ends the character ──
     const beforeDismiss = recorded.length;
