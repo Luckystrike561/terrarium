@@ -240,4 +240,16 @@ describe('Claude background teammates through the runtime', () => {
     expect([...store.values()].some((a) => a.team?.agentName === 'ghost-writer')).toBe(true);
     expect(store.get(leadId)?.team?.isTeamLead).toBe(true);
   });
+
+  it('a restart never restores a named spawn whose lead was closed', () => {
+    const leadId = startLead();
+    const teammateId = spawnTeammate('toolu_spawn_1', 'a1b2c3', 'ghost-writer');
+    runtime!.closeAgent(leadId);
+    expect(adapter.loadAgents().map((p) => p.id)).toEqual([teammateId]);
+    runtime!.dispose();
+
+    start();
+
+    expect(store.size).toBe(0);
+  });
 });

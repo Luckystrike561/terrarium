@@ -234,9 +234,14 @@ class ClaudeRunningModule implements RunningAgentModule {
    *  `sessionId` is chosen so `sessionRefOf` reproduces `session.sessionRef` deterministically. */
   restoreSession(session: RestoredSession): void {
     const { sessionRef, team, backgroundToolIds } = session;
-    // Derived background children (leadSessionRef set, no teamName) are re-materialized by the 1s scan from live
-    // sidecars; restoring them directly would resurrect immortal characters.
-    if (team?.leadSessionRef !== undefined && !team.teamName) return;
+    // Derived background children (a name or a lead, but no teamName) are re-materialized by the 1s scan from live
+    // sidecars, whether or not their lead was persisted; restoring them directly would resurrect immortal characters.
+    if (
+      team &&
+      !team.teamName &&
+      (team.agentName !== undefined || team.leadSessionRef !== undefined)
+    )
+      return;
 
     const file = this.resolveTranscript(sessionRef);
     if (!file) return;
