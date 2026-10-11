@@ -48,4 +48,4 @@ E2E is preferred over webview unit tests for user-facing behaviour. Contributors
 
 ## Generated-file drift
 
-This fork has no CI workflows (`.github/` holds only templates, `FUNDING.yml` and `dependabot.yml`). The checks run locally, and the husky `pre-push` hook enforces the two drift guarantees: it runs `npm run check-types`, regenerates `core/src/messages.ts` and the e2e inventory, and fails on any diff in either file.
+No workflow runs the tests or the drift checks (`.github/workflows/` holds only the Docker image and website workflows). The checks run locally, and the husky `pre-push` hook enforces the two drift guarantees: it runs `npm run check-types`, regenerates `core/src/messages.ts` and the e2e inventory, and fails on any diff in either file.

@@ -223,8 +223,8 @@ The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` ta
    npm test                             # Server vitest + webview vitest + package contract
    npm run e2e                          # Full Playwright suite; inventory lives in e2e/README.md
    ```
-   This fork has no CI workflows, so these local runs are the gate. The husky `pre-push` hook runs `check-types` and the two drift checks (AsyncAPI bindings and e2e inventory) for you. Always regenerate and commit the result.
-4. Open a pull request against `main` with:
+   No workflow runs these checks, so these local runs are the gate. The husky `pre-push` hook runs `check-types` and the two drift checks (AsyncAPI bindings and e2e inventory) for you. Always regenerate and commit the result.
+4. Open a pull request against `master` with:
    - A **conventional commit PR title** (e.g. `feat: add zoom controls`, `fix: character freezing on terminal close`, `refactor: extract pathfinding module`). See [Conventional Commits](https://www.conventionalcommits.org/).
    - A link to the issue it closes (`Closes #123`)
    - A clear description of what changed and why

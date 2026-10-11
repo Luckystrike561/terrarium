@@ -62,11 +62,12 @@ Adding an agent CLI or a multiplexer is one subdirectory under `server/src/provi
    - **Hooks**: `normalizeHookEvent(raw)` for what the CLI POSTs to `/api/hooks/<id>`, and `hooks: HookInstaller` (`installHooks`, `uninstallHooks`, `areHooksInstalled`, `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run).
    - **Its own discovery** (transcripts, a database): `start(host)` returning a `RunningAgentModule`. Build it from `providers/sessionStore/`: `new SessionStoreTracker(host, store, DEFAULT_SESSION_STORE_TIMING)` over `jsonlSessionStore` (append-only JSONL), `jsonDocumentSessionStore` (whole-file JSON) or `sqliteSessionStore` (one SQLite file), with a format mapping the CLI's records to `working`, `toolStart`, `toolEnd`, `turnEnd`, `permissionRequest` and `sessionEnd` where the CLI really records them. Key sessions in the form herdr's `agent_session.value` takes for the CLI (the path for pi and omp, the CLI's session id otherwise). The tracker never replays history (cursors open at the end and only the tail decides the starting state), keeps one reader per session refcounted between discovery and follows, and drops sessions untouched for the active window.
 2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
-3. Tests go in `server/__tests__/`. `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
+3. Add what its sessions show (tool activity, turn ends, approvals, clean exit) to `AGENT_COVERAGE` in `scripts/build-site.ts`, or the website build (`npm run site:build`) fails.
+4. Tests go in `server/__tests__/`. `providerModules.test.ts` shows how to run a module against a temp home with fake timers.
 
 ### Multiplexer module
 
-Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule`, then add it to `multiplexerModules`.
+Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerModule`, then add it to `multiplexerModules` and give it a `MULTIPLEXER_SUMMARY` entry in `scripts/build-site.ts`.
 
 - `connect(endpoint, watcher)` reports full snapshots of live agents and its link state. An agent missing from a snapshot has ended. An unanswered poll must not report an empty list.
 - `probe(endpoint)` does one round-trip. Adding a connection probes it before saving.

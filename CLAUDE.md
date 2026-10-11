@@ -114,6 +114,8 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
       components/                    OfficeCanvas.tsx, ToolOverlay.tsx
   test/                              Vitest (Node runner)
 
+site/                                GitHub Pages website source (index.html template + style.css), built by scripts/build-site.ts
+
 e2e/                                 Playwright, Chromium only
   playwright.config.ts, global-setup.ts, run-config.ts
   fixtures/                          standalone.ts, mock-claude(.cmd), mock-claude-runner.cjs, fake-ssh.cjs
@@ -130,6 +132,7 @@ scripts/
   generate-e2e-inventory.mjs         Splices the test list into e2e/README.md
   build-allure-report.mjs            Combines e2e + server + webview Allure results
   assemble-vercel-output.mjs         Stages /reports/allure/ for Vercel
+  build-site.ts                      site/ → dist/site/, supported-agents table from the provider registry (fails on a module missing from AGENT_COVERAGE)
   npm-package-contract.mjs (+ .test) What the npm tarball must contain
   verify-npm-package.mjs             Packs, installs and smoke-tests the tarball
   publish-npm-package.mjs            Publishes a verified tarball
@@ -227,13 +230,14 @@ npm run check-types        # tsc across all packages
 npm run asyncapi:validate  # validate the contract
 npm run asyncapi:generate  # regenerate core/src/messages.ts
 npm run verify:npm-package # pack, install and smoke-test the tarball
+npm run site:build         # build the website from site/ into dist/site/
 ```
 
 `esbuild.js` bundles the CLI (`dist/cli.js`, Fastify externals) and the hook script (`dist/hooks/claude-hook.js`, CJS with shebang), and copies `webview-ui/public/assets/` to `dist/assets/`. `process.env.PIXEL_AGENTS_VERSION` is stamped into all bundles.
 
 ## Checks
 
-There are no CI workflows in this fork. Run the checks locally before pushing:
+No workflow runs the checks. `.github/workflows/` holds only `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release) and `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`). Run the checks locally before pushing:
 
 ```bash
 npm run lint && npm run check-types && npm run asyncapi:validate
