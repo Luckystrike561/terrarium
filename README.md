@@ -4,6 +4,8 @@
 
 <p align="center">Every AI coding agent on your machine, as a pixel-art character in an isometric office.</p>
 
+<p align="center"><a href="https://luckystrike561.github.io/terrarium/">Website</a> · <a href="https://luckystrike561.github.io/terrarium/#agents">Supported agents</a> · <a href="CHANGELOG.md">Changelog</a></p>
+
 <p align="center">
   <img src="docs/media/demo.gif" alt="Terrarium: omp agents from herdr working, queueing at the CTO's office for approval, and resting in the lounge" width="960">
 </p>
@@ -178,6 +180,8 @@ npm run e2e            # Playwright, against the standalone server
 ```
 
 `npm run demo:record` re-records the GIF at the top of this page. It plays a scripted herdr session through the real standalone server (needs `npm run build` and `ffmpeg`) and writes `docs/media/demo.gif`.
+
+`npm run site:build` builds the [website](https://luckystrike561.github.io/terrarium/) from `site/` into `dist/site/`. Its supported-agents table lists the modules in `server/src/providers/index.ts`, and the build fails when a module has no entry in the table's coverage map in `scripts/build-site.ts`. The **Website** workflow deploys it to GitHub Pages on every push to `master`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/README.md) for the end-to-end suite.
 
