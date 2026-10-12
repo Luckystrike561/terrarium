@@ -1,7 +1,7 @@
 /**
  * Devin CLI agent module. Devin has no hook API wired into the shipped CLI: everything comes from its central
  * SQLite session store, found by scanning it or handed over by a multiplexer that hosts the session. Nothing is
- * written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * written outside `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

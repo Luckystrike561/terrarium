@@ -70,7 +70,7 @@ export const SSH_FORWARD_READY_POLL_MS = 100;
 export const SSH_RESTART_DELAY_MS = 5000;
 
 /** Forwarded sockets live here, relative to the home directory, one per connection. */
-export const SSH_FORWARD_DIR_SEGMENTS = ['.pixel-agents', 'herdr'] as const;
+export const SSH_FORWARD_DIR_SEGMENTS = ['.terrarium', 'herdr'] as const;
 
 /** Owner-only: a forwarded socket is the remote herdr's full control API. */
 export const SSH_FORWARD_DIR_MODE = 0o700;

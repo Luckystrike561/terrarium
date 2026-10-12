@@ -38,7 +38,7 @@ test.describe('Areas (no agent folders)', () => {
       // Area definitions + painted tiles survive the layout load.
       narrator.step('waiting for the seeded "Engineering" area to load into the office');
       await page.waitForFunction(
-        () => ((window as TestHooksWindow).__pixelAgentsTestHooks?.getAreas?.() ?? []).length === 1,
+        () => ((window as TestHooksWindow).__terrariumTestHooks?.getAreas?.() ?? []).length === 1,
         undefined,
         { timeout: 15_000 },
       );

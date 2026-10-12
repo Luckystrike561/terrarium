@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Standalone CLI entry point: `npx pixel-agents`
+ * Standalone CLI entry point: `terrarium`
  *
  * Starts the Fastify server in standalone mode with SPA serving and WebSocket.
  * Loads all assets (PNGs -> SpriteData) on startup and caches in memory.
@@ -32,7 +32,8 @@ import {
   registeredModuleIds,
   unknownModuleIds,
 } from './providers/index.js';
-import { PixelAgentsServer } from './server.js';
+import { TerrariumServer } from './server.js';
+import { migrateLegacyStateDir } from './stateDirMigration.js';
 
 // ── Argument parsing ──────────────────────────────────────────
 
@@ -104,14 +105,14 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (argv[i] === '--uninstall-hooks') {
       args.uninstallHooks = true;
     } else if (argv[i] === '--help') {
-      console.log(`Usage: pixel-agents [options]
+      console.log(`Usage: terrarium [options]
 
 Options:
   --port, -p <number>   Port to listen on (default: OS-assigned ephemeral port)
   --host <string>       Host to bind to (default: 127.0.0.1)
   --provider <ids>      Provider modules to run, comma-separated: ${registeredModuleIds.join(', ')}.
                         Saved for later runs (default: the last saved set, else "claude")
-  --uninstall-hooks     Remove Pixel Agents hooks from every provider's settings file and exit
+  --uninstall-hooks     Remove Terrarium hooks from every provider's settings file and exit
   --help                Show this help message`);
       process.exit(0);
     }
@@ -138,7 +139,7 @@ Options:
  */
 function stageHookFilesOrReport(module: HookModule, packageRoot: string, context = ''): boolean {
   if (module.hooks.stageHookFiles?.(packageRoot) ?? true) return true;
-  console.error(`[Pixel Agents] Hooks NOT installed${context}: hook script missing.`);
+  console.error(`[Terrarium] Hooks NOT installed${context}: hook script missing.`);
   return false;
 }
 
@@ -153,8 +154,8 @@ async function installHooksOnStartup(
     // Without this line, a persisted hooks-off makes startup skip the entire
     // consent/install flow with zero output: indistinguishable from a bug.
     console.log(
-      `[Pixel Agents] Hooks are off for ${module.displayName}. Delete hooksEnabled.${module.id} ` +
-        `from ~/.pixel-agents/config.json to reinstall them on the next start.`,
+      `[Terrarium] Hooks are off for ${module.displayName}. Delete hooksEnabled.${module.id} ` +
+        `from ~/.terrarium/config.json to reinstall them on the next start.`,
     );
     return;
   }
@@ -172,16 +173,16 @@ async function installHooksOnStartup(
   }
   if (!consent) {
     console.log(
-      `[Pixel Agents] Hooks not installed: writing ${module.displayName}'s settings needs one-time approval — open the URL below to review and approve it.`,
+      `[Terrarium] Hooks not installed: writing ${module.displayName}'s settings needs one-time approval — open the URL below to review and approve it.`,
     );
     return;
   }
   if (!stageHookFilesOrReport(module, packageRoot)) return;
   try {
     await module.hooks.installHooks(serverUrl, token);
-    console.log('[Pixel Agents] Hooks installed');
+    console.log('[Terrarium] Hooks installed');
   } catch (err) {
-    console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -201,12 +202,12 @@ async function uninstallHooksCommand(modules: readonly HookModule[]): Promise<bo
       setHooksEnabled(module.id, false);
       console.log(
         wasInstalled
-          ? `[Pixel Agents] ${module.displayName} hooks removed.`
-          : `[Pixel Agents] No ${module.displayName} hooks were installed. They stay off.`,
+          ? `[Terrarium] ${module.displayName} hooks removed.`
+          : `[Terrarium] No ${module.displayName} hooks were installed. They stay off.`,
       );
     } catch (err) {
       console.error(
-        `[Pixel Agents] Could not remove ${module.displayName}'s hooks: ${err instanceof Error ? err.message : String(err)}`,
+        `[Terrarium] Could not remove ${module.displayName}'s hooks: ${err instanceof Error ? err.message : String(err)}`,
       );
       allRemoved = false;
     }
@@ -221,9 +222,11 @@ async function main(): Promise<void> {
   try {
     args = parseArgs(process.argv.slice(2));
   } catch (err) {
-    console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
+
+  migrateLegacyStateDir();
 
   if (args.uninstallHooks) {
     const ok = await uninstallHooksCommand(allHookModules);
@@ -236,13 +239,13 @@ async function main(): Promise<void> {
   const staticDir = path.join(distRoot, 'webview');
 
   // ── Load assets on startup ──
-  console.log('[Pixel Agents] Loading assets...');
+  console.log('[Terrarium] Loading assets...');
   const assetCache: AssetCache = await buildAssetCache(distRoot);
   const charCount = assetCache.characters?.characters.length ?? 0;
   const petCount = assetCache.pets?.pets.length ?? 0;
   const furnitureCount = assetCache.furniture?.catalog.length ?? 0;
   console.log(
-    `[Pixel Agents] Assets loaded: ${charCount} characters, ${petCount} pets, ${furnitureCount} furniture items`,
+    `[Terrarium] Assets loaded: ${charCount} characters, ${petCount} pets, ${furnitureCount} furniture items`,
   );
 
   // ── Store + adapter (shared settings + standalone-scoped agents/seats) ──
@@ -251,13 +254,13 @@ async function main(): Promise<void> {
   store.setAdapter(adapter);
 
   // ── Create server ──
-  const server = new PixelAgentsServer();
+  const server = new TerrariumServer();
 
   try {
     if (args.moduleIds) setEnabledModuleIds(args.moduleIds);
     const modules = loadEnabledModules();
     const moduleIds = [...modules.agents, ...modules.multiplexers].map((m) => m.id);
-    console.log(`[Pixel Agents] Provider modules: ${moduleIds.join(', ') || 'none'}`);
+    console.log(`[Terrarium] Provider modules: ${moduleIds.join(', ') || 'none'}`);
 
     // Create runtime first (before server.start, so we can pass it in)
     const runtime = new AgentRuntime(store, modules);
@@ -286,16 +289,16 @@ async function main(): Promise<void> {
             currentConfig.token,
           );
         } catch (err) {
-          console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+          console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
-        console.log('[Pixel Agents] Hooks installed (user toggle)');
+        console.log('[Terrarium] Hooks installed (user toggle)');
       } else {
         try {
           await module.hooks.uninstallHooks();
-          console.log('[Pixel Agents] Hooks uninstalled (user toggle)');
+          console.log('[Terrarium] Hooks uninstalled (user toggle)');
         } catch (err) {
-          console.error(`[Pixel Agents] ${err instanceof Error ? err.message : String(err)}`);
+          console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
         }
       }
     };
@@ -337,7 +340,7 @@ async function main(): Promise<void> {
     const displayHost =
       args.host === '0.0.0.0' || args.host === '::' || args.host === '' ? '127.0.0.1' : args.host;
     console.log(
-      `\n  Pixel Agents server running at http://${displayHost}:${config.port}/?token=${config.token}\n`,
+      `\n  Terrarium server running at http://${displayHost}:${config.port}/?token=${config.token}\n`,
     );
 
     // ── Graceful shutdown ──

@@ -23,7 +23,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const debug = process.env.PIXEL_AGENTS_DEBUG !== '0';
+const debug = process.env.TERRARIUM_DEBUG !== '0';
 
 import { DEFAULT_MAX_CONTEXT_TOKENS } from '../../constants.js';
 import { pathsMatch } from '../../pathKey.js';
@@ -145,7 +145,7 @@ export function readNewLines(
   } catch (e) {
     // ENOENT is expected for hook-detected agents where the JSONL file hasn't been created yet
     if (e instanceof Error && 'code' in e && (e as NodeJS.ErrnoException).code === 'ENOENT') return;
-    console.log(`[Pixel Agents] Watcher: Agent ${agentId} - read error: ${e}`);
+    console.log(`[Terrarium] Watcher: Agent ${agentId} - read error: ${e}`);
   }
 }
 
@@ -326,7 +326,7 @@ export function scanForTeammateFiles(
     if (existingTeammate) {
       if (debug)
         console.log(
-          `[Pixel Agents] Teammate "${teammateName}" already exists (Agent ${existingTeammate.id}), reassigning to ${path.basename(file)}`,
+          `[Terrarium] Teammate "${teammateName}" already exists (Agent ${existingTeammate.id}), reassigning to ${path.basename(file)}`,
         );
       // Reassign to new JSONL file -- stop old polling, start new
       const oldTimer = pollingTimers.get(existingTeammate.id);
@@ -394,7 +394,7 @@ export function scanForTeammateFiles(
     agents.set(id, agent);
 
     console.log(
-      `[Pixel Agents] Teammate detected: "${teammateName}" (Agent ${id}) for parent Agent ${parentAgentId} (${path.basename(file)})`,
+      `[Terrarium] Teammate detected: "${teammateName}" (Agent ${id}) for parent Agent ${parentAgentId} (${path.basename(file)})`,
     );
 
     // Own-session teammates get registered so their hook events route directly
@@ -553,7 +553,7 @@ export function scanForBackgroundAgentFiles(
     }
 
     console.log(
-      `[Pixel Agents] Background teammate detected: "${agent.agentName}" (Agent ${id}) for lead Agent ${leadId} (${path.basename(entry.jsonlPath)})`,
+      `[Terrarium] Background teammate detected: "${agent.agentName}" (Agent ${id}) for lead Agent ${leadId} (${path.basename(entry.jsonlPath)})`,
     );
 
     // The transient Subtask sub-character is superseded by this real character.
@@ -716,7 +716,7 @@ export function adoptExternalSessionFromHook(
     const adoptedAgent = [...agents.values()].find((a) => pathsMatch(a.jsonlFile, transcriptPath));
     if (adoptedAgent && debug) {
       console.log(
-        `[Pixel Agents] Hook: Agent ${adoptedAgent.id} - detected external session ${path.basename(transcriptPath)}${adoptedAgent.folderName ? ` (${adoptedAgent.folderName})` : ''}`,
+        `[Terrarium] Hook: Agent ${adoptedAgent.id} - detected external session ${path.basename(transcriptPath)}${adoptedAgent.folderName ? ` (${adoptedAgent.folderName})` : ''}`,
       );
     }
     if (adoptedAgent) {
@@ -756,7 +756,7 @@ export function adoptExternalSessionFromHook(
     agents.set(id, agent);
     if (debug) {
       console.log(
-        `[Pixel Agents] Hook: Agent ${id} - detected hooks-only external session${folderName ? ` (${folderName})` : ''}`,
+        `[Terrarium] Hook: Agent ${id} - detected hooks-only external session${folderName ? ` (${folderName})` : ''}`,
       );
     }
     onAgentCreated?.(agent);
@@ -1026,7 +1026,7 @@ export function scanExternalDir(
     }
 
     knownJsonlFiles.add(file);
-    console.log(`[Pixel Agents] Watcher: detected external session ${path.basename(file)}`);
+    console.log(`[Terrarium] Watcher: detected external session ${path.basename(file)}`);
     adoptExternalSession(
       file,
       projectDir,
@@ -1109,7 +1109,7 @@ function scanGlobalProjectDirs(
       const folderName = folderNameFromProjectDir(path.basename(dirPath));
       knownJsonlFiles.add(file);
       console.log(
-        `[Pixel Agents] Watcher: detected global session ${path.basename(file)} (${folderName})`,
+        `[Terrarium] Watcher: detected global session ${path.basename(file)} (${folderName})`,
       );
       adoptExternalSession(
         file,
@@ -1159,7 +1159,7 @@ export function startStaleExternalAgentCheck(
         // Remove from knownJsonlFiles so the file can be re-adopted if it becomes active again
         knownJsonlFiles.delete(agent.jsonlFile);
       }
-      console.log(`[Pixel Agents] Watcher: Agent ${id} - removing stale external agent`);
+      console.log(`[Terrarium] Watcher: Agent ${id} - removing stale external agent`);
       agentRemovalCallback?.(id);
     }
   }, EXTERNAL_STALE_CHECK_INTERVAL_MS);

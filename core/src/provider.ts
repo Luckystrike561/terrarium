@@ -179,7 +179,7 @@ export interface AgentModule {
    *  / AgentModule / RunningAgentModule. */
   readonly protocolVersion: number;
 
-  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.pixel-agents/`.
+  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.terrarium/`.
    *  The running module receives what they POST (`RunningAgentModule.receiveHook`). */
   readonly hooks?: HookInstaller;
 

@@ -1,7 +1,7 @@
 /**
  * Grok CLI agent module. Grok has no hook API this module reads: everything comes from its own append-only session
  * transcripts (`updates.jsonl`), found by scanning its session store or handed over by a multiplexer that hosts the
- * session. Nothing is written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * session. Nothing is written outside `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

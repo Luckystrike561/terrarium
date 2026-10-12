@@ -12,7 +12,7 @@ import type { ModuleSet } from './providers/index.js';
 import type { PendingSession, RoutedEvent, SessionRouter } from './sessionRouter.js';
 import type { AgentState, AgentTeam } from './types.js';
 
-const debug = process.env.PIXEL_AGENTS_DEBUG !== '0';
+const debug = process.env.TERRARIUM_DEBUG !== '0';
 
 /** A session announced to the runtime, with what its module knew about it when it started. */
 export interface AnnouncedSession extends PendingSession {
@@ -56,7 +56,7 @@ export class AgentEventHandler {
     for (const module of modules.agents) {
       if (module.protocolVersion !== AgentEventHandler.SUPPORTED_PROTOCOL_VERSION) {
         console.warn(
-          `[Pixel Agents] Module "${module.id}" reports protocolVersion=${module.protocolVersion}, ` +
+          `[Terrarium] Module "${module.id}" reports protocolVersion=${module.protocolVersion}, ` +
             `but handler understands ${AgentEventHandler.SUPPORTED_PROTOCOL_VERSION}. ` +
             `Events from this module will be dropped.`,
         );
@@ -95,7 +95,7 @@ export class AgentEventHandler {
       if (agent.sessionRef === undefined || !pathsMatch(agent.sessionRef, sessionRef)) continue;
       if (debug)
         console.log(
-          `[Pixel Agents] Event: session ${sessionId.slice(0, 8)}... reports Agent ${id}'s session, routing to it`,
+          `[Terrarium] Event: session ${sessionId.slice(0, 8)}... reports Agent ${id}'s session, routing to it`,
         );
       this.registerAgent(sessionId, id, sourceId);
       return true;
@@ -138,7 +138,7 @@ export class AgentEventHandler {
     const { sourceId, sessionId, event } = routed;
     const sourceModule = this.modulesById.get(sourceId);
     // CI / e2e diagnostic: see agentStateStore.ts debugLogBroadcast comment.
-    const debugLog = process.env['PIXEL_AGENTS_DEBUG_LOG'];
+    const debugLog = process.env['TERRARIUM_DEBUG_LOG'];
     if (debugLog) {
       try {
         const extras = event.kind === 'toolStart' ? ` toolName=${event.toolName}` : '';
@@ -310,7 +310,7 @@ export class AgentEventHandler {
     if (event.cwd || event.sessionRef || sourceModule?.kind === 'multiplexer') {
       if (debug)
         console.log(
-          `[Pixel Agents] Event: sessionStart -> pending session ${sessionId.slice(0, 8)}..., awaiting confirmation`,
+          `[Terrarium] Event: sessionStart -> pending session ${sessionId.slice(0, 8)}..., awaiting confirmation`,
         );
       this.sessionRouter.storePending(sessionId, announced);
     }

@@ -6,7 +6,7 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import pixelAgentsPlugin from '../eslint-rules/pixel-agents-rules.mjs';
+import terrariumPlugin from '../eslint-rules/terrarium-rules.mjs';
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -20,7 +20,7 @@ export default defineConfig([
     ],
     plugins: {
       'simple-import-sort': simpleImportSort,
-      'pixel-agents': pixelAgentsPlugin,
+      terrarium: terrariumPlugin,
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -36,17 +36,17 @@ export default defineConfig([
       'react-hooks/immutability': 'off',
       'react-hooks/refs': 'off',
       'react-hooks/set-state-in-effect': 'off',
-      'pixel-agents/no-inline-colors': 'error',
-      'pixel-agents/pixel-shadow': 'error',
-      'pixel-agents/pixel-font': 'error',
+      'terrarium/no-inline-colors': 'error',
+      'terrarium/pixel-shadow': 'error',
+      'terrarium/pixel-font': 'error',
     },
   },
   {
     files: ['src/constants.ts', 'src/fonts/**', 'src/office/sprites/**'],
     rules: {
-      'pixel-agents/no-inline-colors': 'off',
-      'pixel-agents/pixel-shadow': 'off',
-      'pixel-agents/pixel-font': 'off',
+      'terrarium/no-inline-colors': 'off',
+      'terrarium/pixel-shadow': 'off',
+      'terrarium/pixel-font': 'off',
     },
   },
   eslintConfigPrettier,

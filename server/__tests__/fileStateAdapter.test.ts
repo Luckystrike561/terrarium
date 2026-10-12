@@ -32,51 +32,51 @@ describe('FileStateAdapter', () => {
 
   it('returns defaults when config file does not exist', () => {
     const adapter = new FileStateAdapter();
-    expect(adapter.getSetting('pixel-agents.lastSeenVersion', 'x')).toBe('');
+    expect(adapter.getSetting('terrarium.lastSeenVersion', 'x')).toBe('');
   });
 
   it('round-trips each setting key (hooksEnabled moved to the per-provider map)', () => {
     const adapter = new FileStateAdapter();
 
-    adapter.setSetting('pixel-agents.lastSeenVersion', '1.3');
-    adapter.setSetting('pixel-agents.hooksInfoShown', true);
+    adapter.setSetting('terrarium.lastSeenVersion', '1.3');
+    adapter.setSetting('terrarium.hooksInfoShown', true);
 
-    expect(adapter.getSetting('pixel-agents.lastSeenVersion', '')).toBe('1.3');
-    expect(adapter.getSetting('pixel-agents.hooksInfoShown', false)).toBe(true);
+    expect(adapter.getSetting('terrarium.lastSeenVersion', '')).toBe('1.3');
+    expect(adapter.getSetting('terrarium.hooksInfoShown', false)).toBe(true);
 
     // hooksEnabled is deliberately NOT an adapter key any more: it is
     // per-provider and machine-global, so the adapter ignores it and the
     // per-provider accessors own it.
-    adapter.setSetting('pixel-agents.hooksEnabled', false);
-    expect(adapter.getSetting('pixel-agents.hooksEnabled', true)).toBe(true);
+    adapter.setSetting('terrarium.hooksEnabled', false);
+    expect(adapter.getSetting('terrarium.hooksEnabled', true)).toBe(true);
     setHooksEnabled('claude', false);
     expect(getHooksEnabled('claude')).toBe(false);
   });
 
   it('ignores unknown setting keys (returns default, does not write)', () => {
     const adapter = new FileStateAdapter();
-    expect(adapter.getSetting('pixel-agents.unknownKey', 'fallback')).toBe('fallback');
-    adapter.setSetting('pixel-agents.unknownKey', 'ignored');
-    const configPath = path.join(tempHome, '.pixel-agents', 'config.json');
+    expect(adapter.getSetting('terrarium.unknownKey', 'fallback')).toBe('fallback');
+    adapter.setSetting('terrarium.unknownKey', 'ignored');
+    const configPath = path.join(tempHome, '.terrarium', 'config.json');
     expect(fs.existsSync(configPath)).toBe(false);
   });
 
-  it('accepts setting keys with or without the pixel-agents. prefix', () => {
+  it('accepts setting keys with or without the terrarium. prefix', () => {
     const adapter = new FileStateAdapter();
-    adapter.setSetting('pixel-agents.lastSeenVersion', '0.9');
+    adapter.setSetting('terrarium.lastSeenVersion', '0.9');
     expect(adapter.getSetting('lastSeenVersion', '')).toBe('0.9');
     adapter.setSetting('hooksInfoShown', true);
-    expect(adapter.getSetting('pixel-agents.hooksInfoShown', false)).toBe(true);
+    expect(adapter.getSetting('terrarium.hooksInfoShown', false)).toBe(true);
   });
 
   it('persists settings under "standalone" in config.json with clean field names', () => {
     const adapter = new FileStateAdapter();
-    adapter.setSetting('pixel-agents.lastSeenVersion', '1.3');
-    const configPath = path.join(tempHome, '.pixel-agents', 'config.json');
+    adapter.setSetting('terrarium.lastSeenVersion', '1.3');
+    const configPath = path.join(tempHome, '.terrarium', 'config.json');
     const raw = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as Record<string, Record<string, unknown>>;
     expect(parsed.standalone.lastSeenVersion).toBe('1.3');
-    expect(parsed.standalone['pixel-agents.lastSeenVersion']).toBeUndefined();
+    expect(parsed.standalone['terrarium.lastSeenVersion']).toBeUndefined();
   });
 
   // ── State file (agents + seats) ─────────────────────────────
@@ -101,15 +101,15 @@ describe('FileStateAdapter', () => {
     expect(adapter.loadAgents()).toEqual(agents);
   });
 
-  it('writes state at ~/.pixel-agents/standalone-state.json', () => {
+  it('writes state at ~/.terrarium/standalone-state.json', () => {
     const adapter = new FileStateAdapter();
     adapter.saveSeats({ '1': { palette: 2, hueShift: 45 } });
-    const stateFile = path.join(tempHome, '.pixel-agents', 'standalone-state.json');
+    const stateFile = path.join(tempHome, '.terrarium', 'standalone-state.json');
     expect(fs.existsSync(stateFile)).toBe(true);
   });
 
   it('ignores a leftover vscode-state.json file (not read, no error)', () => {
-    const dir = path.join(tempHome, '.pixel-agents');
+    const dir = path.join(tempHome, '.terrarium');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       path.join(dir, 'vscode-state.json'),

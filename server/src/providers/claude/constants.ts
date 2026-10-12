@@ -13,6 +13,11 @@ export const CLAUDE_HOOK_SCRIPT_NAME = 'claude-hook.js';
  *  recognized as ours so a very old install can be migrated or removed. */
 export const LEGACY_HOOK_SCRIPT_NAME = 'pixel-agents-hook.js';
 
+/** Where the hook script was staged before the state directory was renamed to
+ *  `.terrarium`. Entries pointing here are still ours, so the next install
+ *  replaces them and uninstall removes them. */
+export const LEGACY_HOOK_SCRIPTS_DIR = '.pixel-agents/hooks';
+
 /** Hook events to install in ~/.claude/settings.json. This list is the whole
  *  data-collection surface: Claude Code POSTs each of these payloads to the
  *  local server, so an event we do not act on is scope we should not ask for.
@@ -44,10 +49,14 @@ export const CLAUDE_HOOK_EVENTS = [
  *  rather than a generic `.backup`, which collides with other tools' backup
  *  convention: a foreign `.backup` sitting next to settings.json must not make
  *  us believe we already saved the user's original. */
-export const SETTINGS_BACKUP_SUFFIX = '.pixel-agents.backup';
+export const SETTINGS_BACKUP_SUFFIX = '.terrarium.backup';
+
+/** The backup suffix before the rename to Terrarium. A backup under this name
+ *  already holds the user's pre-install settings, so no new backup is taken. */
+export const LEGACY_SETTINGS_BACKUP_SUFFIX = '.pixel-agents.backup';
 
 /** Suffix of the temp file used for the atomic tmp-write + rename. */
-export const SETTINGS_TMP_SUFFIX = '.pixel-agents-tmp';
+export const SETTINGS_TMP_SUFFIX = '.terrarium-tmp';
 
 /** Mode for a settings.json we create ourselves. An existing file's mode is
  *  preserved instead. This is only the fresh-file default, and it is the

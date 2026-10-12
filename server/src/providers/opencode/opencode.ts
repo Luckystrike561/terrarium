@@ -1,6 +1,6 @@
 /**
  * OpenCode agent module. OpenCode has no hook API and no per-session transcript file: every session lives as a row
- * in one SQLite database the CLI keeps under its XDG data directory. Nothing is written outside `~/.pixel-agents/`,
+ * in one SQLite database the CLI keeps under its XDG data directory. Nothing is written outside `~/.terrarium/`,
  * so there is nothing to consent to.
  */
 

@@ -3,7 +3,7 @@
  * rollout store, keyed by the thread id its file name encodes. That id is also what Codex reports through its own
  * SessionStart hook payload (`session_id`), which is what herdr's codex integration forwards as the pane's session
  * ref, so the store is keyed to match it instead of a transcript path. Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to consent to.
+ * `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

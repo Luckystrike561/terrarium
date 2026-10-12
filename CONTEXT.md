@@ -1,11 +1,11 @@
-# Pixel Agents
+# Terrarium
 
-Pixel Agents turns AI coding sessions into animated characters in a pixel-art office. This glossary is the canonical language for contributors and integrators; end-user docs may simplify it but must never contradict it.
+Terrarium turns AI coding sessions into animated characters in a pixel-art office. This glossary is the canonical language for contributors and integrators. End-user docs may simplify it but must never contradict it.
 
 ## Host
 
 **Host**:
-The machine Pixel Agents runs on — a laptop, a phone, a VPS, a Raspberry Pi. The office is the same on every host, and can be reached from another device.
+The machine Terrarium runs on: a laptop, a phone, a VPS, a Raspberry Pi. The office is the same on every host, and can be reached from another device.
 _Avoid_: platform, environment, server (that's the runtime process)
 
 **Standalone**:
@@ -15,7 +15,7 @@ _Avoid_: CLI (that's the entry command, not the server)
 ## Agents & Teams
 
 **Agent**:
-An AI coding session tracked by Pixel Agents, adopted from wherever it runs.
+An AI coding session tracked by Terrarium, adopted from wherever it runs.
 _Avoid_: bot, terminal (as a synonym), session (as a synonym)
 
 **Character**:
@@ -162,7 +162,7 @@ _Avoid_: roam, patrol
 ## Activity Detection
 
 **Hook**:
-A push notification an AI tool sends about its own session activity, delivered to Pixel Agents as it happens.
+A push notification an AI tool sends about its own session activity, delivered to Terrarium as it happens.
 
 **Transcript**:
 The append-only record of a session. Read in both detection modes for tool content.

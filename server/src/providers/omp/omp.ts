@@ -1,7 +1,7 @@
 /**
  * omp agent module. omp has no hook API: everything comes from its session transcripts, found by scanning its
  * session store or handed over by a multiplexer that hosts the session. Nothing is written outside
- * `~/.pixel-agents/`, so there is nothing to consent to.
+ * `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

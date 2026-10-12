@@ -186,7 +186,7 @@ function registerWebSocketRoute(app: FastifyInstance, options: HttpServerOptions
       try {
         const msg = JSON.parse(data.toString()) as Record<string, unknown>;
         if (msg.type) {
-          console.log('[Pixel Agents] WS client message:', msg.type);
+          console.log('[Terrarium] WS client message:', msg.type);
         }
         handleClientMessage(msg, (m) => safeSend(socket, m), {
           store,
@@ -243,7 +243,7 @@ export function isAllowedWebSocketOrigin(
 
 /**
  * Whether this socket may send PRIVILEGED messages — the ones that reach
- * outside `~/.pixel-agents/`. Today that is `hooksConsentResponse`, which can
+ * outside `~/.terrarium/`. Today that is `hooksConsentResponse`, which can
  * grant durable, machine-wide consent to modify `~/.claude/settings.json` and
  * install (or remove) a 12-event hook set.
  *
@@ -264,7 +264,7 @@ export function isAllowedWebSocketOrigin(
  * gate must ride something the channel never carries — an out-of-band secret
  * the operator's own URL delivers and the forwarded attacker never sees.
  *
- * A tokenless client is not locked out of Pixel Agents — it connects and
+ * A tokenless client is not locked out of Terrarium — it connects and
  * watches the office exactly as before (the connection gate,
  * isAllowedWebSocketOrigin, is separate and unchanged). It simply cannot
  * approve a change to a file in someone's home directory.

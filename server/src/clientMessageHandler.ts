@@ -57,7 +57,7 @@ export interface ClientMessageContext {
   /** Install/uninstall hooks side effect. Needs server url+token known only to cli.ts. */
   onSetHooksEnabled?: SetHooksEnabledSideEffect;
   /**
-   * Whether this client may send messages that reach OUTSIDE `~/.pixel-agents/`:
+   * Whether this client may send messages that reach OUTSIDE `~/.terrarium/`:
    * `hooksConsentResponse`, which grants machine-wide consent to modify
    * `~/.claude/settings.json`, and the connection messages, which open SSH
    * sessions to other machines. Decided per-connection by the transport
@@ -68,8 +68,8 @@ export interface ClientMessageContext {
 }
 
 // ── Setting key constants ──
-const KEY_LAST_SEEN_VERSION = 'pixel-agents.lastSeenVersion';
-const KEY_HOOKS_INFO_SHOWN = 'pixel-agents.hooksInfoShown';
+const KEY_LAST_SEEN_VERSION = 'terrarium.lastSeenVersion';
+const KEY_HOOKS_INFO_SHOWN = 'terrarium.hooksInfoShown';
 
 /**
  * Handle incoming ClientMessage from a WebSocket client.
@@ -148,7 +148,7 @@ export function handleClientMessage(
       // response from an untokened one is a crafted message — ignored.
       if (!ctx.privileged) {
         console.warn(
-          '[Pixel Agents] Ignoring hooksConsentResponse from an untokened client — installing hooks needs approval from this machine (open the tokened URL the CLI printed).',
+          '[Terrarium] Ignoring hooksConsentResponse from an untokened client — installing hooks needs approval from this machine (open the tokened URL the CLI printed).',
         );
         break;
       }
@@ -197,7 +197,7 @@ export function handleClientMessage(
       const connections = changeableConnections(ctx);
       const error =
         typeof connections === 'string' ? connections : connections.update(String(msg.id), msg);
-      if (error) console.warn(`[Pixel Agents] updateConnection ignored: ${error}`);
+      if (error) console.warn(`[Terrarium] updateConnection ignored: ${error}`);
       break;
     }
 
@@ -205,7 +205,7 @@ export function handleClientMessage(
       const connections = changeableConnections(ctx);
       const error =
         typeof connections === 'string' ? connections : connections.remove(String(msg.id));
-      if (error) console.warn(`[Pixel Agents] removeConnection ignored: ${error}`);
+      if (error) console.warn(`[Terrarium] removeConnection ignored: ${error}`);
       break;
     }
 
@@ -252,7 +252,7 @@ async function applyHooksPreference(
     // not outcome (the installer refuses to touch an unparseable file).
     send({ type: 'hooksStatus', providerId: module.id, installed });
   } catch (err) {
-    console.error('[Pixel Agents] Applying the hooks preference failed:', err);
+    console.error('[Terrarium] Applying the hooks preference failed:', err);
   }
 }
 
@@ -275,7 +275,7 @@ function standaloneConsentEffects(
       try {
         await ctx.onSetHooksEnabled?.(module.id, false);
       } catch (err) {
-        console.error('[Pixel Agents] Hook uninstall failed:', err);
+        console.error('[Terrarium] Hook uninstall failed:', err);
       }
     },
     areHooksInstalled: () => module.hooks.areHooksInstalled(),
@@ -350,7 +350,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   send({
     type: 'settingsLoaded',
     lastSeenVersion: adapter?.getSetting(KEY_LAST_SEEN_VERSION, '') ?? '',
-    extensionVersion: process.env.PIXEL_AGENTS_VERSION ?? '',
+    extensionVersion: process.env.TERRARIUM_VERSION ?? '',
     hooksEnabled,
     hooksInfoShown: adapter?.getSetting(KEY_HOOKS_INFO_SHOWN, false) ?? false,
   });
@@ -369,7 +369,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     void module.hooks
       .areHooksInstalled()
       .catch((err: unknown) => {
-        console.error(`[Pixel Agents] hooks status check failed for provider ${module.id}:`, err);
+        console.error(`[Terrarium] hooks status check failed for provider ${module.id}:`, err);
         return false;
       })
       .then((installed) => {

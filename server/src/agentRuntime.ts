@@ -112,7 +112,7 @@ export class AgentRuntime {
     this.eventHandler.registerAgent(session.sessionId, id, session.sourceIds[0]);
     this.store.persist();
     console.log(
-      `[Pixel Agents] Agent ${id} - ${restored ? 'restored' : 'detected'} ${providerId} session${agent.folderName ? ` (${agent.folderName})` : ''}`,
+      `[Terrarium] Agent ${id} - ${restored ? 'restored' : 'detected'} ${providerId} session${agent.folderName ? ` (${agent.folderName})` : ''}`,
     );
   }
 

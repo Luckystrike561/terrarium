@@ -14,7 +14,7 @@ import {
   hasPromotedBackgroundAgent,
 } from './inlineTeammates.js';
 
-const debug = process.env.PIXEL_AGENTS_DEBUG !== '0';
+const debug = process.env.TERRARIUM_DEBUG !== '0';
 
 /** A Claude hook payload POSTed to /api/hooks/claude. */
 export interface ClaudeHookPayload {
@@ -94,7 +94,7 @@ export class ClaudeHookHandler {
     const flushed = this.sessionRouter.register(sessionId, agentId);
     if (debug && flushed.length > 0)
       console.log(
-        `[Pixel Agents] Hook: flushing ${flushed.length} buffered event(s) for session ${sessionId.slice(0, 8)}...`,
+        `[Terrarium] Hook: flushing ${flushed.length} buffered event(s) for session ${sessionId.slice(0, 8)}...`,
       );
     for (const routed of flushed) {
       this.dispatch(routed);
@@ -128,8 +128,7 @@ export class ClaudeHookHandler {
       const source = normEvent.source ?? 'unknown';
       const transcriptPath = normEvent.transcriptPath;
       const cwd = normEvent.cwd;
-      if (debug)
-        console.log(`[Pixel Agents] Hook: SessionStart(source=${source}, session=${sid}...)`);
+      if (debug) console.log(`[Terrarium] Hook: SessionStart(source=${source}, session=${sid}...)`);
 
       // Check registered mapping
       const existingAgentId = this.sessionRouter.resolve(event.session_id);
@@ -138,7 +137,7 @@ export class ClaudeHookHandler {
         if (agent) agent.hookDelivered = true;
         if (debug)
           console.log(
-            `[Pixel Agents] Hook: Agent ${existingAgentId} - SessionStart(source=${source}) known`,
+            `[Terrarium] Hook: Agent ${existingAgentId} - SessionStart(source=${source}) known`,
           );
         return;
       }
@@ -149,7 +148,7 @@ export class ClaudeHookHandler {
           agent.hookDelivered = true;
           if (debug)
             console.log(
-              `[Pixel Agents] Hook: Agent ${id} - SessionStart(source=${source}) auto-discovered`,
+              `[Terrarium] Hook: Agent ${id} - SessionStart(source=${source}) auto-discovered`,
             );
           return;
         }
@@ -170,7 +169,7 @@ export class ClaudeHookHandler {
             if (isMatch) {
               agent.pendingClear = false;
               console.log(
-                `[Pixel Agents] Hook: Agent ${id} - /${normEvent.source} detected, reassigning to ${event.session_id}`,
+                `[Terrarium] Hook: Agent ${id} - /${normEvent.source} detected, reassigning to ${event.session_id}`,
               );
               this.sessionRouter.unregister(agent.sessionId);
               this.registerAgent(event.session_id, id);
@@ -190,7 +189,7 @@ export class ClaudeHookHandler {
         }
         if (debug)
           console.log(
-            `[Pixel Agents] Hook: SessionStart(source=${source}) -> pending external session ${sid}..., awaiting confirmation`,
+            `[Terrarium] Hook: SessionStart(source=${source}) -> pending external session ${sid}..., awaiting confirmation`,
           );
         this.sessionRouter.storePending(event.session_id, {
           sessionId: event.session_id,
@@ -201,7 +200,7 @@ export class ClaudeHookHandler {
       } else {
         if (debug)
           console.log(
-            `[Pixel Agents] Hook: SessionStart -> unknown session ${sid}..., no transcript_path`,
+            `[Terrarium] Hook: SessionStart -> unknown session ${sid}..., no transcript_path`,
           );
       }
       return;
@@ -213,7 +212,7 @@ export class ClaudeHookHandler {
       this.sessionRouter.discardPending(event.session_id);
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: SessionEnd discarded pending external session ${event.session_id.slice(0, 8)}...`,
+          `[Terrarium] Hook: SessionEnd discarded pending external session ${event.session_id.slice(0, 8)}...`,
         );
       return;
     }
@@ -223,7 +222,7 @@ export class ClaudeHookHandler {
     if (pending) {
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: ${eventName} confirmed external session ${event.session_id.slice(0, 8)}..., notifying host`,
+          `[Terrarium] Hook: ${eventName} confirmed external session ${event.session_id.slice(0, 8)}..., notifying host`,
         );
       this.lifecycleCallbacks.onExternalSessionDetected?.(pending);
       // Re-process this event now that the agent exists
@@ -254,7 +253,7 @@ export class ClaudeHookHandler {
       if (isPending || hasBuffered || hasUnregisteredAgents) {
         if (debug)
           console.log(
-            `[Pixel Agents] Hook: ${eventName} - unknown session ${event.session_id.slice(0, 8)}..., buffering`,
+            `[Terrarium] Hook: ${eventName} - unknown session ${event.session_id.slice(0, 8)}..., buffering`,
           );
         this.sessionRouter.bufferEvent(routed);
       }
@@ -267,7 +266,7 @@ export class ClaudeHookHandler {
     agent.hookDelivered = true;
     if (debug)
       console.log(
-        `[Pixel Agents] Hook: Agent ${agentId} - ${eventName} (session=${event.session_id.slice(0, 8)}...)`,
+        `[Terrarium] Hook: Agent ${agentId} - ${eventName} (session=${event.session_id.slice(0, 8)}...)`,
       );
 
     // Dispatch on normalized ClaudeHookEvent.kind, not raw hook event names.
@@ -318,9 +317,7 @@ export class ClaudeHookHandler {
   ): void {
     const reason = normEvent.reason;
     if (debug)
-      console.log(
-        `[Pixel Agents] Hook: Agent ${agentId} - SessionEnd(reason=${reason ?? 'unknown'})`,
-      );
+      console.log(`[Terrarium] Hook: Agent ${agentId} - SessionEnd(reason=${reason ?? 'unknown'})`);
 
     // /clear and /resume send SessionEnd then SessionStart. Wait briefly for the follow-up.
     // All other reasons (exit, logout, prompt_input_exit) are final -- despawn immediately.
@@ -331,7 +328,7 @@ export class ClaudeHookHandler {
       this.markAgentWaiting(agent, agentId);
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: Agent ${agentId} - SessionEnd(reason=${reason}), awaiting possible SessionStart`,
+          `[Terrarium] Hook: Agent ${agentId} - SessionEnd(reason=${reason}), awaiting possible SessionStart`,
         );
       // Safety net: if SessionStart never arrives, clean up the zombie agent
       setTimeout(() => {
@@ -454,7 +451,7 @@ export class ClaudeHookHandler {
     if (agent.currentHookIsTeammateSpawn === true && agent.teamName) {
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: Agent ${agentId} - SubagentStart: teammate "${agentType}" detected, triggering discovery`,
+          `[Terrarium] Hook: Agent ${agentId} - SubagentStart: teammate "${agentType}" detected, triggering discovery`,
         );
       this.lifecycleCallbacks.onTeammateDetected?.(agentId, event.session_id, agentType);
       return;
@@ -520,7 +517,7 @@ export class ClaudeHookHandler {
     if (inlineTeammates.length > 0) {
       if (debug)
         console.log(
-          `[Pixel Agents] Hook: Agent ${agentId} - SubagentStop: marking inline teammates as waiting`,
+          `[Terrarium] Hook: Agent ${agentId} - SubagentStop: marking inline teammates as waiting`,
         );
       for (const [id, a] of inlineTeammates) {
         this.markAgentWaiting(a, id);
@@ -611,9 +608,7 @@ export class ClaudeHookHandler {
       if (match) {
         const [id, a] = match;
         if (debug)
-          console.log(
-            `[Pixel Agents] Hook: TeammateIdle "${teammateName}" -> teammate Agent ${id}`,
-          );
+          console.log(`[Terrarium] Hook: TeammateIdle "${teammateName}" -> teammate Agent ${id}`);
         this.markAgentWaiting(a, id);
         return;
       }
@@ -622,7 +617,7 @@ export class ClaudeHookHandler {
     // Fallback: mark all inline teammates as waiting
     if (debug)
       console.log(
-        `[Pixel Agents] Hook: TeammateIdle (no teammate_name match) -> marking ${inlineTeammates.length} teammate(s) done`,
+        `[Terrarium] Hook: TeammateIdle (no teammate_name match) -> marking ${inlineTeammates.length} teammate(s) done`,
       );
     for (const [id, a] of inlineTeammates) {
       this.markAgentWaiting(a, id);
@@ -643,7 +638,7 @@ export class ClaudeHookHandler {
     const teammateName = claudeTeamProvider.extractTeammateNameFromEvent(event);
     if (debug)
       console.log(
-        `[Pixel Agents] Hook: Agent ${agentId} - TaskCompleted: ${taskSubject}${teammateName ? ` (teammate_name=${teammateName})` : ''}`,
+        `[Terrarium] Hook: Agent ${agentId} - TaskCompleted: ${taskSubject}${teammateName ? ` (teammate_name=${teammateName})` : ''}`,
       );
 
     const inlineTeammates = getInlineTeammates(agentId, this.agents);

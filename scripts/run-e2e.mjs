@@ -3,9 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ATTACH_VIDEOS_ON_SUCCESS_FLAG = '--attach-videos-on-success';
-const ATTACH_VIDEOS_ON_SUCCESS_ENV = 'PIXEL_AGENTS_E2E_ATTACH_VIDEOS_ON_SUCCESS';
+const ATTACH_VIDEOS_ON_SUCCESS_ENV = 'TERRARIUM_E2E_ATTACH_VIDEOS_ON_SUCCESS';
 const RUN_ID_FLAG = '--run-id';
-const RUN_ID_ENV = 'PIXEL_AGENTS_E2E_RUN_ID';
+const RUN_ID_ENV = 'TERRARIUM_E2E_RUN_ID';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const playwrightCli = path.join(repoRoot, 'node_modules', 'playwright', 'cli.js');

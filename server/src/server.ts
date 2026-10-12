@@ -23,7 +23,7 @@ export type { ServerConfig } from './serverConfig.js';
 type HookEventCallback = (providerId: string, event: Record<string, unknown>) => void;
 
 /**
- * Pixel Agents server: receives hook events, broadcasts state via WebSocket,
+ * Terrarium server: receives hook events, broadcasts state via WebSocket,
  * and serves the SPA.
  *
  * Routes (via Fastify in httpServer.ts):
@@ -31,15 +31,15 @@ type HookEventCallback = (providerId: string, event: Record<string, unknown>) =>
  * - `GET /api/health` -- health check (no auth)
  * - `GET /ws` -- WebSocket for real-time agent state (auth required)
  *
- * Discovery: writes `~/.pixel-agents/server.json` (legacy single-target pointer)
- * and `~/.pixel-agents/servers/<pid>-<port>.json` (multi-server registry entry)
+ * Discovery: writes `~/.terrarium/server.json` (legacy single-target pointer)
+ * and `~/.terrarium/servers/<pid>-<port>.json` (multi-server registry entry)
  * with port, PID, and auth token.
  * Multi-window: a second instance detects running servers via the registry and
  * reuses one only when the caller passed an explicit port that matches an
  * existing entry -- callers with no explicit port (the ephemeral default)
  * always start a fresh server, since there is nothing to match against.
  */
-export class PixelAgentsServer {
+export class TerrariumServer {
   private app: FastifyInstance | null = null;
   private config: ServerConfig | null = null;
   private ownsServer = false;
@@ -73,7 +73,7 @@ export class PixelAgentsServer {
       this.config = candidate;
       this.ownsServer = false;
       console.log(
-        `[Pixel Agents] Reusing existing server on port ${candidate.port} (PID ${candidate.pid})`,
+        `[Terrarium] Reusing existing server on port ${candidate.port} (PID ${candidate.pid})`,
       );
       return candidate;
     }
@@ -103,8 +103,8 @@ export class PixelAgentsServer {
       protocol: SERVER_REGISTRY_PROTOCOL_VERSION,
       // Diagnostic-only: forward the debug-log path to the hook script via
       // server.json (env vars don't reach the spawned hook reliably).
-      ...(process.env['PIXEL_AGENTS_DEBUG_LOG']
-        ? { debugLog: process.env['PIXEL_AGENTS_DEBUG_LOG'] }
+      ...(process.env['TERRARIUM_DEBUG_LOG']
+        ? { debugLog: process.env['TERRARIUM_DEBUG_LOG'] }
         : {}),
     };
 
@@ -113,7 +113,7 @@ export class PixelAgentsServer {
     // entry (new hook scripts fan out to every entry here).
     this.writeServerJson(this.config);
     this.writeRegistryEntry(this.config);
-    console.log(`[Pixel Agents] Server: listening on 127.0.0.1:${port}`);
+    console.log(`[Terrarium] Server: listening on 127.0.0.1:${port}`);
 
     return this.config;
   }
@@ -137,7 +137,7 @@ export class PixelAgentsServer {
     return this.config;
   }
 
-  /** Returns the absolute path to ~/.pixel-agents/server.json. */
+  /** Returns the absolute path to ~/.terrarium/server.json. */
   private getServerJsonPath(): string {
     return path.join(os.homedir(), SERVER_JSON_DIR, SERVER_JSON_NAME);
   }
@@ -154,7 +154,7 @@ export class PixelAgentsServer {
       fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), { mode: 0o600 });
       fs.renameSync(tmpPath, filePath);
     } catch (e) {
-      console.error(`[Pixel Agents] Failed to write server.json: ${e}`);
+      console.error(`[Terrarium] Failed to write server.json: ${e}`);
     }
   }
 
@@ -184,7 +184,7 @@ export class PixelAgentsServer {
     }
   }
 
-  /** Returns the absolute path to ~/.pixel-agents/servers/. */
+  /** Returns the absolute path to ~/.terrarium/servers/. */
   private getRegistryDir(): string {
     return path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DIR);
   }
@@ -249,7 +249,7 @@ export class PixelAgentsServer {
       fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), { mode: 0o600 });
       fs.renameSync(tmpPath, filePath);
     } catch (e) {
-      console.error(`[Pixel Agents] Failed to write registry entry: ${e}`);
+      console.error(`[Terrarium] Failed to write registry entry: ${e}`);
     }
   }
 

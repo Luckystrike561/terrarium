@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22.23.3-trixie-slim AS build
+# dist/ is plain JavaScript and assets, identical on every platform, so it is built once on the builder's own
+# platform instead of under emulation for each target.
+FROM --platform=$BUILDPLATFORM node:22.23.3-trixie-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json server/
@@ -13,6 +15,11 @@ FROM node:22.23.3-trixie-slim AS runtime
 # The server resolves the herdr socket and its state directory from $HOME. Pinning it keeps those paths at
 # the documented mount points when `--user` runs the container as a UID that has no passwd entry.
 ENV HOME=/home/node
+# SSH connections run OpenSSH's `ssh` to forward a remote herdr socket. Installed before the app is copied in, so
+# a dependency or source change does not reinstall it.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssh-client \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json server/
@@ -23,7 +30,7 @@ RUN npm ci --omit=dev --ignore-scripts --workspace=server --include-workspace-ro
 COPY --from=build /app/dist ./dist
 # A named volume mounted here starts with this ownership, so the server can write to it as `node`. The base
 # image's home is 0700, which would lock a `--user` UID out of the mounts below it.
-RUN chmod 0755 /home/node && install -d -o node -g node /home/node/.pixel-agents
+RUN chmod 0755 /home/node && install -d -o node -g node /home/node/.terrarium
 USER node
 EXPOSE 8790
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

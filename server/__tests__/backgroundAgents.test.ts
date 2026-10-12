@@ -200,7 +200,7 @@ describe('background spawns (teams OFF) classified by sidecar name', () => {
   }
 
   beforeEach(() => {
-    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-bg-'));
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-bg-'));
     agents = new ClaudeAgentStore();
     watch = new SubagentWatch(agents);
     setSubagentWatch(watch);

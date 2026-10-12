@@ -140,7 +140,7 @@ export function startPermissionTimer(
 
     if (hasNonExempt) {
       agent.permissionSent = true;
-      console.log(`[Pixel Agents] Timer: Agent ${agentId} - possible permission wait detected`);
+      console.log(`[Terrarium] Timer: Agent ${agentId} - possible permission wait detected`);
       agents.broadcast({
         type: 'agentToolPermission',
         id: agentId,

@@ -1,5 +1,5 @@
 {
-  "name": "pixel-agents",
+  "name": "terrarium",
   "private": true,
   "scripts": {
     "test": "vitest run",

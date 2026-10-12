@@ -95,7 +95,7 @@ async function stopChild(child) {
 }
 
 async function verifyInstalledTarball(tarballPath) {
-  const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-npm-smoke-'));
+  const smokeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-npm-smoke-'));
   const smokeHome = path.join(smokeRoot, 'home');
   const smokeProject = path.join(smokeRoot, 'project');
   fs.mkdirSync(smokeHome, { recursive: true });
@@ -108,14 +108,14 @@ async function verifyInstalledTarball(tarballPath) {
   // gate's own behavior is pinned by server/__tests__/cli.test.ts,
   // consentFlow.test.ts, and the consent e2e specs). Same shape as
   // server/__tests__/cli.test.ts.
-  fs.mkdirSync(path.join(smokeHome, '.pixel-agents'), { recursive: true });
+  fs.mkdirSync(path.join(smokeHome, '.terrarium'), { recursive: true });
   fs.writeFileSync(
-    path.join(smokeHome, '.pixel-agents', 'config.json'),
+    path.join(smokeHome, '.terrarium', 'config.json'),
     JSON.stringify({ hooksConsent: { claude: 'granted' } }),
   );
   fs.writeFileSync(
     path.join(smokeProject, 'package.json'),
-    JSON.stringify({ name: 'pixel-agents-package-smoke', private: true }, null, 2),
+    JSON.stringify({ name: 'terrarium-package-smoke', private: true }, null, 2),
   );
 
   let child = null;
@@ -125,12 +125,12 @@ async function verifyInstalledTarball(tarballPath) {
       cwd: smokeProject,
     });
 
-    const installedRoot = path.join(smokeProject, 'node_modules', 'pixel-agents');
+    const installedRoot = path.join(smokeProject, 'node_modules', 'terrarium');
     const installedManifest = JSON.parse(
       fs.readFileSync(path.join(installedRoot, 'package.json'), 'utf-8'),
     );
-    if (installedManifest.bin?.['pixel-agents'] !== './dist/cli.js') {
-      throw new Error('Installed package has an unexpected pixel-agents bin entry');
+    if (installedManifest.bin?.['terrarium'] !== './dist/cli.js') {
+      throw new Error('Installed package has an unexpected terrarium bin entry');
     }
 
     const installedCli = path.join(installedRoot, 'dist', 'cli.js');
@@ -143,15 +143,15 @@ async function verifyInstalledTarball(tarballPath) {
       smokeProject,
       'node_modules',
       '.bin',
-      process.platform === 'win32' ? 'pixel-agents.cmd' : 'pixel-agents',
+      process.platform === 'win32' ? 'terrarium.cmd' : 'terrarium',
     );
     const help = await execFileAsync(installedBin, ['--help'], {
       cwd: smokeProject,
       env: { ...process.env, HOME: smokeHome, USERPROFILE: smokeHome },
       shell: process.platform === 'win32',
     });
-    if (!help.stdout.includes('Usage: pixel-agents')) {
-      throw new Error('Installed pixel-agents bin did not print CLI help');
+    if (!help.stdout.includes('Usage: terrarium')) {
+      throw new Error('Installed terrarium bin did not print CLI help');
     }
 
     const port = await getFreePort();
@@ -201,7 +201,7 @@ async function verifyInstalledTarball(tarballPath) {
       throw new Error(`Installed package did not load non-empty bundled assets:\n${output}`);
     }
 
-    const installedHook = path.join(smokeHome, '.pixel-agents', 'hooks', 'claude-hook.js');
+    const installedHook = path.join(smokeHome, '.terrarium', 'hooks', 'claude-hook.js');
     const settingsPath = path.join(smokeHome, '.claude', 'settings.json');
     await waitFor(
       () => fs.existsSync(installedHook) && fs.existsSync(settingsPath),
@@ -229,7 +229,7 @@ async function main() {
   const ownsOutputDir = args.outputDir === null;
   const outputDir = args.outputDir
     ? path.resolve(args.outputDir)
-    : fs.mkdtempSync(path.join(os.tmpdir(), 'pixel-agents-npm-pack-'));
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-npm-pack-'));
 
   if (!ownsOutputDir) {
     fs.mkdirSync(outputDir, { recursive: true });

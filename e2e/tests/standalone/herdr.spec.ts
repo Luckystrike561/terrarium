@@ -59,9 +59,9 @@ async function launchHerdrStandalone(page: Page, provider = 'herdr'): Promise<He
   // Neither herdr nor omp installs anything, so neither has a consent ask. The
   // Claude grant keeps an unrelated first-run dialog off the office in case a
   // spec enables Claude too.
-  fs.mkdirSync(path.join(tmpHome, '.pixel-agents'), { recursive: true });
+  fs.mkdirSync(path.join(tmpHome, '.terrarium'), { recursive: true });
   fs.writeFileSync(
-    path.join(tmpHome, '.pixel-agents', 'config.json'),
+    path.join(tmpHome, '.terrarium', 'config.json'),
     JSON.stringify({ hooksConsent: { claude: 'granted' } }, null, 2),
   );
 

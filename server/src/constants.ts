@@ -3,7 +3,7 @@
  *  state the model's context limit, so this is the floor, not the truth. */
 export const DEFAULT_MAX_CONTEXT_TOKENS = 200_000;
 
-// ── Display Truncation + Pixel Agents Server paths ──────────
+// ── Display Truncation + Terrarium Server paths ──────────
 // Centralized in core/src/constants.ts; re-exported here for back-compat.
 export {
   BASH_COMMAND_DISPLAY_MAX_LENGTH,
@@ -40,7 +40,9 @@ export const HOOK_EVENT_BUFFER_MS = 5_000;
 export const MAX_HOOK_BODY_SIZE = 65_536; // 64KB
 
 // ── Layout/Config Persistence ──────────────────────────────
-export const LAYOUT_FILE_DIR = '.pixel-agents';
+export const LAYOUT_FILE_DIR = '.terrarium';
+/** The state directory before the rename to Terrarium. Moved to LAYOUT_FILE_DIR on startup. */
+export const LEGACY_STATE_DIR = '.pixel-agents';
 export const LAYOUT_FILE_NAME = 'layout.json';
 export const LAYOUT_REVISION_KEY = 'layoutRevision';
 export const CONFIG_FILE_NAME = 'config.json';

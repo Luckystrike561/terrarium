@@ -2,7 +2,7 @@
  * mastracode agent module. No hook API is installed; the session store is a LibSQL/SQLite database
  * (`mastra_threads` / `mastra_messages`) the CLI writes to directly, found by scanning the store or handed over
  * by a multiplexer that hosts the session (herdr's `agent_session.value` for mastracode is the thread id, the
- * store's own key). Nothing is written outside `~/.pixel-agents/`, so there is nothing to consent to.
+ * store's own key). Nothing is written outside `~/.terrarium/`, so there is nothing to consent to.
  */
 
 import * as os from 'node:os';

@@ -101,7 +101,7 @@ export function loadEnabledModules(): ModuleSet {
   const ids = getEnabledModuleIds() ?? DEFAULT_MODULE_IDS;
   for (const id of unknownModuleIds(ids)) {
     console.warn(
-      `[Pixel Agents] Ignoring unknown provider module "${id}" in ~/.pixel-agents/config.json. Available: ${registeredModuleIds.join(', ')}.`,
+      `[Terrarium] Ignoring unknown provider module "${id}" in ~/.terrarium/config.json. Available: ${registeredModuleIds.join(', ')}.`,
     );
   }
   return selectModules(ids);

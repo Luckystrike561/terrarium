@@ -323,7 +323,7 @@ describe('consentExecutor', () => {
       await applyConsentChoice('claude', 'install', throwing);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[Pixel Agents] Consent action failed:',
+        '[Terrarium] Consent action failed:',
         expect.any(Error),
       );
       // Nothing downstream of the throw ran, and the throw itself happens
@@ -578,7 +578,7 @@ describe('consentExecutor', () => {
 
       expect(log.map((call) => call.tag)).toEqual(['A', 'A', 'B', 'B', 'B']);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        '[Pixel Agents] Consent action failed:',
+        '[Terrarium] Consent action failed:',
         expect.any(Error),
       );
       expect(getHooksConsent('claude')).toBe('declined');
