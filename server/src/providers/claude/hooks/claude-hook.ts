@@ -14,7 +14,12 @@ import type { ServerConfig, ServerTarget } from '../../../serverConfig.js';
 import { isServerConfig, isServerTarget } from '../../../serverConfig.js';
 import type { CommandStatusLine } from '../claudeStatusLine.js';
 import { decodeStatusLine } from '../claudeStatusLine.js';
-import { STATUS_LINE_EVENT, STATUS_LINE_FLAG } from '../constants.js';
+import {
+  HOOK_DELIVERY_TIMEOUT_MS,
+  STATUS_LINE_DELIVERY_TIMEOUT_MS,
+  STATUS_LINE_EVENT,
+  STATUS_LINE_FLAG,
+} from '../constants.js';
 
 const SERVER_JSON = path.join(os.homedir(), SERVER_JSON_DIR, SERVER_JSON_NAME);
 const SERVERS_REGISTRY_DIR = path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DIR);
@@ -106,6 +111,7 @@ function postToServer(
   body: string,
   eventName: string,
   sid: string,
+  timeoutMs: number,
 ): Promise<void> {
   hookDebug(`POST event=${eventName} sid=${sid} port=${server.port}`);
   return new Promise((resolve) => {
@@ -121,7 +127,7 @@ function postToServer(
             'Content-Length': Buffer.byteLength(body),
             Authorization: `Bearer ${server.token}`,
           },
-          timeout: 2000,
+          timeout: timeoutMs,
         },
         (res) => {
           hookDebug(
@@ -171,8 +177,8 @@ function liveServers(eventName: string, sid: string): ServerTarget[] {
   }
 }
 
-/** POST `data` to every live server (several `terrarium` instances can run at once). */
-async function deliver(data: Record<string, unknown>): Promise<void> {
+/** POST `data` to every live server (several `terrarium` instances can run at once), giving each `timeoutMs`. */
+async function deliver(data: Record<string, unknown>, timeoutMs: number): Promise<void> {
   const eventName = (data.hook_event_name as string | undefined) ?? '?';
   const sid = (data.session_id as string | undefined)?.slice(0, 8) ?? '?';
   const servers = liveServers(eventName, sid);
@@ -185,7 +191,7 @@ async function deliver(data: Record<string, unknown>): Promise<void> {
   }
 
   const body = JSON.stringify(data);
-  await Promise.all(servers.map((server) => postToServer(server, body, eventName, sid)));
+  await Promise.all(servers.map((server) => postToServer(server, body, eventName, sid, timeoutMs)));
 }
 
 /** Forward the `rate_limits` Claude Code gave the status line, and nothing else it gave: Pro and Max sessions carry
@@ -201,11 +207,10 @@ async function deliverRateLimits(statusLineInput: string): Promise<void> {
   const rateLimits = data.rate_limits;
   if (rateLimits === null || typeof rateLimits !== 'object') return;
   if (typeof data.session_id !== 'string') return;
-  await deliver({
-    hook_event_name: STATUS_LINE_EVENT,
-    session_id: data.session_id,
-    rate_limits: rateLimits,
-  });
+  await deliver(
+    { hook_event_name: STATUS_LINE_EVENT, session_id: data.session_id, rate_limits: rateLimits },
+    STATUS_LINE_DELIVERY_TIMEOUT_MS,
+  );
 }
 
 /** Run the user's own status line on the same stdin, its output going straight to Claude Code untouched. Resolves
@@ -248,7 +253,7 @@ async function main(): Promise<number> {
     hookDebug('exit reason=bad-stdin');
     return 0;
   }
-  await deliver(data);
+  await deliver(data, HOOK_DELIVERY_TIMEOUT_MS);
   return 0;
 }
 

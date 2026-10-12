@@ -362,5 +362,27 @@ describe('claude-hook.js integration', () => {
       expect(stdout).toBe('ok');
       expect(server.received).toHaveLength(0);
     });
+
+    itBuilt('does not hold the status line open for a server that never answers', async () => {
+      const server = http.createServer(() => {
+        // intentionally never respond
+      });
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+      const address = server.address();
+      if (address === null || typeof address === 'string') throw new Error('no TCP address');
+      writeServerJson(address.port, 'tok');
+
+      const start = Date.now();
+      const { code, stdout } = await runHookScript(statusLineInput, {}, [
+        '--status-line',
+        encode({ type: 'command', command: 'printf ok' }),
+      ]);
+      const elapsed = Date.now() - start;
+
+      server.close();
+      expect(code).toBe(0);
+      expect(stdout).toBe('ok');
+      expect(elapsed).toBeLessThan(1_500);
+    });
   });
 });

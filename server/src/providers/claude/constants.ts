@@ -53,6 +53,14 @@ export const STATUS_LINE_FLAG = '--status-line';
  *  the same name from being mistaken for ours. */
 export const STATUS_LINE_EVENT = 'TerrariumStatusLine';
 
+/** How long the hook script waits for one server to answer a hook event POST. */
+export const HOOK_DELIVERY_TIMEOUT_MS = 2_000;
+
+/** How long the status line waits for one server to answer its quota POST. Claude Code debounces status line updates
+ *  at 300 ms and cancels a run still in flight when the next one fires, so a server that accepts and never answers
+ *  must not hold the user's status line open for HOOK_DELIVERY_TIMEOUT_MS. */
+export const STATUS_LINE_DELIVERY_TIMEOUT_MS = 250;
+
 /** How long a status-line quota reading counts as fresh. Claude Code runs the status line after every assistant
  *  message, so a quiet quarter hour means no Claude session is working and the reading may be behind. */
 export const CLAUDE_QUOTA_STALE_AFTER_MS = 15 * 60_000;
