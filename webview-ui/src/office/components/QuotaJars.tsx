@@ -90,7 +90,17 @@ function Bean({ isLow }: { isLow: boolean }) {
   );
 }
 
-function Jar({ meter, now }: { meter: QuotaMeter; now: number }) {
+/** `opensDownward` is for the fallback row pinned to the top edge, where an upward tooltip runs off the clipped
+ *  office frame. */
+function Jar({
+  meter,
+  now,
+  opensDownward,
+}: {
+  meter: QuotaMeter;
+  now: number;
+  opensDownward: boolean;
+}) {
   const [isHovered, setIsHovered] = useState(false);
   const isUnavailable = meter.usedFraction === undefined;
   const beans = isUnavailable ? 0 : beansLeft(meter.usedFraction ?? 0);
@@ -113,7 +123,7 @@ function Jar({ meter, now }: { meter: QuotaMeter; now: number }) {
     >
       {isHovered && (
         <div
-          className="absolute bottom-full mb-4 px-8 py-4 paper-tag whitespace-nowrap flex flex-col gap-2 text-xs leading-none"
+          className={`absolute ${opensDownward ? 'top-full mt-4' : 'bottom-full mb-4'} px-8 py-4 paper-tag whitespace-nowrap flex flex-col gap-2 text-xs leading-none`}
           style={{ zIndex: 43 }}
           data-testid="quota-tooltip"
         >
@@ -200,7 +210,7 @@ export function QuotaJars({ officeState, meters, containerRef, zoom, panRef }: Q
       data-testid="quota-jars"
     >
       {meters.map((meter) => (
-        <Jar key={meter.id} meter={meter} now={now} />
+        <Jar key={meter.id} meter={meter} now={now} opensDownward={anchor === undefined} />
       ))}
     </div>
   );
