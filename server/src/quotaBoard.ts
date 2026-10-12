@@ -26,11 +26,11 @@ export function invalidQuotaReadingReason(reading: QuotaReading): string | undef
   }
   const usage = reading.usage;
   if (usage === null) return undefined;
-  if (usage.kind === 'fraction') {
-    return Number.isFinite(usage.usedFraction) && usage.usedFraction >= 0
-      ? undefined
-      : `usedFraction ${usage.usedFraction} is not a share`;
+  const usedFraction = usage.usedFraction;
+  if (usedFraction !== undefined && !(Number.isFinite(usedFraction) && usedFraction >= 0)) {
+    return `usedFraction ${usedFraction} is not a share`;
   }
+  if (usage.kind === 'fraction') return undefined;
   if (!Number.isFinite(usage.usedAmount) || usage.usedAmount < 0) {
     return `usedAmount ${usage.usedAmount} is not an amount`;
   }
@@ -40,8 +40,8 @@ export function invalidQuotaReadingReason(reading: QuotaReading): string | undef
   return undefined;
 }
 
-/** The meter the office shows for one valid reading at time `now`. An amount against a zero limit has no share, so
- *  it is shown as unavailable rather than as full. */
+/** The meter the office shows for one valid reading at time `now`. An amount against a zero limit, with no share of
+ *  the provider's own beside it, has no share, so it is shown as unavailable rather than as full. */
 export function normalizeQuotaReading(
   providerId: string,
   reading: QuotaReading,
@@ -62,7 +62,11 @@ export function normalizeQuotaReading(
     meter.usedAmount = usage.usedAmount;
     meter.limitAmount = usage.limitAmount;
     meter.unit = usage.unit;
-    if (usage.limitAmount > 0) meter.usedFraction = usage.usedAmount / usage.limitAmount;
+    if (usage.usedFraction !== undefined) {
+      meter.usedFraction = usage.usedFraction;
+    } else if (usage.limitAmount > 0) {
+      meter.usedFraction = usage.usedAmount / usage.limitAmount;
+    }
   }
   return meter;
 }

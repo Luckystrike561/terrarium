@@ -182,6 +182,12 @@ describe('QuotaBoard', () => {
       'a negative amount',
       { usage: { kind: 'amount', usedAmount: -1, limitAmount: 60, unit: 'usd' } },
     ],
+    [
+      'a negative share beside an amount',
+      {
+        usage: { kind: 'amount', usedAmount: 1, limitAmount: 60, unit: 'usd', usedFraction: -0.1 },
+      },
+    ],
     ['no stale interval', { staleAfterMs: 0 }],
     ['an endless stale interval', { staleAfterMs: Number.POSITIVE_INFINITY }],
   ] as const)('drops %s and keeps the reading before it', (_label, overrides) => {
@@ -224,12 +230,28 @@ describe('readClaudeQuota', () => {
     ]);
   });
 
-  it('reads a gateway spend limit in dollars when both amounts are present', () => {
+  it('takes the share of a gateway spend limit from its percentage and keeps the dollars beside it', () => {
     const [spend] = readClaudeQuota(
-      { spend_limit: { used_percentage: 41, used_usd: 20.5, limit_usd: 50, period: 'month' } },
+      { spend_limit: { used_percentage: 101, used_usd: 48, limit_usd: 50, period: 'month' } },
       NOW,
     );
-    expect(spend.usage).toEqual({ kind: 'amount', usedAmount: 20.5, limitAmount: 50, unit: 'usd' });
+    expect(spend.usage).toEqual({
+      kind: 'amount',
+      usedAmount: 48,
+      limitAmount: 50,
+      unit: 'usd',
+      usedFraction: 1.01,
+    });
+    expect(normalizeQuotaReading('claude', spend, NOW)).toMatchObject({
+      usedFraction: 1.01,
+      usedAmount: 48,
+      limitAmount: 50,
+    });
+  });
+
+  it('takes the share of a gateway spend limit from its dollars when it has no percentage', () => {
+    const [spend] = readClaudeQuota({ spend_limit: { used_usd: 20, limit_usd: 50 } }, NOW);
+    expect(normalizeQuotaReading('claude', spend, NOW).usedFraction).toBe(0.4);
   });
 
   it.each([

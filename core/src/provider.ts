@@ -269,7 +269,8 @@ export interface MultiplexerModule {
 
 // ── Quota sources ─────────────────────────────────────────────
 
-/** How much of a quota is used: a share the provider computed, or an amount against a limit. */
+/** How much of a quota is used: a share the provider computed, or an amount against a limit. An amount may carry the
+ *  provider's own share beside it when the two are read at different times: the share is then the one shown. */
 export type QuotaUsage =
   | { readonly kind: 'fraction'; readonly usedFraction: number }
   | {
@@ -277,6 +278,7 @@ export type QuotaUsage =
       readonly usedAmount: number;
       readonly limitAmount: number;
       readonly unit: QuotaUnit;
+      readonly usedFraction?: number;
     };
 
 /** One reading of one quota meter, as its source saw it. */

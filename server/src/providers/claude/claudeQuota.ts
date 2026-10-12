@@ -20,17 +20,24 @@ function finiteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-/** A window's usage: dollars against the limit when the gateway reports both, its percentage otherwise. */
+/** A window's usage: its percentage, with dollars against the limit beside it when the gateway reports both. The
+ *  share comes from the percentage whenever there is one, since Claude Code refreshes the dollars only about every
+ *  five minutes. */
 function windowUsage(window: Record<string, unknown>): QuotaUsage | undefined {
+  const usedPercentage = finiteNumber(window.used_percentage);
+  const usedFraction = usedPercentage === undefined ? undefined : usedPercentage / PERCENT;
   const usedUsd = finiteNumber(window.used_usd);
   const limitUsd = finiteNumber(window.limit_usd);
   if (usedUsd !== undefined && limitUsd !== undefined) {
-    return { kind: 'amount', usedAmount: usedUsd, limitAmount: limitUsd, unit: 'usd' };
+    return {
+      kind: 'amount',
+      usedAmount: usedUsd,
+      limitAmount: limitUsd,
+      unit: 'usd',
+      usedFraction,
+    };
   }
-  const usedPercentage = finiteNumber(window.used_percentage);
-  return usedPercentage === undefined
-    ? undefined
-    : { kind: 'fraction', usedFraction: usedPercentage / PERCENT };
+  return usedFraction === undefined ? undefined : { kind: 'fraction', usedFraction };
 }
 
 /** One reading per window `rateLimits` carries. A window missing or without a usage figure is skipped, never read as
