@@ -52,7 +52,8 @@ function formatDuration(ms: number): string {
 
 function usageText(meter: QuotaMeter): string {
   if (meter.usedFraction === undefined) return 'Unavailable';
-  const percent = `${Math.round(meter.usedFraction * PERCENT)}% used`;
+  const roundedPercent = Math.round(meter.usedFraction * PERCENT);
+  const percent = `${meter.usedFraction < 1 ? Math.min(roundedPercent, PERCENT - 1) : roundedPercent}% used`;
   if (meter.usedAmount === undefined || meter.limitAmount === undefined) return percent;
   const amount = (value: number): string =>
     meter.unit === 'usd'

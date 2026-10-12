@@ -88,6 +88,18 @@ test.describe('Standalone / quota', () => {
     await expect(tooltip).toContainText('Updated');
     await expect(fiveHour).toHaveAttribute('data-stale', 'false');
 
+    narrator.step('The 5-hour window is 99.7% used');
+    await runInstalledStatusLine(standalone.tmpHome, {
+      session_id: 'quota-session',
+      rate_limits: {
+        five_hour: { used_percentage: 99.7, resets_at: epochSecondsFromNow(2 * 3600) },
+      },
+    });
+    await expect(fiveHour).toHaveAttribute('data-beans', '1');
+    await expect(fiveHour).toHaveAttribute('data-empty', 'false');
+    await expect(tooltip).toContainText('99% used');
+    narrator.check('The label stays below 100% while the jar still holds a bean');
+
     narrator.step('A reading whose window has already reset arrives');
     await runInstalledStatusLine(standalone.tmpHome, {
       session_id: 'quota-session',
