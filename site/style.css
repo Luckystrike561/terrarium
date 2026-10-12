@@ -266,6 +266,75 @@ main {
   color: var(--color-status-idle);
 }
 
+.steps {
+  padding-left: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  position: relative;
+  padding-left: 48px;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  background: var(--color-accent);
+  color: var(--color-text);
+  box-shadow: var(--shadow-pixel);
+}
+
+.steps h3 {
+  margin: 0 0 8px;
+}
+
+.quick-start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: start;
+  margin: 16px 0;
+}
+
+.quick-start-card {
+  border: 2px solid var(--color-paper-line);
+  background: var(--color-paper-dark);
+}
+
+.quick-start-card[open] {
+  grid-column: 1 / -1;
+  border-color: var(--color-wood-dark);
+}
+
+.quick-start-card summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.quick-start-card summary .agent-name {
+  display: inline;
+}
+
+.quick-start-card > p,
+.quick-start-card > pre {
+  margin: 8px 12px;
+}
+
+.quick-start-note {
+  color: var(--color-ink-muted);
+}
+
 .site-footer {
   border-top: 2px solid var(--color-border);
   background: var(--color-bg-dark);

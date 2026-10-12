@@ -12,22 +12,23 @@ Code, paths and commands use the Terrarium name too: the npm package and CLI `te
 
 ## Where to look
 
-| Topic                                                                            | Document                                                                                          |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Agent and multiplexer modules, routing, one agent one character, adding a module | [docs/architecture/providers.md](docs/architecture/providers.md)                                  |
-| AgentRuntime, store, router, HTTP/WS server, persistence                         | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                        |
-| Claude transcripts, hooks vs heuristics, timers, idle detection                  | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                      |
-| Claude teams, teammates, background agents, sub-agents                           | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                            |
-| Hooks consent, the hook installer, the `/ws` privilege gate                      | [docs/architecture/consent.md](docs/architecture/consent.md)                                      |
-| Context gauge                                                                    | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                          |
-| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout              | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                    |
-| Assets, generated art, catalog, load order                                       | [docs/architecture/assets.md](docs/architecture/assets.md)                                        |
-| Test tiers, mocks, inventory, drift checks                                       | [docs/architecture/testing.md](docs/architecture/testing.md)                                      |
-| Consent revision rule (ADR)                                                      | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md) |
-| Art direction                                                                    | [docs/art-direction.md](docs/art-direction.md)                                                    |
-| Claude spawn formats research                                                    | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)    |
-| E2E rules and inventory                                                          | [e2e/README.md](e2e/README.md)                                                                    |
-| The original, unbuilt design                                                     | [docs/history/original-plan.md](docs/history/original-plan.md)                                    |
+| Topic                                                                             | Document                                                                                                                                  |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| User setup: per-provider quick start, Docker mounts, connections, troubleshooting | [docs/guide.md](docs/guide.md). The website's per-agent cards come from `AGENT_COVERAGE` in `scripts/build-site.ts`, so keep both in step |
+| Agent and multiplexer modules, routing, one agent one character, adding a module  | [docs/architecture/providers.md](docs/architecture/providers.md)                                                                          |
+| AgentRuntime, store, router, HTTP/WS server, persistence                          | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                                                                |
+| Claude transcripts, hooks vs heuristics, timers, idle detection                   | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                                                              |
+| Claude teams, teammates, background agents, sub-agents                            | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                                                                    |
+| Hooks consent, the hook installer, the `/ws` privilege gate                       | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
+| Context gauge                                                                     | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
+| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout               | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
+| Assets, generated art, catalog, load order                                        | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
+| Test tiers, mocks, inventory, drift checks                                        | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
+| Consent revision rule (ADR)                                                       | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
+| Art direction                                                                     | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
+| Claude spawn formats research                                                     | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)                                            |
+| E2E rules and inventory                                                           | [e2e/README.md](e2e/README.md)                                                                                                            |
+| The original, unbuilt design                                                      | [docs/history/original-plan.md](docs/history/original-plan.md)                                                                            |
 
 ## Architecture
 
@@ -156,7 +157,7 @@ Dockerfile                           Standalone server image (herdr + omp)
 ## Distribution
 
 - **npm package** (`terrarium`). `terrarium [--port 3100]` runs the Fastify server and serves the SPA on the same port. Nothing from this fork is published to npm, and the `terrarium` name on npm belongs to an unrelated package, so never document `npx terrarium`. Run Terrarium from source (`node dist/cli.js`) or Docker. The `package.json` `files` allowlist is `CHANGELOG.md`, `LICENSE`, `dist/cli.js`, `dist/hooks/claude-hook.js`, `dist/assets/`, `dist/webview/` and `icon.png`. `scripts/npm-package-contract.mjs` pins it.
-- **Docker image** (`Dockerfile`): multi-stage, `npm ci` + `npm run package`, then a runtime stage with only the server workspace's production dependencies plus `dist/`, running as `node` (UID 1000, `HOME=/home/node`) with `--provider herdr,omp --host 0.0.0.0 --port 8790`. herdr and omp only, because Claude hooks installed from a container would point at container paths. The README's Docker section is the source of truth for the mounts.
+- **Docker image** (`Dockerfile`): multi-stage, `npm ci` + `npm run package`, then a runtime stage with only the server workspace's production dependencies plus `dist/`, running as `node` (UID 1000, `HOME=/home/node`) with `--provider herdr,omp --host 0.0.0.0 --port 8790`. herdr and omp by default, never Claude, because Claude hooks installed from a container would point at container paths. [docs/guide.md](docs/guide.md#docker) is the source of truth for the mounts.
 
 ## Communication flow
 

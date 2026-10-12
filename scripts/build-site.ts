@@ -16,6 +16,8 @@ const SITE_SOURCE_DIR = path.join(REPO_ROOT, 'site');
 const SITE_OUTPUT_DIR = path.join(REPO_ROOT, 'dist', 'site');
 const AGENT_TABLE_MARKER = '<!-- AGENT-TABLE -->';
 const AGENT_COUNT_MARKER = '<!-- AGENT-COUNT -->';
+const QUICK_START_MARKER = '<!-- AGENT-QUICK-START -->';
+const CONTAINER_HOME = '/home/node';
 
 /** Files copied verbatim, source relative to the repo root, destination relative to the site root. */
 const STATIC_FILES: ReadonlyArray<{ source: string; destination: string }> = [
@@ -29,6 +31,15 @@ const STATIC_FILES: ReadonlyArray<{ source: string; destination: string }> = [
   },
 ];
 
+/** Where a CLI keeps its sessions by default, relative to the home directory. */
+interface SessionStore {
+  path: string;
+  /** A SQLite store needs a writable mount: readers create the WAL index beside the database. */
+  isDatabase: boolean;
+  /** The module cannot run in the Docker image (Claude's hooks would point at container paths). */
+  isHostOnly?: boolean;
+}
+
 /** What the office shows for an agent module's sessions, from the records its CLI actually writes. */
 interface AgentCoverage {
   toolActivity: boolean;
@@ -36,7 +47,16 @@ interface AgentCoverage {
   approvals: boolean;
   /** The CLI records its own exit. Without it, a session leaves the office once it has been quiet for a while. */
   cleanExit: boolean;
+  store: SessionStore;
   note?: string;
+}
+
+function files(storePath: string): SessionStore {
+  return { path: storePath, isDatabase: false };
+}
+
+function database(storePath: string): SessionStore {
+  return { path: storePath, isDatabase: true };
 }
 
 const AGENT_COVERAGE: Readonly<Record<string, AgentCoverage>> = {
@@ -45,35 +65,157 @@ const AGENT_COVERAGE: Readonly<Record<string, AgentCoverage>> = {
     turnEnds: true,
     approvals: true,
     cleanExit: true,
+    store: { path: '.claude/projects', isDatabase: false, isHostOnly: true },
     note: 'Hooks after you approve them in the app, transcripts otherwise. Clean exit needs the hooks. Sub-agents and Agent Teams too.',
   },
-  omp: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: true },
-  agy: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  cline: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: true },
-  codex: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  copilot: { toolActivity: true, turnEnds: true, approvals: true, cleanExit: true },
-  cursor: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  devin: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  droid: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: true },
-  gemini: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  grok: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  hermes: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: true },
-  kilo: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  kimi: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
+  omp: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: true,
+    store: files('.omp/agent/sessions'),
+  },
+  agy: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.gemini/antigravity-cli'),
+  },
+  cline: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: true,
+    store: files('.cline/data/sessions'),
+  },
+  codex: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.codex/sessions'),
+  },
+  copilot: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: true,
+    cleanExit: true,
+    store: files('.copilot/session-state'),
+  },
+  cursor: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.cursor/projects'),
+  },
+  devin: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: database('.local/share/devin/cli'),
+  },
+  droid: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: true,
+    store: files('.factory/sessions'),
+  },
+  gemini: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.gemini/tmp'),
+  },
+  grok: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.grok/sessions'),
+  },
+  hermes: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: true,
+    store: database('.hermes'),
+  },
+  kilo: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: database('.local/share/kilo'),
+  },
+  kimi: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.kimi-code/sessions'),
+  },
   kiro: {
     toolActivity: true,
     turnEnds: true,
     approvals: true,
     cleanExit: false,
+    store: files('.kiro/sessions'),
     note: 'Approvals from Kiro 3 (--v3) sessions only.',
   },
-  letta: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  maki: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  mastracode: { toolActivity: true, turnEnds: true, approvals: true, cleanExit: false },
-  opencode: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  pi: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  qodercli: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
-  qwen: { toolActivity: true, turnEnds: true, approvals: false, cleanExit: false },
+  letta: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.letta/lc-local-backend/conversations'),
+  },
+  maki: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.local/state/maki/sessions'),
+  },
+  mastracode: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: true,
+    cleanExit: false,
+    store: database('.local/share/mastracode'),
+  },
+  opencode: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: database('.local/share/opencode'),
+  },
+  pi: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.pi/agent/sessions'),
+  },
+  qodercli: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.qoder/projects'),
+  },
+  qwen: {
+    toolActivity: true,
+    turnEnds: true,
+    approvals: false,
+    cleanExit: false,
+    store: files('.qwen/projects'),
+  },
 };
 
 const MULTIPLEXER_SUMMARY: Readonly<Record<string, string>> = {
@@ -81,7 +223,10 @@ const MULTIPLEXER_SUMMARY: Readonly<Record<string, string>> = {
     'Every agent in a herdr pane, on this machine or over SSH, with its status, name, task and pending approvals. Hands each local pane to the agent module for its CLI when that module runs.',
 };
 
-const COVERAGE_COLUMNS: ReadonlyArray<{ key: keyof Omit<AgentCoverage, 'note'>; label: string }> = [
+const COVERAGE_COLUMNS: ReadonlyArray<{
+  key: keyof Omit<AgentCoverage, 'note' | 'store'>;
+  label: string;
+}> = [
   { key: 'toolActivity', label: 'Tool activity' },
   { key: 'turnEnds', label: 'Turn ends' },
   { key: 'approvals', label: 'Approvals' },
@@ -150,6 +295,32 @@ function renderAgentTable(): string {
   ].join('\n');
 }
 
+function renderDockerMount(store: SessionStore): string {
+  const mode = store.isDatabase ? '' : ':ro';
+  return `-v "$HOME/${store.path}:${CONTAINER_HOME}/${store.path}${mode}"`;
+}
+
+function renderQuickStartCard(id: string, displayName: string, store: SessionStore): string {
+  const docker = store.isHostOnly
+    ? '<p class="quick-start-note">Host only: the hooks it installs would point at paths inside a container.</p>'
+    : `<p>Docker: add this mount and <code>--provider ${escapeHtml(id)}</code>.</p><pre><code>${escapeHtml(renderDockerMount(store))}</code></pre>`;
+  return [
+    '<details class="quick-start-card">',
+    `<summary><span class="agent-name">${escapeHtml(displayName)}</span><code>${escapeHtml(id)}</code></summary>`,
+    `<p>Reads <code>~/${escapeHtml(store.path)}</code>.</p>`,
+    `<pre><code>node dist/cli.js --provider ${escapeHtml(id)}</code></pre>`,
+    docker,
+    '</details>',
+  ].join('');
+}
+
+function renderQuickStart(): string {
+  const cards = agentModules.map((m) =>
+    renderQuickStartCard(m.id, m.displayName, AGENT_COVERAGE[m.id].store),
+  );
+  return `<div class="quick-start-grid">${cards.join('')}</div>`;
+}
+
 function replaceMarker(html: string, marker: string, replacement: string): string {
   if (!html.includes(marker)) throw new Error(`site/index.html has no ${marker} marker`);
   return html.replaceAll(marker, replacement);
@@ -162,7 +333,8 @@ function buildSite(): void {
 
   const template = fs.readFileSync(path.join(SITE_SOURCE_DIR, 'index.html'), 'utf8');
   const withTable = replaceMarker(template, AGENT_TABLE_MARKER, renderAgentTable());
-  const page = replaceMarker(withTable, AGENT_COUNT_MARKER, String(agentModules.length));
+  const withQuickStart = replaceMarker(withTable, QUICK_START_MARKER, renderQuickStart());
+  const page = replaceMarker(withQuickStart, AGENT_COUNT_MARKER, String(agentModules.length));
   fs.writeFileSync(path.join(SITE_OUTPUT_DIR, 'index.html'), page);
 
   for (const file of STATIC_FILES) {

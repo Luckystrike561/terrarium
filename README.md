@@ -4,76 +4,29 @@
 
 <p align="center">Every AI coding agent on your machine, as a pixel-art character in an isometric office.</p>
 
-<p align="center"><a href="https://luckystrike561.github.io/terrarium/">Website</a> · <a href="https://luckystrike561.github.io/terrarium/#agents">Supported agents</a> · <a href="CHANGELOG.md">Changelog</a></p>
+<p align="center"><a href="https://luckystrike561.github.io/terrarium/">Website</a> · <a href="docs/guide.md">User guide</a> · <a href="https://luckystrike561.github.io/terrarium/#agents">Supported agents</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
 <p align="center">
   <img src="docs/media/demo.gif" alt="Terrarium: omp agents from herdr working, queueing at the CTO's office for approval, and resting in the lounge" width="960">
 </p>
 
-Terrarium watches the agents running on your machine and turns each one into a character. A character sits at a desk and types while its agent edits files or runs commands, and reads while it searches. When the agent needs you, the character walks to the CTO's office and waits in line. When it finishes, it goes to the lounge.
+Terrarium turns each agent into a character. It types at a desk while its agent edits or runs commands, reads while it searches, queues at the CTO's office when the agent needs you, and rests in the lounge when it is done. A badge shows each state, and Claude Code agents get a context gauge, sub-agents and teammates.
 
-Terrarium is a fork of [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) v1.4.1. It keeps the Pixel Agents server and protocol, and changes three things:
+It watches Claude Code, omp, Codex, OpenCode, Gemini CLI and 17 more CLIs through their own session stores, plus every agent in [herdr](https://github.com/herdrdev/herdr) panes, locally or over SSH. It never modifies your agents: its data lives in `~/.terrarium/`, and the only outside file it writes is `~/.claude/settings.json`, after you approve Claude hooks.
 
-- **herdr support.** A provider for the [herdr](https://github.com/herdrdev/herdr) terminal multiplexer shows every agent herdr manages, with tool activity for omp agents.
-- **A new office.** The renderer is now PixiJS, drawing 2:1 isometric pixel art with glass-walled rooms, a CTO who works through an approval queue, a lounge and a kitchen.
-- **Status badges.** Every character carries a badge for its state: working, needs approval, waiting for input, done, or idle.
+## Quick start
 
-Nothing from this fork is published to npm, and `npx terrarium` installs an unrelated package of the same name. Run Terrarium from source (see [Getting started](#getting-started)) or Docker.
-
-Upgrading from a version that still used the `pixel-agents` name: the first start moves `~/.pixel-agents/` to `~/.terrarium/` and repoints the Claude hooks at the new script. Environment variables are now `TERRARIUM_*`. Docker users mount the existing volume at `/home/node/.terrarium` instead of `/home/node/.pixel-agents`.
-
-## Features
-
-- **One agent, one character.** Each agent gets its own character with a stable color, named after its herdr workspace (and tab, when a workspace hosts several agents).
-- **Live activity.** Characters type for edits and commands, read for searches and fetches, and show the agent's own one-line intent ("Reading core/src/provider.ts") above their head.
-- **CTO approval queue.** An agent that is blocked on a permission prompt, or waiting for your input, joins the queue at the CTO's office. The first few sit in the visitor chairs and the rest line up at the door. While anyone waits at the door, the line rotates, so the agent that has sat longest gives up its chair.
-- **Lounge.** Idle agents leave their desks and sit on the sofas around the coffee table.
-- **Status badges and context gauge.** A badge above every character shows its state. For Claude Code agents, a gauge shows how full the context window is.
-- **Sub-agents and Agent Teams** (Claude Code). Sub-agents and teammates appear as their own characters next to the agent that spawned them.
-- **Sound notifications.** A chime when an agent finishes its turn or asks for permission.
-
-## Providers
-
-What the office shows comes from provider modules, and any combination of them can run in one server. There are two kinds: a **multiplexer** module knows which agents a terminal multiplexer hosts, and an **agent** module knows what one agent CLI is doing. Pick them with `--provider`, comma-separated. The choice is saved in `~/.terrarium/config.json` and reused by later runs:
-
-| Module             | Kind        | What you see                                                                                                | How it works                                                                                                                                                                                                                                          |
-| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `herdr`            | multiplexer | Every agent in a herdr pane (omp, Claude Code, Codex, opencode, …) with its status, name and task.          | Reads herdr's JSON-RPC socket at `~/.config/herdr/herdr.sock`, and any other herdr session or SSH host added under [Connections](#connections). Hands each local pane to the agent module for its kind, when that module runs, for the tool activity. |
-| `omp`              | agent       | omp sessions with their tool activity ("Reading PLAN.md"), working while a turn runs and idle when it ends. | Tails the transcripts in omp's session store (`~/.omp/agent/sessions/`), with or without herdr.                                                                                                                                                       |
-| `claude` (default) | agent       | Every Claude Code session on the machine.                                                                   | Installs hooks into `~/.claude/settings.json` after you approve it in the app, and falls back to reading Claude's JSONL transcripts.                                                                                                                  |
-
-With `herdr,omp`, an omp session running in a herdr pane is one character: omp supplies what it is doing, herdr its name, its task and any pending approval. omp sessions outside herdr show up too. Agents in herdr panes whose CLI has no running agent module show their status only. Only the Claude module writes anything outside `~/.terrarium/`.
-
-## Getting started
-
-Requirements: Node.js 22.13 or later (or Docker, see [Docker](#docker)), and either [herdr](https://github.com/herdrdev/herdr) running locally or one of the supported agent CLIs.
+Node.js 22.13 or later. Terrarium runs from source (`npx terrarium` is an unrelated package).
 
 ```bash
 git clone https://github.com/Luckystrike561/terrarium.git
-cd terrarium
-npm install
-npm run build
+cd terrarium && npm install && npm run build
+node dist/cli.js --provider herdr,omp,codex   # any module ids, saved for later runs
 ```
 
-With herdr and omp:
+Open the printed `http://127.0.0.1:<port>/?token=…` URL and keep it secret: the token lets a browser install hooks and add SSH connections. The [user guide](docs/guide.md#quick-start-per-provider) has the one-line setup and session store for each provider.
 
-```bash
-node dist/cli.js --provider herdr,omp
-```
-
-With Claude Code:
-
-```bash
-node /path/to/terrarium/dist/cli.js
-```
-
-The server picks a free port and prints a URL like `http://127.0.0.1:43123/?token=…`. Open it in a browser. If herdr is not running yet, the server keeps retrying in the background and the office fills in once herdr is up.
-
-With [devbox](https://www.jetify.com/devbox), `devbox run install` builds everything and `devbox run start` starts the herdr and omp modules on `127.0.0.1:8790`.
-
-### Docker
-
-The image starts the server with the herdr and omp modules on port 8790. CI publishes it to the GitHub Container Registry for `linux/amd64` and `linux/arm64`: `ghcr.io/luckystrike561/terrarium:latest` follows every commit on `master`, and each GitHub release `vX.Y.Z` is also published as `ghcr.io/luckystrike561/terrarium:X.Y.Z`.
+## Docker
 
 ```bash
 docker run -d --name terrarium \
@@ -82,119 +35,20 @@ docker run -d --name terrarium \
   -v "$HOME/.omp/agent/sessions:$HOME/.omp/agent/sessions:ro" \
   -v terrarium-data:/home/node/.terrarium \
   ghcr.io/luckystrike561/terrarium:latest
-docker logs terrarium
+docker logs terrarium   # prints the URL with its token
 ```
 
-To build it from this checkout instead, run `docker build -t terrarium .` and use `terrarium` as the image name.
-
-The log prints `http://127.0.0.1:8790/?token=…`. Open it on the host. Each mount has one job:
-
-- **`~/.config/herdr`**: the server connects to herdr's socket, `~/.config/herdr/herdr.sock`. Mounting the directory rather than the socket file keeps the connection working after herdr restarts and recreates the socket. Without it the server still starts and keeps retrying, like a herdr that is not running yet.
-- **`~/.omp/agent/sessions`, at the same absolute path**: herdr reports each omp session by its transcript's path on the host, and the omp module reads it from there. Without it, omp agents show their status but no tool activity.
-- **`terrarium-data`**: everything under `~/.terrarium/` (settings, seats, and a `layout.json` if you add one) survives `docker rm` and image rebuilds.
-
-Keep the host port equal to the container port: the printed URL carries the port the server listens on inside the container. `-p 127.0.0.1:8790:8790` keeps the office on this machine, while `-p 8790:8790` publishes it on every network interface.
-
-herdr's socket is readable only by its owner, and the image runs as UID 1000. If `id -u` prints something else, add `--user "$(id -u):$(id -g)"` and keep the state in a directory you own instead of the named volume: `mkdir -p ~/.local/share/terrarium` and `-v "$HOME/.local/share/terrarium:/home/node/.terrarium"`.
-
-**The token ends up in the container log.** Anyone who can run `docker logs` on this machine, or read wherever your log driver ships container output, can read the URL. Treat that log like the URL itself (see [The token in the URL](#the-token-in-the-url)).
-
-The image runs the herdr and omp modules only. The Claude module does not work from a container: the hooks it installs would point at paths inside the container.
-
-### Options
-
-```bash
-node dist/cli.js --provider herdr,omp  # herdr, claude, or any agent module (omp, pi, codex, copilot, cursor, opencode, kilo, kimi, droid, devin, hermes, qodercli, qwen, letta, mastracode, agy, grok, kiro, maki, gemini, cline); saved for later runs
-node dist/cli.js --port 3100           # fixed port instead of a free one
-node dist/cli.js --host 127.0.0.1      # bind address (default 127.0.0.1)
-node dist/cli.js --uninstall-hooks     # remove the hooks from ~/.claude/settings.json and exit
-node dist/cli.js --help
-```
-
-Binding to `0.0.0.0` exposes the office and its WebSocket to your network. Do it only on a trusted network.
-
-`--uninstall-hooks` removes only the entries Terrarium added and keeps hooks off on later runs. It exits with a non-zero status when the settings file could not be cleaned. To have the hooks installed again, delete `hooksEnabled.claude` from `~/.terrarium/config.json` and restart the server.
-
-### The token in the URL
-
-Anyone who can reach the server can watch the office. Changing hook installation (which edits your agent's own settings file, such as `~/.claude/settings.json`) and adding, editing or removing [connections](#connections) (which opens SSH sessions to other machines) is only allowed for a browser that opened the URL with its `?token=`. Treat that URL as a secret: the token works from anywhere the server is reachable, and it also lands in your browser history and the server's request log.
-
-## Connections
-
-With the `herdr` module, the **Connections** entry on the bottom plank lists every herdr server the office listens to, with its live state: connected, connecting, reconnecting, or an error with the SSH or herdr message. Agents from every enabled connection join the same office. A character from any connection but this machine's default session carries the connection's label after its name (`api @Build box`), and two agents with the same pane id on different servers stay two characters.
-
-- **This machine** is there from the start and is today's behaviour: herdr's socket, found the way herdr finds it (`HERDR_SOCKET_PATH`, then `HERDR_SESSION`, then `~/.config/herdr/herdr.sock`).
-- **Local session** reaches another herdr session on this machine (`~/.config/herdr/sessions/<name>/herdr.sock`). Left empty, it reaches this machine's default herdr, which is how to get **This machine** back after removing it.
-- **SSH** reaches herdr on another machine. The target is an SSH destination: `host`, `user@host`, a bare IPv6 address, `ssh://user@host:2222` (also `ssh://[::1]:2222`) or a `~/.ssh/config` alias, plus an optional herdr session name. Shell metacharacters are refused, since OpenSSH substitutes the target unquoted into `ProxyCommand` and `Match exec` lines of your `~/.ssh/config`.
-
-Adding a connection checks it first (one `ping` round-trip with herdr) and saves it only when herdr answered. Otherwise the menu shows why. Connections are saved in `~/.terrarium/config.json` and come back after a restart. Disabling or removing one removes its characters and closes its SSH process. When herdr stops on a connection, its characters leave and the connection reads as reconnecting or error until herdr is back, with no action from you.
-
-**SSH requirements.** herdr has no network listener, so an SSH connection runs OpenSSH's `ssh` on this machine and forwards the remote herdr socket to a local one (`ssh -N -L`, owner-only, under `~/.terrarium/herdr/`). It needs `ssh` on this machine's `PATH`, herdr running on the remote, a remote sshd that allows Unix-socket forwarding (OpenSSH's default), and a POSIX `sh` there. The SSH session runs in batch mode: it never prompts, so authentication must already work non-interactively through your SSH agent, keys and `~/.ssh/config`, and the remote host key must already be in `known_hosts` (run `ssh <target>` once by hand). **No passwords, keys or other credentials are stored**, only the target and the session name. The Docker image includes OpenSSH's client: mount your key, an SSH `config` and `known_hosts` at `/home/node/.ssh`, readable by UID 1000. SSH connections need the container to run as that UID (the image's `node` user, or `runAsUser: 1000` in a pod): under a `--user` UID with no passwd entry, `ssh` exits with `No user exists for uid`. Files owned by root and readable by group 1000, as a Kubernetes Secret mounted with `fsGroup: 1000` gives them, pass OpenSSH's permission checks. On a read-only mount, set `UpdateHostKeys no` in that `config`, or every connection logs a failed write to `known_hosts`.
-
-Remote agents show herdr's status, name and task. Their tool activity is not shown: the transcripts it comes from are files on the other machine.
-
-## Customizing the office
-
-The office comes from the bundled default layout. There is no in-app layout editor for now: the previous one was removed and will be redesigned. If `~/.terrarium/layout.json` exists (for example one saved by an older version), the server loads it instead, including its carpets, pets and named areas. Map workspace folders to those areas under `standalone.areaMappings` in `~/.terrarium/config.json` (`{ "folder-name": ["Area label"] }`) so new agents sit in their area.
-
-Click a character, then a free seat, to move it there. Desks with an agent at them switch their electronics on.
-
-The bundled furniture, characters and default office are generated from code: `npx tsx scripts/iso-art/generate.ts` rewrites the sprites, and `npx tsx scripts/iso-art/layout.ts` rebuilds the default layout.
-
-## How it works
-
-```mermaid
-flowchart LR
-  herdr[herdr socket] --> feed[MultiplexerFeed]
-  feed -- hands each pane over --> ompmod[omp module]
-  feed -- hands each pane over --> claudemod[claude module]
-  omp[omp session files] --> ompmod
-  hooks[Claude hooks] --> api["POST /api/hooks/:provider"]
-  api --> claudemod
-  jsonl[Claude transcripts] --> claudemod
-  feed --> runtime[AgentRuntime]
-  ompmod --> runtime
-  claudemod --> runtime
-  runtime --> store[AgentStateStore]
-  store --> ws[WebSocket]
-  ws --> office[PixiJS office in the browser]
-```
-
-Each module turns its source into a shared `AgentEvent` model (tool started, permission requested, turn ended, …), and the runtime routes every event by the module it came from. `AgentRuntime` updates the state store, and the server pushes typed messages over a WebSocket to the React and PixiJS front end. The wire protocol is defined in [`core/asyncapi.yaml`](core/asyncapi.yaml).
-
-Terrarium never modifies your agents. Its own data lives in `~/.terrarium/`, and the only file it writes elsewhere is `~/.claude/settings.json`, when you approve Claude hooks.
-
-### Repository layout
-
-- **`core/`**: provider, transport and schema interfaces, plus the AsyncAPI message contract. No runtime side effects.
-- **`server/`**: Fastify server, agent runtime, persistence, the provider modules (`server/src/providers/<id>/`) and their registry, and the standalone CLI.
-- **`webview-ui/`**: React 19 and PixiJS front end, served by the standalone server.
-
-[CLAUDE.md](CLAUDE.md) is the detailed architecture reference and [CONTEXT.md](CONTEXT.md) the glossary.
+The image runs herdr and omp. Other providers, mounts, UID and Claude limits: [guide](docs/guide.md#docker).
 
 ## Development
 
 ```bash
-npm install
-npm run build          # generate protocol types, type-check, lint, bundle
-npm run check-types
-npm run lint
-npm test               # server and webview unit tests
-npm run e2e            # Playwright, against the standalone server
+npm run build && npm test && npm run e2e
+npm run site:build     # website from site/ into dist/site/
 ```
 
-`npm run demo:record` re-records the GIF at the top of this page. It plays a scripted herdr session through the real standalone server (needs `npm run build` and `ffmpeg`) and writes `docs/media/demo.gif`.
-
-`npm run site:build` builds the [website](https://luckystrike561.github.io/terrarium/) from `site/` into `dist/site/`. Its supported-agents table lists the modules in `server/src/providers/index.ts`, and the build fails when a module has no entry in the table's coverage map in `scripts/build-site.ts`. The **Website** workflow deploys it to GitHub Pages on every push to `master`.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and [e2e/README.md](e2e/README.md) for the end-to-end suite.
-
-## Troubleshooting
-
-- **The office stays empty with `--provider herdr`.** Check that herdr is running and that its socket exists (`HERDR_SOCKET_PATH`, else `~/.config/herdr/sessions/$HERDR_SESSION/herdr.sock`, else `~/.config/herdr/herdr.sock`). In a browser opened with the printed `?token=` URL, **Connections** shows the error for each herdr server the office cannot reach. The server log carries the same state changes.
-- **An agent in a herdr pane shows a status but never a tool.** Its CLI has no running agent module: add the CLI's id to `--provider` (for omp, `--provider herdr,omp`). The pane joins the module's session through the session id or path herdr's integration reports, or, for CLIs herdr reports none for (Gemini CLI, Cline, Maki, Kiro 2), through the one live session in the pane's directory. Amp keeps its threads on ampcode.com, so an Amp pane only ever shows herdr's status.
-- **A Claude session is missing.** The server logs `Hooks installed` at startup when Claude hooks are active. Without hooks, sessions are found by scanning `~/.claude/projects/` every few seconds, so a new one can take a moment to appear.
+[CLAUDE.md](CLAUDE.md) is the architecture reference, [CONTEXT.md](CONTEXT.md) the glossary, and [CONTRIBUTING.md](CONTRIBUTING.md) the workflow.
 
 ## License and credits
 
-MIT, see [LICENSE](LICENSE). Terrarium is built on [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) by Pablo De Lucca and its contributors.
+MIT, see [LICENSE](LICENSE). Terrarium is a fork of [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) v1.4.1 by Pablo De Lucca and its contributors.
