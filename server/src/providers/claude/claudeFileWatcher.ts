@@ -6,8 +6,8 @@
  * When hooks work, per-agent heuristic timers are suppressed. The hookDelivered
  * flag per agent and hooksEnabledRef globally control the switch.
  *
- * HEURISTIC MODE (fallback): For environments without hooks (other providers,
- * hooks disabled, older Claude versions). Uses:
+ * HEURISTIC MODE (fallback): For environments without hooks (hooks disabled,
+ * older Claude versions). Uses:
  * - Per-agent 500ms JSONL polling for tool activity
  * - 1s main scanner for teammate discovery and team-membership removals
  * - 30s stale check for orphaned external agents
@@ -25,11 +25,14 @@ import * as path from 'path';
 
 const debug = process.env.TERRARIUM_DEBUG !== '0';
 
-import type { AgentModule } from '../../core/src/provider.js';
-import type { TeamProvider } from '../../core/src/teamProvider.js';
-import type { AgentStateStore } from './agentStateStore.js';
+import { DEFAULT_MAX_CONTEXT_TOKENS } from '../../constants.js';
+import { pathsMatch } from '../../pathKey.js';
+import type { ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
+import { claudeTeamProvider } from './claudeTeamProvider.js';
+import { cancelPermissionTimer, cancelWaitingTimer, clearAgentActivity } from './claudeTimers.js';
+import { processTranscriptLine } from './claudeTranscriptParser.js';
+import { getAllSessionRoots, subagentToolNames } from './claudeVocabulary.js';
 import {
-  DEFAULT_MAX_CONTEXT_TOKENS,
   EXTERNAL_ACTIVE_THRESHOLD_MS,
   EXTERNAL_SCAN_INTERVAL_MS,
   EXTERNAL_STALE_CHECK_INTERVAL_MS,
@@ -40,37 +43,28 @@ import {
 } from './constants.js';
 import { seedContextUsage } from './contextUsage.js';
 import type { DismissalTracker } from './dismissalTracker.js';
-import { assignPaletteIfNeeded } from './paletteAssigner.js';
-import { pathsMatch } from './pathKey.js';
 import type { SubagentWatch } from './subagentWatch.js';
-import { cancelPermissionTimer, cancelWaitingTimer, clearAgentActivity } from './timerManager.js';
-import { getTranscriptModule, processTranscriptLine } from './transcriptParser.js';
-import type { AgentState } from './types.js';
 
 /** Dismissal tracker instance. Set once at startup via setDismissalTracker().
  *  Replaces the former module-global dismissedJsonlFiles, clearDismissedFiles,
  *  seededMtimes, and pendingClearFiles Maps/Sets. */
 let dismissalTracker: DismissalTracker | null = null;
 
-/** Register the DismissalTracker instance. Called at server startup. */
+/** Register the DismissalTracker instance. Called at startup. */
 export function setDismissalTracker(tracker: DismissalTracker): void {
   dismissalTracker = tracker;
 }
 
-/** Get the active DismissalTracker (for direct access from the server).
- *
- * @public
- */
+/** Get the active DismissalTracker. */
 export function getDismissalTracker(): DismissalTracker | null {
   return dismissalTracker;
 }
 
-/** Agent removal callback. Injected by the server to avoid a
- *  server/src/ → src/ back-import on agentManager.ts. The closure
- *  captures the store and timer Maps, so only the agent ID is needed. */
+/** Agent removal callback. The closure captures the store and timer Maps, so
+ *  only the agent ID is needed. */
 let agentRemovalCallback: ((id: number) => void) | null = null;
 
-/** Register the agent removal callback. Called by the server at startup. */
+/** Register the agent removal callback. */
 export function setAgentRemovalCallback(cb: typeof agentRemovalCallback): void {
   agentRemovalCallback = cb;
 }
@@ -78,7 +72,7 @@ export function setAgentRemovalCallback(cb: typeof agentRemovalCallback): void {
 export function startFileWatching(
   agentId: number,
   _filePath: string,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   _fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
@@ -87,7 +81,7 @@ export function startFileWatching(
   // Every watched agent passes through here, so this is the one place that can
   // give an agent adopted or restored mid-session a context gauge without
   // replaying its whole transcript.
-  seedContextUsage(agentId, agents, getTranscriptModule());
+  seedContextUsage(agentId, agents);
 
   // Single polling approach: reliable on all platforms (macOS, Linux, WSL2, Windows).
   // Previously used triple-redundant fs.watch + fs.watchFile + setInterval, but
@@ -106,7 +100,7 @@ export function startFileWatching(
 
 export function readNewLines(
   agentId: number,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
 ): void {
@@ -135,7 +129,7 @@ export function readNewLines(
       // New data arriving — cancel timers (data flowing means agent is still active).
       // When hooks are active, don't clear permission state here — the hook gave us a
       // definitive signal that permission is needed. Only a new user prompt or tool_result
-      // (processed in transcriptParser) should clear it.
+      // (processed in claudeTranscriptParser) should clear it.
       cancelWaitingTimer(agentId, waitingTimers);
       cancelPermissionTimer(agentId, permissionTimers);
       if (agent.permissionSent && !agent.hookDelivered && !agent.leadAgentId) {
@@ -178,14 +172,11 @@ export function ensureProjectScan(
   knownJsonlFiles: Set<string>,
   projectScanTimerRef: { current: ReturnType<typeof setInterval> | null },
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
-  _onAgentCreated?: (agent: AgentState) => void,
 ): void {
   // Always seed this directory's files (supports multi-root workspaces).
   try {
@@ -217,6 +208,8 @@ export function ensureProjectScan(
     // Teammate scanning runs in BOTH modes (hooks + heuristic).
     // In hooks mode, SubagentStart triggers immediate scanning, but the periodic
     // fallback catches teammates that hooks missed (e.g. hook arrived before JSONL).
+    // Found teammates are not registered for hook routing here: an inline teammate
+    // shares its lead's session id and would take the lead's hooks over.
     scanAllTeammateFiles(
       nextAgentIdRef,
       agents,
@@ -224,7 +217,6 @@ export function ensureProjectScan(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
     );
 
     // Check team config files to detect dismissed teammates (authoritative source
@@ -236,22 +228,13 @@ export function ensureProjectScan(
   }, PROJECT_SCAN_INTERVAL_MS);
 }
 
-// ── Lead + Teammates support (provider-driven) ──
+// ── Lead + Teammates support ──
 
 /** Known teammate JSONL files (prevents re-adoption). */
 const knownTeammateFiles = new Set<string>();
 
 /** Callback to remove a teammate agent when detected as dismissed via team config. */
 let teammateRemovalCallback: ((teammateAgentId: number) => void) | null = null;
-
-/** Team provider: supplies all CLI-specific paths, parsers, and tool names.
- *  Set once at startup via setTeamProvider(). Module functions assume it's set
- *  by the time they're called. */
-let teamProvider: TeamProvider | null = null;
-
-/** Transcript module: supplies non-team capabilities fileWatcher needs (all-session
- *  roots for global discovery, launch command, etc.). Set once at startup. */
-let transcriptModule: AgentModule | null = null;
 
 /** Register the callback used to remove teammates detected as dismissed via team config polling. */
 export function setTeammateRemovalCallback(cb: (teammateAgentId: number) => void): void {
@@ -270,14 +253,9 @@ export function setTeammateRegisterCallback(
   teammateRegisterCallback = cb;
 }
 
-/** Register the TeamProvider that describes the active CLI's Lead+Teammates pattern. */
-export function setTeamProvider(provider: TeamProvider): void {
-  teamProvider = provider;
-}
-
-/** Shadow-store watcher for UNNAMED background spawns (sub-agents). Owned by
- *  AgentRuntime; registered once at startup. When unset (tests wiring only the
- *  scanners), unnamed spawns are simply not watched. */
+/** Shadow-store watcher for UNNAMED background spawns (sub-agents). Registered
+ *  once at startup. When unset (tests wiring only the scanners), unnamed
+ *  spawns are simply not watched. */
 let subagentWatch: SubagentWatch | null = null;
 
 /** Register the SubagentWatch that mirrors unnamed background spawns' transcripts. */
@@ -285,13 +263,8 @@ export function setSubagentWatch(watch: SubagentWatch | null): void {
   subagentWatch = watch;
 }
 
-/** Register the transcript module for non-team capabilities (session roots, etc.), or null when none is enabled. */
-export function setTranscriptModule(module: AgentModule | null): void {
-  transcriptModule = module;
-}
-
 /**
- * Scan the provider's teammate transcripts for a given lead session.
+ * Scan Claude's teammate transcripts for a given lead session.
  * Each teammate gets its own independent agent (positive ID) with file watching.
  *
  * Called from two paths:
@@ -303,20 +276,21 @@ export function scanForTeammateFiles(
   sessionId: string,
   parentAgentId: number,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
-  onAgentCreated?: (agent: AgentState) => void,
+  onAgentCreated?: (agent: ClaudeAgentState) => void,
 ): void {
-  if (!teamProvider) return;
   const parentAgent = agents.get(parentAgentId);
   // teamName lets the provider also find new-style teammates: independent
   // top-level sessions tagged with the team, not files under the lead's dir.
-  const teammates = teamProvider.discoverTeammates(projectDir, sessionId, parentAgent?.teamName);
+  const teammates = claudeTeamProvider.discoverTeammates(
+    projectDir,
+    sessionId,
+    parentAgent?.teamName,
+  );
 
   const parentLiveSpawnIds = parentAgent ? liveSpawnToolIds(parentAgent) : null;
   for (const { jsonlPath: file, teammateName, sessionId: ownSessionId, toolUseId } of teammates) {
@@ -342,7 +316,7 @@ export function scanForTeammateFiles(
     // Deduplicate by teammate name per parent: if we already have a live agent
     // with the same name for this parent, reassign it to the new JSONL file
     // (Claude may restart a teammate, creating a new .jsonl for the same role).
-    let existingTeammate: AgentState | undefined;
+    let existingTeammate: ClaudeAgentState | undefined;
     for (const a of agents.values()) {
       if (a.leadAgentId === parentAgentId && a.agentName === teammateName) {
         existingTeammate = a;
@@ -385,7 +359,7 @@ export function scanForTeammateFiles(
     const id = nextAgentIdRef.current++;
     // Read from start -- teammate JSONL is usually small and we want full tool history
     // New-style teammates carry their own session id; inline teammates share the lead's.
-    const agent: AgentState = {
+    const agent: ClaudeAgentState = {
       id,
       sessionId: ownSessionId ?? sessionId,
       projectDir,
@@ -417,14 +391,7 @@ export function scanForTeammateFiles(
       teamUsesTmux: parentAgent?.teamUsesTmux,
     };
 
-    if (parentAgent?.palette !== undefined) {
-      agent.palette = parentAgent.palette;
-      agent.hueShift = parentAgent.hueShift ?? 0;
-    } else {
-      assignPaletteIfNeeded(agent, agents);
-    }
     agents.set(id, agent);
-    persistAgents();
 
     console.log(
       `[Terrarium] Teammate detected: "${teammateName}" (Agent ${id}) for parent Agent ${parentAgentId} (${path.basename(file)})`,
@@ -457,11 +424,11 @@ export function scanForTeammateFiles(
  *  foreground spawn tools (Agent run_in_background:false — same sidecar shape
  *  on current harnesses, closes with its tool_result). Sidecars matching any
  *  of these belong to the background-agent flow, not teammate discovery. */
-function liveSpawnToolIds(lead: AgentState): Set<string> {
+function liveSpawnToolIds(lead: ClaudeAgentState): Set<string> {
   const ids = new Set(lead.backgroundAgentToolIds);
   for (const toolId of lead.activeToolIds) {
     const toolName = lead.activeToolNames.get(toolId);
-    if (toolName && transcriptModule?.subagentToolNames.has(toolName)) {
+    if (toolName && subagentToolNames.has(toolName)) {
       ids.add(toolId);
     }
   }
@@ -493,22 +460,20 @@ function liveSpawnToolIds(lead: AgentState): Set<string> {
  */
 export function scanForBackgroundAgentFiles(
   leadId: number,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   nextAgentIdRef: { current: number },
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-  persistAgents: () => void,
-  onAgentCreated?: (agent: AgentState) => void,
+  onAgentCreated?: (agent: ClaudeAgentState) => void,
 ): void {
-  if (!teamProvider) return;
   const lead = agents.get(leadId);
   if (!lead || !lead.sessionId || !lead.projectDir) return;
   const liveSpawnIds = liveSpawnToolIds(lead);
   if (liveSpawnIds.size === 0) return;
 
-  const entries = teamProvider.discoverTeammates(lead.projectDir, lead.sessionId);
+  const entries = claudeTeamProvider.discoverTeammates(lead.projectDir, lead.sessionId);
   for (const entry of entries) {
     if (!entry.toolUseId || !liveSpawnIds.has(entry.toolUseId)) continue;
 
@@ -531,7 +496,7 @@ export function scanForBackgroundAgentFiles(
     if (!entry.name || isForeground) {
       // Unnamed spawn = Sub-agent: keep the Subtask character, watch the
       // transcript in the shadow store for live activity. No agentCreated, no
-      // subagentClear, no persistence.
+      // subagentClear.
       subagentWatch?.watch(lead, leadId, {
         jsonlPath: entry.jsonlPath,
         toolUseId: entry.toolUseId,
@@ -541,7 +506,7 @@ export function scanForBackgroundAgentFiles(
 
     // Named spawn = Teammate.
     const id = nextAgentIdRef.current++;
-    const agent: AgentState = {
+    const agent: ClaudeAgentState = {
       id,
       // In-process: shares the lead's session (like an inline teammate). Never
       // registered with the session router -- it would overwrite the lead.
@@ -571,12 +536,6 @@ export function scanForBackgroundAgentFiles(
       spawnToolUseId: entry.toolUseId,
     };
 
-    if (lead.palette !== undefined) {
-      agent.palette = lead.palette;
-      agent.hueShift = lead.hueShift ?? 0;
-    } else {
-      assignPaletteIfNeeded(agent, agents);
-    }
     agents.set(id, agent);
 
     // Derived team: spawning a named agent makes the spawner a Lead, whether
@@ -592,8 +551,6 @@ export function scanForBackgroundAgentFiles(
         leadAgentId: lead.leadAgentId,
       });
     }
-
-    persistAgents();
 
     console.log(
       `[Terrarium] Background teammate detected: "${agent.agentName}" (Agent ${id}) for lead Agent ${leadId} (${path.basename(entry.jsonlPath)})`,
@@ -618,7 +575,7 @@ export function scanForBackgroundAgentFiles(
 }
 
 /**
- * Scan team config files (via the active TeamProvider) to detect teammate
+ * Scan team config files (via the team provider) to detect teammate
  * dismissals. A teammate is considered dismissed if:
  *   - The team config no longer lists them in members, OR
  *   - The team config file is missing/unreadable (team dissolved)
@@ -626,11 +583,10 @@ export function scanForBackgroundAgentFiles(
  * This is the authoritative source of truth for Agent Teams membership.
  * Returns the IDs of teammates that should be removed.
  */
-export function scanTeamConfigsForRemovals(agents: AgentStateStore): number[] {
+export function scanTeamConfigsForRemovals(agents: ClaudeAgentStore): number[] {
   const toRemove: number[] = [];
-  if (!teamProvider) return toRemove;
   // Group teammates by their teamName for efficient config lookups
-  const teammatesByTeam = new Map<string, Array<{ id: number; agent: AgentState }>>();
+  const teammatesByTeam = new Map<string, Array<{ id: number; agent: ClaudeAgentState }>>();
   for (const [id, agent] of agents) {
     if (agent.leadAgentId === undefined || agent.teamUsesTmux || !agent.teamName) continue;
     let list = teammatesByTeam.get(agent.teamName);
@@ -643,7 +599,7 @@ export function scanTeamConfigsForRemovals(agents: AgentStateStore): number[] {
 
   for (const [teamName, members] of teammatesByTeam) {
     // Provider owns both the read and parse -- returns null on any failure (team dissolved)
-    const memberNames = teamProvider.getTeamMembers(teamName);
+    const memberNames = claudeTeamProvider.getTeamMembers(teamName);
 
     for (const { id, agent } of members) {
       if (memberNames === null) {
@@ -663,19 +619,17 @@ export function scanTeamConfigsForRemovals(agents: AgentStateStore): number[] {
  */
 export function scanAllTeammateFiles(
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
-  onAgentCreated?: (agent: AgentState) => void,
+  onAgentCreated?: (agent: ClaudeAgentState) => void,
 ): void {
-  // For each known lead agent, ask the provider to scan for teammate transcripts.
+  // For each known lead agent, scan for teammate transcripts.
   // CRITICAL: only scan agents that JSONL has confirmed as team leads (teamName set).
-  // Without this gate we'd pick up basic subagents' JSONL files (which some CLIs also
-  // write to the same teammate directory) and create spurious teammate characters for
+  // Without this gate we'd pick up basic subagents' JSONL files (which Claude also
+  // writes to the same teammate directory) and create spurious teammate characters for
   // them when the Agent Teams feature is OFF.
   for (const [agentId, agent] of agents) {
     // Only scan for lead agents (not teammates themselves)
@@ -692,7 +646,6 @@ export function scanAllTeammateFiles(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
       onAgentCreated,
     );
     // Gate: basic-mode agents never get teamName set. Real team leads do, via JSONL.
@@ -708,7 +661,6 @@ export function scanAllTeammateFiles(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
       onAgentCreated,
     );
   }
@@ -727,17 +679,15 @@ export function adoptExternalSessionFromHook(
   cwd: string,
   knownJsonlFiles: Set<string>,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
-  onAgentCreated?: (agent: AgentState) => void,
+  onAgentCreated?: (agent: ClaudeAgentState) => void,
 ): void {
   if (transcriptPath) {
-    // File-based provider (Claude, Codex): adopt with JSONL file watching
+    // Adopt with JSONL file watching
     // Guard: don't adopt if file is already tracked by an agent
     for (const agent of agents.values()) {
       if (pathsMatch(agent.jsonlFile, transcriptPath)) return;
@@ -760,7 +710,6 @@ export function adoptExternalSessionFromHook(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
       folderName,
     );
 
@@ -776,10 +725,10 @@ export function adoptExternalSessionFromHook(
       onAgentCreated?.(adoptedAgent);
     }
   } else {
-    // Hooks-only provider (OpenCode, Copilot): no transcript file, all state from hooks
+    // Hooks-only: no transcript file, all state from hooks
     const id = nextAgentIdRef.current++;
     const folderName = cwd ? path.basename(cwd) : undefined;
-    const agent: AgentState = {
+    const agent: ClaudeAgentState = {
       id,
       sessionId,
       projectDir: cwd,
@@ -804,9 +753,7 @@ export function adoptExternalSessionFromHook(
       contextTokens: 0,
       maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS,
     };
-    assignPaletteIfNeeded(agent, agents);
     agents.set(id, agent);
-    persistAgents();
     if (debug) {
       console.log(
         `[Terrarium] Hook: Agent ${id} - detected hooks-only external session${folderName ? ` (${folderName})` : ''}`,
@@ -820,13 +767,11 @@ function adoptExternalSession(
   jsonlFile: string,
   projectDir: string,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
   folderName?: string,
 ): void {
   const id = nextAgentIdRef.current++;
@@ -859,7 +804,7 @@ function adoptExternalSession(
   } catch {
     /* start from beginning if stat fails */
   }
-  const agent: AgentState = {
+  const agent: ClaudeAgentState = {
     id,
     sessionId: path.basename(jsonlFile, '.jsonl'),
     projectDir,
@@ -884,9 +829,7 @@ function adoptExternalSession(
     maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS,
   };
 
-  assignPaletteIfNeeded(agent, agents);
   agents.set(id, agent);
-  persistAgents();
 
   // Log is emitted by the caller (adoptExternalSessionFromHook or scanExternalDir)
   // to use the correct prefix (Hook: vs Watcher:).
@@ -911,14 +854,11 @@ export function startExternalSessionScanning(
   _projectDir: string,
   knownJsonlFiles: Set<string>,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-  _jsonlPollTimers: Map<number, ReturnType<typeof setInterval>>,
-
-  persistAgents: () => void,
   hooksEnabledRef?: { current: boolean },
 ): ReturnType<typeof setInterval> {
   return setInterval(() => {
@@ -935,7 +875,6 @@ export function startExternalSessionScanning(
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        persistAgents,
         hooksEnabledRef,
       );
     }
@@ -947,7 +886,6 @@ export function startExternalSessionScanning(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
     );
   }, EXTERNAL_SCAN_INTERVAL_MS);
 }
@@ -957,13 +895,11 @@ export function scanExternalDir(
   projectDir: string,
   knownJsonlFiles: Set<string>,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
   /** True when hooks are delivering. Only then does the hook-driven fast-attach
    *  own teammate sessions; with hooks off this scan IS their discovery path. */
   hooksEnabledRef?: { current: boolean },
@@ -1023,7 +959,7 @@ export function scanExternalDir(
 
     // Check if already tracked by an agent (normalize paths for comparison).
     // This prevents the external scanner from adopting a file the hooks-driven
-    // SessionEnd/SessionStart reassignment (agentRuntime.ts) already claimed.
+    // SessionEnd/SessionStart reassignment already claimed.
     let tracked = false;
     for (const agent of agents.values()) {
       if (pathsMatch(agent.jsonlFile, file)) {
@@ -1048,7 +984,7 @@ export function scanExternalDir(
     // Skip only when the lead is actually tracked; an orphan team session still
     // falls through to normal adoption.
     const teamMeta = hooksEnabledRef?.current
-      ? teamProvider?.getTeamMetadataForSession(file)
+      ? claudeTeamProvider.getTeamMetadataForSession(file)
       : null;
     if (teamMeta?.teamName && teamMeta.agentName) {
       let leadTracked = false;
@@ -1100,7 +1036,6 @@ export function scanExternalDir(
       pollingTimers,
       waitingTimers,
       permissionTimers,
-      persistAgents,
     );
   }
 }
@@ -1111,20 +1046,18 @@ function folderNameFromProjectDir(dirName: string): string {
   return parts[parts.length - 1] || dirName;
 }
 
-/** Scan every session root the active provider exposes for active sessions, for machine-wide
+/** Scan every session root Claude exposes for active sessions, for machine-wide
  *  session discovery (always on, not gated by any setting). */
 function scanGlobalProjectDirs(
   knownJsonlFiles: Set<string>,
   nextAgentIdRef: { current: number },
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
 ): void {
-  const roots = transcriptModule?.getAllSessionRoots?.() ?? [];
+  const roots = getAllSessionRoots();
   if (roots.length === 0) return;
 
   const projectDirs: string[] = [];
@@ -1187,7 +1120,6 @@ function scanGlobalProjectDirs(
         pollingTimers,
         waitingTimers,
         permissionTimers,
-        persistAgents,
         folderName,
       );
     }
@@ -1199,7 +1131,7 @@ function scanGlobalProjectDirs(
  * haven't been modified recently.
  */
 export function startStaleExternalAgentCheck(
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   knownJsonlFiles: Set<string>,
   hooksEnabledRef?: { current: boolean },
 ): ReturnType<typeof setInterval> {
@@ -1236,13 +1168,11 @@ export function startStaleExternalAgentCheck(
 export function reassignAgentToFile(
   agentId: number,
   newFilePath: string,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   fileWatchers: Map<number, fs.FSWatcher>,
   pollingTimers: Map<number, ReturnType<typeof setInterval>>,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
-
-  persistAgents: () => void,
 ): void {
   const agent = agents.get(agentId);
   if (!agent) return;
@@ -1270,7 +1200,6 @@ export function reassignAgentToFile(
   agent.jsonlFile = newFilePath;
   agent.fileOffset = 0;
   agent.lineBuffer = '';
-  persistAgents();
 
   // Start watching new file
   startFileWatching(

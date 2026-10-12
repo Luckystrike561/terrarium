@@ -83,12 +83,12 @@ export const qodercliModule: AgentModule = {
   kind: 'agent',
   id: 'qodercli',
   displayName: 'Qoder CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),
-  // Qoder's sub-agent transcripts are separate files under `<session-id>/subagents/`, excluded from this store by
-  // its depth of 1; nothing here needs to clear a sub-character it would spawn.
+  // Qoder's sub-agent transcripts are separate files in the session's own `subagents` directory, excluded from this
+  // store by its depth of 1; nothing here needs to clear a sub-character it would spawn.
   subagentToolNames: new Set<string>(),
   readingTools: new Set(['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch']),
 

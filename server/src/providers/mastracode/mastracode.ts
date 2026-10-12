@@ -112,7 +112,7 @@ export const mastracodeModule: AgentModule = {
   kind: 'agent',
   id: 'mastracode',
   displayName: 'MastraCode',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

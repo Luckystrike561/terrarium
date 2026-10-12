@@ -1,5 +1,4 @@
-import type { AgentStateStore } from './agentStateStore.js';
-import type { AgentState } from './types.js';
+import type { ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
 
 /**
  * Pure helpers for working with Lead + Teammates relationships.
@@ -16,16 +15,16 @@ import type { AgentState } from './types.js';
  */
 
 /** Is this agent an inline teammate (non-tmux) of the given lead? */
-export function isInlineTeammateOf(agent: AgentState, leadId: number): boolean {
+export function isInlineTeammateOf(agent: ClaudeAgentState, leadId: number): boolean {
   return agent.leadAgentId === leadId && !agent.teamUsesTmux;
 }
 
 /** All inline teammates of a lead. Returns [id, agent] pairs for convenience. */
 export function getInlineTeammates(
   leadId: number,
-  agents: AgentStateStore,
-): Array<[number, AgentState]> {
-  const out: Array<[number, AgentState]> = [];
+  agents: ClaudeAgentStore,
+): Array<[number, ClaudeAgentState]> {
+  const out: Array<[number, ClaudeAgentState]> = [];
   for (const [id, a] of agents) {
     if (isInlineTeammateOf(a, leadId)) out.push([id, a]);
   }
@@ -33,7 +32,7 @@ export function getInlineTeammates(
 }
 
 /** Does this lead have any active inline teammates? */
-export function hasInlineTeammates(leadId: number, agents: AgentStateStore): boolean {
+export function hasInlineTeammates(leadId: number, agents: ClaudeAgentStore): boolean {
   for (const a of agents.values()) {
     if (isInlineTeammateOf(a, leadId)) return true;
   }
@@ -49,7 +48,7 @@ export function hasInlineTeammates(leadId: number, agents: AgentStateStore): boo
 export function hasPromotedBackgroundAgent(
   leadId: number,
   toolUseId: string,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
 ): boolean {
   for (const a of agents.values()) {
     if (a.leadAgentId === leadId && a.spawnToolUseId === toolUseId) return true;

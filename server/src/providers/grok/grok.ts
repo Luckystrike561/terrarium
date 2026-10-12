@@ -70,7 +70,7 @@ export const grokModule: AgentModule = {
   kind: 'agent',
   id: 'grok',
   displayName: 'Grok CLI',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

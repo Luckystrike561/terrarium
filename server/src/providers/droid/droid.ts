@@ -84,7 +84,7 @@ export const droidModule: AgentModule = {
   kind: 'agent',
   id: 'droid',
   displayName: 'Droid',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

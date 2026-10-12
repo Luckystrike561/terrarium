@@ -11,22 +11,23 @@
 
 // ── Agent State ──────────────────────────────────────────────
 
-/** Persisted agent data (survives F5 reload / restart) */
+/** Persisted agent data (survives F5 reload / restart). The agent's module resumes it from `sessionRef`. */
 export interface PersistedAgent {
   id: number;
-  sessionId?: string;
-  jsonlFile: string;
-  projectDir: string;
+  /** The agent module that reported it. */
+  providerId: string;
+  sessionRef: string;
   folderName?: string;
-  teamName?: string;
-  agentName?: string;
-  isTeamLead?: boolean;
-  leadAgentId?: number;
-  teamUsesTmux?: boolean;
-  /** Live background-spawn tool ids on a lead. Persisted so the spawns'
-   *  transcripts are re-adopted after a reload; the spawned children
-   *  themselves are derived state and never persisted. */
-  backgroundAgentToolIds?: string[];
+  /** Its team as last reported, with the lead named by its persisted agent id. */
+  team?: {
+    teamName?: string;
+    agentName?: string;
+    isTeamLead?: boolean;
+    leadAgentId?: number;
+    teamUsesTmux?: boolean;
+  };
+  /** Tools still running in the background, so the module can pick their work up again after a restart. */
+  backgroundToolIds?: string[];
   /** Preferred character palette (0-5). Persisted so colors stay stable
    *  across server restarts; assignPaletteIfNeeded is a no-op on restore. */
   palette?: number;

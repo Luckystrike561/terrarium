@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { claudeModule, normalizeHookEvent } from '../src/providers/claude/claude.js';
+import { claudeModule } from '../src/providers/claude/claude.js';
+import { normalizeHookEvent } from '../src/providers/claude/claudeHookEvents.js';
+import { claudeTeamProvider } from '../src/providers/claude/claudeTeamProvider.js';
 
 describe('claudeModule', () => {
   describe('identity', () => {
@@ -23,12 +25,15 @@ describe('claudeModule', () => {
       }
       expect(claudeModule.readingTools.has('Edit')).toBe(false);
     });
-    it('has protocolVersion 1', () => {
-      expect(claudeModule.protocolVersion).toBe(1);
+    it('has protocolVersion 2', () => {
+      expect(claudeModule.protocolVersion).toBe(2);
     });
-    it('has a linked TeamProvider', () => {
-      expect(claudeModule.team).toBeDefined();
-      expect(claudeModule.team?.providerId).toBe('claude');
+    it('exposes claudeTeamProvider with providerId "claude"', () => {
+      expect(claudeTeamProvider).toBeDefined();
+      expect(claudeTeamProvider.providerId).toBe('claude');
+    });
+    it('has a start function for its own session discovery', () => {
+      expect(typeof claudeModule.start).toBe('function');
     });
   });
 

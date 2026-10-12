@@ -4,12 +4,10 @@
 
 ## Agent modules
 
-`AgentModule` (`kind: 'agent'`), one per agent CLI: Claude Code plus the 21 modules under `server/src/providers/<cli>/`. It owns that CLI's vocabulary (`formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel`, optional `team`) and how to read it:
+`AgentModule` (`kind: 'agent'`), one per agent CLI: Claude Code plus the 21 modules under `server/src/providers/<cli>/`. It owns that CLI's vocabulary (`formatToolStatus`, `permissionExemptTools`, `subagentToolNames`, `readingTools`, `contextWindowForModel`) and how to read it:
 
-- `normalizeHookEvent` for payloads POSTed to `/api/hooks/<id>`. Absent means the CLI has no hook API.
 - `hooks: HookInstaller` when it writes hooks into the CLI's settings. That write is consent-gated, see [consent.md](consent.md).
-- `start(host)` when it discovers sessions on its own. It returns a `RunningAgentModule` whose `followSession(ref)` takes over a session a multiplexer found.
-- The file fallback (`getSessionDirs`, `getAllSessionRoots`, `sessionFilePattern`) for transcripts in the runtime's own JSONL parser format.
+- `start(host)` when it discovers sessions on its own. It returns a `RunningAgentModule`: `followSession(ref)` takes over a session a multiplexer found, `sessionInDirectory(cwd)` binds a pane with no ref, `receiveHook(payload)` takes what the CLI POSTs to `/api/hooks/<id>` (absent = no hook API), `setHooksEnabled(enabled)` carries the hooks preference, `restoreSession(session)` resumes a persisted session after a restart, and `dismissSession(sessionId)` stops reporting a session whose character the user closed. `protocolVersion` is 2.
 
 The Claude module supports every transcript and hook format up to **Claude Code v2.1.220** (current as of 2026-07-30): Task-era `agent_progress` records, explicit and implicit teams, background-by-default Agent spawns, sidecar-backed background agents. Newer CLI releases may add formats that need module updates. Its team handling is in [claude-teams.md](claude-teams.md).
 
@@ -28,13 +26,13 @@ It never parses a transcript. herdr's `agent_session` is a transcript path for p
 
 Enabled modules come from `~/.terrarium/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`. An unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file.
 
-`AgentRuntime.transcriptModule` is the enabled module declaring `getSessionDirs`: the one the runtime's own scanners, `transcriptParser.ts` and the `hooksEnabled` ref serve. `runtime.setHooksEnabled(moduleId, …)` only moves that ref for that module.
+`startModules` starts every agent module with a `start` the same way (Claude included), hands each its hooks preference, then the persisted agents (each to its module's `restoreSession`), then starts the multiplexer connections. The runtime holds no transcript, hook or team logic of any CLI.
 
 ## Routing
 
-`POST /api/hooks/:providerId` is normalized by that module and no other. In-process modules emit already-normalized events through their `ModuleHost`. An agent's `providerId` is its agent module (set by the first event from one), so per-agent behaviour (status text, sub-agent tools, team routing) comes from the right CLI. Multiplexer events never set `hookDelivered`: they must not silence the heuristics of an agent whose own module watches it.
+`POST /api/hooks/:providerId` goes to that running module's `receiveHook` and no other. Claude normalizes the payload with its own `normalizeHookEvent` and routes it on its private state. Every module emits already-normalized events through its `ModuleHost`. An agent's `providerId` is always set: the module that announced it, replaced by the first agent module that reports it, so per-agent behaviour (status text, sub-agent tools) comes from the right CLI. Multiplexer events never reach a module's heuristics: Claude's `hookDelivered` lives in its own state and only its own hooks set it.
 
-`AgentEvent.kind` values: `toolStart`, `toolEnd`, `turnEnd`, `working`, `subagentStart`, `subagentEnd`, `subagentTurnEnd`, `progress`, `permissionRequest`, `sessionStart`, `sessionEnd`, `sessionInfo`. The runtime dispatches on `kind`, never on CLI-specific tool names.
+`AgentEvent.kind` values, in three groups. **Lifecycle**: `sessionStart` (`live` puts the character on screen at once, `folderName` and `team` set what it starts with), `sessionEnd`, `sessionInfo`. **Coarse activity**, from a source that only sees the turn coarsely: `toolStart`, `toolEnd`, `turnEnd`, `working`, `permissionRequest`. **Presentation**, from a module that tracks the turn itself: `toolShown`, `toolDone`, `toolsCleared`, `statusChanged`, `permissionShown`, `permissionCleared`, `subagentToolShown`, `subagentToolDone`, `subagentPermissionShown`, `subagentCleared`, `teamChanged`, `contextUsage`. The runtime dispatches on `kind`, never on CLI-specific tool names.
 
 ## One agent, one character
 
@@ -45,7 +43,7 @@ Every module announces a session with `sessionStart.sessionRef`: the session's t
 - A pane herdr reports no ref for is bound to the module's one live session in the pane's cwd (`RunningAgentModule.sessionInDirectory`), never guessed when several share it.
 - `MultiplexerFeed` announces each pane as `<multiplexer>-<connection>-<pane>`, since pane ids are only unique within one herdr server. When the agent module for the pane's kind runs, it takes the session over and reports the turn lifecycle and tools from the transcript, while the multiplexer adds the name, task and pending approvals (`blocked`).
 - With no such module, the pane's status level is all there is and is reported in full: `working` becomes the `working` event, `blocked` becomes `permissionRequest`, `idle` becomes `turnEnd`.
-- The transcript module (Claude) has no `start()`, because its transcripts are parsed by the runtime. `startModules` registers a `TranscriptFollower` in its place. It resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session, with `hookDelivered` off so the heuristic timers end its turns until a hook arrives. A pane character already on screen gets the transcript attached instead. It ends with the pane.
+- Claude's `followSession` resolves herdr's Claude session id to `<projects>/<dir>/<id>.jsonl` (retrying until Claude creates it) and adopts it like any external session, with `hookDelivered` off so the heuristic timers end its turns until a hook arrives. Its `sessionStart` carries the same session id, so the pane's character takes it over. It ends with the pane.
 - A transcript an agent already watches stays with that agent and its own lifecycle.
 
 ## Agent info
@@ -59,7 +57,7 @@ Adding an agent CLI or a multiplexer is one subdirectory under `server/src/provi
 ### Agent module (a new CLI)
 
 1. Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: AgentModule` (use `satisfies AgentModule` when it always has `hooks`, so callers see them), plus `constants.ts` for its magic numbers. Implement the vocabulary members. Then pick how it learns about sessions:
-   - **Hooks**: `normalizeHookEvent(raw)` for what the CLI POSTs to `/api/hooks/<id>`, and `hooks: HookInstaller` (`installHooks`, `uninstallHooks`, `areHooksInstalled`, `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run).
+   - **Hooks**: `hooks: HookInstaller` (`installHooks`, `uninstallHooks`, `areHooksInstalled`, `consentDisclosure`, optional `stageHookFiles(packageRoot)` for scripts the entries run), and `RunningAgentModule.receiveHook(payload)` for what the CLI POSTs to `/api/hooks/<id>` (normalize the payload inside the module).
    - **Its own discovery** (transcripts, a database): `start(host)` returning a `RunningAgentModule`. Build it from `providers/sessionStore/`: `new SessionStoreTracker(host, store, DEFAULT_SESSION_STORE_TIMING)` over `jsonlSessionStore` (append-only JSONL), `jsonDocumentSessionStore` (whole-file JSON) or `sqliteSessionStore` (one SQLite file), with a format mapping the CLI's records to `working`, `toolStart`, `toolEnd`, `turnEnd`, `permissionRequest` and `sessionEnd` where the CLI really records them. Key sessions in the form herdr's `agent_session.value` takes for the CLI (the path for pi and omp, the CLI's session id otherwise). The tracker never replays history (cursors open at the end and only the tail decides the starting state), keeps one reader per session refcounted between discovery and follows, and drops sessions untouched for the active window.
 2. Add it to `agentModules` in `server/src/providers/index.ts`. Its id is also the `agentKind` a multiplexer reports for its panes, so herdr panes running it light up with tool activity.
 3. Add what its sessions show (tool activity, turn ends, approvals, clean exit) to `AGENT_COVERAGE` in `scripts/build-site.ts`, or the website build (`npm run site:build`) fails.

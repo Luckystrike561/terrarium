@@ -95,7 +95,7 @@ export const qwenModule: AgentModule = {
   kind: 'agent',
   id: 'qwen',
   displayName: 'Qwen Code',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

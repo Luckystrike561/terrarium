@@ -91,7 +91,7 @@ export const devinModule: AgentModule = {
   kind: 'agent',
   id: 'devin',
   displayName: 'Devin',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

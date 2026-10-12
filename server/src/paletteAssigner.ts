@@ -13,8 +13,7 @@ import type { AgentState } from './types.js';
 /**
  * Runtime palette count: the number of character sheets that actually
  * loaded. Defaults to CHAR_COUNT until setPaletteCount is called after assets
- * load. Mirrors the setTranscriptModule / setTeamSwitch module-level setter
- * pattern in transcriptParser.ts.
+ * load.
  */
 let currentPaletteCount = CHAR_COUNT;
 

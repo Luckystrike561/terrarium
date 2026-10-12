@@ -1,52 +1,32 @@
 const debug = process.env.TERRARIUM_DEBUG !== '0';
 
-import type { AgentModule } from '../../core/src/provider.js';
-import type { AgentStateStore } from './agentStateStore.js';
-import { TEXT_IDLE_DELAY_MS, TOOL_DONE_DELAY_MS } from './constants.js';
-import { updateContextUsage } from './contextUsage.js';
-import { hasInlineTeammates, hasPromotedBackgroundAgent } from './teamUtils.js';
+import type { ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
+import { claudeTeamProvider } from './claudeTeamProvider.js';
 import {
   cancelPermissionTimer,
   cancelWaitingTimer,
   clearAgentActivity,
   startPermissionTimer,
   startWaitingTimer,
-} from './timerManager.js';
-import type { AgentState } from './types.js';
+} from './claudeTimers.js';
+import {
+  formatToolStatus as formatClaudeToolStatus,
+  permissionExemptTools,
+  subagentToolNames,
+} from './claudeVocabulary.js';
+import { TEXT_IDLE_DELAY_MS, TOOL_DONE_DELAY_MS } from './constants.js';
+import { updateContextUsage } from './contextUsage.js';
+import { hasInlineTeammates, hasPromotedBackgroundAgent } from './inlineTeammates.js';
 
-/** Empty set used as safe fallback when no transcript module is registered. */
-const EMPTY_EXEMPT_TOOLS: ReadonlySet<string> = new Set();
-
-/** The agent module whose transcripts this parser reads: supplies formatToolStatus + team.extractTeamMetadataFromRecord.
- *  Registered once at startup via setTranscriptModule(); null when no enabled module has transcripts this parser reads. */
-let transcriptModule: AgentModule | null = null;
-
-/** Permission-exempt tools come from the active provider. Fail-open if unset. */
-function exemptTools(): ReadonlySet<string> {
-  return transcriptModule?.permissionExemptTools ?? EMPTY_EXEMPT_TOOLS;
-}
-
-/** Whether the given tool name spawns a sub-agent according to the active provider. */
+/** Whether the given tool name spawns a sub-agent. */
 function isSubagentTool(toolName: string | null | undefined): boolean {
-  if (!toolName || !transcriptModule) return false;
-  return transcriptModule.subagentToolNames.has(toolName);
-}
-
-/** Register the module that owns CLI-specific formatting and team metadata extraction. */
-export function setTranscriptModule(module: AgentModule | null): void {
-  transcriptModule = module;
-}
-
-/** The registered provider, for modules that need it outside line parsing
- *  (fileWatcher seeds context gauges before any line has been read). */
-export function getTranscriptModule(): AgentModule | null {
-  return transcriptModule;
+  return !!toolName && subagentToolNames.has(toolName);
 }
 
 /** Called when a lead's tool_result reports an async agent launch. The host
  *  reacts by scanning the lead's subagents/ sidecars and classifying each
  *  spawn by its sidecar name: named -> teammate character, unnamed -> shadow-
- *  watched sub-agent (fileWatcher.scanForBackgroundAgentFiles). */
+ *  watched sub-agent (claudeFileWatcher.scanForBackgroundAgentFiles). */
 let backgroundAgentDetectedCallback: ((leadAgentId: number) => void) | null = null;
 
 export function setBackgroundAgentDetectedCallback(cb: (leadAgentId: number) => void): void {
@@ -65,7 +45,7 @@ export function setBackgroundAgentCompletedCallback(
 }
 
 /** Notify the host that a spawn tool finished, so it can remove the spawn's
- *  teammate character or stop its shadow watch. Exported for hookEventHandler,
+ *  teammate character or stop its shadow watch. Exported for claudeHookHandler,
  *  which clears foreground tools on the Stop hook. Safe to fire for tools that
  *  never had a watch — the host's lookups simply miss. */
 export function notifyBackgroundAgentCompleted(leadAgentId: number, toolUseId: string): void {
@@ -84,16 +64,15 @@ export function setTeamSwitchCallback(
   teamSwitchCallback = cb;
 }
 
-/** Format a tool status line. Delegates to the active AgentModule's formatToolStatus.
- *  Invariant: a provider is registered before any transcript lines are parsed. */
+/** Format a tool status line. */
 export function formatToolStatus(toolName: string, input: Record<string, unknown>): string {
-  return transcriptModule?.formatToolStatus(toolName, input) ?? `Using ${toolName}`;
+  return formatClaudeToolStatus(toolName, input);
 }
 
 export function processTranscriptLine(
   agentId: number,
   line: string,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
 ): void {
@@ -104,10 +83,8 @@ export function processTranscriptLine(
   try {
     const record = JSON.parse(line);
 
-    // -- Agent Teams: extract team metadata via the active provider --
-    // The provider reads its CLI's own field names (Claude: record.teamName + record.agentName).
-    // Other CLIs would implement this differently or not at all.
-    const teamMeta = transcriptModule?.team?.extractTeamMetadataFromRecord(record);
+    // -- Agent Teams: extract team metadata via the team provider --
+    const teamMeta = claudeTeamProvider.extractTeamMetadataFromRecord(record);
     if (teamMeta?.teamName && teamMeta.teamName !== agent.teamName) {
       agent.teamName = teamMeta.teamName;
       agent.teamNameFromTags = true;
@@ -133,7 +110,7 @@ export function processTranscriptLine(
     }
 
     // -- Context window usage (drives every agent's context gauge) --
-    updateContextUsage(agentId, agent, agents, record, transcriptModule);
+    updateContextUsage(agentId, agent, agents, record);
 
     // Resilient content extraction: support both record.message.content and record.content
     // Claude Code may change the JSONL structure across versions
@@ -162,13 +139,13 @@ export function processTranscriptLine(
             agent.activeToolIds.add(block.id);
             agent.activeToolStatuses.set(block.id, status);
             agent.activeToolNames.set(block.id, toolName);
-            if (!exemptTools().has(toolName)) {
+            if (!permissionExemptTools.has(toolName)) {
               hasNonExemptTool = true;
             }
             // Detect tmux vs inline team mode from the team provider's spawn predicate.
             if (
               agent.teamName &&
-              transcriptModule?.team?.isTeammateSpawnCall(toolName, block.input ?? {}) &&
+              claudeTeamProvider.isTeammateSpawnCall(toolName, block.input ?? {}) &&
               !agent.teamUsesTmux
             ) {
               agent.teamUsesTmux = true;
@@ -233,7 +210,7 @@ export function processTranscriptLine(
         // produces false positives. Permission on teammates comes from the lead's
         // routed Notification(permission_prompt) hook — slower but accurate.
         if (hasNonExemptTool && !agent.hookDelivered && !agent.leadAgentId) {
-          startPermissionTimer(agentId, agents, permissionTimers, exemptTools());
+          startPermissionTimer(agentId, agents, permissionTimers, permissionExemptTools);
         }
       } else if (blocks.some((b) => b.type === 'text') && !agent.hadToolsInTurn) {
         // Text-only response in a turn that hasn't used any tools.
@@ -275,7 +252,7 @@ export function processTranscriptLine(
               // then falls through to normal tool-done handling -- the teammate
               // character replaces the transient Subtask one.
               const teammateSpawn = completedToolName
-                ? transcriptModule?.team?.extractTeammateSpawnFromToolResult?.(
+                ? claudeTeamProvider.extractTeammateSpawnFromToolResult?.(
                     completedToolName,
                     block.content,
                   )
@@ -532,7 +509,7 @@ export function processTranscriptLine(
 function processProgressRecord(
   agentId: number,
   record: Record<string, unknown>,
-  agents: AgentStateStore,
+  agents: ClaudeAgentStore,
   _waitingTimers: Map<number, ReturnType<typeof setTimeout>>,
   permissionTimers: Map<number, ReturnType<typeof setTimeout>>,
 ): void {
@@ -551,7 +528,7 @@ function processProgressRecord(
   const dataType = data.type as string | undefined;
   if (dataType === 'bash_progress' || dataType === 'mcp_progress') {
     if (agent.activeToolIds.has(parentToolId) && !agent.hookDelivered && !agent.leadAgentId) {
-      startPermissionTimer(agentId, agents, permissionTimers, exemptTools());
+      startPermissionTimer(agentId, agents, permissionTimers, permissionExemptTools);
     }
     return;
   }
@@ -594,7 +571,7 @@ function processProgressRecord(
         }
         subNames.set(block.id, toolName);
 
-        if (!exemptTools().has(toolName)) {
+        if (!permissionExemptTools.has(toolName)) {
           hasNonExemptSubTool = true;
         }
 
@@ -608,7 +585,7 @@ function processProgressRecord(
       }
     }
     if (hasNonExemptSubTool && !agent.hookDelivered) {
-      startPermissionTimer(agentId, agents, permissionTimers, exemptTools());
+      startPermissionTimer(agentId, agents, permissionTimers, permissionExemptTools);
     }
   } else if (msgType === 'user') {
     for (const block of content) {
@@ -643,7 +620,7 @@ function processProgressRecord(
     let stillHasNonExempt = false;
     for (const [, subNames] of agent.activeSubagentToolNames) {
       for (const [, toolName] of subNames) {
-        if (!exemptTools().has(toolName)) {
+        if (!permissionExemptTools.has(toolName)) {
           stillHasNonExempt = true;
           break;
         }
@@ -651,7 +628,7 @@ function processProgressRecord(
       if (stillHasNonExempt) break;
     }
     if (stillHasNonExempt && !agent.hookDelivered) {
-      startPermissionTimer(agentId, agents, permissionTimers, exemptTools());
+      startPermissionTimer(agentId, agents, permissionTimers, permissionExemptTools);
     }
   }
 }
@@ -660,14 +637,15 @@ function processProgressRecord(
  * Link teammates within the same team.
  * The lead is the agent with no agentName (or one already marked isTeamLead).
  * Teammates get leadAgentId pointing to the lead. If only named teammates are
- * tracked, linking waits until the lead is detected.
+ * tracked, linking waits until the lead is detected. The caller broadcasts its
+ * own agent's team; every other member whose link changed is broadcast here.
  */
-function linkTeammates(_agentId: number, agent: AgentState, agents: AgentStateStore): void {
+function linkTeammates(agentId: number, agent: ClaudeAgentState, agents: ClaudeAgentStore): void {
   const teamName = agent.teamName;
   if (!teamName) return;
 
   // Find all agents in this team
-  const teamAgents: AgentState[] = [];
+  const teamAgents: ClaudeAgentState[] = [];
   for (const a of agents.values()) {
     if (a.teamName === teamName) {
       teamAgents.push(a);
@@ -677,7 +655,7 @@ function linkTeammates(_agentId: number, agent: AgentState, agents: AgentStateSt
   // Determine lead: always prefer the agent WITHOUT agentName (the real lead has agentName=null).
   // This handles the case where a teammate is detected first and temporarily marked as lead,
   // then the real lead joins later.
-  let lead: AgentState | undefined;
+  let lead: ClaudeAgentState | undefined;
   for (const a of teamAgents) {
     if (!a.agentName) {
       lead = a;
@@ -702,6 +680,8 @@ function linkTeammates(_agentId: number, agent: AgentState, agents: AgentStateSt
 
   // Update all team members: mark lead, clear stale lead flags, link teammates
   for (const a of teamAgents) {
+    const wasTeamLead = a.isTeamLead === true;
+    const previousLeadAgentId = a.leadAgentId;
     if (a.id === lead.id) {
       a.isTeamLead = true;
       a.leadAgentId = undefined;
@@ -709,6 +689,17 @@ function linkTeammates(_agentId: number, agent: AgentState, agents: AgentStateSt
       a.isTeamLead = false;
       a.leadAgentId = lead.id;
     }
+    if (a.id === agentId) continue;
+    if (a.isTeamLead === wasTeamLead && a.leadAgentId === previousLeadAgentId) continue;
+    agents.broadcast({
+      type: 'agentTeamInfo',
+      id: a.id,
+      teamName: a.teamName,
+      agentName: a.agentName,
+      isTeamLead: a.isTeamLead,
+      leadAgentId: a.leadAgentId,
+      teamUsesTmux: a.teamUsesTmux,
+    });
   }
 }
 

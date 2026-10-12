@@ -1,13 +1,9 @@
 import * as fs from 'fs';
 
-import type { AgentModule } from '../../core/src/provider.js';
-import type { AgentStateStore } from './agentStateStore.js';
-import {
-  CONTEXT_SEED_TAIL_BYTES,
-  CONTEXT_WINDOW_TIERS,
-  DEFAULT_MAX_CONTEXT_TOKENS,
-} from './constants.js';
-import type { AgentState } from './types.js';
+import { DEFAULT_MAX_CONTEXT_TOKENS } from '../../constants.js';
+import type { ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
+import { contextWindowForModel } from './claudeVocabulary.js';
+import { CONTEXT_SEED_TAIL_BYTES, CONTEXT_WINDOW_TIERS } from './constants.js';
 
 /**
  * How full an agent's context window is — the context gauge above every character.
@@ -53,12 +49,11 @@ export function extractContextTokens(record: unknown): number {
 /**
  * Window an observed context has to fit in, when nobody can name it.
  *
- * The provider's answer for the model is the real source (see
- * `AgentModule.contextWindowForModel`); this is the backstop for unrecognized
- * models and for windows larger than anything we know about. It only ever
- * widens: a context that doesn't fit proves the assumption too small, while a
- * context that shrinks proves nothing (a 900k session compacted to 20k is
- * still running in a 1M window).
+ * `contextWindowForModel` is the real source; this is the backstop for
+ * unrecognized models and for windows larger than anything we know about. It
+ * only ever widens: a context that doesn't fit proves the assumption too
+ * small, while a context that shrinks proves nothing (a 900k session
+ * compacted to 20k is still running in a 1M window).
  */
 export function widenContextWindow(observed: number, current: number): number {
   const window = Math.max(current || 0, DEFAULT_MAX_CONTEXT_TOKENS);
@@ -71,8 +66,8 @@ export function widenContextWindow(observed: number, current: number): number {
 
 function applyContextTokens(
   agentId: number,
-  agent: AgentState,
-  agents: AgentStateStore,
+  agent: ClaudeAgentState,
+  agents: ClaudeAgentStore,
   tokens: number,
   fromMainChain: boolean,
   declaredWindow: number | undefined,
@@ -103,21 +98,20 @@ function applyContextTokens(
  */
 export function updateContextUsage(
   agentId: number,
-  agent: AgentState,
-  agents: AgentStateStore,
+  agent: ClaudeAgentState,
+  agents: ClaudeAgentStore,
   record: unknown,
-  provider?: AgentModule | null,
 ): void {
   const tokens = extractContextTokens(record);
   if (tokens <= 0) return;
   const isSidechain = (record as TranscriptRecord | null)?.isSidechain === true;
   if (isSidechain && agent.sawMainChainUsage) return;
-  applyContextTokens(agentId, agent, agents, tokens, !isSidechain, windowFor(record, provider));
+  applyContextTokens(agentId, agent, agents, tokens, !isSidechain, windowFor(record));
 }
 
-/** The provider's window for whichever model wrote this record. */
-function windowFor(record: unknown, provider?: AgentModule | null): number | undefined {
-  return provider?.contextWindowForModel?.((record as TranscriptRecord | null)?.message?.model);
+/** The model's window for whichever model wrote this record. */
+function windowFor(record: unknown): number | undefined {
+  return contextWindowForModel((record as TranscriptRecord | null)?.message?.model);
 }
 
 /**
@@ -128,11 +122,7 @@ function windowFor(record: unknown, provider?: AgentModule | null): number | und
  * turn — an office full of idle agents would show nothing. Reading the last
  * chunk backwards finds the newest usage record without replaying history.
  */
-export function seedContextUsage(
-  agentId: number,
-  agents: AgentStateStore,
-  provider?: AgentModule | null,
-): void {
+export function seedContextUsage(agentId: number, agents: ClaudeAgentStore): void {
   const agent = agents.get(agentId);
   if (!agent || agent.contextTokens > 0 || !agent.jsonlFile) return;
 
@@ -172,10 +162,10 @@ export function seedContextUsage(
     const tokens = extractContextTokens(record);
     if (tokens <= 0) continue;
     if ((record as TranscriptRecord).isSidechain === true) {
-      sidechain ??= { tokens, window: windowFor(record, provider) };
+      sidechain ??= { tokens, window: windowFor(record) };
       continue;
     }
-    applyContextTokens(agentId, agent, agents, tokens, true, windowFor(record, provider));
+    applyContextTokens(agentId, agent, agents, tokens, true, windowFor(record));
     return;
   }
   if (sidechain) {

@@ -19,16 +19,16 @@ Record types:
 
 `/clear` creates a NEW JSONL file, and the old file just stops.
 
-**File watching** (`server/src/fileWatcher.ts`): `fs.watch` paired with 500 ms polling, because `fs.watch` is unreliable on Windows. Partial lines are buffered across reads, since a poll can land mid-write. Tool-done messages are delayed 300 ms so React batching cannot hide brief active states.
+**File watching** (`server/src/providers/claude/claudeFileWatcher.ts`): `fs.watch` paired with 500 ms polling, because `fs.watch` is unreliable on Windows. Partial lines are buffered across reads, since a poll can land mid-write. Tool-done messages are delayed 300 ms so React batching cannot hide brief active states.
 
 ## Dual-mode detection
 
-| Mode                     | Source                                             | Detection                                                                                                                                                                                                                    |
-| ------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hooks** (preferred)    | Claude Code hooks → HTTP POST → `HookEventHandler` | Instant and reliable. The installed events are `CLAUDE_HOOK_EVENTS`                                                                                                                                                          |
-| **Heuristic** (fallback) | Polling JSONL files                                | Per-agent 500 ms JSONL polling for `/clear` detection, 1 s main scanner for workspace session adoption, 3 s external scanner, 30 s stale check. Content-based `/clear` detection (`/clear</command-name>` in the first 8 KB) |
+| Mode                     | Source                                                            | Detection                                                                                                                                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hooks** (preferred)    | Claude Code hooks → HTTP POST → the Claude module's `receiveHook` | Instant and reliable. The installed events are `CLAUDE_HOOK_EVENTS`                                                                                                                                                          |
+| **Heuristic** (fallback) | Polling JSONL files                                               | Per-agent 500 ms JSONL polling for `/clear` detection, 1 s main scanner for workspace session adoption, 3 s external scanner, 30 s stale check. Content-based `/clear` detection (`/clear</command-name>` in the first 8 KB) |
 
-The per-agent `hookDelivered` flag and the global `hooksEnabled` gate the timer logic. JSONL polling always runs in both modes for tool content (status text, animations). Only the permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
+The per-agent `hookDelivered` flag (in the Claude module's private state) and the module's `hooksEnabled` (set by `setHooksEnabled`) gate the timer logic. JSONL polling always runs in both modes for tool content (status text, animations). Only the permission (7 s) and text-idle (5 s) timers are suppressed by `hookDelivered`.
 
 Hook-based IPC failed in early prototypes: hooks are captured at startup and environment variables do not propagate. HTTP `/api/hooks/:providerId` with `~/.terrarium/server.json` discovery works.
 

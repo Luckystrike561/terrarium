@@ -101,7 +101,7 @@ export const kimiModule: AgentModule = {
   kind: 'agent',
   id: 'kimi',
   displayName: 'Kimi Code',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   // Auto-allowed by default: every read-only tool, plus the interaction/scheduling tools that never touch the

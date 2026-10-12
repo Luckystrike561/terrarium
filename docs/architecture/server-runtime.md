@@ -9,16 +9,17 @@
 ```typescript
 export class AgentRuntime {
   constructor(store: AgentStateStore, modules: ModuleSet);
-  readonly transcriptModule: AgentModule | undefined;
   connections: MultiplexerConnections | undefined;
-  startModules / setLifecycleCallbacks / setHooksEnabled / handleHookEvent
-  registerAgent / unregisterAgent / removeAgent / removeTeammate / removeTeammates
-  restoreExternalAgents / startProjectScan / startExternalScanning / startStaleCheck
-  dispose();
+  startModules(); // agent modules, their hooks preference, persisted agents, then multiplexer connections
+  setHooksEnabled(moduleId, enabled);
+  handleHookEvent(providerId, payload); // → that module's receiveHook
+  closeAgent(id); // every module reporting the agent dismisses it, then the agent goes
+  removeAgent(id);
+  dispose(); // stops modules, drops agents, keeps the persisted list for the next start
 }
 ```
 
-It owns the timer Maps (waiting, permission, text-idle, stale), the scanners (project-dir 1 s, external 3 s, stale 30 s), `HookEventHandler`, `SessionRouter` and `DismissalTracker`. Scanners are skipped entirely while hooks are flowing (`hookDelivered` is set on every agent). `RuntimeLifecycleCallbacks` is the only seam between the runtime and its host.
+It knows no CLI: no transcript, hook or team logic lives here. `AgentEventHandler` (`server/src/agentEventHandler.ts`) applies each module's `AgentEvent` to CLI-neutral `AgentState` and broadcasts what the office shows. A session's restore goes through its module: `startModules` reads the persisted agents before starting any module, reserves their ids, then hands each to its module's `restoreSession`, leads first.
 
 ## AgentStateStore
 
@@ -28,8 +29,8 @@ An EventEmitter-backed container in `server/src/agentStateStore.ts` with typed m
 
 Two classes that replaced ad-hoc module state.
 
-- `SessionRouter` owns the `session_id → agent_id` mapping, pre-registration event buffering, and pending external sessions.
-- `DismissalTracker` unifies four legacy globals (`dismissedJsonlFiles`, `clearDismissedFiles`, `seededMtimes`, `pendingClearFiles`) into one class with typed reasons.
+- `SessionRouter` owns the `session_id → agent_id` mapping, pre-registration event buffering, and pending sessions. It is generic over the routed event and the pending record: the runtime routes module sessions with one, and the Claude module routes its hooks with another (`ClaudePendingSession` carries `transcriptPath`).
+- `DismissalTracker` (Claude-internal, `providers/claude/dismissalTracker.ts`) unifies transcript dismissal (closed by the user, replaced by `/clear`, seeded mtimes, pending clears) into one class with typed reasons.
 
 ## HTTP and WebSocket server
 
@@ -54,9 +55,9 @@ The connection messages go to `runtime.connections` and, like `hooksConsentRespo
 
 On `webviewReady` the handler sends assets, then `layoutLoaded`, then agent state. Agent state comes AFTER `layoutLoaded`, because the characters it targets only exist once the layout flush creates them. The asset order is in [assets.md](assets.md#load-order).
 
-## ServerAgentState
+## AgentState
 
-`server/src/types.ts` holds per-agent runtime data: the provider reference, the session key, transcript-fallback fields (`jsonlFile`, `fileOffset`, `lineBuffer`), tool state Maps and Sets, team fields (`teamName`, `agentName`, `isTeamLead`, `leadAgentId`, `teamUsesTmux`), context usage (`contextTokens`, `maxContextTokens`, `sawMainChainUsage`), and the **`hookDelivered`** flag that suppresses heuristic timers when hooks are flowing.
+`server/src/types.ts` holds per-agent runtime data, CLI-neutral: `providerId` (always set), session id and `sessionRef`, tool state Maps and Sets (`backgroundToolIds`, `teammateSpawnToolIds` for the replay), waiting and permission flags, `folderName`/`task`, context usage (`contextTokens`, `maxContextTokens`), `team` (an `AgentTeam`: what the module last reported, with the lead resolved to its agent id), and palette. A module's own bookkeeping never lands here: Claude's transcript cursor, `hookDelivered`, hook correlation and team discovery live in its private `ClaudeAgentState` (`providers/claude/claudeAgentStore.ts`).
 
 ## Persistence
 

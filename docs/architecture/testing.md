@@ -6,23 +6,24 @@ Three tiers, each with its own framework. The commands are in `CLAUDE.md` and `C
 
 `server/__tests__/` covers the shared runtime, persistence, providers, the HTTP and WebSocket server, the CLI and the e2e scenario runner. Representative suites:
 
-| File                           | Coverage                                                                                                                                             |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agentStateStore.test.ts`      | Mutations, EventEmitter events, snapshot                                                                                                             |
-| `hookEventHandler.test.ts`     | Routing, buffering, normalized dispatch, team gating                                                                                                 |
-| `sessionRouter.test.ts`        | session_id mapping, pending sessions, buffer flush                                                                                                   |
-| `fileWatcherDismissal.test.ts` | `DismissalTracker` integration                                                                                                                       |
-| `fileStateAdapter.test.ts`     | Persistence, allowlist, settings round-trip, leftover legacy state ignored                                                                           |
-| `teamUtils.test.ts`            | Inline-teammate helpers                                                                                                                              |
-| `claudeTeamProvider.test.ts`   | Discovery, membership, metadata extraction                                                                                                           |
-| `claude.test.ts`               | `normalizeHookEvent` per Claude event, file fallback                                                                                                 |
-| `claudeHookInstaller.test.ts`  | Atomic install and uninstall, unparseable-file and non-array abort, throwing writes, mode preservation, backup, hook identity, event-scope migration |
-| `consentFlow.test.ts`          | In-app consent over the wire: who is asked, what each answer writes, Back-and-revise semantics, answer serialization                                 |
-| `claude-hook.test.ts`          | Spawned hook script integration (needs `dist/hooks/claude-hook.js`, so build first)                                                                  |
-| `providerModules.test.ts`      | The three module configurations end to end                                                                                                           |
-| `server.test.ts`               | HTTP lifecycle, auth, `/ws`, broadcast                                                                                                               |
-| `httpServerWs.test.ts`         | The `/ws` gate: same-origin connection, `?token=` privilege                                                                                          |
-| `mockClaudeRunner.test.ts`     | E2E scenario runner sanity                                                                                                                           |
+| File                                  | Coverage                                                                                                                                             |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agentStateStore.test.ts`             | Mutations, EventEmitter events, snapshot                                                                                                             |
+| `agentEventHandler.test.ts`           | Event application: pending/live sessions, sessionRef joins, providerId, coarse and presentation events                                               |
+| `agentRuntime.restorePalette.test.ts` | Restore through the module: persisted id/palette, leads first, gone sessions dropped, dispose keeps the persisted list                               |
+| `claudeHookHandler.test.ts`           | Claude hook routing on the module's private state: buffering, pending adoption, `/clear`, team gating                                                |
+| `claudeRunningModule.test.ts`         | The running Claude module against a fake host: adoption, presentation events, teammates, restore, dismiss                                            |
+| `claudeBackgroundLifecycle.test.ts`   | Named background teammates through the runtime: LEAD badge, removal on completion, restart restore                                                   |
+| `claudeFileWatcherDismissal.test.ts`  | `DismissalTracker` integration                                                                                                                       |
+| `inlineTeammates.test.ts`             | Inline-teammate helpers                                                                                                                              |
+| `claude.test.ts`                      | `normalizeHookEvent` per Claude event, module shape                                                                                                  |
+| `claudeHookInstaller.test.ts`         | Atomic install and uninstall, unparseable-file and non-array abort, throwing writes, mode preservation, backup, hook identity, event-scope migration |
+| `consentFlow.test.ts`                 | In-app consent over the wire: who is asked, what each answer writes, Back-and-revise semantics, answer serialization                                 |
+| `claude-hook.test.ts`                 | Spawned hook script integration (needs `dist/hooks/claude-hook.js`, so build first)                                                                  |
+| `providerModules.test.ts`             | The three module configurations end to end                                                                                                           |
+| `server.test.ts`                      | HTTP lifecycle, auth, `/ws`, broadcast                                                                                                               |
+| `httpServerWs.test.ts`                | The `/ws` gate: same-origin connection, `?token=` privilege                                                                                          |
+| `mockClaudeRunner.test.ts`            | E2E scenario runner sanity                                                                                                                           |
 
 `server/__tests__/fakeHerdr.ts` is a fake herdr socket server shared by the herdr suites.
 

@@ -2,14 +2,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import type { TeamProvider } from '../../../../core/src/teamProvider.js';
+import type { TeamProvider } from './teamProvider.js';
 
 /**
  * Claude Code implementation of the TeamProvider interface.
  *
  * Encapsulates every Claude-specific path, field name, and tool identifier
- * for the Agent Teams feature. Adding support for a new CLI means creating a
- * sibling file; no changes to hookEventHandler.ts or fileWatcher.ts.
+ * for the Agent Teams feature.
  */
 
 // ── Internal helpers (not exposed on the public TeamProvider interface) ──

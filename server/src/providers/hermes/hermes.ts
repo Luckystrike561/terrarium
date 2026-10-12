@@ -78,7 +78,7 @@ export const hermesModule: AgentModule = {
   kind: 'agent',
   id: 'hermes',
   displayName: 'Hermes Agent',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

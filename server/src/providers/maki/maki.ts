@@ -97,7 +97,7 @@ export const makiModule: AgentModule = {
   kind: 'agent',
   id: 'maki',
   displayName: 'Maki',
-  protocolVersion: 1,
+  protocolVersion: 2,
 
   formatToolStatus,
   permissionExemptTools: new Set<string>(),

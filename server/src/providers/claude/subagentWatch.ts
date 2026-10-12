@@ -8,28 +8,24 @@
  * newer harnesses write no agent_progress records on the lead, so the only way
  * to show live activity is to watch that transcript directly.
  *
- * The watch runs in a SHADOW AgentStateStore: a second store whose agents are
- * never persisted, never announced (its agentAdded event is bridged nowhere),
- * and never rendered as characters. The transcript parser drives it exactly
- * like a real agent; this class subscribes to the shadow store's broadcasts
- * and re-emits them on the MAIN store as the existing subagent* messages,
- * keyed to (lead id, spawn tool_use id) — the same key the webview already
- * uses for the Subtask sub-character. No protocol change.
+ * The watch runs in a SHADOW ClaudeAgentStore: a second store whose agents are
+ * never announced (its agentAdded event is bridged nowhere) and never rendered
+ * as characters. The transcript parser drives it exactly like a real agent;
+ * this class subscribes to the shadow store's broadcasts and re-emits them on
+ * the MAIN store as the existing subagent* messages, keyed to (lead id, spawn
+ * tool_use id) — the same key the webview already uses for the Subtask
+ * sub-character. No protocol change.
  */
 
 import type * as fs from 'fs';
 
-import { AgentStateStore } from './agentStateStore.js';
-import { DEFAULT_MAX_CONTEXT_TOKENS } from './constants.js';
-import { readNewLines, startFileWatching } from './fileWatcher.js';
-import { pathsMatch } from './pathKey.js';
-import { cancelPermissionTimer, cancelWaitingTimer } from './timerManager.js';
-import type { AgentState } from './types.js';
+import { DEFAULT_MAX_CONTEXT_TOKENS } from '../../constants.js';
+import { pathsMatch } from '../../pathKey.js';
+import { type ClaudeAgentState, ClaudeAgentStore } from './claudeAgentStore.js';
+import { readNewLines, startFileWatching } from './claudeFileWatcher.js';
+import { cancelPermissionTimer, cancelWaitingTimer } from './claudeTimers.js';
 
-/** Shadow ids start far above any real agent id. The transcript parser's
- *  module-level callbacks (background detected/completed, team switch) fire
- *  with shadow ids too; the offset guarantees they miss the main store and
- *  no-op instead of touching an unrelated real agent. */
+/** Shadow ids start far above any real agent id. */
 const SHADOW_ID_BASE = 1_000_000;
 
 /** A sub-agent transcript adoption request (sidecar-backed, unnamed). */
@@ -40,19 +36,19 @@ export interface SubagentWatchEntry {
 
 export class SubagentWatch {
   /** Shadow store: parsed like real agents, broadcast-translated, never shown. */
-  readonly store = new AgentStateStore();
+  readonly store = new ClaudeAgentStore();
   private readonly fileWatchers = new Map<number, fs.FSWatcher>();
   private readonly pollingTimers = new Map<number, ReturnType<typeof setInterval>>();
   private readonly waitingTimers = new Map<number, ReturnType<typeof setTimeout>>();
   private readonly permissionTimers = new Map<number, ReturnType<typeof setTimeout>>();
   /** Shadow id → the (lead, spawn tool) the webview keys the sub-character on.
-   *  Kept here (not read off AgentState) so transcript-parser mutations of the
-   *  shadow agent's team fields can never break the translation. */
+   *  Kept here (not read off ClaudeAgentState) so transcript-parser mutations of
+   *  the shadow agent's team fields can never break the translation. */
   private readonly subKeys = new Map<number, { leadId: number; spawnToolUseId: string }>();
   /** Shadow id → tool ids started but not yet done (for toolsClear synthesis). */
   private readonly liveToolIds = new Map<number, Set<string>>();
 
-  constructor(private readonly mainStore: AgentStateStore) {
+  constructor(private readonly mainStore: ClaudeAgentStore) {
     this.store.nextAgentId.current = SHADOW_ID_BASE;
     this.store.on('broadcast', (message) => this.translate(message));
   }
@@ -66,9 +62,9 @@ export class SubagentWatch {
   }
 
   /** Start watching an unnamed background spawn's transcript for the given lead. */
-  watch(lead: AgentState, leadId: number, entry: SubagentWatchEntry): void {
+  watch(lead: ClaudeAgentState, leadId: number, entry: SubagentWatchEntry): void {
     const id = this.store.nextAgentId.current++;
-    const agent: AgentState = {
+    const agent: ClaudeAgentState = {
       id,
       // Shares the lead's session like the transcript it mirrors. Never
       // registered with the session router.

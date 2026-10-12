@@ -6,16 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplexedAgent, MultiplexerModule } from '../../core/src/provider.js';
 import { AgentRuntime } from '../src/agentRuntime.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
+import { claudeModule } from '../src/providers/claude/claude.js';
 import {
   EXTERNAL_SCAN_INTERVAL_MS,
+  FILE_WATCHER_POLL_INTERVAL_MS,
   GLOBAL_SCAN_ACTIVE_MIN_SIZE,
+  TEXT_IDLE_DELAY_MS,
   TRANSCRIPT_FOLLOW_RETRY_MS,
-} from '../src/constants.js';
-import { claudeModule } from '../src/providers/claude/claude.js';
-import type { TranscriptAdoption } from '../src/transcriptFollower.js';
-import { TranscriptFollower } from '../src/transcriptFollower.js';
+} from '../src/providers/claude/constants.js';
+import type { TranscriptAdoption } from '../src/providers/claude/transcriptFollower.js';
+import { TranscriptFollower } from '../src/providers/claude/transcriptFollower.js';
 
-// claudeModule's getAllSessionRoots and the server's ~/.terrarium/ both resolve against the home directory.
+// The Claude module's session roots and the server's ~/.terrarium/ both resolve against the home directory.
 let tmpHome: string;
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');
@@ -27,7 +29,7 @@ function jsonl(records: object[]): string {
 }
 
 /** A TranscriptAdoption whose adopt() call is fully observable by the test, standing in for
- *  AgentRuntime's real adoptFollowedTranscript. */
+ *  the running Claude module's real adoption. */
 function fakeAdoption(roots: string[]): {
   adoption: TranscriptAdoption;
   adopted: { file: string; sessionId: string; sessionRef: string }[];
@@ -199,14 +201,17 @@ function pane(overrides: Partial<MultiplexedAgent> = {}): MultiplexedAgent {
   };
 }
 
-describe('TranscriptFollower through the running agent runtime', () => {
+describe('following a Claude pane through the running agent runtime', () => {
   let store: AgentStateStore;
   let runtime: AgentRuntime | undefined;
+  let messages: Array<Record<string, unknown>>;
 
   beforeEach(() => {
     tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-follower-runtime-'));
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
     store = new AgentStateStore();
+    messages = [];
+    store.on('broadcast', (m) => messages.push(m));
   });
 
   afterEach(() => {
@@ -216,7 +221,7 @@ describe('TranscriptFollower through the running agent runtime', () => {
     fs.rmSync(tmpHome, { recursive: true, force: true });
   });
 
-  it("attaches a late-appearing transcript to the pane's own character, leaving hookDelivered off", () => {
+  it("joins a late-appearing transcript to the pane's own character, whose turns the transcript still ends", () => {
     const mux = fakeMultiplexer();
     const sessionId = '0b5e7c1e-4a2d-4c36-9f0e-1d2c3b4a5f61';
     const dir = path.join(tmpHome, '.claude', 'projects', '-work-echo');
@@ -228,25 +233,34 @@ describe('TranscriptFollower through the running agent runtime', () => {
     mux.publish([pane({ sessionRef: sessionId })]);
     expect(store.size).toBe(1);
     const paneId = [...store.keys()][0];
-    expect(store.get(paneId)?.jsonlFile).toBe('');
+    expect(store.get(paneId)?.providerId).toBe('herdr');
 
     fs.writeFileSync(file, jsonl([{ type: 'user', message: { role: 'user', content: 'go' } }]));
     vi.advanceTimersByTime(TRANSCRIPT_FOLLOW_RETRY_MS);
     mux.publish([pane({ sessionRef: sessionId })]);
 
-    expect(store.size).toBe(1);
-    const id = [...store.keys()][0];
-    expect(id).toBe(paneId);
-    expect(store.get(id)?.jsonlFile).toBe(fs.realpathSync(file));
-    expect(store.get(id)?.hookDelivered).toBe(false);
+    expect([...store.keys()]).toEqual([paneId]);
+    expect(store.get(paneId)?.providerId).toBe('claude');
 
-    // A multiplexer's own status reports are not hooks: they must not retroactively mark the
-    // transcript-driven agent hook-delivered, which would silence its heuristic turn-end timers.
+    // A multiplexer's own status reports are not hooks: they must not silence the transcript's heuristic turn end.
     mux.publish([pane({ sessionRef: sessionId, status: 'blocked' })]);
-    expect(store.get(id)?.hookDelivered).toBe(false);
+    fs.appendFileSync(
+      file,
+      jsonl([
+        {
+          type: 'assistant',
+          message: { role: 'assistant', content: [{ type: 'text', text: 'done' }] },
+        },
+      ]),
+    );
+    vi.advanceTimersByTime(FILE_WATCHER_POLL_INTERVAL_MS + TEXT_IDLE_DELAY_MS);
+    expect(messages.filter((m) => m.type === 'agentStatus').at(-1)).toMatchObject({
+      id: paneId,
+      status: 'waiting',
+    });
   });
 
-  it('leaves a transcript the runtime already scanned with that agent when a pane reports the same session', () => {
+  it('leaves a transcript the module already scanned with that agent when a pane reports the same session', () => {
     const mux = fakeMultiplexer();
     const sessionId = '0b5e7c1e-4a2d-4c36-9f0e-1d2c3b4a5f62';
     const dir = path.join(tmpHome, '.claude', 'projects', '-work-foxtrot');
@@ -263,17 +277,18 @@ describe('TranscriptFollower through the running agent runtime', () => {
     );
     runtime = new AgentRuntime(store, { agents: [claudeModule], multiplexers: [mux.module] });
     runtime.startModules();
-    runtime.startExternalScanning('/unused');
     vi.advanceTimersByTime(EXTERNAL_SCAN_INTERVAL_MS);
 
     expect(store.size).toBe(1);
     const scannedId = [...store.keys()][0];
-    expect(store.get(scannedId)?.jsonlFile).toBe(fs.realpathSync(file));
+    expect(store.get(scannedId)).toMatchObject({ providerId: 'claude', sessionRef: sessionId });
 
     mux.publish([pane({ sessionRef: sessionId, cwd: '/work/foxtrot', name: 'foxtrot' })]);
 
-    expect(store.size).toBe(1);
-    expect([...store.keys()][0]).toBe(scannedId);
-    expect(store.get(scannedId)?.sessionRef).toBe(sessionId);
+    expect([...store.keys()]).toEqual([scannedId]);
+    expect(messages.filter((m) => m.type === 'agentInfo').at(-1)).toMatchObject({
+      id: scannedId,
+      name: 'foxtrot',
+    });
   });
 });

@@ -17,27 +17,19 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 1,
     sessionId: 'sess-1',
-    projectDir: '/test',
-    jsonlFile: '/test/session.jsonl',
-    fileOffset: 0,
-    lineBuffer: '',
+    providerId: 'claude',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),
     activeSubagentToolIds: new Map(),
-    activeSubagentToolNames: new Map(),
-    backgroundAgentToolIds: new Set(),
+    backgroundToolIds: new Set(),
+    teammateSpawnToolIds: new Set(),
     isWaiting: false,
     permissionSent: false,
-    hadToolsInTurn: false,
-    lastDataAt: 0,
-    linesProcessed: 0,
-    seenUnknownRecordTypes: new Set(),
-    hookDelivered: false,
     contextTokens: 0,
     maxContextTokens: 200_000,
     ...overrides,
-  } as AgentState;
+  };
 }
 
 /**

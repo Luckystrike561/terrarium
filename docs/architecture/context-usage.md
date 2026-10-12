@@ -1,6 +1,6 @@
 # Context usage
 
-Every agent's context gauge comes from `server/src/contextUsage.ts`. It is fed from `message.usage` on assistant records by `processTranscriptLine`, broadcast as `agentContextUsage`, and rendered by `ToolOverlay`.
+Every agent's context gauge comes from `server/src/providers/claude/contextUsage.ts`. It is fed from `message.usage` on assistant records by `processTranscriptLine`, broadcast as `agentContextUsage`, and rendered by `ToolOverlay`.
 
 Both halves are easy to get wrong. Cumulative sums measure spend rather than occupancy, `input_tokens` without the cache counters measures almost nothing, and a 200k window assumed for a 1M model reads five times too full. Check the gauge against Claude Code's own statusline `context_window.used_percentage`.
 

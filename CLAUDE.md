@@ -38,9 +38,8 @@ core/                                Protocol + interface definitions
   asyncapi.yaml                      AsyncAPI 3.0 contract, single source of truth for the wire protocol
   src/
     messages.ts                      AUTO-GENERATED discriminated unions (do not edit)
-    schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry
-    provider.ts                      AgentModule, MultiplexerModule, AgentEvent (the integration boundary)
-    teamProvider.ts                  Optional TeamProvider (Lead + Teammates)
+    schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry, PersistedAgent
+    provider.ts                      AgentModule, RunningAgentModule, MultiplexerModule, AgentEvent (the integration boundary)
     transport.ts                     MessageTransport, TransportState
     adapter.ts                       StateAdapter, AssetCache, PersistedAgent, AgentSeat
     paletteUtils.ts                  Palette diversity for character assignment
@@ -55,22 +54,14 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
     serverConfig.ts                  server.json record shape
     httpServer.ts                    POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA
     clientMessageHandler.ts          Single dispatch point for ClientMessage
-    agentRuntime.ts                  Lifecycle core: timers, scanners, HookEventHandler, SessionRouter, DismissalTracker
+    agentRuntime.ts                  Lifecycle core: starts modules, creates/removes agents, restores persisted agents through their module, routes hooks
+    agentEventHandler.ts             Applies every module's AgentEvent to CLI-neutral agent state and broadcasts what the office shows
     agentStateStore.ts               EventEmitter-backed single source of truth
     agentActivityResend.ts           Replays an agent's active state to a connecting client
-    sessionRouter.ts                 session_id → agent_id, event buffering, pending external sessions
-    dismissalTracker.ts              Unified dismissal state
-    hookEventHandler.ts              Dispatches normalized AgentEvent into the runtime
-    subagentWatch.ts                 Shadow store for unnamed background spawns
+    sessionRouter.ts                 session_id → agent_id, event buffering, pending sessions (generic, also used by the Claude module)
     multiplexerFeed.ts               Diffs one endpoint's snapshots into AgentEvents
     multiplexerConnections.ts        Persisted connection list, one feed per enabled connection
     connectionSettings.ts            Connection model, defaults, validation
-    transcriptFollower.ts            Adopts a herdr pane's Claude transcript into the runtime's watcher
-    fileWatcher.ts                   fs.watch + 500 ms polling, line buffering, /clear detection
-    transcriptParser.ts              JSONL parsing for the heuristic / file-fallback mode
-    timerManager.ts                  Waiting / permission timers
-    contextUsage.ts                  Context gauge
-    teamUtils.ts                     Inline-teammate helpers
     paletteAssigner.ts               Server-side palette assignment
     pathKey.ts                       Canonical path key for Maps and identity
     fileStateAdapter.ts              ~/.terrarium/ persistence
@@ -79,13 +70,30 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
     layoutPersistence.ts             Read-only layout.json loader
     assetLoader.ts                   PNG → SpriteData, furniture manifests, loadDefaultLayout
     assetReload.ts                   Builds the in-memory asset cache
-    types.ts                         ServerAgentState
-    constants.ts                     Timing and scanning constants
+    types.ts                         AgentState (CLI-neutral), AgentTeam
+    constants.ts                     Server-wide constants (hook body size, event buffer, default context window)
     providers/
       index.ts                       Module registry, loadEnabledModules, providerCapabilitiesMessage
       consentGate.ts                 Consent policy: when to ask, what an answer means
       consentExecutor.ts             Consent execution, serialized across providers
-      claude/                        claude.ts, claudeHookInstaller.ts, claudeTeamProvider.ts, consentCopy.ts, constants.ts
+      claude/                        The Claude Code module, the only code that knows Claude specifics
+        claude.ts                    The module object: vocabulary, hooks installer, start() → the running module
+        claudeRunningModule.ts       RunningAgentModule: discovery, followSession, receiveHook, restore, dismiss. Owns every timer and watcher
+        claudeAgentStore.ts          The module's PRIVATE per-agent state (transcript cursor, hookDelivered, hook correlation, teams)
+        claudeBridge.ts              Private store → AgentEvents on the ModuleHost
+        claudeHookEvents.ts          normalizeHookEvent → ClaudeHookEvent (Claude-local union)
+        claudeHookHandler.ts         Hook routing on the private store: adoption, /clear + /resume, teammates
+        claudeFileWatcher.ts         fs.watch + 500 ms polling, line buffering, /clear detection, teammate and session scanners
+        claudeTranscriptParser.ts    JSONL records → private-store activity
+        claudeTimers.ts              Heuristic waiting / permission timers
+        claudeVocabulary.ts          formatToolStatus, tool taxonomy, ~/.claude/projects layout, context window per model
+        contextUsage.ts              Context gauge
+        subagentWatch.ts             Shadow store for unnamed background spawns
+        inlineTeammates.ts           Inline-teammate helpers
+        dismissalTracker.ts          Unified transcript dismissal state
+        transcriptFollower.ts        followSession: a herdr pane's Claude session id → its transcript
+        teamProvider.ts, claudeTeamProvider.ts   TeamProvider (Lead + Teammates) over ~/.claude/teams/
+        claudeHookInstaller.ts, consentCopy.ts, constants.ts
         hooks/claude-hook.ts         Hook script, bundled to dist/hooks/claude-hook.js
       sessionStore/                  sessionStoreTracker.ts + jsonl / jsonDocument / sqlite stores, constants.ts
       herdr/                         herdr.ts, herdrBridge.ts, herdrSocket.ts, herdrSsh.ts, constants.ts
@@ -155,10 +163,9 @@ Dockerfile                           Standalone server image (herdr + omp)
 Hub and spoke. The server is the single aggregation point for all agent activity.
 
 ```
-Hook scripts ─POST /api/hooks/:providerId─→ that module's normalizeHookEvent() ─┐
-Agent modules (session stores) ─ModuleHost.emit────────────────────────────────┤
+Hook scripts ─POST /api/hooks/:providerId─→ that running module's receiveHook() ─┐
+Agent modules (session stores, Claude transcripts + hooks) ─ModuleHost.emit────┤
 Multiplexer snapshots ─MultiplexerFeed─ModuleHost.emit─────────────────────────┤
-JSONL transcripts ─FileWatcher─→ transcriptParser (transcript module) ─────────┤
                                                                               ↓
                                                         AgentEvent → AgentRuntime → AgentStateStore
                                                                               ↓
@@ -193,16 +200,16 @@ export interface MessageTransport {
 
 Two kinds, any combination per process, chosen with `--provider <ids>` and saved in `config.json` `modules` (default `['claude']`):
 
-- **Agent module** (one per CLI) owns that CLI's vocabulary and how to read it: `normalizeHookEvent` for hook payloads, `hooks: HookInstaller` for consent-gated hook installs, `start(host)` for its own session discovery (built on `providers/sessionStore/`), or the JSONL file fallback.
+- **Agent module** (one per CLI, Claude included) owns that CLI's vocabulary and how to read it: `hooks: HookInstaller` for consent-gated hook installs, and `start(host)` returning a `RunningAgentModule` for its own session discovery (built on `providers/sessionStore/`, or Claude's transcripts and hooks). The running module takes hook payloads (`receiveHook`), the hooks preference (`setHooksEnabled`), persisted sessions after a restart (`restoreSession`) and closed characters (`dismissSession`).
 - **Multiplexer module** (herdr) reports live panes and its link state per connection, never parses a transcript, and hands each pane to the agent module for its kind when that module runs.
 
 The runtime dispatches on `AgentEvent.kind`, never on CLI-specific tool names. One session is one character, whichever modules see it. Adding a CLI or a multiplexer is one directory under `server/src/providers/<id>/` plus one registry entry in `server/src/providers/index.ts`. Details and the step-by-step guide: [providers.md](docs/architecture/providers.md).
 
 ## Server runtime
 
-`AgentRuntime` owns the timers, the scanners (project-dir 1 s, external 3 s, stale 30 s), `HookEventHandler`, `SessionRouter` and `DismissalTracker`. `AgentStateStore` is the single source of truth: typed mutations, typed events, and a broadcast layer that is the only code allowed to call the transport. `handleClientMessage` (`clientMessageHandler.ts`) is the single dispatch point for client messages. Details: [server-runtime.md](docs/architecture/server-runtime.md).
+`AgentRuntime` knows no CLI: it starts the modules, hands each its hooks preference and its persisted agents, routes `POST /api/hooks/:providerId` to that module's `receiveHook`, and applies every module's events through `AgentEventHandler`. `AgentStateStore` is the single source of truth: typed mutations, typed events, and a broadcast layer that is the only code allowed to call the transport. `handleClientMessage` (`clientMessageHandler.ts`) is the single dispatch point for client messages. Details: [server-runtime.md](docs/architecture/server-runtime.md).
 
-Claude agents are tracked in two modes: hooks (instant, preferred) and heuristics over JSONL transcripts (fallback). The per-agent `hookDelivered` flag suppresses the heuristic permission (7 s) and text-idle (5 s) timers. Details: [status-tracking.md](docs/architecture/status-tracking.md).
+Claude agents are tracked inside `providers/claude/` in two modes: hooks (instant, preferred) and heuristics over JSONL transcripts (fallback). The per-agent `hookDelivered` flag, in the module's private state, suppresses the heuristic permission (7 s) and text-idle (5 s) timers. Details: [status-tracking.md](docs/architecture/status-tracking.md).
 
 ## Persistence
 

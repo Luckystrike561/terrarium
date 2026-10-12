@@ -147,12 +147,14 @@ The bundled furniture, characters and default office are generated from code: `n
 flowchart LR
   herdr[herdr socket] --> feed[MultiplexerFeed]
   feed -- hands each pane over --> ompmod[omp module]
+  feed -- hands each pane over --> claudemod[claude module]
   omp[omp session files] --> ompmod
   hooks[Claude hooks] --> api["POST /api/hooks/:provider"]
-  api --> runtime[AgentRuntime]
-  feed --> runtime
+  api --> claudemod
+  jsonl[Claude transcripts] --> claudemod
+  feed --> runtime[AgentRuntime]
   ompmod --> runtime
-  jsonl[Claude transcripts] --> runtime
+  claudemod --> runtime
   runtime --> store[AgentStateStore]
   store --> ws[WebSocket]
   ws --> office[PixiJS office in the browser]

@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentModule, MultiplexerModule } from '../../core/src/provider.js';
-import { AgentStateStore } from '../src/agentStateStore.js';
-import { HookEventHandler } from '../src/hookEventHandler.js';
-import { claudeModule } from '../src/providers/claude/claude.js';
+import type { ClaudeAgentState } from '../src/providers/claude/claudeAgentStore.js';
+import { ClaudeAgentStore } from '../src/providers/claude/claudeAgentStore.js';
+import type {
+  ClaudePendingSession,
+  ClaudeRoutedEvent,
+} from '../src/providers/claude/claudeHookHandler.js';
+import { ClaudeHookHandler } from '../src/providers/claude/claudeHookHandler.js';
 import { SessionRouter } from '../src/sessionRouter.js';
-import type { AgentState } from '../src/types.js';
 
-/** Minimal AgentState for testing. */
-function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
+/** Minimal ClaudeAgentState for testing. */
+function createTestAgent(overrides: Partial<ClaudeAgentState> = {}): ClaudeAgentState {
   return {
     id: 1,
     sessionId: '',
@@ -30,7 +32,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     seenUnknownRecordTypes: new Set(),
     hookDelivered: false,
     ...overrides,
-  } as AgentState;
+  } as ClaudeAgentState;
 }
 
 function createMockWebview() {
@@ -44,15 +46,15 @@ function createMockWebview() {
   };
 }
 
-describe('HookEventHandler', () => {
-  let agents: AgentStateStore;
+describe('ClaudeHookHandler', () => {
+  let agents: ClaudeAgentStore;
   let waitingTimers: Map<number, ReturnType<typeof setTimeout>>;
   let permissionTimers: Map<number, ReturnType<typeof setTimeout>>;
   let mockWebview: ReturnType<typeof createMockWebview>;
-  let handler: HookEventHandler;
+  let handler: ClaudeHookHandler;
 
   beforeEach(() => {
-    agents = new AgentStateStore();
+    agents = new ClaudeAgentStore();
     waitingTimers = new Map();
     permissionTimers = new Map();
     mockWebview = createMockWebview();
@@ -60,13 +62,28 @@ describe('HookEventHandler', () => {
     agents.on('broadcast', (msg) => {
       mockWebview.postMessage(msg);
     });
-    handler = new HookEventHandler(
+    handler = new ClaudeHookHandler(
       agents,
       waitingTimers,
       permissionTimers,
-      { agents: [claudeModule], multiplexers: [] },
-      new SessionRouter(),
+      new SessionRouter<ClaudeRoutedEvent, ClaudePendingSession>(),
     );
+  });
+
+  // ── Routing ─────────────────────────────────────────────────
+
+  it('unregisterAgent never drops a route another agent sharing the session id owns', () => {
+    const router = new SessionRouter<ClaudeRoutedEvent, ClaudePendingSession>();
+    handler = new ClaudeHookHandler(agents, waitingTimers, permissionTimers, router);
+    agents.set(1, createTestAgent({ id: 1, sessionId: 'sess-1' }));
+    agents.set(2, createTestAgent({ id: 2, sessionId: 'sess-1', leadAgentId: 1 }));
+    handler.registerAgent('sess-1', 1);
+
+    handler.unregisterAgent('sess-1', 2);
+    expect(router.resolve('sess-1')).toBe(1);
+
+    handler.unregisterAgent('sess-1', 1);
+    expect(router.resolve('sess-1')).toBeUndefined();
   });
 
   // ── PermissionRequest ───────────────────────────────────────
@@ -76,7 +93,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PermissionRequest',
       session_id: 'sess-1',
     });
@@ -94,7 +111,7 @@ describe('HookEventHandler', () => {
     const timer = setTimeout(() => {}, 10000);
     permissionTimers.set(1, timer);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PermissionRequest',
       session_id: 'sess-1',
     });
@@ -108,7 +125,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PermissionRequest',
       session_id: 'sess-1',
     });
@@ -125,7 +142,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Notification',
       session_id: 'sess-1',
       notification_type: 'permission_prompt',
@@ -141,7 +158,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Notification',
       session_id: 'sess-1',
       notification_type: 'idle_prompt',
@@ -163,7 +180,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'sess-1',
     });
@@ -189,7 +206,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'sess-1',
     });
@@ -207,11 +224,11 @@ describe('HookEventHandler', () => {
   // ── hookDelivered ───────────────────────────────────────────
 
   it('sets hookDelivered flag on agent', () => {
-    const agent = createTestAgent({ id: 1, hookDelivered: false } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, hookDelivered: false } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'sess-1',
     });
@@ -223,7 +240,7 @@ describe('HookEventHandler', () => {
 
   it('silently drops events for untracked sessions', () => {
     // No agents, no pending sessions, no prior buffered events
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'unknown-sess',
     });
@@ -234,11 +251,11 @@ describe('HookEventHandler', () => {
 
   it('buffers events when unregistered agents exist (internal agent race)', () => {
     // Agent exists in map but not yet registered for hooks
-    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
     // Don't call registerAgent yet (simulates race)
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'sess-1',
     });
@@ -249,11 +266,11 @@ describe('HookEventHandler', () => {
 
   it('flushes buffered events on registerAgent', () => {
     // Agent exists with sessionId but not registered
-    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
 
     // Send event (auto-discovery will find it immediately in this case)
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'sess-1',
     });
@@ -267,10 +284,10 @@ describe('HookEventHandler', () => {
 
   it('prunes expired buffered events', async () => {
     // Create agent so events get buffered (unregistered agent exists)
-    const agent = createTestAgent({ id: 1, sessionId: 'other-sess' } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, sessionId: 'other-sess' } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'expired-sess',
     });
@@ -292,10 +309,10 @@ describe('HookEventHandler', () => {
   // ── Auto-discovery ──────────────────────────────────────────
 
   it('auto-discovers agent by sessionId field', () => {
-    const agent = createTestAgent({ id: 1, sessionId: 'auto-sess' } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, sessionId: 'auto-sess' } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'auto-sess',
     });
@@ -314,11 +331,11 @@ describe('HookEventHandler', () => {
   // ── SessionStart ────────────────────────────────────────────
 
   it('SessionStart for known agent sets hookDelivered', () => {
-    const agent = createTestAgent({ id: 1, hookDelivered: false } as Partial<AgentState>);
+    const agent = createTestAgent({ id: 1, hookDelivered: false } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'sess-1',
       source: 'startup',
@@ -332,10 +349,10 @@ describe('HookEventHandler', () => {
       id: 1,
       sessionId: 'auto-sess',
       hookDelivered: false,
-    } as Partial<AgentState>);
+    } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'auto-sess',
       source: 'startup',
@@ -349,14 +366,14 @@ describe('HookEventHandler', () => {
       id: 1,
       projectDir: '/projects/test',
       pendingClear: true,
-    } as Partial<AgentState>);
+    } as Partial<ClaudeAgentState>);
     agents.set(1, agent);
     handler.registerAgent('old-sess', 1);
 
     const onSessionClear = vi.fn();
     handler.setLifecycleCallbacks({ onSessionClear });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'new-sess',
       source: 'clear',
@@ -368,7 +385,7 @@ describe('HookEventHandler', () => {
   });
 
   it('SessionStart for unknown session stores as pending', () => {
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'ext-sess',
       source: 'startup',
@@ -387,7 +404,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionEnd',
       session_id: 'sess-1',
       reason: 'clear',
@@ -405,7 +422,7 @@ describe('HookEventHandler', () => {
     const onSessionEnd = vi.fn();
     handler.setLifecycleCallbacks({ onSessionEnd });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionEnd',
       session_id: 'sess-1',
       reason: 'exit',
@@ -424,7 +441,7 @@ describe('HookEventHandler', () => {
     const onSessionEnd = vi.fn();
     handler.setLifecycleCallbacks({ onSessionEnd });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionEnd',
       session_id: 'sess-1',
       reason: 'resume',
@@ -443,7 +460,7 @@ describe('HookEventHandler', () => {
 
   it('SessionEnd discards pending external session (transient filtering)', () => {
     // Store pending session via SessionStart
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'transient-sess',
       source: 'startup',
@@ -452,7 +469,7 @@ describe('HookEventHandler', () => {
     });
 
     // SessionEnd arrives before confirmation -> discard
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionEnd',
       session_id: 'transient-sess',
       reason: 'other',
@@ -469,7 +486,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PreToolUse',
       session_id: 'sess-1',
       tool_name: 'Read',
@@ -488,7 +505,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PreToolUse',
       session_id: 'sess-1',
       tool_name: 'Bash',
@@ -509,7 +526,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PostToolUse',
       session_id: 'sess-1',
     });
@@ -526,7 +543,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('sess-1', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'PostToolUseFailure',
       session_id: 'sess-1',
     });
@@ -544,7 +561,7 @@ describe('HookEventHandler', () => {
     handler.setLifecycleCallbacks({ onExternalSessionDetected });
 
     // SessionStart stores as pending
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'ext-sess',
       source: 'startup',
@@ -560,13 +577,13 @@ describe('HookEventHandler', () => {
         id: 2,
         sessionId,
         projectDir: '/projects/test',
-      } as Partial<AgentState>);
+      } as Partial<ClaudeAgentState>);
       agents.set(2, agent);
       handler.registerAgent(sessionId, 2);
     });
 
     // Stop confirms the session -> creates agent -> re-processes Stop
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'ext-sess',
     });
@@ -590,7 +607,7 @@ describe('HookEventHandler', () => {
     const onSessionResume = vi.fn();
     handler.setLifecycleCallbacks({ onSessionResume });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'resume-sess',
       source: 'resume',
@@ -615,7 +632,7 @@ describe('HookEventHandler', () => {
     handler.setLifecycleCallbacks({ onSessionClear, onSessionEnd });
 
     // SessionEnd(reason=resume) sets pendingClear, starts grace timer
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionEnd',
       session_id: 'old-sess',
       reason: 'resume',
@@ -623,7 +640,7 @@ describe('HookEventHandler', () => {
     expect(agent.pendingClear).toBe(true);
 
     // SessionStart(source=resume) arrives within grace period -> reassigns
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'new-resume-sess',
       source: 'resume',
@@ -667,7 +684,7 @@ describe('HookEventHandler', () => {
     handler.registerAgent('ext-sess-2', 2);
 
     // SessionStart(source=resume) should reassign Agent 1 (pendingClear), NOT Agent 2
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'new-resume-sess',
       source: 'resume',
@@ -692,7 +709,7 @@ describe('HookEventHandler', () => {
     const onExternalSessionDetected = vi.fn();
     handler.setLifecycleCallbacks({ onExternalSessionDetected });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'no-transcript-sess',
       source: 'startup',
@@ -708,13 +725,13 @@ describe('HookEventHandler', () => {
         id: 2,
         sessionId,
         projectDir: '/projects/test',
-      } as Partial<AgentState>);
+      } as Partial<ClaudeAgentState>);
       agents.set(2, agent);
       handler.registerAgent(sessionId, 2);
     });
 
     // Confirmation event creates agent
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'Stop',
       session_id: 'no-transcript-sess',
     });
@@ -741,7 +758,7 @@ describe('HookEventHandler', () => {
     agents.set(1, agent);
     handler.registerAgent('old-sess', 1);
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'resumed-sess',
       source: 'resume',
@@ -756,7 +773,7 @@ describe('HookEventHandler', () => {
     const onSessionResume = vi.fn();
     handler.setLifecycleCallbacks({ onSessionResume });
 
-    handler.handleEvent('claude', {
+    handler.handleEvent({
       hook_event_name: 'SessionStart',
       session_id: 'resume-no-path',
       source: 'resume',
@@ -781,7 +798,7 @@ describe('HookEventHandler', () => {
       agents.set(1, agent);
       handler.registerAgent('sess-1', 1);
 
-      handler.handleEvent('claude', {
+      handler.handleEvent({
         hook_event_name: 'PreToolUse',
         session_id: 'sess-1',
         tool_name: 'Agent',
@@ -837,7 +854,7 @@ describe('HookEventHandler', () => {
       const onTeammateDetected = vi.fn();
       handler.setLifecycleCallbacks({ onTeammateDetected });
 
-      handler.handleEvent('claude', {
+      handler.handleEvent({
         hook_event_name: 'SubagentStart',
         session_id: 'sess-1',
         agent_type: expectTeammateDetected ? 'web-researcher' : 'general-purpose',
@@ -860,149 +877,5 @@ describe('HookEventHandler', () => {
         }
       }
     });
-  });
-});
-
-describe('HookEventHandler — claimBySessionRef (one agent, one character)', () => {
-  let agents: AgentStateStore;
-  let waitingTimers: Map<number, NodeJS.Timeout>;
-  let permissionTimers: Map<number, NodeJS.Timeout>;
-  let mockWebview: {
-    postMessage: (message: Record<string, unknown>) => Promise<boolean>;
-    messages: Array<Record<string, unknown>>;
-  };
-  let sessionRouter: SessionRouter;
-  let handler: HookEventHandler;
-
-  const fakeAgentModule: AgentModule = {
-    kind: 'agent',
-    id: 'fake-cli',
-    displayName: 'Fake CLI',
-    protocolVersion: 1,
-    formatToolStatus: (toolName) => toolName,
-    permissionExemptTools: new Set(),
-    subagentToolNames: new Set(),
-    readingTools: new Set(),
-  };
-  const fakeMultiplexerModule: MultiplexerModule = {
-    kind: 'multiplexer',
-    id: 'fake-mux',
-    displayName: 'Fake Multiplexer',
-    connect: () => ({ stop: () => {} }),
-    probe: () => Promise.resolve(undefined),
-  };
-
-  beforeEach(() => {
-    agents = new AgentStateStore();
-    waitingTimers = new Map();
-    permissionTimers = new Map();
-    mockWebview = createMockWebview();
-    agents.on('broadcast', (msg) => mockWebview.postMessage(msg));
-    sessionRouter = new SessionRouter();
-    handler = new HookEventHandler(
-      agents,
-      waitingTimers,
-      permissionTimers,
-      { agents: [claudeModule, fakeAgentModule], multiplexers: [fakeMultiplexerModule] },
-      sessionRouter,
-    );
-  });
-
-  it('a sessionStart whose sessionRef an existing agent already reports joins that agent immediately, never becoming an external session', () => {
-    const onExternalSessionDetected = vi.fn();
-    handler.setLifecycleCallbacks({ onExternalSessionDetected });
-    const agent = createTestAgent({
-      id: 1,
-      sessionId: 'herdr-sess-1',
-      sessionRef: '/work/alpha/session.jsonl',
-    });
-    agents.set(1, agent);
-    handler.registerAgent('herdr-sess-1', 1);
-
-    handler.handleAgentEvent('fake-cli', 'claude-sess-2', {
-      kind: 'sessionStart',
-      sessionRef: '/work/alpha/session.jsonl',
-      cwd: '/work/alpha',
-    });
-
-    expect(sessionRouter.resolve('claude-sess-2')).toBe(1);
-    expect(onExternalSessionDetected).not.toHaveBeenCalled();
-
-    handler.handleAgentEvent('fake-cli', 'claude-sess-2', { kind: 'working' });
-    expect(mockWebview.messages).toContainEqual(
-      expect.objectContaining({ type: 'agentStatus', id: 1, status: 'active' }),
-    );
-  });
-
-  it('a sessionStart with a different sessionRef does not join the existing agent, and becomes a new external session once confirmed', () => {
-    const onExternalSessionDetected = vi.fn();
-    handler.setLifecycleCallbacks({ onExternalSessionDetected });
-    const agent = createTestAgent({
-      id: 1,
-      sessionId: 'herdr-sess-1',
-      sessionRef: '/work/alpha/session.jsonl',
-    });
-    agents.set(1, agent);
-    handler.registerAgent('herdr-sess-1', 1);
-
-    handler.handleAgentEvent('fake-cli', 'claude-sess-3', {
-      kind: 'sessionStart',
-      sessionRef: '/work/beta/session.jsonl',
-      cwd: '/work/beta',
-    });
-    expect(sessionRouter.resolve('claude-sess-3')).toBeUndefined();
-    expect(sessionRouter.hasPending('claude-sess-3')).toBe(true);
-
-    handler.handleAgentEvent('fake-cli', 'claude-sess-3', { kind: 'working' });
-    expect(onExternalSessionDetected).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: 'claude-sess-3',
-        sessionRef: '/work/beta/session.jsonl',
-      }),
-    );
-  });
-
-  it('a bare Claude transcriptPath only matches an agent a module announced, so two Claude sessions on one transcript stay separate', () => {
-    const onExternalSessionDetected = vi.fn();
-    handler.setLifecycleCallbacks({ onExternalSessionDetected });
-    // Adopted by the runtime's own scanner, never by a module announcement: sessionRef stays unset.
-    const agent = createTestAgent({
-      id: 1,
-      sessionId: 'claude-sess-a',
-      jsonlFile: '/project/session-a.jsonl',
-    });
-    agents.set(1, agent);
-    handler.registerAgent('claude-sess-a', 1);
-
-    handler.handleEvent('claude', {
-      hook_event_name: 'SessionStart',
-      session_id: 'claude-sess-b',
-      transcript_path: '/project/session-a.jsonl',
-      cwd: '/project',
-      source: 'startup',
-    });
-    expect(sessionRouter.resolve('claude-sess-b')).toBeUndefined();
-    expect(sessionRouter.hasPending('claude-sess-b')).toBe(true);
-
-    handler.handleEvent('claude', { hook_event_name: 'Stop', session_id: 'claude-sess-b' });
-    expect(onExternalSessionDetected).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: 'claude-sess-b',
-        transcriptPath: '/project/session-a.jsonl',
-      }),
-    );
-  });
-
-  it('providerId is set by the first agent-module event and is not overwritten by a later multiplexer event', () => {
-    const agent = createTestAgent({ id: 1, sessionId: 'sess-1' });
-    agents.set(1, agent);
-    handler.registerAgent('sess-1', 1);
-
-    handler.handleAgentEvent('fake-cli', 'sess-1', { kind: 'working' });
-    expect(agent.providerId).toBe('fake-cli');
-    expect(agent.hookDelivered).toBe(true);
-
-    handler.handleAgentEvent('fake-mux', 'sess-1', { kind: 'working' });
-    expect(agent.providerId).toBe('fake-cli');
   });
 });

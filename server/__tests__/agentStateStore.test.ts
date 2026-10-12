@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { StateAdapter } from '../../core/src/adapter.js';
+import type { PersistedAgent } from '../../core/src/schemas.js';
 import { AgentStateStore } from '../src/agentStateStore.js';
-import type { AgentState, PersistedAgent } from '../src/types.js';
+import type { AgentState } from '../src/types.js';
 
 function createMockAdapter(): StateAdapter {
   return {
@@ -19,27 +20,19 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
   return {
     id: 1,
     sessionId: 'sess-1',
-    projectDir: '/test',
-    jsonlFile: '/test/session.jsonl',
-    fileOffset: 0,
-    lineBuffer: '',
+    providerId: 'claude',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),
     activeSubagentToolIds: new Map(),
-    activeSubagentToolNames: new Map(),
-    backgroundAgentToolIds: new Set(),
+    backgroundToolIds: new Set(),
+    teammateSpawnToolIds: new Set(),
     isWaiting: false,
     permissionSent: false,
-    hadToolsInTurn: false,
-    lastDataAt: 0,
-    linesProcessed: 0,
-    seenUnknownRecordTypes: new Set(),
-    hookDelivered: false,
     contextTokens: 0,
     maxContextTokens: 200_000,
     ...overrides,
-  } as AgentState;
+  };
 }
 
 describe('AgentStateStore', () => {
@@ -135,36 +128,39 @@ describe('AgentStateStore', () => {
   });
 
   describe('persistence', () => {
-    it('persist calls adapter.saveAgents with correct shape', () => {
+    it('persist saves every agent with a session ref, in the shape its module resumes from', () => {
       const adapter = createMockAdapter();
       store.setAdapter(adapter);
       store.set(
         1,
         createTestAgent({
           id: 1,
-          sessionId: 'sess-1',
-          projectDir: '/proj',
-          jsonlFile: '/proj/sess-1.jsonl',
+          sessionRef: 'sess-1',
           folderName: 'my-folder',
-          teamName: 'team-a',
-          agentName: undefined,
-          isTeamLead: true,
+          team: { teamName: 'team-a', isTeamLead: true },
+          backgroundToolIds: new Set(['bg-1']),
+          palette: 3,
         }),
       );
+      store.set(2, createTestAgent({ id: 2, sessionId: 'pane', providerId: 'herdr' }));
 
       store.persist();
 
       expect(adapter.saveAgents).toHaveBeenCalledOnce();
       const saved = (adapter.saveAgents as ReturnType<typeof vi.fn>).mock
         .calls[0][0] as PersistedAgent[];
-      expect(saved).toHaveLength(1);
-      expect(saved[0].id).toBe(1);
-      expect(saved[0].sessionId).toBe('sess-1');
-      expect(saved[0].projectDir).toBe('/proj');
-      expect(saved[0].jsonlFile).toBe('/proj/sess-1.jsonl');
-      expect(saved[0].folderName).toBe('my-folder');
-      expect(saved[0].teamName).toBe('team-a');
-      expect(saved[0].isTeamLead).toBe(true);
+      expect(saved).toEqual([
+        {
+          id: 1,
+          providerId: 'claude',
+          sessionRef: 'sess-1',
+          folderName: 'my-folder',
+          team: { teamName: 'team-a', isTeamLead: true },
+          backgroundToolIds: ['bg-1'],
+          palette: 3,
+          hueShift: undefined,
+        },
+      ]);
     });
 
     it('persist without adapter is a no-op', () => {
@@ -176,8 +172,8 @@ describe('AgentStateStore', () => {
     it('loadPersistedAgents returns data from adapter', () => {
       const adapter = createMockAdapter();
       const persisted: PersistedAgent[] = [
-        { id: 1, jsonlFile: '/a.jsonl', projectDir: '/proj' },
-        { id: 2, jsonlFile: '/b.jsonl', projectDir: '/proj' },
+        { id: 1, providerId: 'claude', sessionRef: 'a' },
+        { id: 2, providerId: 'claude', sessionRef: '/proj/b.jsonl' },
       ];
       (adapter.loadAgents as ReturnType<typeof vi.fn>).mockReturnValue(persisted);
       store.setAdapter(adapter);
