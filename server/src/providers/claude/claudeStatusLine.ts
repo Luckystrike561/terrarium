@@ -1,7 +1,8 @@
 /**
  * The `statusLine` slot of ~/.claude/settings.json, where Claude Code hands `rate_limits` to a command. Ours runs the
  * hook script with STATUS_LINE_FLAG. A status line the user already had is never replaced: ours carries it, encoded
- * in its own command, runs it first and prints its output unchanged, and uninstall writes it back exactly.
+ * in its own command, runs it alongside the quota delivery and prints its output unchanged, and uninstall writes it
+ * back exactly.
  */
 
 import { isDeepStrictEqual } from 'util';
