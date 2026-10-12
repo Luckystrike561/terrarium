@@ -83,26 +83,54 @@ export function isBareStatusLine(value: unknown): boolean {
   );
 }
 
+/** A status line's fields other than `type` and `command`: how the user wants it displayed. */
+function displayFields(statusLine: CommandStatusLine): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(statusLine).filter(([key]) => key !== 'type' && key !== 'command'),
+  );
+}
+
+/** `original` with the display fields of `live`, our status line as it is now: the user may have changed `padding` or
+ *  `refreshInterval` on it since install. Keeps `original`'s key order, so an untouched status line goes back byte
+ *  for byte. */
+function withLiveDisplayFields(
+  original: CommandStatusLine,
+  live: CommandStatusLine,
+): CommandStatusLine {
+  const liveFields = displayFields(live);
+  const kept = Object.fromEntries(
+    Object.entries(original).filter(
+      ([key]) => key === 'type' || key === 'command' || key in liveFields,
+    ),
+  );
+  return { ...kept, ...liveFields, type: original.type, command: original.command };
+}
+
 /** Put our status line in `settings`, chaining the one already there. Returns whether anything changed. A status line
  *  we cannot chain (not a command) is the user's and is left alone: the office then shows no Claude quota. */
 export function installStatusLine(settings: Record<string, unknown>, scriptPath: string): boolean {
   const current = settings.statusLine;
-  let original: CommandStatusLine | undefined;
+  let next: CommandStatusLine;
   if (isOurStatusLine(current)) {
-    original = chainedStatusLine(current);
+    const chained = chainedStatusLine(current);
+    next =
+      chained === undefined
+        ? { ...displayFields(current), ...makeStatusLine(scriptPath, undefined) }
+        : makeStatusLine(scriptPath, withLiveDisplayFields(chained, current));
   } else if (isCommandStatusLine(current)) {
-    original = current;
-  } else if (current !== undefined) {
+    next = makeStatusLine(scriptPath, current);
+  } else if (current === undefined) {
+    next = makeStatusLine(scriptPath, undefined);
+  } else {
     return false;
   }
-  const next = makeStatusLine(scriptPath, original);
   if (isDeepStrictEqual(next, current)) return false;
   settings.statusLine = next;
   return true;
 }
 
-/** Take our status line out of `settings`, writing back the one it chained, or removing the key when it chained
- *  none. Returns whether anything changed. */
+/** Take our status line out of `settings`, writing back the one it chained with the display fields ours has now, or
+ *  removing the key when it chained none. Returns whether anything changed. */
 export function uninstallStatusLine(settings: Record<string, unknown>): boolean {
   const current = settings.statusLine;
   if (!isOurStatusLine(current)) return false;
@@ -110,7 +138,7 @@ export function uninstallStatusLine(settings: Record<string, unknown>): boolean 
   if (original === undefined) {
     delete settings.statusLine;
   } else {
-    settings.statusLine = original;
+    settings.statusLine = withLiveDisplayFields(original, current);
   }
   return true;
 }

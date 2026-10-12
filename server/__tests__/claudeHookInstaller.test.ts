@@ -1097,6 +1097,45 @@ describe('claudeHookInstaller', () => {
       expect(readSettings().statusLine).toEqual(userStatusLine);
     });
 
+    /** Rewrite the installed status line as a user editing settings.json by hand would. */
+    const editStatusLine = (edit: (statusLine: Record<string, unknown>) => unknown): void => {
+      const settings = readSettings();
+      const statusLine = settings.statusLine;
+      if (statusLine === null || typeof statusLine !== 'object') throw new Error('no statusLine');
+      const edited = edit(Object.fromEntries(Object.entries(statusLine)));
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ ...settings, statusLine: edited }));
+    };
+
+    it('keeps display fields changed on our status line across a reinstall and the uninstall', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+      await installHooks();
+      editStatusLine(({ refreshInterval: _removed, ...ours }) => ({ ...ours, padding: 4 }));
+
+      await installHooks();
+      expect(readSettings().statusLine).toMatchObject({ padding: 4 });
+      expect(readSettings().statusLine).not.toHaveProperty('refreshInterval');
+
+      await uninstallHooks();
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: userStatusLine.command,
+        padding: 4,
+      });
+    });
+
+    it('keeps a display field added to our status line in an empty slot across a reinstall', async () => {
+      await installHooks();
+      editStatusLine((ours) => ({ ...ours, padding: 1 }));
+
+      await installHooks();
+
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line`,
+        padding: 1,
+      });
+    });
+
     it('fills an empty slot, and uninstall leaves the slot empty again', async () => {
       fs.writeFileSync(settingsPathFor(), JSON.stringify({ model: 'opus' }));
 
