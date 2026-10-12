@@ -62,3 +62,6 @@ export const DEFAULT_CONNECTION_LABEL = 'This machine';
 export const CONNECTION_ID_BYTES = 4;
 export const SSH_TARGET_MAX_CHARS = 255;
 export const HERDR_SESSION_NAME_MAX_CHARS = 64;
+
+/** The longest delay setTimeout honours: Node fires anything longer after 1 ms. */
+export const MAX_TIMER_DELAY_MS = 2_147_483_647;

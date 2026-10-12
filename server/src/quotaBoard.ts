@@ -5,6 +5,7 @@
 
 import type { QuotaMeter, QuotaUpdate } from '../../core/src/messages.js';
 import type { QuotaReading } from '../../core/src/provider.js';
+import { MAX_TIMER_DELAY_MS } from './constants.js';
 
 /** When a reading stops counting as fresh: after the source's expected interval, or when the provider resets the
  *  window it was taken in, whichever comes first. */
@@ -17,7 +18,9 @@ export function quotaStaleAt(reading: QuotaReading): number {
  *  a NaN or a negative amount is rejected here rather than drawn as a nonsense bean count. */
 export function invalidQuotaReadingReason(reading: QuotaReading): string | undefined {
   if (!Number.isFinite(reading.observedAt)) return `observedAt ${reading.observedAt} is not a time`;
-  if (!(reading.staleAfterMs > 0)) return `staleAfterMs ${reading.staleAfterMs} is not positive`;
+  if (!(reading.staleAfterMs > 0) || !Number.isFinite(reading.staleAfterMs)) {
+    return `staleAfterMs ${reading.staleAfterMs} is not a positive duration`;
+  }
   if (reading.resetsAt !== undefined && !Number.isFinite(reading.resetsAt)) {
     return `resetsAt ${reading.resetsAt} is not a time`;
   }
@@ -106,16 +109,25 @@ export class QuotaBoard {
   }
 
   /** Broadcast again the moment the reading goes stale, so the office greys it out without waiting for a source
-   *  that may never report again. */
+   *  that may never report again. The timer can fire before `now()` reaches the stale time (timers run on the
+   *  monotonic clock, `now()` on the wall clock, which can also step back), and a delay is capped at
+   *  MAX_TIMER_DELAY_MS, so the callback checks the clock and waits again until the reading really is stale. */
   private scheduleStale(key: string, reading: QuotaReading): void {
     clearTimeout(this.staleTimers.get(key));
     this.staleTimers.delete(key);
     const delayMs = quotaStaleAt(reading) - this.now();
     if (delayMs <= 0) return;
-    const timer = setTimeout(() => {
-      this.staleTimers.delete(key);
-      this.broadcast(this.message());
-    }, delayMs);
+    const timer = setTimeout(
+      () => {
+        this.staleTimers.delete(key);
+        if (this.now() < quotaStaleAt(reading)) {
+          this.scheduleStale(key, reading);
+          return;
+        }
+        this.broadcast(this.message());
+      },
+      Math.min(delayMs, MAX_TIMER_DELAY_MS),
+    );
     timer.unref();
     this.staleTimers.set(key, timer);
   }

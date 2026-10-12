@@ -146,6 +146,36 @@ describe('QuotaBoard', () => {
     expect(sent.at(-1)?.meters[0].stale).toBe(false);
   });
 
+  it('waits again when the timer fires before the clock reaches the stale time', () => {
+    let clockLagMs = 0;
+    board.dispose();
+    board = new QuotaBoard(
+      (message) => sent.push(message),
+      () => Date.now() - clockLagMs,
+    );
+    board.report('claude', reading());
+    clockLagMs = 50;
+
+    vi.advanceTimersByTime(15 * MINUTE_MS);
+    expect(sent).toHaveLength(1);
+
+    vi.advanceTimersByTime(50);
+    expect(sent).toHaveLength(2);
+    expect(sent.at(-1)?.meters[0].stale).toBe(true);
+  });
+
+  it('goes stale on time when the stale time is further away than a timer can wait', () => {
+    const DAY_MS = 24 * 60 * MINUTE_MS;
+    board.report('claude', reading({ staleAfterMs: 40 * DAY_MS }));
+
+    vi.advanceTimersByTime(39 * DAY_MS);
+    expect(sent).toHaveLength(1);
+
+    vi.advanceTimersByTime(DAY_MS);
+    expect(sent).toHaveLength(2);
+    expect(sent.at(-1)?.meters[0].stale).toBe(true);
+  });
+
   it.each([
     ['a NaN share', { usage: { kind: 'fraction', usedFraction: Number.NaN } }],
     [
@@ -153,6 +183,7 @@ describe('QuotaBoard', () => {
       { usage: { kind: 'amount', usedAmount: -1, limitAmount: 60, unit: 'usd' } },
     ],
     ['no stale interval', { staleAfterMs: 0 }],
+    ['an endless stale interval', { staleAfterMs: Number.POSITIVE_INFINITY }],
   ] as const)('drops %s and keeps the reading before it', (_label, overrides) => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     board.report('claude', reading());
