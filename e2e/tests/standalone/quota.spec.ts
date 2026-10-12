@@ -79,6 +79,13 @@ test.describe('Standalone / quota', () => {
     await expect(sevenDay).toHaveAttribute('data-empty', 'true');
     narrator.check('70% used leaves 3 of 10 beans, and the used-up week is an empty, flagged jar');
 
+    narrator.step('The page reloads before Claude runs the status line again');
+    await standalone.reloadPage();
+    await expect(fiveHour).toHaveAttribute('data-beans', '3');
+    await expect(sevenDay).toHaveAttribute('data-beans', '0');
+    await expect(sevenDay).toHaveAttribute('data-empty', 'true');
+    narrator.check('The jars come back from the quota board the server sends on connect');
+
     narrator.step('Hover the 5-hour jar');
     await fiveHour.hover();
     const tooltip = page.getByTestId('quota-tooltip');
