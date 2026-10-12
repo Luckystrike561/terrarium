@@ -61,6 +61,22 @@ export const HOOK_DELIVERY_TIMEOUT_MS = 2_000;
  *  must not hold the user's status line open for HOOK_DELIVERY_TIMEOUT_MS. */
 export const STATUS_LINE_DELIVERY_TIMEOUT_MS = 250;
 
+/** The variable that tells Claude Code where Git Bash's `bash.exe` is on Windows. We honour it the same way. */
+export const CLAUDE_CODE_GIT_BASH_PATH_ENV = 'CLAUDE_CODE_GIT_BASH_PATH';
+
+/** The executable whose directory on PATH locates Git for Windows. */
+export const GIT_EXECUTABLE = 'git.exe';
+
+/** Git for Windows keeps `bash.exe` in its `bin` directory, a sibling of the `cmd` directory that puts `git.exe` on
+ *  PATH. */
+export const GIT_BASH_FROM_GIT_DIR = ['..', 'bin', 'bash.exe'] as const;
+
+/** Git for Windows' default install, under %ProgramFiles%. */
+export const GIT_BASH_DEFAULT_SEGMENTS = ['Git', 'bin', 'bash.exe'] as const;
+
+/** The shell Claude Code runs status lines through on Windows when it finds no Git Bash. */
+export const WINDOWS_STATUS_LINE_FALLBACK_SHELL = 'powershell.exe';
+
 /** How long a status-line quota reading counts as fresh. Claude Code runs the status line after every assistant
  *  message, so a quiet quarter hour means no Claude session is working and the reading may be behind. */
 export const CLAUDE_QUOTA_STALE_AFTER_MS = 15 * 60_000;

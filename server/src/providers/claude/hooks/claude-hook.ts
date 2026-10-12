@@ -14,6 +14,7 @@ import type { ServerConfig, ServerTarget } from '../../../serverConfig.js';
 import { isServerConfig, isServerTarget } from '../../../serverConfig.js';
 import type { CommandStatusLine } from '../claudeStatusLine.js';
 import { decodeStatusLine } from '../claudeStatusLine.js';
+import { statusLineShell } from '../claudeStatusLineShell.js';
 import {
   HOOK_DELIVERY_TIMEOUT_MS,
   STATUS_LINE_DELIVERY_TIMEOUT_MS,
@@ -213,11 +214,14 @@ async function deliverRateLimits(statusLineInput: string): Promise<void> {
   );
 }
 
-/** Run the user's own status line on the same stdin, its output going straight to Claude Code untouched. Resolves
- *  with its exit code. */
+/** Run the user's own status line on the same stdin, in the shell Claude Code would run it in, its output going
+ *  straight to Claude Code untouched. Resolves with its exit code. */
 function runChainedStatusLine(statusLine: CommandStatusLine, input: string): Promise<number> {
   return new Promise((resolve) => {
-    const child = spawn(statusLine.command, { shell: true, stdio: ['pipe', 'inherit', 'inherit'] });
+    const child = spawn(statusLine.command, {
+      shell: statusLineShell(process.platform, process.env, fs.existsSync),
+      stdio: ['pipe', 'inherit', 'inherit'],
+    });
     child.on('error', () => resolve(1));
     child.on('close', (code) => resolve(code ?? 1));
     // A status line that never reads its stdin closes the pipe early: that is its business, not a failure.

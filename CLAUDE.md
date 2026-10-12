@@ -96,6 +96,7 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
         transcriptFollower.ts        followSession: a herdr pane's Claude session id → its transcript
         teamProvider.ts, claudeTeamProvider.ts   TeamProvider (Lead + Teammates) over ~/.claude/teams/
         claudeStatusLine.ts          The statusLine slot: chains the user's status line, restores it on uninstall
+        claudeStatusLineShell.ts     The shell the chained status line runs in (Claude Code's: Git Bash or PowerShell on Windows)
         claudeQuota.ts               Status-line rate_limits → quota readings (5h, 7d, gateway spend)
         claudeHookInstaller.ts, claudeHookIdentity.ts, consentCopy.ts, constants.ts
         hooks/claude-hook.ts         Hook script (and, with --status-line, the status line), bundled to dist/hooks/claude-hook.js
