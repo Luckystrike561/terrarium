@@ -22,7 +22,8 @@ const SETTINGS_FILE = '~/.claude/settings.json';
 /** WHY we ask + WHAT we write. */
 export const CONSENT_FACT_WHAT =
   `To bring your agents to life in real time, Terrarium adds hooks for ` +
-  `${CLAUDE_HOOK_EVENTS.length} Claude Code events to ${SETTINGS_FILE}. ` +
+  `${CLAUDE_HOOK_EVENTS.length} Claude Code events to ${SETTINGS_FILE}, and a status line that reads your ` +
+  `plan's usage limits. A status line you already have keeps running and shows exactly what it showed. ` +
   `Note that your existing settings are kept, and a one-time backup is saved as settings.json${SETTINGS_BACKUP_SUFFIX}.`;
 
 /** WHAT data moves, and where it stops.
@@ -34,13 +35,14 @@ export const CONSENT_FACT_WHAT =
  *  thing that changes it, rather than making a promise the software can be
  *  asked to break. */
 export const CONSENT_FACT_DATA =
-  'Claude Code will send those events - including tool names and tool inputs - to a Terrarium ' +
-  'server on this machine. Everything stays local - the server listens only on 127.0.0.1 - unless ' +
-  'you explicitly start it with --host to expose it on your network.';
+  'Claude Code will send those events - including tool names and tool inputs - and your 5-hour and weekly ' +
+  'usage limits to a Terrarium server on this machine. Everything stays local - the server listens only on ' +
+  '127.0.0.1 - unless you explicitly start it with --host to expose it on your network.';
 
 /** HOW to undo it. */
 export const CONSENT_FACT_REVERSIBLE =
-  'You can remove the hooks at any time by running terrarium --uninstall-hooks.';
+  'You can remove the hooks and the status line, getting your own status line back, at any time by running ' +
+  'terrarium --uninstall-hooks.';
 
 /** Headline for the first-run gate — the only population that is asked. A user
  *  whose hooks a pre-consent version already installed is migrated silently

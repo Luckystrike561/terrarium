@@ -1,6 +1,6 @@
 # Hooks consent and the Claude hook installer
 
-Terrarium writes outside `~/.terrarium/` in exactly one place: the Claude module's hook entries in `~/.claude/settings.json`. This document covers when it asks, what an answer does, and how the installer edits a file it does not own. The full rule and its rejected alternatives are in [ADR 0001](../adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md).
+Terrarium writes outside `~/.terrarium/` in exactly one place: the Claude module's hook entries and status line in `~/.claude/settings.json`. This document covers when it asks, what an answer does, and how the installer edits a file it does not own. The full rule and its rejected alternatives are in [ADR 0001](../adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md).
 
 ## Where the logic lives
 
@@ -9,6 +9,8 @@ Terrarium writes outside `~/.terrarium/` in exactly one place: the Claude module
 | `server/src/providers/consentGate.ts`                | Policy: when to ask (`hooksConsentRequest` per module) and what an answer means (`consentActionFor(choice, {installed, consent})`)                            |
 | `server/src/providers/consentExecutor.ts`            | Execution: `applyConsentChoice(providerId, choice, ConsentEffects)` runs the six actions in one order and SERIALIZES answers per process across ALL providers |
 | `server/src/providers/claude/claudeHookInstaller.ts` | Claude's `HookInstaller`: install, uninstall, detect, migrate                                                                                                 |
+| `server/src/providers/claude/claudeStatusLine.ts`    | The `statusLine` slot: chain the user's status line on install, write it back on uninstall                                                                    |
+| `server/src/providers/claude/claudeHookIdentity.ts`  | Anchored identity of our hook script in a command line (`isOurHookCommand`)                                                                                   |
 | `server/src/providers/claude/consentCopy.ts`         | Claude's first-run disclosure text (scope, data, undo), served through `consentDisclosure()`                                                                  |
 | `server/src/providers/claude/hooks/claude-hook.ts`   | The hook script, bundled to `dist/hooks/claude-hook.js` and staged under `~/.terrarium/hooks/`                                                                |
 
@@ -38,6 +40,18 @@ Back re-opens the ask, so a revision undoes whatever the earlier answer left: ho
 ## Installed events
 
 The installer writes the events in `CLAUDE_HOOK_EVENTS` (`server/src/providers/claude/constants.ts`, 12 events). `UserPromptSubmit` and `TaskCreated` are deliberately NOT installed: they normalize to null, so installing them only forwarded prompt text to be dropped. `normalizeHookEvent` still tolerates them for stale installs.
+
+## The status line
+
+Claude Code passes `rate_limits` (the Pro and Max 5-hour and 7-day windows) only to its status line command, so the install also takes the `statusLine` slot, under the same consent and the same write rules. It never replaces a status line the user has:
+
+- Ours runs `node "<hook script>" --status-line [<the user's statusLine, base64url JSON>]`. The script runs the user's command in a shell on the same stdin, its stdout going straight to Claude Code, and exits with its exit code. In parallel it POSTs only `session_id` and `rate_limits` to `/api/hooks/claude` as `hook_event_name: TerrariumStatusLine`, and nothing when the session has no `rate_limits`.
+- The user's other fields (`padding`, `refreshInterval`, ...) are copied onto ours, so the terminal shows exactly what it showed.
+- Uninstall decodes the chained value and writes it back, so that key is byte-identical to the original. A slot that was empty is emptied again. A chained value that does not decode makes install and uninstall refuse rather than lose it.
+- A `statusLine` that is not a `command` is left alone, and the office then shows no Claude quota.
+- Ours is recognized by `isOurHookCommand` (the anchored rule below) followed by `--status-line`. It counts for `areHooksInstalled`, so a lone status line still has a removal route, and a bare one in an empty slot counts as our own output for the backup rule.
+
+Hooks already on disk are granted silently at startup (see above), so those users get the status line on their next start without a new ask. It is the one install step that adds rather than removes, and it chains their status line unchanged. A project-level `statusLine` overrides ours, and those projects then report no quota.
 
 ## Writing `settings.json` safely
 

@@ -45,6 +45,18 @@ export const CLAUDE_HOOK_EVENTS = [
   'TaskCompleted',
 ] as const;
 
+/** The hook script's argument that makes it Claude Code's status line command instead of a hook. Our status line
+ *  runs `node "<hook script>" --status-line [<the user's status line, base64url JSON>]`. */
+export const STATUS_LINE_FLAG = '--status-line';
+
+/** `hook_event_name` of what the status line POSTs. Not a Claude Code hook event: the prefix keeps a future one of
+ *  the same name from being mistaken for ours. */
+export const STATUS_LINE_EVENT = 'TerrariumStatusLine';
+
+/** How long a status-line quota reading counts as fresh. Claude Code runs the status line after every assistant
+ *  message, so a quiet quarter hour means no Claude session is working and the reading may be behind. */
+export const CLAUDE_QUOTA_STALE_AFTER_MS = 15 * 60_000;
+
 /** Suffix of the one-time pre-modification backup of settings.json. Brand-named
  *  rather than a generic `.backup`, which collides with other tools' backup
  *  convention: a foreign `.backup` sitting next to settings.json must not make

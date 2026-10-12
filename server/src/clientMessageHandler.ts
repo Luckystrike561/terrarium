@@ -403,6 +403,9 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     send({ type: 'connectionsLoaded', connections: runtime.connections.list() });
   }
 
+  // 4d. Account quotas, the whole board: a reconnect after a restart replaces whatever the client still draws.
+  if (runtime) send({ ...runtime.quota.message() });
+
   // Sync runtime refs with the persisted settings so modules behave correctly
   // from the first tick after a server restart.
   if (runtime) {

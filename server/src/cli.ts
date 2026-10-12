@@ -162,12 +162,13 @@ async function installHooksOnStartup(
   let consent = getHooksConsent(module.id) === 'granted';
   if (!consent && (await module.hooks.areHooksInstalled())) {
     // Our hooks are already installed and already firing (a pre-consent
-    // version put them there). Grant and continue with NO prompt: the install
-    // below only ever REDUCES scope (Claude's 14 -> 12 migration drops the two
-    // events that forwarded prompt text and were consumed by nothing). Asking
-    // would buy this user no protection they do not already have. A fresh
-    // install still is asked, in full, in the browser UI, when a tokened
-    // client connects (clientMessageHandler's webviewReady).
+    // version put them there). Grant and continue with NO prompt: the hooks
+    // install below only ever REDUCES their scope (Claude's 14 -> 12 migration
+    // drops the two events that forwarded prompt text). It does add the
+    // status line, which chains any status line the user had and shows
+    // exactly what it showed. A fresh install still is asked, in full, in the
+    // browser UI, when a tokened client connects (clientMessageHandler's
+    // webviewReady).
     grantHooksConsent(module.id);
     consent = true;
   }

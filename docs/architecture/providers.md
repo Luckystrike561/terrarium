@@ -1,6 +1,6 @@
 # Provider modules
 
-`core/src/provider.ts` is the integration boundary between Terrarium's runtime and the tools it watches. There are two kinds of module, and any combination of them can run in one process.
+`core/src/provider.ts` is the integration boundary between Terrarium's runtime and the tools it watches. There are three kinds of module, and any combination of them can run in one process.
 
 ## Agent modules
 
@@ -22,11 +22,22 @@ It never parses a transcript. herdr's `agent_session` is a transcript path for p
 
 `MultiplexerConnections` runs one `MultiplexerFeed` per enabled connection. The feed does the diffing, naming, hand-over and status mapping. herdr keeps a pane's `agent` after the agent exits, so the bridge drops panes whose title is a shell prompt (`user@host:path`).
 
+## Quota sources
+
+A quota meter is one account-level limit (Claude's 5-hour window, a monthly credit), shown in the office as coffee beans. Two kinds of code report meters, and both reach the same place:
+
+- **An agent module** that sees its provider's quota calls `reportQuota(reading)` on its `ModuleHost`. Claude does: its status line forwards Claude Code's `rate_limits` to `/api/hooks/claude`, and `claudeQuota.ts` turns them into the `five_hour`, `seven_day` and (behind a Claude apps gateway) `spend_limit` meters.
+- **A `QuotaSourceModule`** (`kind: 'quota'`) for a provider that runs no agent CLI here. `start(host: QuotaHost)` reads the quota however it can (poll or push is its choice) and calls `host.reportQuota`.
+
+A `QuotaReading` is `meterId`, `label`, `usage` (`{kind: 'fraction', usedFraction}` or `{kind: 'amount', usedAmount, limitAmount, unit}`, or `null` when the source cannot read the meter), optional `resetsAt`, `observedAt` and `staleAfterMs`. `QuotaBoard` (`server/src/quotaBoard.ts`) keeps the latest reading per `<providerId>:<meterId>`, drops readings with NaN or negative figures, normalizes amounts to a share, and broadcasts the whole board as `quotaUpdate` on every reading and again the moment one goes stale (`observedAt + staleAfterMs`, or `resetsAt` when that comes first). Clients get the board on connect too. It knows no provider.
+
+**Ollama Cloud is deferred.** Ollama has no usage API, the only documented scraper parses the legacy session and weekly percentages from `ollama.com/settings` rather than the current plans' monthly dollar credits, and scraping means storing the user's login cookie. A `QuotaSourceModule` can add it once an official endpoint exists.
+
 ## Enabled modules
 
 Enabled modules come from `~/.terrarium/config.json` `modules` (default `['claude']`), set by `--provider <ids>`. The server builds its runtime from `loadEnabledModules()`. An unknown id is a `--provider` error, and a warning (never a silent default) when it is in the config file.
 
-`startModules` starts every agent module with a `start` the same way (Claude included), hands each its hooks preference, then the persisted agents (each to its module's `restoreSession`), then starts the multiplexer connections. The runtime holds no transcript, hook or team logic of any CLI.
+`startModules` starts every agent module with a `start` the same way (Claude included), hands each its hooks preference, then the persisted agents (each to its module's `restoreSession`), then the quota source modules, then the multiplexer connections. The runtime holds no transcript, hook or team logic of any CLI.
 
 ## Routing
 
@@ -52,7 +63,7 @@ Every module announces a session with `sessionStart.sessionRef`: the session's t
 
 ## Adding a provider module
 
-Adding an agent CLI or a multiplexer is one subdirectory under `server/src/providers/<id>/` plus one registry entry. It needs no change to the runtime, the UI, or any existing module.
+Adding an agent CLI, a multiplexer or a quota source is one subdirectory under `server/src/providers/<id>/` plus one registry entry. It needs no change to the runtime, the UI, or any existing module.
 
 ### Agent module (a new CLI)
 
@@ -69,6 +80,10 @@ Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: MultiplexerMod
 
 - `connect(endpoint, watcher)` reports full snapshots of live agents and its link state. An agent missing from a snapshot has ended. An unanswered poll must not report an empty list.
 - `probe(endpoint)` does one round-trip. Adding a connection probes it before saving.
+
+### Quota source module
+
+Create `server/src/providers/<id>/<id>.ts` exporting `<id>Module: QuotaSourceModule`, plus `constants.ts` for its poll interval and stale threshold, then add it to `quotaSourceModules`. `--provider <id>` enables it like any other module. It needs no change to the runtime, the protocol or the office: report `usage: null` when the source cannot read the meter (missing credentials, an expired session), never a zero. A source that holds a credential stores it under `~/.terrarium/` with mode 0600, never sends it over `/ws`, and never logs it. An agent module reports its provider's quota through its existing `ModuleHost.reportQuota` instead.
 
 ### Consent
 

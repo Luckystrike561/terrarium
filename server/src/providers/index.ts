@@ -3,8 +3,9 @@
  * own directory knows any module by name.
  *
  * Adding a module:
- *   1. Create `server/src/providers/<id>/<id>.ts` exporting an AgentModule or a MultiplexerModule.
- *   2. Add it to `agentModules` or `multiplexerModules` below.
+ *   1. Create `server/src/providers/<id>/<id>.ts` exporting an AgentModule, a MultiplexerModule or a
+ *      QuotaSourceModule.
+ *   2. Add it to `agentModules`, `multiplexerModules` or `quotaSourceModules` below.
  */
 
 import type { ProviderCapabilities } from '../../../core/src/messages.js';
@@ -13,6 +14,7 @@ import type {
   HookInstaller,
   MultiplexerModule,
   ProviderModule,
+  QuotaSourceModule,
 } from '../../../core/src/provider.js';
 import { getEnabledModuleIds, getHooksEnabled } from '../configPersistence.js';
 import { agyModule } from './agy/agy.js';
@@ -64,8 +66,14 @@ export const agentModules: readonly AgentModule[] = [
   qwenModule,
 ];
 export const multiplexerModules: readonly MultiplexerModule[] = [herdrModule];
+/** Quota sources for providers that run no agent CLI here. Claude reports its quota through its agent module. */
+export const quotaSourceModules: readonly QuotaSourceModule[] = [];
 
-const allModules: readonly ProviderModule[] = [...agentModules, ...multiplexerModules];
+const allModules: readonly ProviderModule[] = [
+  ...agentModules,
+  ...multiplexerModules,
+  ...quotaSourceModules,
+];
 
 /** What runs when no set was ever chosen: today's office, Claude Code alone. */
 const DEFAULT_MODULE_IDS: readonly string[] = [claudeModule.id];
@@ -74,6 +82,8 @@ const DEFAULT_MODULE_IDS: readonly string[] = [claudeModule.id];
 export interface ModuleSet {
   readonly agents: readonly AgentModule[];
   readonly multiplexers: readonly MultiplexerModule[];
+  /** Absent means none. */
+  readonly quotaSources?: readonly QuotaSourceModule[];
 }
 
 /** An agent module that writes hooks into its CLI's settings, and so goes through the consent gate. */
@@ -92,6 +102,7 @@ export function selectModules(ids: readonly string[]): ModuleSet {
   return {
     agents: selected.filter((m): m is AgentModule => m.kind === 'agent'),
     multiplexers: selected.filter((m): m is MultiplexerModule => m.kind === 'multiplexer'),
+    quotaSources: selected.filter((m): m is QuotaSourceModule => m.kind === 'quota'),
   };
 }
 

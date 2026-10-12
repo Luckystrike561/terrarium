@@ -12,23 +12,23 @@ Code, paths and commands use the Terrarium name too: the npm package and CLI `te
 
 ## Where to look
 
-| Topic                                                                             | Document                                                                                                                                  |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| User setup: per-provider quick start, Docker mounts, connections, troubleshooting | [docs/guide.md](docs/guide.md). The website's per-agent cards come from `AGENT_COVERAGE` in `scripts/build-site.ts`, so keep both in step |
-| Agent and multiplexer modules, routing, one agent one character, adding a module  | [docs/architecture/providers.md](docs/architecture/providers.md)                                                                          |
-| AgentRuntime, store, router, HTTP/WS server, persistence                          | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                                                                |
-| Claude transcripts, hooks vs heuristics, timers, idle detection                   | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                                                              |
-| Claude teams, teammates, background agents, sub-agents                            | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                                                                    |
-| Hooks consent, the hook installer, the `/ws` privilege gate                       | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
-| Context gauge                                                                     | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
-| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout               | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
-| Assets, generated art, catalog, load order                                        | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
-| Test tiers, mocks, inventory, drift checks                                        | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
-| Consent revision rule (ADR)                                                       | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
-| Art direction                                                                     | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
-| Claude spawn formats research                                                     | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)                                            |
-| E2E rules and inventory                                                           | [e2e/README.md](e2e/README.md)                                                                                                            |
-| The original, unbuilt design                                                      | [docs/history/original-plan.md](docs/history/original-plan.md)                                                                            |
+| Topic                                                                                          | Document                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| User setup: per-provider quick start, Docker mounts, connections, troubleshooting              | [docs/guide.md](docs/guide.md). The website's per-agent cards come from `AGENT_COVERAGE` in `scripts/build-site.ts`, so keep both in step |
+| Agent, multiplexer and quota source modules, routing, one agent one character, adding a module | [docs/architecture/providers.md](docs/architecture/providers.md)                                                                          |
+| AgentRuntime, store, router, HTTP/WS server, persistence                                       | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                                                                |
+| Claude transcripts, hooks vs heuristics, timers, idle detection                                | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                                                              |
+| Claude teams, teammates, background agents, sub-agents                                         | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                                                                    |
+| Hooks consent, the hook installer, the Claude status line, the `/ws` privilege gate            | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
+| Context gauge                                                                                  | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
+| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout                            | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
+| Assets, generated art, catalog, load order                                                     | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
+| Test tiers, mocks, inventory, drift checks                                                     | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
+| Consent revision rule (ADR)                                                                    | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
+| Art direction                                                                                  | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
+| Claude spawn formats research                                                                  | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)                                            |
+| E2E rules and inventory                                                                        | [e2e/README.md](e2e/README.md)                                                                                                            |
+| The original, unbuilt design                                                                   | [docs/history/original-plan.md](docs/history/original-plan.md)                                                                            |
 
 ## Architecture
 
@@ -40,7 +40,7 @@ core/                                Protocol + interface definitions
   src/
     messages.ts                      AUTO-GENERATED discriminated unions (do not edit)
     schemas.ts                       AgentMeta, SpriteData, FurnitureCatalogEntry, PersistedAgent
-    provider.ts                      AgentModule, RunningAgentModule, MultiplexerModule, AgentEvent (the integration boundary)
+    provider.ts                      AgentModule, RunningAgentModule, MultiplexerModule, QuotaSourceModule, AgentEvent, QuotaReading (the integration boundary)
     transport.ts                     MessageTransport, TransportState
     adapter.ts                       StateAdapter, AssetCache, PersistedAgent, AgentSeat
     paletteUtils.ts                  Palette diversity for character assignment
@@ -71,6 +71,7 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
     layoutPersistence.ts             Read-only layout.json loader
     assetLoader.ts                   PNG → SpriteData, furniture manifests, loadDefaultLayout
     assetReload.ts                   Builds the in-memory asset cache
+    quotaBoard.ts                    Latest reading per quota meter, staleness timers, the quotaUpdate broadcast
     types.ts                         AgentState (CLI-neutral), AgentTeam
     constants.ts                     Server-wide constants (hook body size, event buffer, default context window)
     providers/
@@ -94,8 +95,10 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
         dismissalTracker.ts          Unified transcript dismissal state
         transcriptFollower.ts        followSession: a herdr pane's Claude session id → its transcript
         teamProvider.ts, claudeTeamProvider.ts   TeamProvider (Lead + Teammates) over ~/.claude/teams/
-        claudeHookInstaller.ts, consentCopy.ts, constants.ts
-        hooks/claude-hook.ts         Hook script, bundled to dist/hooks/claude-hook.js
+        claudeStatusLine.ts          The statusLine slot: chains the user's status line, restores it on uninstall
+        claudeQuota.ts               Status-line rate_limits → quota readings (5h, 7d, gateway spend)
+        claudeHookInstaller.ts, claudeHookIdentity.ts, consentCopy.ts, constants.ts
+        hooks/claude-hook.ts         Hook script (and, with --status-line, the status line), bundled to dist/hooks/claude-hook.js
       sessionStore/                  sessionStoreTracker.ts + jsonl / jsonDocument / sqlite stores, constants.ts
       herdr/                         herdr.ts, herdrBridge.ts, herdrSocket.ts, herdrSsh.ts, constants.ts
       <cli>/                         omp, pi, codex, copilot, cursor, opencode, kilo, kimi, droid, devin, hermes,
@@ -121,7 +124,7 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
       sprites/                       spriteData.ts, textureCache.ts, carpetTiles.ts, petSpriteData.ts, *.json
       layout/                        furnitureCatalog.ts, layoutSerializer.ts, tileMap.ts
       engine/                        officeState.ts, characters.ts, ctoOffice.ts, sceneRenderer.ts, isoSort.ts, gameLoop.ts, …
-      components/                    OfficeCanvas.tsx, ToolOverlay.tsx
+      components/                    OfficeCanvas.tsx, ToolOverlay.tsx, QuotaJars.tsx (coffee-bean quota jars)
   test/                              Vitest (Node runner)
 
 site/                                GitHub Pages website source (index.html template + style.css), built by scripts/build-site.ts
@@ -171,13 +174,15 @@ Multiplexer snapshots ─MultiplexerFeed─ModuleHost.emit───────�
                                                         AgentEvent → AgentRuntime → AgentStateStore
                                                                               ↓
                                                         StoreEvents → broadcast → WebSocket /ws → browser
+
+Agent modules / quota source modules ─reportQuota─→ QuotaBoard ─quotaUpdate─→ broadcast
 ```
 
 ## Protocol contract
 
 `core/asyncapi.yaml` is the contract, pinned to **AsyncAPI 3.0.0** because `@asyncapi/modelina@5.10.1` declares `supportedVersions: ['3.0.0']` only (3.1.0 produces `export type Root = any`). Revisit when Modelina supports 3.1.0.
 
-- **30 ServerMessage variants** (server → client): agent lifecycle and activity, sub-agent activity, team and context usage, assets, settings, hooks consent, connections.
+- **31 ServerMessage variants** (server → client): agent lifecycle and activity, sub-agent activity, team and context usage, assets, settings, hooks consent, connections, quotas.
 - **10 ClientMessage variants** (client → server): `webviewReady`, `closeAgent`, `saveAgentSeats`, `setLastSeenVersion`, `setHooksInfoShown`, `hooksConsentResponse`, `saveAreaMappings`, and the privileged `addConnection`, `updateConnection`, `removeConnection`.
 
 Both unions use `oneOf` with `discriminator: type`, and every concrete message sets `additionalProperties: false`. `core/src/messages.ts` is generated by `npm run asyncapi:generate` (Modelina with custom constraints: `propertyKey` preserves `type`/`status`, `constant` inlines `const` literals). Never edit it by hand. Regenerate and commit it with every contract change.
@@ -199,12 +204,13 @@ export interface MessageTransport {
 
 ## Provider modules
 
-Two kinds, any combination per process, chosen with `--provider <ids>` and saved in `config.json` `modules` (default `['claude']`):
+Three kinds, any combination per process, chosen with `--provider <ids>` and saved in `config.json` `modules` (default `['claude']`):
 
 - **Agent module** (one per CLI, Claude included) owns that CLI's vocabulary and how to read it: `hooks: HookInstaller` for consent-gated hook installs, and `start(host)` returning a `RunningAgentModule` for its own session discovery (built on `providers/sessionStore/`, or Claude's transcripts and hooks). The running module takes hook payloads (`receiveHook`), the hooks preference (`setHooksEnabled`), persisted sessions after a restart (`restoreSession`) and closed characters (`dismissSession`).
 - **Multiplexer module** (herdr) reports live panes and its link state per connection, never parses a transcript, and hands each pane to the agent module for its kind when that module runs.
+- **Quota source module** (none shipped yet) reads an account quota of a provider that runs no agent CLI here and reports `QuotaReading`s through its `QuotaHost`. An agent module that sees its provider's quota reports it through `ModuleHost.reportQuota` instead: Claude does, from Claude Code's status line `rate_limits`. `QuotaBoard` keeps the latest reading per meter and the office draws each as a coffee-bean jar on the break-room coffee machine. Ollama Cloud is deferred: it has no usage API.
 
-The runtime dispatches on `AgentEvent.kind`, never on CLI-specific tool names. One session is one character, whichever modules see it. Adding a CLI or a multiplexer is one directory under `server/src/providers/<id>/` plus one registry entry in `server/src/providers/index.ts`. Details and the step-by-step guide: [providers.md](docs/architecture/providers.md).
+The runtime dispatches on `AgentEvent.kind`, never on CLI-specific tool names. One session is one character, whichever modules see it. Adding a CLI, a multiplexer or a quota source is one directory under `server/src/providers/<id>/` plus one registry entry in `server/src/providers/index.ts`. Details and the step-by-step guide: [providers.md](docs/architecture/providers.md).
 
 ## Server runtime
 

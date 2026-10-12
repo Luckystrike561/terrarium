@@ -1046,4 +1046,108 @@ describe('claudeHookInstaller', () => {
     expect(copyHookScript(mockExtPath)).toBe(false);
     expect(fs.existsSync(dst)).toBe(false);
   });
+
+  describe('status line', () => {
+    const userStatusLine = {
+      type: 'command',
+      command: '~/.claude/statusline.sh --compact',
+      padding: 2,
+      refreshInterval: 5,
+    };
+    const statusLineKeyOf = (raw: string): string => {
+      const parsed: unknown = JSON.parse(raw);
+      const isSettings = parsed !== null && typeof parsed === 'object' && 'statusLine' in parsed;
+      return JSON.stringify(isSettings ? parsed.statusLine : undefined);
+    };
+
+    it('chains an existing status line, keeping its display fields', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+
+      await installHooks();
+
+      const statusLine = readSettings().statusLine as Record<string, unknown>;
+      const encoded = Buffer.from(JSON.stringify(userStatusLine)).toString('base64url');
+      expect(statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line ${encoded}`,
+        padding: 2,
+        refreshInterval: 5,
+      });
+    });
+
+    it('uninstall restores the original status line byte for byte', async () => {
+      const original = JSON.stringify({ model: 'opus', statusLine: userStatusLine }, null, 2);
+      fs.writeFileSync(settingsPathFor(), original);
+
+      await installHooks();
+      await uninstallHooks();
+
+      const restored = fs.readFileSync(settingsPathFor(), 'utf-8');
+      expect(statusLineKeyOf(restored)).toBe(statusLineKeyOf(original));
+      expect(areHooksInstalled()).toBe(false);
+    });
+
+    it('reinstalling chains the original once, not our own status line', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+
+      await installHooks();
+      await installHooks();
+      await uninstallHooks();
+
+      expect(readSettings().statusLine).toEqual(userStatusLine);
+    });
+
+    it('fills an empty slot, and uninstall leaves the slot empty again', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ model: 'opus' }));
+
+      await installHooks();
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line`,
+      });
+
+      await uninstallHooks();
+      expect(readSettings()).toEqual({ model: 'opus' });
+    });
+
+    it('leaves a status line it cannot chain untouched', async () => {
+      const foreign = { type: 'static', text: 'hello' };
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: foreign }));
+
+      await installHooks();
+      expect(readSettings().statusLine).toEqual(foreign);
+      await uninstallHooks();
+      expect(readSettings().statusLine).toEqual(foreign);
+    });
+
+    it('counts as installed on its own, so uninstall can still find and remove it', async () => {
+      fs.writeFileSync(
+        settingsPathFor(),
+        JSON.stringify({
+          statusLine: { type: 'command', command: `${ourCommand()} --status-line` },
+        }),
+      );
+
+      expect(areHooksInstalled()).toBe(true);
+      await uninstallHooks();
+      expect(areHooksInstalled()).toBe(false);
+    });
+
+    it('refuses to write over a chained status line it cannot decode', async () => {
+      const broken = { type: 'command', command: `${ourCommand()} --status-line not!base64url` };
+      const raw = JSON.stringify({ statusLine: broken });
+      fs.writeFileSync(settingsPathFor(), raw);
+
+      await expect(uninstallHooks()).rejects.toThrow('chained status line cannot be read');
+      await expect(installHooks()).rejects.toThrow('chained status line cannot be read');
+      expect(fs.readFileSync(settingsPathFor(), 'utf-8')).toBe(raw);
+    });
+
+    it('takes no backup of a fresh home that only ever held our install', async () => {
+      await installHooks();
+      await uninstallHooks();
+
+      expect(fs.existsSync(`${settingsPathFor()}${SETTINGS_BACKUP_SUFFIX}`)).toBe(false);
+    });
+  });
 });

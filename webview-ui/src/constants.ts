@@ -245,6 +245,23 @@ export const CONTEXT_GAUGE_COLOR_DANGER = '#ff8800';
 export const CONTEXT_GAUGE_COLOR_CRITICAL = '#ff2222';
 export const CONTEXT_GAUGE_BG = '#222';
 
+// ── Quota Coffee Beans ──────────────────────────────────────
+/** One bean is this share of a quota: 10 beans fill a jar. */
+export const QUOTA_BEANS_PER_JAR = 10;
+/** Beans left at or below this count draw in the low colour. */
+export const QUOTA_LOW_BEANS = 2;
+/** Absorbs float error in `1 - usedFraction` (1 - 0.7 is 0.30000000000000004), so 70% used is 3 beans, not 4. */
+export const QUOTA_BEAN_EPSILON = 1e-9;
+/** How far above the coffee machine's floor tile the jars stand, in sprite px (above the counter and machine). */
+export const QUOTA_JARS_RISE_PX = 44;
+/** Where the jars sit, in CSS px from the top-left corner, when the layout has no coffee machine. */
+export const QUOTA_JARS_FALLBACK_OFFSET_PX = 12;
+export const QUOTA_BEAN_COLOR = '#6b3e1f';
+export const QUOTA_BEAN_SEAM_COLOR = '#3a2010';
+export const QUOTA_BEAN_LOW_COLOR = '#c8321e';
+export const QUOTA_JAR_GLASS_COLOR = 'rgba(200, 230, 240, 0.35)';
+export const QUOTA_JAR_EMPTY_BORDER_COLOR = '#ff2222';
+
 // ── Agent Teams ─────────────────────────────────────────────
 export const TEAM_LEAD_COLOR = '#ffd700';
 export const TEAM_ROLE_COLOR = '#66aaff';

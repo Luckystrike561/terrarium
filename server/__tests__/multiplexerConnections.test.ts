@@ -61,6 +61,7 @@ function setUp(probeError?: (endpoint: MultiplexerEndpoint) => string | undefine
   const emitted: { sessionId: string; event: AgentEvent }[] = [];
   const host: ModuleHost = {
     emit: (sessionId, event) => emitted.push({ sessionId, event }),
+    reportQuota: () => {},
     log: () => {},
   };
   const connections = new MultiplexerConnections({

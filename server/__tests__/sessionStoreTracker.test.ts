@@ -68,6 +68,7 @@ function recordingHost(): ModuleHost & { emitted: { sessionId: string; event: Ag
   return {
     emitted,
     emit: (sessionId, event) => emitted.push({ sessionId, event }),
+    reportQuota: () => {},
     log: () => {},
   };
 }

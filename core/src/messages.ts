@@ -37,7 +37,8 @@ export type ServerMessage =
   | HooksConsentRequest
   | AreaMappingsLoaded
   | ConnectionsLoaded
-  | ConnectionAddResult;
+  | ConnectionAddResult
+  | QuotaUpdate;
 
 export type ClientMessage =
   | WebviewReady
@@ -307,6 +308,26 @@ export interface ConnectionAddResult {
   requestId: string;
   error?: string;
 }
+
+export interface QuotaUpdate {
+  type: 'quotaUpdate';
+  meters: QuotaMeter[];
+}
+
+export interface QuotaMeter {
+  id: string;
+  providerId: string;
+  label: string;
+  usedFraction?: number;
+  usedAmount?: number;
+  limitAmount?: number;
+  unit?: QuotaUnit;
+  resetsAt?: number;
+  observedAt: number;
+  stale: boolean;
+}
+
+export type QuotaUnit = 'usd' | 'tokens' | 'requests';
 
 export interface WebviewReady {
   type: 'webviewReady';

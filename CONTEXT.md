@@ -105,6 +105,14 @@ _Avoid_: bubble alone when ambiguous, notification
 The small bar under an agent's activity label showing how full its context window is. Every agent has one once it has taken a turn; sub-agents never do, having no session of their own. It reads the newest turn, so it falls when a session compacts or clears — it is a level, not a total.
 _Avoid_: fuel gauge, health bar, token gauge (tokens are the unit, context is the thing)
 
+**Quota meter**:
+One account-level limit of a provider, as its source last read it: Claude's 5-hour window, its weekly window, a monthly credit. It is the account's budget, shared by every session of that provider, never one agent's. A meter is fresh, stale (no reading within the source's interval, or its window has reset since), or unavailable (the source cannot read it), and unavailable is never shown as empty or full.
+_Avoid_: rate limit (one kind of quota), usage (that's the context gauge's subject)
+
+**Coffee beans**:
+How the office shows quota meters: one jar per meter on the break-room coffee machine, one bean per tenth of the quota left. A used-up jar is empty and flagged, a stale one greyed, and hovering a jar shows its exact numbers. No jars are drawn while no source reports.
+_Avoid_: progress bar, quota HUD
+
 ## Office & Layout
 
 **Office**:
@@ -178,7 +186,7 @@ _Avoid_: file fallback, transcript mode, polling mode
 ## Integration Boundary
 
 **Provider**:
-Any module that feeds the runtime: an agent module or a multiplexer module. Several run side by side in one process, and each event is routed by the module it came from. Adding a CLI or a multiplexer is one more module, never a new mode.
+Any module that feeds the runtime: an agent module, a multiplexer module or a quota source. Several run side by side in one process, and each event is routed by the module it came from. Adding a CLI, a multiplexer or a quota source is one more module, never a new mode.
 _Avoid_: plugin, connector
 
 **Agent module**:
@@ -186,6 +194,9 @@ The provider for one coding-agent CLI — Claude Code, omp, Codex, Pi, and the l
 
 **Multiplexer module**:
 The provider for one terminal multiplexer — herdr, and the like — that hosts agents in panes. It knows which agents are alive, their kind, status, name and task, never what they are doing: for that it hands each agent to the agent module for its kind, and reports status alone when none is running.
+
+**Quota source**:
+Whatever reports quota meters. An agent module that sees its provider's quota reports it alongside its sessions (Claude reads it from its status line). A provider that runs no agent CLI here gets a quota source module of its own. The runtime keeps the latest reading of every meter and knows no provider.
 
 **Session ref**:
 A session's identity as two modules report it: its transcript path, or the CLI's own session id when that is what the CLI's multiplexer integration reports. A multiplexer and an agent module that report the same session ref are reporting the same agent, which stays one character.

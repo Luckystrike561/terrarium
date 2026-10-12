@@ -5,6 +5,7 @@ import type {
   CharacterSpriteSet,
   Connection,
   HooksConsentRequest,
+  QuotaMeter,
 } from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
@@ -87,6 +88,8 @@ interface ExtensionMessageState {
    *  to tokened clients with a multiplexer enabled: null hides the Connections menu. */
   connections: Connection[] | null;
   addConnection: (input: Omit<AddConnection, 'type' | 'requestId'>) => Promise<string | undefined>;
+  /** Every account quota meter, as the last quotaUpdate listed them. Empty draws no beans. */
+  quotaMeters: QuotaMeter[];
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -116,6 +119,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   const [consentQueue, setConsentQueue] = useState<HooksConsentRequest[]>([]);
   const consentRequest = consentQueue[0] ?? null;
   const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [quotaMeters, setQuotaMeters] = useState<QuotaMeter[]>([]);
   const pendingConnectionAddsRef = useRef<Map<string, (error: string | undefined) => void>>(
     new Map(),
   );
@@ -667,6 +671,10 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           msg.name as string | undefined,
           msg.task as string | undefined,
         );
+      } else if (msg.type === 'quotaUpdate') {
+        if (Array.isArray(msg.meters)) {
+          setQuotaMeters(msg.meters as QuotaMeter[]);
+        }
       }
     };
     const unsubscribe = transport.onMessage(handler);
@@ -727,5 +735,6 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         }),
       [],
     ),
+    quotaMeters,
   };
 }

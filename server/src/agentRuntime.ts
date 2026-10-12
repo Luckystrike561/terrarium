@@ -22,6 +22,7 @@ import { DEFAULT_MAX_CONTEXT_TOKENS } from './constants.js';
 import { MultiplexerConnections } from './multiplexerConnections.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import type { ModuleSet } from './providers/index.js';
+import { QuotaBoard } from './quotaBoard.js';
 import type { RoutedEvent } from './sessionRouter.js';
 import { SessionRouter } from './sessionRouter.js';
 import type { AgentState } from './types.js';
@@ -44,6 +45,8 @@ export class AgentRuntime {
   private readonly pendingRestores = new Map<string, PersistedAgent>();
   /** The herdr servers this process listens to, once startModules ran with a multiplexer module enabled. */
   connections: MultiplexerConnections | undefined;
+  /** The latest reading of every quota meter any module reported. */
+  readonly quota: QuotaBoard;
   /** Set by dispose: modules winding down (a multiplexer ending its panes) must not edit the persisted agents. */
   private isDisposed = false;
 
@@ -52,6 +55,7 @@ export class AgentRuntime {
     /** The provider modules this process runs. */
     readonly modules: ModuleSet,
   ) {
+    this.quota = new QuotaBoard((message) => store.broadcast({ ...message }));
     this.eventHandler = new AgentEventHandler(
       store,
       modules,
@@ -140,6 +144,9 @@ export class AgentRuntime {
       if (hooksEnabled !== undefined) started.setHooksEnabled?.(hooksEnabled);
     }
     this.restorePersistedAgents(persisted);
+    for (const source of this.modules.quotaSources ?? []) {
+      this.runningModules.push(source.start(this.hostFor(source)));
+    }
     if (this.modules.multiplexers.length > 0) {
       const connections = new MultiplexerConnections({
         multiplexers: this.modules.multiplexers,
@@ -156,6 +163,9 @@ export class AgentRuntime {
     return {
       emit: (sessionId, event) => {
         if (!this.isDisposed) this.eventHandler.handleAgentEvent(module.id, sessionId, event);
+      },
+      reportQuota: (reading) => {
+        if (!this.isDisposed) this.quota.report(module.id, reading);
       },
       log: (message) => console.log(`[${module.displayName}] ${message}`),
     };
@@ -226,6 +236,7 @@ export class AgentRuntime {
     for (const module of this.runningModules.splice(0)) module.stop();
     this.runningAgentModules.clear();
     this.eventHandler.dispose();
+    this.quota.dispose();
     for (const id of [...this.store.keys()]) this.store.delete(id);
   }
 }

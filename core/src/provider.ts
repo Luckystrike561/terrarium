@@ -1,7 +1,7 @@
 /**
  * Provider modules: the integration boundary between the office and the tools that run agents.
  *
- * Two kinds of module, each usable alone or together:
+ * Three kinds of module, each usable alone or together:
  *
  * - An AgentModule speaks for one agent CLI (Claude Code, omp, ...). It owns that CLI's vocabulary (tool names,
  *   status text, context windows) and knows how to read what the CLI reports (installed hooks, transcripts, or
@@ -9,12 +9,16 @@
  * - A MultiplexerModule speaks for one terminal multiplexer (herdr, ...). It knows which agents are alive, what
  *   kind of CLI each one is, its status level, name and task, but never what the agent is doing. For that it hands
  *   each agent to the AgentModule registered for its kind, and falls back to status alone when none is.
+ * - A QuotaSourceModule reads an account quota of a provider that runs no agent CLI of its own. An agent module
+ *   that sees its provider's quota reports it through its ModuleHost instead.
  *
- * Every module reduces what it reads to AgentEvents. The runtime dispatches on `AgentEvent.kind` and never on
- * CLI-specific names.
+ * Agent and multiplexer modules reduce what they read to AgentEvents, quota sources to QuotaReadings. The runtime
+ * dispatches on `AgentEvent.kind` and never on CLI-specific names.
  */
 
-// ── Normalized Events (every module produces these) ───────────
+import type { QuotaUnit } from './messages.js';
+
+// ── Normalized Events (every agent and multiplexer module produces these) ───────────
 
 /** How an agent sits in a team, as its module reports it. The office shows it; the runtime never interprets it. */
 export interface TeamMembership {
@@ -109,9 +113,8 @@ export type AgentEvent =
 
 /** What a running module feeds. One host per module, bound to its id: every event emitted through it is attributed
  *  to that module. */
-export interface ModuleHost {
+export interface ModuleHost extends QuotaHost {
   emit(sessionId: string, event: AgentEvent): void;
-  log(message: string): void;
 }
 
 export interface ModuleHandle {
@@ -264,4 +267,48 @@ export interface MultiplexerModule {
   probe(endpoint: MultiplexerEndpoint): Promise<string | undefined>;
 }
 
-export type ProviderModule = AgentModule | MultiplexerModule;
+// ── Quota sources ─────────────────────────────────────────────
+
+/** How much of a quota is used: a share the provider computed, or an amount against a limit. */
+export type QuotaUsage =
+  | { readonly kind: 'fraction'; readonly usedFraction: number }
+  | {
+      readonly kind: 'amount';
+      readonly usedAmount: number;
+      readonly limitAmount: number;
+      readonly unit: QuotaUnit;
+    };
+
+/** One reading of one quota meter, as its source saw it. */
+export interface QuotaReading {
+  /** Unique within the reporting module ('five_hour', 'month', ...). A new reading replaces the last one. */
+  readonly meterId: string;
+  /** What the office shows for the meter ('Claude · 5h'). */
+  readonly label: string;
+  /** Null when the source cannot read the meter (no credentials, an expired session): shown as unavailable, never as
+   *  empty or full. */
+  readonly usage: QuotaUsage | null;
+  /** Epoch ms when the provider resets the meter. The reading goes stale then: it belongs to an ended window. */
+  readonly resetsAt?: number;
+  /** Epoch ms when the source took the reading. */
+  readonly observedAt: number;
+  /** How long the reading counts as fresh: the interval the source expects to report in. */
+  readonly staleAfterMs: number;
+}
+
+/** What a quota source reports to. Push or poll is the source's choice: the runtime keeps the latest reading of each
+ *  meter and broadcasts it. */
+export interface QuotaHost {
+  reportQuota(reading: QuotaReading): void;
+  log(message: string): void;
+}
+
+export interface QuotaSourceModule {
+  readonly kind: 'quota';
+  readonly id: string;
+  readonly displayName: string;
+  /** Start reading quotas until the handle is stopped. */
+  start(host: QuotaHost): ModuleHandle;
+}
+
+export type ProviderModule = AgentModule | MultiplexerModule | QuotaSourceModule;

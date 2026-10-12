@@ -117,6 +117,8 @@ components:
         # Connections
         - $ref: '#/components/schemas/ConnectionsLoaded'
         - $ref: '#/components/schemas/ConnectionAddResult'
+        # Quotas
+        - $ref: '#/components/schemas/QuotaUpdate'
       discriminator: type
 
     ClientMessage:
@@ -746,6 +748,22 @@ components:
           type: string
           description: Why the connection was not saved. Absent on success.
 
+    QuotaUpdate:
+      description: |
+        Every account quota meter the office knows, the full list each time.
+        Sent on connect and whenever a reading arrives or goes stale. An empty
+        list means no source reports, and the office draws nothing.
+      type: object
+      additionalProperties: false
+      required: [type, meters]
+      properties:
+        type:
+          const: quotaUpdate
+        meters:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuotaMeter'
+
     # ── Client message variants ────────────────────────────────────
 
     WebviewReady:
@@ -1101,3 +1119,50 @@ components:
         attempt failed (retried in the background), `disabled` when turned off.
       type: string
       enum: [connecting, connected, reconnecting, error, disabled]
+
+    QuotaMeter:
+      description: |
+        One account quota (Claude's 5-hour window, a monthly credit), as its
+        source last read it.
+      type: object
+      additionalProperties: false
+      required: [id, providerId, label, observedAt, stale]
+      properties:
+        id:
+          type: string
+          description: '`<providerId>:<meter id>`, unique across sources.'
+        providerId:
+          type: string
+          description: The module that reports the meter.
+        label:
+          type: string
+        usedFraction:
+          type: number
+          description: |
+            Share of the quota used, 0 to 1, above 1 when over the limit.
+            Absent when the source cannot read the meter: shown as unavailable,
+            never as empty or full.
+        usedAmount:
+          type: number
+          description: Amount used, for a meter measured against a limit.
+        limitAmount:
+          type: number
+          description: The limit `usedAmount` counts against.
+        unit:
+          $ref: '#/components/schemas/QuotaUnit'
+        resetsAt:
+          type: integer
+          description: Epoch ms when the provider resets the meter.
+        observedAt:
+          type: integer
+          description: Epoch ms when the source took the reading.
+        stale:
+          type: boolean
+          description: |
+            No fresh reading within the source's expected interval, or the
+            reading belongs to a window that has since reset.
+
+    QuotaUnit:
+      description: What `usedAmount` and `limitAmount` count.
+      type: string
+      enum: [usd, tokens, requests]
