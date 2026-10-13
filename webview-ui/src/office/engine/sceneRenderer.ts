@@ -776,12 +776,16 @@ class FloorScene {
 
 // ── Renderer ──────────────────────────────────────────────────────
 
-/** The two corners of a floor's diamond at the sides of the screen, where the pillars stand. */
-function sideCorners(layout: OfficeLayout): { left: Point; right: Point } {
-  const bounds = contentBounds(layout);
+/** The side corners of the area two floors share, where the pillars between them stand on both floors. */
+function sharedSideCorners(
+  upper: OfficeLayout,
+  lower: OfficeLayout,
+): { left: Point; right: Point } {
+  const a = contentBounds(upper);
+  const b = contentBounds(lower);
   return {
-    left: tileCorner(bounds.minCol, bounds.maxRow),
-    right: tileCorner(bounds.maxCol, bounds.minRow),
+    left: tileCorner(Math.max(a.minCol, b.minCol), Math.min(a.maxRow, b.maxRow)),
+    right: tileCorner(Math.min(a.maxCol, b.maxCol), Math.max(a.minRow, b.minRow)),
   };
 }
 
@@ -930,7 +934,7 @@ export class OfficeSceneRenderer {
 
   // ── Building: pillars and floor names (per-frame, cheap) ───────
 
-  /** Two pillars per storey, from the side corners under a floor's slab down to the floor below. */
+  /** Two pillars per storey, at the side corners both floors share, from under the slab down to the floor below. */
   private drawPillars(floors: FloorRenderState[]): void {
     this.pillarGfx.clear();
     const leftColor = hexToNumber(FLOOR_SLAB_LEFT_COLOR);
@@ -938,19 +942,18 @@ export class OfficeSceneRenderer {
     for (let storey = 1; storey < floors.length; storey++) {
       const upper = floors[storey];
       const lower = floors[storey - 1];
-      const from = sideCorners(upper.layout);
-      const to = sideCorners(lower.layout);
-      const top = from.left.y - upper.elevation + upper.slabPx;
+      const { left, right } = sharedSideCorners(upper.layout, lower.layout);
+      const leftTop = left.y - upper.elevation + upper.slabPx;
       this.pillarGfx
-        .rect(from.left.x, top, STOREY_PILLAR_WIDTH_PX, to.left.y - lower.elevation - top)
+        .rect(left.x, leftTop, STOREY_PILLAR_WIDTH_PX, left.y - lower.elevation - leftTop)
         .fill(leftColor);
-      const rightTop = from.right.y - upper.elevation + upper.slabPx;
+      const rightTop = right.y - upper.elevation + upper.slabPx;
       this.pillarGfx
         .rect(
-          from.right.x - STOREY_PILLAR_WIDTH_PX,
+          right.x - STOREY_PILLAR_WIDTH_PX,
           rightTop,
           STOREY_PILLAR_WIDTH_PX,
-          to.right.y - lower.elevation - rightTop,
+          right.y - lower.elevation - rightTop,
         )
         .fill(rightColor);
     }
