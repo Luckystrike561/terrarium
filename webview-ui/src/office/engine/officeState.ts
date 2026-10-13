@@ -4,6 +4,7 @@ import {
   AUTO_ON_SIDE_DEPTH,
   CHARACTER_HIT_HALF_WIDTH,
   CHARACTER_HIT_HEIGHT,
+  CHARACTER_SEATED_HIT_HEIGHT,
   CHARACTER_SITTING_OFFSET_PX,
   CTO_COUCH_SEC,
   CTO_DESK_SEC,
@@ -1495,12 +1496,14 @@ export class OfficeState {
     const chars = Array.from(this.characters.values()).sort((a, b) => b.x + b.y - (a.x + a.y));
     for (const ch of chars) {
       if (ch.matrixEffect === 'despawn') continue;
-      const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
+      const seated = ch.state === CharacterState.TYPE;
+      const sittingOffset = seated ? CHARACTER_SITTING_OFFSET_PX : 0;
       const anchor = worldToIso(ch.x, ch.y);
       const bottom = anchor.y + sittingOffset;
+      const height = seated ? CHARACTER_SEATED_HIT_HEIGHT : CHARACTER_HIT_HEIGHT;
       if (
         Math.abs(isoX - anchor.x) <= CHARACTER_HIT_HALF_WIDTH &&
-        isoY >= bottom - CHARACTER_HIT_HEIGHT &&
+        isoY >= bottom - height &&
         isoY <= bottom
       ) {
         return ch.id;

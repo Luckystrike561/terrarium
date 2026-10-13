@@ -3,11 +3,12 @@
  *
  * Each pattern is one material: a grid of slabs, planks or bricks, lit like
  * the furniture (seam toward the key light one band brighter, an inset edge
- * one band darker so each piece reads as slightly raised), plus quiet value
- * noise. The webview projects the square onto a 32×16 diamond and colourizes
- * it per tile (`colorizeSprite`, Photoshop Colorize mode), so the pattern
- * only carries luminance: alternating tones stay readable after any hue/
- * saturation/brightness/contrast the room applies.
+ * one band darker so each piece reads as slightly raised) and flat in
+ * between, like Habbo's floor tiles. Only wood carries grain. The webview
+ * projects the square onto a 32×16 diamond and colourizes it per tile
+ * (`colorizeSprite`, Photoshop Colorize mode), so the pattern only carries
+ * luminance: alternating tones stay readable after any hue/saturation/
+ * brightness/contrast the room applies.
  *
  * Only the top and left edge of each cell carries the bright seam: tiled
  * edge to edge, the next cell's own seam covers the shared boundary, so the
@@ -21,7 +22,7 @@ import { hash3 } from './lib/scene.js';
 const SIZE = 16;
 const BASE_GRAY = 162;
 const BEVEL_DARK = -18;
-const NOISE_BAND = 9;
+const GRAIN_BAND = 9;
 
 function gray(v: number): RGBA {
   const c = Math.max(0, Math.min(255, Math.round(v)));
@@ -40,12 +41,9 @@ interface SlabSpec {
   /** Alternate two flat tones by cell parity (checkerboard) instead of a
    *  seamed grid. */
   checker?: { low: number; high: number };
-  /** Extra horizontal grain streaks, for wood planks. */
-  woodGrain?: boolean;
-  /** Noise amplitude as a fraction of `NOISE_BAND` (0..1). */
-  noiseScale: number;
-  /** Random seed so patterns with identical geometry still differ. */
-  seed: number;
+  /** Seed of the horizontal grain streaks of wood planks. Other materials
+   *  are flat between their seams. */
+  grainSeed?: number;
 }
 
 function renderSlabPattern(spec: SlabSpec): PixelImage {
@@ -74,13 +72,10 @@ function renderSlabPattern(spec: SlabSpec): PixelImage {
         v += BEVEL_DARK;
       }
 
-      if (spec.woodGrain) {
-        const grain = hash3(Math.floor(x / 2), band, spec.seed + 7) - 0.5;
-        v += grain * NOISE_BAND;
+      if (spec.grainSeed !== undefined) {
+        const grain = hash3(Math.floor(x / 2), band, spec.grainSeed) - 0.5;
+        v += grain * GRAIN_BAND;
       }
-
-      const noise = hash3(x, y, spec.seed) - 0.5;
-      v += noise * 2 * NOISE_BAND * spec.noiseScale;
 
       img.set(x, y, gray(v));
     }
@@ -93,23 +88,23 @@ function renderSlabPattern(spec: SlabSpec): PixelImage {
  *  this pattern index. */
 const PATTERNS: SlabSpec[] = [
   // floor_0: plain polished slab, one cell per tile, faint seam.
-  { cellW: 16, cellH: 16, seamDelta: 14, noiseScale: 0.5, seed: 1 },
+  { cellW: 16, cellH: 16, seamDelta: 14 },
   // floor_1: large pale tile, bright seam.
-  { cellW: 16, cellH: 16, seamDelta: 30, noiseScale: 0.7, seed: 2 },
+  { cellW: 16, cellH: 16, seamDelta: 30 },
   // floor_2: large tile, dark grout.
-  { cellW: 16, cellH: 16, seamDelta: -26, noiseScale: 0.7, seed: 3 },
+  { cellW: 16, cellH: 16, seamDelta: -26 },
   // floor_3: small square tile, dark grout.
-  { cellW: 8, cellH: 8, seamDelta: -24, noiseScale: 0.7, seed: 4 },
+  { cellW: 8, cellH: 8, seamDelta: -24 },
   // floor_4: wood planks, warm grain.
-  { cellW: 16, cellH: 4, seamDelta: 20, woodGrain: true, noiseScale: 0.4, seed: 5 },
+  { cellW: 16, cellH: 4, seamDelta: 20, grainSeed: 12 },
   // floor_5: running-bond brick, bright mortar.
-  { cellW: 8, cellH: 4, seamDelta: 28, runningBondPx: 4, noiseScale: 0.6, seed: 6 },
+  { cellW: 8, cellH: 4, seamDelta: 28, runningBondPx: 4 },
   // floor_6: aligned brick/plank, dark mortar.
-  { cellW: 8, cellH: 4, seamDelta: -24, noiseScale: 0.6, seed: 7 },
+  { cellW: 8, cellH: 4, seamDelta: -24 },
   // floor_7: fine checkerboard.
-  { cellW: 4, cellH: 4, seamDelta: 0, checker: { low: 68, high: 234 }, noiseScale: 0.5, seed: 8 },
+  { cellW: 4, cellH: 4, seamDelta: 0, checker: { low: 68, high: 234 } },
   // floor_8: coarse checkerboard.
-  { cellW: 8, cellH: 8, seamDelta: 0, checker: { low: 68, high: 234 }, noiseScale: 0.5, seed: 9 },
+  { cellW: 8, cellH: 8, seamDelta: 0, checker: { low: 68, high: 234 } },
 ];
 
 export function renderFloorTiles(): PixelImage[] {

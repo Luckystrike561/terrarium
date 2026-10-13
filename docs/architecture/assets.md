@@ -15,7 +15,7 @@ webview-ui/public/assets/
 
 The bundled furniture, characters and floors are **generated** to the art direction in [`docs/art-direction.md`](../art-direction.md). Edit the generators, not the PNGs.
 
-- `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/`, `assets/characters/` and `assets/floors/` from code. `scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `scripts/iso-art/lib/scene.ts`. `scripts/iso-art/characters.ts` composes hand-placed pixel templates from `scripts/iso-art/characters/`. `scripts/iso-art/floors.ts` draws the lit floor materials.
+- `npx tsx scripts/iso-art/generate.ts` rewrites `assets/furniture/`, `assets/characters/` and `assets/floors/` from code. `scripts/iso-art/furniture/*.ts` model furniture with the `IsoScene` ray tracer in `scripts/iso-art/lib/scene.ts`, which inks the outline and dithers fabric. `scripts/iso-art/characters.ts` composes each frame from parts: the posed body is drawn from joint positions in `scripts/iso-art/characters/body.ts`, and the face, hair and accessories are pixel templates from `scripts/iso-art/characters/`. `scripts/iso-art/floors.ts` draws the lit floor materials.
 - `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (open-plan work space, glass-walled CTO office and meeting room, break room with kitchen, coffee machine and lounge) as `default-layout-<REVISION>.json`. Bump `REVISION` on every change.
 - `npx tsx scripts/iso-art/preview.ts <module>` renders review sheets to `/tmp/iso-preview` without touching assets.
 
@@ -58,7 +58,7 @@ The cache is keyed by an arbitrary string that includes the colorize flag.
 
 ## Character sprites
 
-12 pre-coloured agent sheets (`assets/characters/char_0.png` to `char_11.png`, `CHAR_COUNT`), one per palette, plus the CTO's `cto.png` (`CTO_CHARACTER_FILE`). Each is 456×120: 19 frames × 24 px wide, 3 direction rows × 40 px tall (`CHAR_FRAME_W`, `CHAR_FRAME_H`). Row 0 is DOWN (3/4 front, facing screen lower-left), row 1 is UP (3/4 back), row 2 is RIGHT (row 0 mirrored per frame). LEFT is the mirrored UP at runtime.
+12 pre-coloured agent sheets (`assets/characters/char_0.png` to `char_11.png`, `CHAR_COUNT`), one per palette, plus the CTO's `cto.png` (`CTO_CHARACTER_FILE`). Each is 608×168: 19 frames × 32 px wide, 3 direction rows × 56 px tall (`CHAR_FRAME_W`, `CHAR_FRAME_H`). Row 0 is DOWN (3/4 front, facing screen lower-left), row 1 is UP (3/4 back), row 2 is RIGHT (row 0 mirrored per frame). LEFT is the mirrored UP at runtime.
 
 The frame order is `CHARACTER_FRAMES` in `core/src/assets/constants.ts`: walk1–3, type1–2, read1–2, idle1–2, rest1–2, raiseHand1–2, raiseHandSeated1–2, holdForm1–2, holdFormSeated1–2. `decodeCharacterPng` rejects a sheet of any other size. When `hueShift !== 0`, `hueShiftSheet()` applies `adjustSprite()` to every frame before the pose sets are built and cached.
 

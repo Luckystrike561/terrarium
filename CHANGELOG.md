@@ -10,6 +10,11 @@ Terrarium forked from Pixel Agents at v1.4.1. **Unreleased** is Terrarium's own 
 - Updated CLAUDE, README, guide, and site build process
 - **Account quotas as coffee beans** ([#16](https://github.com/Luckystrike561/terrarium/issues/16)). Claude's 5-hour and weekly limits show as jars of beans on the break-room coffee machine, one bean per tenth left, greyed when stale and flagged when used up, with the exact numbers on hover. They come from Claude Code's status line, which the hook install now chains: an existing status line keeps printing exactly what it printed, and uninstalling restores it. A `quotaUpdate` server message and a `QuotaSourceModule` kind let other providers report quotas. Ollama Cloud is deferred until it has a usage API.
 - **Separate consent for the status line** ([#16](https://github.com/Luckystrike561/terrarium/issues/16)). Claude's hook entries and its status line are now two independent consent grants: declining or reverting one leaves the other's `~/.claude/settings.json` entries and its own `config.json` record untouched. Quota readings need the status line's own grant, asked right after the hooks ask in the Intro. `terrarium --uninstall-hooks` reverts both independently, and an old flat `hooksConsent` record migrates onto the hooks grant only, so an existing install keeps its hooks and is asked once, for the status line alone.
+- **Habbo Hotel's look for the office** ([#38](https://github.com/Luckystrike561/terrarium/issues/38)). The art direction now targets Habbo's rooms, and the generators follow it: taller, slimmer characters in a 32×56 frame composed from parts, a full ink outline and woven fabric on the furniture, flat floors and walls. Every asset is still generated from code, and no Habbo art is copied or fetched.
+
+### Changed
+
+- **BREAKING: character sheets are 608×168** ([#38](https://github.com/Luckystrike561/terrarium/issues/38)). Frames grow from 24×40 to 32×56, still 19 frames in 3 direction rows. An externally supplied `char_N.png` in the old 456×120 format is rejected with a warning and must be redrawn at the new size.
 
 ### Removed
 

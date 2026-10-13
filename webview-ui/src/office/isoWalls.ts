@@ -22,8 +22,9 @@ const RIM_SHADE = 1.34;
 const RIM_WIDTH = 1;
 const LEFT_FACE_SHADE = 0.95;
 const RIGHT_FACE_SHADE = 0.78;
-/** Plaster texture: quiet value noise, at most one light band either way. */
-const PLASTER_NOISE_AMOUNT = 0.05;
+/** A one-pixel lip under the cap separates it from the flat face. */
+const CAP_LIP_SHADE = 0.7;
+const CAP_LIP_PX = 1;
 const BASEBOARD_SHADE = 0.55;
 const BASEBOARD_PX = 3;
 const TILE = ISO_TILE_W / 2;
@@ -32,16 +33,6 @@ const PANE_HALF = 1;
 const FRAME_BASE = 3;
 const FRAME_TOP = 2;
 const MULLION = 1;
-
-/** Deterministic hash in [0, 1). The furniture generator hashes texture noise
- *  with the same formula, but it is a dev-only script the webview never
- *  imports, so the formula is repeated here. */
-function hash3(x: number, y: number, z: number): number {
-  let h = Math.imul(Math.floor(x) | 0, 374761393) ^ Math.imul(Math.floor(y) | 0, 668265263);
-  h = Math.imul(h ^ Math.imul(Math.floor(z) | 0, 2147483647), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
 
 /** Scale a `#RRGGBB` colour toward black (< 1) or toward white (> 1). */
 function shadeHex(hex: string, amount: number): string {
@@ -118,6 +109,8 @@ function solidWall(baseHex: string): SpriteData {
   const rim = shadeHex(baseHex, RIM_SHADE);
   const left = shadeHex(baseHex, LEFT_FACE_SHADE);
   const right = shadeHex(baseHex, RIGHT_FACE_SHADE);
+  const leftLip = shadeHex(left, CAP_LIP_SHADE);
+  const rightLip = shadeHex(right, CAP_LIP_SHADE);
   const leftBase = shadeHex(baseHex, BASEBOARD_SHADE);
   const rightBase = shadeHex(baseHex, BASEBOARD_SHADE * RIGHT_FACE_SHADE);
   return traceSprite(
@@ -131,10 +124,9 @@ function solidWall(baseHex: string): SpriteData {
         z1: WALL_HEIGHT_PX,
         paint: (face, along, z) => {
           if (face === 'top') return along < RIM_WIDTH ? rim : cap;
-          const plaster =
-            (hash3(along, z, face === 'right' ? 2 : 1) - 0.5) * 2 * PLASTER_NOISE_AMOUNT;
           if (z < BASEBOARD_PX) return face === 'right' ? rightBase : leftBase;
-          return shadeHex(face === 'right' ? right : left, 1 + plaster);
+          if (z >= WALL_HEIGHT_PX - CAP_LIP_PX) return face === 'right' ? rightLip : leftLip;
+          return face === 'right' ? right : left;
         },
       },
     ],

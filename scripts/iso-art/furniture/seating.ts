@@ -3,7 +3,7 @@ import { hex, mix, shade } from '../lib/image.js';
 import { CHAIR_SEAT_Z } from '../lib/iso.js';
 import { PAL } from '../lib/palette.js';
 import type { Paint } from '../lib/scene.js';
-import { IsoScene, lit, solid } from '../lib/scene.js';
+import { fabric, IsoScene, lit, solid } from '../lib/scene.js';
 import type { FurnitureSpec, FurnitureVariant } from '../lib/furniture.js';
 
 const MESH_BLACK = hex('#2c2e34');
@@ -22,10 +22,11 @@ const EXEC_LEATHER = hex('#6a4028');
 const EXEC_LEATHER_DARK = mix(EXEC_LEATHER, PAL.black, 0.3);
 const STOOL_SEAT = hex('#d9b98a');
 
-function seamPaint(base: RGBA, seam: RGBA, positions: number[], tol = 0.8): Paint {
+/** Seams across a cushion's top face over a base paint. */
+function seamPaint(base: Paint, seam: RGBA, positions: number[], tol = 0.8): Paint {
   return (hit) => {
-    const c = lit(base, hit.light);
-    if (hit.face === 'top' && positions.some((p) => Math.abs(hit.a - p) < tol)) {
+    const c = base(hit);
+    if (c && hit.face === 'top' && positions.some((p) => Math.abs(hit.a - p) < tol)) {
       return mix(c, seam, 0.55);
     }
     return c;
@@ -69,10 +70,10 @@ function buildWoodenChair(backHigh: boolean): PixelImage {
       scene.box([lx, ly, 0], [lx + 2, ly + 2, CHAIR_SEAT_Z], solid(SCANDI_LEG));
     }
   }
-  scene.box([1, 1, 4], [15, 15, CHAIR_SEAT_Z], solid(SCANDI_SEAT));
+  scene.box([1, 1, 4], [15, 15, CHAIR_SEAT_Z], fabric(SCANDI_SEAT));
   const sy0 = backHigh ? 13 : 1;
   const sy1 = backHigh ? 16 : 4;
-  scene.box([2, sy0, CHAIR_SEAT_Z], [14, sy1, 17], solid(SCANDI_SEAT));
+  scene.box([2, sy0, CHAIR_SEAT_Z], [14, sy1, 17], fabric(SCANDI_SEAT));
   return scene.render();
 }
 
@@ -83,13 +84,18 @@ function buildSofa(backHigh: boolean): PixelImage {
       scene.box([lx, ly, 0], [lx + 2, ly + 2, 2], solid(SOFA_LEG));
     }
   }
-  scene.box([2, 2, 2], [15, 13, CHAIR_SEAT_Z], seamPaint(SOFA_FABRIC, SOFA_FABRIC_SEAM, [5.5]));
-  scene.box([17, 2, 2], [30, 13, CHAIR_SEAT_Z], seamPaint(SOFA_FABRIC, SOFA_FABRIC_SEAM, [5.5]));
+  const cushion = seamPaint(fabric(SOFA_FABRIC), SOFA_FABRIC_SEAM, [5.5]);
+  scene.box([2, 2, 2], [15, 13, CHAIR_SEAT_Z], cushion);
+  scene.box([17, 2, 2], [30, 13, CHAIR_SEAT_Z], cushion);
   const y0 = backHigh ? 13 : 0;
   const y1 = backHigh ? 16 : 3;
-  scene.box([2, y0, CHAIR_SEAT_Z], [30, y1, 17], seamPaint(SOFA_FABRIC, SOFA_FABRIC_SEAM, [14]));
-  scene.box([0, 1, 2], [3, 14, 11], solid(SOFA_FABRIC));
-  scene.box([29, 1, 2], [32, 14, 11], solid(SOFA_FABRIC));
+  scene.box(
+    [2, y0, CHAIR_SEAT_Z],
+    [30, y1, 17],
+    seamPaint(fabric(SOFA_FABRIC), SOFA_FABRIC_SEAM, [14]),
+  );
+  scene.box([0, 1, 2], [3, 14, 11], fabric(SOFA_FABRIC));
+  scene.box([29, 1, 2], [32, 14, 11], fabric(SOFA_FABRIC));
   return scene.render();
 }
 
@@ -101,7 +107,7 @@ function buildCushionedBench(): PixelImage {
   scene.box(
     [1, 4, 2],
     [31, 12, CHAIR_SEAT_Z],
-    seamPaint(BENCH_CUSHION, BENCH_CUSHION_SEAM, [9, 19]),
+    seamPaint(fabric(BENCH_CUSHION), BENCH_CUSHION_SEAM, [9, 19]),
   );
   return scene.render();
 }
@@ -125,13 +131,17 @@ function buildExecChair(backHigh: boolean): PixelImage {
   const scene = new IsoScene(1, 1, 28);
   scene.cylinder(8, 8, 6.5, 0, 1, solid(CHROME));
   scene.cylinder(8, 8, 1.6, 1, 4, solid(CHROME));
-  scene.box([2, 2, 4], [14, 14, CHAIR_SEAT_Z], seamPaint(EXEC_LEATHER, EXEC_LEATHER_DARK, [6]));
+  scene.box(
+    [2, 2, 4],
+    [14, 14, CHAIR_SEAT_Z],
+    seamPaint(solid(EXEC_LEATHER), EXEC_LEATHER_DARK, [6]),
+  );
   const y0 = backHigh ? 11 : 1;
   const y1 = backHigh ? 15 : 5;
   scene.box(
     [1, y0, CHAIR_SEAT_Z],
     [15, y1, 22],
-    seamPaint(EXEC_LEATHER, EXEC_LEATHER_DARK, [6, 14]),
+    seamPaint(solid(EXEC_LEATHER), EXEC_LEATHER_DARK, [6, 14]),
   );
   scene.box([0, 3, 7], [2, 11, 11], solid(EXEC_LEATHER));
   scene.box([14, 3, 7], [16, 11, 11], solid(EXEC_LEATHER));

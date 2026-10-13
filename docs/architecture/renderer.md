@@ -40,7 +40,7 @@ The office is a building with one floor per machine (see [CLAUDE.md](../../CLAUD
 
 `office/engine/isoSort.ts`: every wall tile, furniture piece, character and pet carries a footprint box. Two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort correctly where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). A chair whose sitter faces away (`back` or `left`) uses the attached layer so its backrest covers the sitter. Other chairs draw under them.
 
-Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space, because tall sprites cover tiles behind their footprint. Floors never overlap, so a draw order across floors needs no sort box.
+Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space, because tall sprites cover tiles behind their footprint. A character's hit box runs from its feet to its crown: `CHARACTER_HIT_HEIGHT` standing, `CHARACTER_SEATED_HIT_HEIGHT` seated, since a seated frame draws the head lower. The front-most character whose box holds the point wins. Floors never overlap, so a draw order across floors needs no sort box.
 
 ## UI styling
 

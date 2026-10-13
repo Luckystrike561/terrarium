@@ -40,9 +40,9 @@ One key light from the screen's upper left.
 
 ## Texture
 
-- **Fabric is dithered.** Upholstery, cushions and rugs carry Habbo's woven look: a 1 px checker of the face's lit tone and a tone mixed 18% toward ink, laid on the face's own coordinates so it follows the iso grid. Mesh keeps its own coarser weave.
-- **Hard materials are flat.** Wood (grain streaks only), metal, plastic, leather, glass, paper and plants take the light bands and nothing else.
-- **No value noise** on any surface: noise reads as grime at 1×, a dither reads as cloth.
+- **Fabric is dithered.** Upholstery and cushions carry Habbo's woven look: a 1 px checker of the face's lit tone and a tone mixed 18% toward ink, laid on the face's own coordinates so it follows the iso grid. Mesh keeps its own coarser weave. The bundled carpets are not generated and keep their own pattern.
+- **Hard materials are flat.** Wood, metal, plastic, leather, glass and paper take the light bands and nothing else, except the materials that have a grain of their own: flecks in wood, speckles in a stone planter, the clumps of a plant.
+- **No value noise on floors, walls or fabric**: noise reads as grime at 1×, a dither reads as cloth.
 
 ## Palette
 

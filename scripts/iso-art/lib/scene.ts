@@ -6,7 +6,7 @@
  * largest ray parameter is nearest the viewer. Primitives are painted by a
  * callback that receives the hit (face, world point, face-local coordinates,
  * normal and a light level), so a box face can carry drawers, a screen or a
- * pixel template. A final pass adds selective outlines and rim highlights.
+ * pixel template. A final pass adds the ink outline and rim highlights.
  *
  * Tracing instead of drawing polygons gives exact 2:1 iso edges and correct
  * occlusion between primitives for free.
@@ -48,6 +48,11 @@ interface Primitive {
 const LIGHT = [0.45, 0.7, 1] as const;
 const SHADOW_TINT = hex('#1f1830');
 const OUTLINE_INK = hex('#1a1426');
+/** How far toward ink an edge where one primitive passes in front of
+ *  another is pulled: a dark line, lighter than the silhouette. */
+const INNER_EDGE_INK = 0.65;
+/** How far toward ink the darker thread of a fabric dither is pulled. */
+const FABRIC_THREAD_INK = 0.18;
 
 function lightOf(n: readonly [number, number, number]): number {
   return Math.max(0.2, Math.min(1, LIGHT[0] * n[0] + LIGHT[1] * n[1] + LIGHT[2] * n[2]));
@@ -71,6 +76,16 @@ export function faces(top: RGBA, left: RGBA, right: RGBA): Paint {
   return (hit) => (hit.face === 'top' ? top : hit.face === 'left' ? left : right);
 }
 
+/** Paint upholstery: the lit tone in a 1 px checker with a darker thread,
+ *  laid on the face's own coordinates so the weave follows the iso grid. */
+export function fabric(base: RGBA): Paint {
+  return (hit) => {
+    const c = lit(base, hit.light);
+    const thread = (Math.floor(hit.a) + Math.floor(hit.b)) % 2 === 0;
+    return thread ? mix(c, OUTLINE_INK, FABRIC_THREAD_INK) : c;
+  };
+}
+
 /** Deterministic hash in [0, 1) for texture noise. */
 export function hash3(x: number, y: number, z: number): number {
   let h = Math.imul(Math.floor(x) | 0, 374761393) ^ Math.imul(Math.floor(y) | 0, 668265263);
@@ -80,7 +95,7 @@ export function hash3(x: number, y: number, z: number): number {
 }
 
 export interface RenderOptions {
-  /** Darken silhouette pixels toward ink. Default true. */
+  /** Ink the silhouette and darken edges between primitives. Default true. */
   outline?: boolean;
   /** Lighten top-face pixels that sit on a box's front edges. Default true. */
   rimLight?: boolean;
@@ -320,7 +335,7 @@ export class IsoScene {
         ] as const;
         const silhouette = neighbours.some(([nx, ny]) => !img.get(nx, ny));
         if (outline && silhouette) {
-          out.set(x, y, mix(c, OUTLINE_INK, 0.55));
+          out.set(x, y, OUTLINE_INK);
           continue;
         }
         if (outline) {
@@ -329,7 +344,7 @@ export class IsoScene {
             return prim[j] !== -1 && prim[j] !== prim[i] && depth[j] - depth[i] > 3;
           });
           if (behindEdge) {
-            out.set(x, y, mix(c, OUTLINE_INK, 0.3));
+            out.set(x, y, mix(c, OUTLINE_INK, INNER_EDGE_INK));
             continue;
           }
         }

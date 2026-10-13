@@ -1,3 +1,4 @@
+import { CHAR_FRAME_H, CHAR_FRAME_W } from '../../core/src/assets/constants.ts';
 import type { ColorValue } from './components/ui/types.js';
 
 // ── Grid & Layout ────────────────────────────────────────────
@@ -25,8 +26,9 @@ export const SEAT_REST_MAX_SEC = 240.0;
 // ── Matrix Effect ────────────────────────────────────────────
 export const MATRIX_EFFECT_DURATION_SEC = 0.3;
 export const MATRIX_TRAIL_LENGTH = 6;
-export const MATRIX_SPRITE_COLS = 16;
-export const MATRIX_SPRITE_ROWS = 24;
+/** The spawn rain sweeps the whole character frame. */
+export const MATRIX_SPRITE_COLS = CHAR_FRAME_W;
+export const MATRIX_SPRITE_ROWS = CHAR_FRAME_H;
 export const MATRIX_FLICKER_FPS = 30;
 export const MATRIX_FLICKER_VISIBILITY_THRESHOLD = 180;
 export const MATRIX_COLUMN_STAGGER_RANGE = 0.3;
@@ -46,12 +48,14 @@ export const CHARACTER_SITTING_OFFSET_PX = 0;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
-export const BUBBLE_SITTING_OFFSET_PX = 7;
-export const BUBBLE_VERTICAL_OFFSET_PX = 36;
+/** How much lower a seated frame draws the head than a standing one. */
+export const BUBBLE_SITTING_OFFSET_PX = 11;
+/** The crown of a standing character, above its feet. */
+export const BUBBLE_VERTICAL_OFFSET_PX = 44;
 /** Persistent state badge (working/done/waiting/idle/permission): vertical
  *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
  *  so it sits at head height rather than floating above it like a bubble. */
-export const STATUS_BADGE_VERTICAL_OFFSET_PX = 32;
+export const STATUS_BADGE_VERTICAL_OFFSET_PX = 40;
 /** Horizontal offset to the right of center, clear of the center-anchored
  *  speech bubble so the two never overlap regardless of bubble state. */
 export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 13;
@@ -177,8 +181,11 @@ export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
 export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
 export const CHARACTER_HIT_HALF_WIDTH = 10;
-export const CHARACTER_HIT_HEIGHT = 36;
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 44;
+/** From the feet to the crown of a standing character. */
+export const CHARACTER_HIT_HEIGHT = 44;
+/** A seated frame draws the head BUBBLE_SITTING_OFFSET_PX lower. */
+export const CHARACTER_SEATED_HIT_HEIGHT = CHARACTER_HIT_HEIGHT - BUBBLE_SITTING_OFFSET_PX;
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 52;
 
 // ── Greeter + Intro bubble ──────────────────────────────────
 /** Reserved character id for the Intro's greeter. Far outside both real agent
@@ -205,7 +212,7 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_PX = 54;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 62;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
 export const INTRO_BUBBLE_OFFSET_X_PX = 10;
@@ -227,7 +234,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_PX = 34;
+export const INTRO_TAIL_TARGET_RISE_PX = 42;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the
