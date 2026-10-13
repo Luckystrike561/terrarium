@@ -49,5 +49,11 @@ export default defineConfig([
       'terrarium/pixel-font': 'off',
     },
   },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'max-lines': ['error', { max: 600 }],
+    },
+  },
   eslintConfigPrettier,
 ]);

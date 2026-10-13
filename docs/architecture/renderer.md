@@ -84,7 +84,7 @@ A Matrix-style digital rain animation (0.3 s, `office/engine/matrixEffect.ts`). 
 ### Badges, bubbles and sound
 
 - Permission bubble ("..." amber dots) stays until clicked or cleared. Waiting bubble (green checkmark) auto-fades after 2 s.
-- Every non-sub-agent character carries a persistent **status badge** above its head (`statusBadgeSprite` in `office/engine/sceneRenderer.ts`, sprites `office/sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
+- Every non-sub-agent character carries a persistent **status badge** above its head (`statusBadgeSprite` in `office/engine/sceneBubbles.ts`, sprites `office/sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
 - An ascending two-note chime (E5 → E6, Web Audio API, `notificationSound.ts`) plays when the waiting bubble appears (`agentStatus: 'waiting'`). `unlockAudio()` on canvas mousedown resumes the context, since browsers start it suspended. It is always on.
 
 Sub-agent characters are covered in [claude-teams.md](claude-teams.md#sub-agents-in-the-office).
@@ -93,14 +93,14 @@ Sub-agent characters are covered in [claude-teams.md](claude-teams.md#sub-agents
 
 The room holding the first `EXEC_CHAIR` is the CTO's office (`office/engine/ctoOffice.ts`, `computeOfficeTiles`: reachable from that chair without crossing a doorway).
 
-A fixed **CTO** character lives there. It is not an agent: `OfficeState.cto`, `CTO_ID`, drawn from its own sheet `cto.png` via `getCtoSprites`, so no agent ever looks like it. It runs a loop (`updateCto`): typing at the executive desk for `CTO_DESK_SEC` (monitor on), then walking to the office couch (its first lounge seat) for `CTO_COUCH_SEC` to rest, and back. Like the greeter it lives outside `characters`, so it gets no badge, no hit-test and no persistence. Every seat in the office is claimed for it and its tiles leave the wander set, so agents are never given a desk, a rest seat or a wander target in there.
+A fixed **CTO** character lives there. It is not an agent: `OfficeState.cto`, `CTO_ID`, drawn from its own sheet `cto.png` via `getCtoSprites`, so no agent ever looks like it. `CtoOffice` (`office/engine/ctoOffice.ts`) owns it and runs its loop (`CtoOffice.update`): typing at the executive desk for `CTO_DESK_SEC` (monitor on), then walking to the office couch (its first lounge seat) for `CTO_COUCH_SEC` to rest, and back. Like the greeter it lives outside `characters`, so it gets no badge, no hit-test and no persistence. Every seat in the office is claimed for it and its tiles leave the wander set, so agents are never given a desk, a rest seat or a wander target in there.
 
 **An agent that needs the human joins the CTO queue** until that clears:
 
 - a permission request (herdr's `blocked`, Claude's `PermissionRequest`) until `clearPermissionBubble` (next tool start or turn end).
 - waiting for input (`turnEnd` with `awaitingInput`) until it goes active again.
 
-Queue order is arrival order (`OfficeState.ctoQueue`). The first agents take the office's other seats, the **visitor chairs** in front of the CTO's desk. The rest stand outside the door (the 1 to 2 tile wall gap nearest the CTO chair, `computeDoorQueue`, nearest first, up to `CTO_QUEUE_MAX_SLOTS`), facing it. While anyone waits at the door, the queue **rotates** every `CTO_VISIT_SEC`: the head goes to the back, so the longest-seated visitor gives its chair to the next agent at the door. An agent waiting for input keeps its `?` badge for the whole wait.
+Queue order is arrival order (the `CtoOffice` queue). The first agents take the office's other seats, the **visitor chairs** in front of the CTO's desk. The rest stand outside the door (the 1 to 2 tile wall gap nearest the CTO chair, `computeDoorQueue`, nearest first, up to `CTO_QUEUE_MAX_SLOTS`), facing it. While anyone waits at the door, the queue **rotates** every `CTO_VISIT_SEC`: the head goes to the back, so the longest-seated visitor gives its chair to the next agent at the door. An agent waiting for input keeps its `?` badge for the whole wait.
 
 The FSM override is `ctoQueueSlot` (`seated` for visitor chairs, `reason` for the waiting pose) in `characters.ts`. Losing it drops the agent into IDLE, which walks an active agent back to its desk.
 
@@ -120,4 +120,4 @@ There is no in-app layout editor. The office is authored in code (`scripts/iso-a
 
 **Walls** (`office/isoWalls.ts`): a wall tile whose -row or -col neighbour is VOID or off-grid is a back wall, a solid `WALL_HEIGHT_PX` (40) box in the tile's wall colour, with a lighter cap and a rim pixel on its front edges, a quiet hashed plaster texture on the faces and a baseboard. Every other wall renders as a **glass partition**: a thin framed pane `WALL_GLASS_HEIGHT_PX` tall along the wall's run (cols, rows, or both at a junction), so interior rooms stay visible. Wall-mounted items belong on back walls.
 
-**Auto-state**: `officeState.rebuildFurnitureInstances()` swaps electronics to their ON sprites when an active agent faces a desk with that item nearby (3 tiles deep in the facing direction, 1 tile to each side). It works at render time without modifying the layout.
+**Auto-state**: `rebuildFurnitureInstances` (`office/engine/furnitureAutoState.ts`) swaps electronics to their ON sprites when an active agent faces a desk with that item nearby (3 tiles deep in the facing direction, 1 tile to each side). It works at render time without modifying the layout.

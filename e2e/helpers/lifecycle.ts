@@ -2,6 +2,8 @@ import { type ClaudeMockScenarioBuilder } from './mock-claude';
 
 export const INLINE_TEAMMATE_ROLE = 'web-researcher';
 export const INLINE_TEAMMATE_ALIAS = 'teammate';
+export const SECOND_TEAMMATE_ROLE = 'reviewer';
+export const SECOND_TEAMMATE_ALIAS = 'reviewer';
 export const INLINE_TEAMMATE_SLUG = `agent-${INLINE_TEAMMATE_ROLE}`;
 export const TMUX_TEAMMATE_ALIAS = 'tmux-teammate';
 

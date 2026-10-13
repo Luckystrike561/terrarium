@@ -38,8 +38,8 @@ export default defineConfig({
   // Default to one worker locally; CI can override this with --workers.
   workers: 1,
   // Shard distribution at test level (not file level). Without this, Playwright
-  // shards by file: hooks-on/lifecycle.spec.ts alone has 22 tests (47% of the
-  // suite), so one shard does all the work while another does 2 tests. With
+  // shards by file, and some spec files hold far more tests than others, so one
+  // shard would do all the work while another barely runs anything. With
   // fullyParallel, tests are distributed individually → balanced shards.
   // workers=1 still keeps tests sequential within a shard; only the shard
   // assignment strategy changes.

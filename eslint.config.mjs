@@ -37,5 +37,22 @@ export default [
       'terrarium/no-inline-colors': 'error',
     },
   },
+  {
+    files: ['server/src/**/*.ts', 'e2e/**/*.ts'],
+    rules: {
+      'max-lines': ['error', { max: 600 }],
+    },
+  },
+  {
+    files: [
+      'server/src/providers/claude/claudeFileWatcher.ts',
+      'server/src/providers/claude/claudeHookHandler.ts',
+      'server/src/providers/claude/claudeHookInstaller.ts',
+      'server/src/providers/claude/claudeTranscriptParser.ts',
+    ],
+    rules: {
+      'max-lines': 'off',
+    },
+  },
   eslintConfigPrettier,
 ];

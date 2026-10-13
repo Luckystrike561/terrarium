@@ -8,8 +8,8 @@ import { expect, test } from '@playwright/test';
 import { applyAllureLabels } from '../../helpers/allure-labels';
 import {
   addConnection,
-  CONNECTION_TIMEOUT_MS,
   closeConnections,
+  CONNECTION_TIMEOUT_MS,
   connectionRow,
   installFakeSsh,
   openConnections,

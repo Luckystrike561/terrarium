@@ -1,4 +1,5 @@
 import { expect, test } from '../../../fixtures/standalone';
+import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 import {
   INLINE_TEAMMATE_ALIAS,
   INLINE_TEAMMATE_ROLE,
@@ -26,7 +27,6 @@ import {
   buildUserToolResultRecord,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 
 const PARALLEL_PARENT_TOOL_ID = 'toolu-b5-parent';
 
