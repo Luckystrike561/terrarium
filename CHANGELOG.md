@@ -17,7 +17,7 @@ Terrarium forked from Pixel Agents at v1.4.1. **Unreleased** is Terrarium's own 
 
 ### Maintenance
 
-- **No source file over 600 lines** ([#25](https://github.com/Luckystrike561/terrarium/issues/25)). `OfficeState`, the scene renderer, the server-message hook and the hooks-on lifecycle e2e spec are split along their responsibility seams (CTO office, seat assignment, greeter, sub-agents, pets, render layers, message families, scenario groups), with no behaviour change. ESLint `max-lines` now enforces 600 lines in `server/src`, `webview-ui/src` and `e2e`.
+- **600-line cap on source files** ([#25](https://github.com/Luckystrike561/terrarium/issues/25)). `OfficeState`, the scene renderer, the server-message hook and the hooks-on lifecycle e2e spec are split along their responsibility seams (CTO office, seat assignment, greeter, sub-agents, pets, render layers, message families, scenario groups), with no behaviour change. ESLint `max-lines` now enforces 600 lines in `server/src`, `webview-ui/src` and `e2e`, except four Claude module files that still need their own split.
 
 ## v1.4.1
 
