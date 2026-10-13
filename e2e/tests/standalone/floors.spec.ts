@@ -124,16 +124,25 @@ test.describe('Standalone / floors', () => {
       const vpsFloor = await floorIdOf('VPS');
       for (const id of [piFloor, vpsFloor]) expect(id).not.toMatch(/pi|vps/);
 
-      // Every agent sits on its own machine's floor, whatever connection reported it.
+      // Every agent sits on its own machine's floor, whatever connection reported it, each at its own desk there.
+      // Seat uids repeat across floors (they share the default layout), so uniqueness holds per floor only.
       expect(await agentsOn(page, 'local')).toHaveLength(2);
       expect(await agentsOn(page, piFloor)).toHaveLength(5);
+      expect(await agentsOn(page, vpsFloor)).toHaveLength(1);
       const [hermes] = await agentsOn(page, vpsFloor);
-      const seats = await readAgentSeats(page);
       for (const floorId of ['local', piFloor, vpsFloor]) {
         const ids = await agentsOn(page, floorId);
-        expect(
-          seats.filter((seat) => ids.includes(seat.id)).every((seat) => seat.machineId === floorId),
-        ).toBe(true);
+        await expect
+          .poll(
+            async () => {
+              const seatIds = (await readAgentSeats(page))
+                .filter((seat) => ids.includes(seat.id))
+                .map((seat) => seat.seatId);
+              return seatIds.includes(null) ? 0 : new Set(seatIds).size;
+            },
+            { timeout: FLOOR_TIMEOUT_MS },
+          )
+          .toBe(ids.length);
       }
 
       // The VPS agent waits for approval in the VPS floor's CTO queue, not anyone else's.
