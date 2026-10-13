@@ -5,6 +5,7 @@ import type {
   CharacterSpriteSet,
   Connection,
   HooksConsentRequest,
+  QuotaMeter,
 } from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound } from '../notificationSound.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
@@ -69,24 +70,39 @@ interface ExtensionMessageState {
   lastSeenVersion: string;
   extensionVersion: string;
   hooksEnabled: boolean;
-  /** Actual install state per provider (hooksStatus messages) — absent/false
-   *  while first-run consent is pending, unlike hooksEnabled which defaults
-   *  true. Keyed by providerId; the hooks tooltip reads 'claude'. */
+  /** Actual install state per (provider, subject) pair (hooksStatus messages) — absent/false while first-run
+   *  consent is pending, unlike hooksEnabled which defaults true. Keyed by `${providerId}:${subjectId}`; the hooks
+   *  tooltip reads 'claude:hooks'. */
   hooksInstalled: Record<string, boolean>;
-  /** Bumped per provider on every hooksStatus message. `hooksInstalled` alone cannot say "the server answered": a
-   *  failed install re-reports the `false` already held, so no effect runs. The Intro needs the ARRIVAL to tell a
-   *  pending install from a failed one, per provider — A's status is never a verdict on B's install. */
+  /** Bumped per (provider, subject) pair on every hooksStatus message. `hooksInstalled` alone cannot say "the
+   *  server answered": a failed install re-reports the `false` already held, so no effect runs. The Intro needs the
+   *  ARRIVAL to tell a pending install from a failed one, per pair — one pair's status is never a verdict on
+   *  another's install. Keyed the same way as hooksInstalled. */
   hooksStatusSeq: Record<string, number>;
   hooksInfoShown: boolean;
-  /** First-run consent ask (hooksConsentRequest). Non-null while the server waits on an answer; carries the provider
-   *  and the server's exact disclosure copy, so the consent step renders the terms being approved with no client
-   *  duplicate to drift. Cleared on answer/dismissal, and by a matching provider's hooksStatus installed=true. */
+  /** First-run consent ask (hooksConsentRequest). Non-null while the server waits on an answer; carries the
+   *  (provider, subject) pair and the server's exact disclosure copy, so the consent step renders the terms being
+   *  approved with no client duplicate to drift. Cleared on answer/dismissal, and by a matching pair's hooksStatus
+   *  installed=true. */
   consentRequest: HooksConsentRequest | null;
-  dismissConsentRequest: (providerId: string | null) => void;
+  /** Dismiss the ask at the head of the queue (both args null), or one matching (providerId, subjectId) pair
+   *  specifically — two subjects of the same provider are two independent asks, so a dismissal must never drop the
+   *  other one in its place. */
+  dismissConsentRequest: (providerId: string | null, subjectId: string | null) => void;
   /** The herdr servers the office listens to. Null until the first connectionsLoaded, which the server sends only
    *  to tokened clients with a multiplexer enabled: null hides the Connections menu. */
   connections: Connection[] | null;
   addConnection: (input: Omit<AddConnection, 'type' | 'requestId'>) => Promise<string | undefined>;
+  /** Every account quota meter, as the last quotaUpdate listed them. Empty draws no beans. */
+  quotaMeters: QuotaMeter[];
+}
+
+/** Composite key for `hooksInstalled`/`hooksStatusSeq`: two subjects of the same provider (Claude's `hooks` and
+ *  `statusLine`) are two independently consented, independently installed asks, so one providerId key alone would
+ *  conflate them. Exported so introTourState.ts and useIntroTour.ts build the identical key when they read these
+ *  maps — the format must stay in lockstep across every reader. */
+export function hooksSubjectKey(providerId: string, subjectId: string): string {
+  return `${providerId}:${subjectId}`;
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -116,6 +132,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
   const [consentQueue, setConsentQueue] = useState<HooksConsentRequest[]>([]);
   const consentRequest = consentQueue[0] ?? null;
   const [connections, setConnections] = useState<Connection[] | null>(null);
+  const [quotaMeters, setQuotaMeters] = useState<QuotaMeter[]>([]);
   const pendingConnectionAddsRef = useRef<Map<string, (error: string | undefined) => void>>(
     new Map(),
   );
@@ -593,32 +610,46 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           setExtensionVersion(msg.extensionVersion as string);
         }
       } else if (msg.type === 'hooksStatus') {
-        if (typeof msg.installed === 'boolean' && typeof msg.providerId === 'string') {
+        if (
+          typeof msg.installed === 'boolean' &&
+          typeof msg.providerId === 'string' &&
+          typeof msg.subjectId === 'string'
+        ) {
           const providerId = msg.providerId as string;
+          const subjectId = msg.subjectId as string;
           const installed = msg.installed as boolean;
-          setHooksInstalled((m) => ({ ...m, [providerId]: installed }));
-          setHooksStatusSeq((m) => ({ ...m, [providerId]: (m[providerId] ?? 0) + 1 }));
+          const key = hooksSubjectKey(providerId, subjectId);
+          setHooksInstalled((m) => ({ ...m, [key]: installed }));
+          setHooksStatusSeq((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
           if (installed) {
-            // Moot once THIS provider's hooks are installed — the hooks tooltip or another tab granted consent
-            // while the dialog was open. Drop it from the queue (head or queued) rather than let a stale approval
-            // re-install; another provider's status is not about this ask.
-            setConsentQueue((q) => q.filter((r) => r.providerId !== providerId));
+            // Moot once THIS (provider, subject) pair is installed — the hooks tooltip or another tab granted
+            // consent while the dialog was open. Drop it from the queue (head or queued) rather than let a stale
+            // approval re-install; a DIFFERENT pair's status is not about this ask.
+            setConsentQueue((q) =>
+              q.filter((r) => r.providerId !== providerId || r.subjectId !== subjectId),
+            );
           }
         }
       } else if (msg.type === 'hooksConsentRequest') {
         if (
           typeof msg.providerId === 'string' &&
+          typeof msg.subjectId === 'string' &&
           typeof msg.headline === 'string' &&
-          typeof msg.disclosure === 'string'
+          typeof msg.disclosure === 'string' &&
+          typeof msg.actionLabel === 'string'
         ) {
           const request: HooksConsentRequest = {
             type: 'hooksConsentRequest',
             providerId: msg.providerId as string,
+            subjectId: msg.subjectId as string,
             headline: msg.headline as string,
             disclosure: msg.disclosure as string,
+            actionLabel: msg.actionLabel as string,
           };
           setConsentQueue((q) => {
-            const i = q.findIndex((r) => r.providerId === request.providerId);
+            const i = q.findIndex(
+              (r) => r.providerId === request.providerId && r.subjectId === request.subjectId,
+            );
             if (i === -1) return [...q, request];
             const next = q.slice();
             next[i] = request; // a re-ask carries the freshest copy
@@ -667,6 +698,10 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           msg.name as string | undefined,
           msg.task as string | undefined,
         );
+      } else if (msg.type === 'quotaUpdate') {
+        if (Array.isArray(msg.meters)) {
+          setQuotaMeters(msg.meters as QuotaMeter[]);
+        }
       }
     };
     const unsubscribe = transport.onMessage(handler);
@@ -706,14 +741,16 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
     hooksStatusSeq,
     hooksInfoShown,
     consentRequest,
-    // Called when a tour ends (answer + Let's Go, the X, Escape) with the providerId that tour was ABOUT, removing
-    // that entry so the next provider's ask becomes the head. Keyed by id, not a blind shift: an answered ask's own
-    // installed:true moot may already have removed the head, and a shift would then drop the NEXT provider's ask
-    // unanswered. An aborted ask returns on the next connect; the queue never re-adds it here.
+    // Called when a tour ends (answer + Let's Go, the X, Escape) with the (providerId, subjectId) pair that tour was
+    // ABOUT, removing that entry so the next pair's ask becomes the head. Keyed by the pair, not a blind shift: an
+    // answered ask's own installed:true moot may already have removed the head, and a shift would then drop the
+    // NEXT pair's ask unanswered. An aborted ask returns on the next connect; the queue never re-adds it here.
     dismissConsentRequest: useCallback(
-      (providerId: string | null) =>
+      (providerId: string | null, subjectId: string | null) =>
         setConsentQueue((q) =>
-          providerId === null ? q.slice(1) : q.filter((r) => r.providerId !== providerId),
+          providerId === null || subjectId === null
+            ? q.slice(1)
+            : q.filter((r) => r.providerId !== providerId || r.subjectId !== subjectId),
         ),
       [],
     ),
@@ -727,5 +764,6 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         }),
       [],
     ),
+    quotaMeters,
   };
 }

@@ -112,7 +112,12 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       const status = sent.find((m) => m.type === 'hooksStatus');
-      expect(status).toEqual({ type: 'hooksStatus', providerId: 'claude', installed: false });
+      expect(status).toEqual({
+        type: 'hooksStatus',
+        providerId: 'claude',
+        subjectId: 'hooks',
+        installed: false,
+      });
     });
   });
 

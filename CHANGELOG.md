@@ -7,6 +7,8 @@ Terrarium forked from Pixel Agents at v1.4.1. **Unreleased** is Terrarium's own 
 ### Added
 
 - Updated CLAUDE, README, guide, and site build process
+- **Account quotas as coffee beans** ([#16](https://github.com/Luckystrike561/terrarium/issues/16)). Claude's 5-hour and weekly limits show as jars of beans on the break-room coffee machine, one bean per tenth left, greyed when stale and flagged when used up, with the exact numbers on hover. They come from Claude Code's status line, which the hook install now chains: an existing status line keeps printing exactly what it printed, and uninstalling restores it. A `quotaUpdate` server message and a `QuotaSourceModule` kind let other providers report quotas. Ollama Cloud is deferred until it has a usage API.
+- **Separate consent for the status line** ([#16](https://github.com/Luckystrike561/terrarium/issues/16)). Claude's hook entries and its status line are now two independent consent grants: declining or reverting one leaves the other's `~/.claude/settings.json` entries and its own `config.json` record untouched. Quota readings need the status line's own grant, asked right after the hooks ask in the Intro. `terrarium --uninstall-hooks` reverts both independently, and an old flat `hooksConsent` record migrates onto the hooks grant only, so an existing install keeps its hooks and is asked once, for the status line alone.
 
 ### Removed
 

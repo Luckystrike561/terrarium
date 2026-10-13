@@ -56,13 +56,14 @@ function startRecordingServer(): Promise<{ port: number; received: string[]; clo
   });
 }
 
-/** Run the hook script with given stdin, returns exit code. */
+/** Run the hook script with given stdin and arguments, returns exit code and stdout. */
 function runHookScript(
   stdin: string,
   extraEnv: Record<string, string> = {},
+  args: string[] = [],
 ): Promise<{ code: number | null; stdout: string }> {
   return new Promise((resolve) => {
-    const child = spawn('node', [HOOK_SCRIPT], {
+    const child = spawn('node', [HOOK_SCRIPT, ...args], {
       // Set both HOME (POSIX) and USERPROFILE (Windows) so the child's
       // os.homedir() resolves to the isolated temp dir on every platform.
       env: { ...process.env, HOME: tmpBase, USERPROFILE: tmpBase, ...extraEnv },
@@ -281,5 +282,107 @@ describe('claude-hook.js integration', () => {
     // Each POST times out at 2s; sequential delivery would take ~4s+. A
     // generous 3.5s ceiling proves the two requests ran concurrently.
     expect(elapsed).toBeLessThan(3500);
+  });
+
+  describe('as the status line', () => {
+    const statusLineInput = JSON.stringify({
+      session_id: 'status-1',
+      transcript_path: '/home/someone/.claude/projects/x/status-1.jsonl',
+      model: { id: 'claude-opus-5-5', display_name: 'Opus' },
+      rate_limits: {
+        five_hour: { used_percentage: 70, resets_at: 1_999_999_999 },
+        seven_day: { used_percentage: 23.4, resets_at: 2_000_500_000 },
+      },
+    });
+    const encode = (statusLine: Record<string, unknown>): string =>
+      Buffer.from(JSON.stringify(statusLine)).toString('base64url');
+
+    itBuilt(
+      "prints the chained status line's output byte for byte and forwards only rate_limits",
+      async () => {
+        const server = await startRecordingServer();
+        writeServerJson(server.port, 'tok');
+        const userStatusLine = {
+          type: 'command',
+          command: `node -e "process.stdin.on('data', (d) => process.stdout.write('\\u001b[32mOpus\\u001b[0m ' + JSON.parse(d).session_id + '\\n'))"`,
+        };
+
+        const { code, stdout } = await runHookScript(statusLineInput, {}, [
+          '--status-line',
+          encode(userStatusLine),
+        ]);
+
+        server.close();
+        expect(code).toBe(0);
+        expect(stdout).toBe('\u001b[32mOpus\u001b[0m status-1\n');
+        expect(server.received.map((body) => JSON.parse(body))).toEqual([
+          {
+            hook_event_name: 'TerrariumStatusLine',
+            session_id: 'status-1',
+            rate_limits: {
+              five_hour: { used_percentage: 70, resets_at: 1_999_999_999 },
+              seven_day: { used_percentage: 23.4, resets_at: 2_000_500_000 },
+            },
+          },
+        ]);
+      },
+    );
+
+    itBuilt('exits with the chained status line exit code', async () => {
+      const { code } = await runHookScript(statusLineInput, {}, [
+        '--status-line',
+        encode({ type: 'command', command: 'exit 3' }),
+      ]);
+      expect(code).toBe(3);
+    });
+
+    itBuilt('prints nothing when it chains no status line', async () => {
+      const server = await startRecordingServer();
+      writeServerJson(server.port, 'tok');
+
+      const { code, stdout } = await runHookScript(statusLineInput, {}, ['--status-line']);
+
+      server.close();
+      expect(code).toBe(0);
+      expect(stdout).toBe('');
+      expect(server.received).toHaveLength(1);
+    });
+
+    itBuilt('posts nothing for a session without rate_limits', async () => {
+      const server = await startRecordingServer();
+      writeServerJson(server.port, 'tok');
+
+      const { stdout } = await runHookScript(
+        JSON.stringify({ session_id: 'api-key-session', model: { id: 'claude-opus-5-5' } }),
+        {},
+        ['--status-line', encode({ type: 'command', command: 'printf ok' })],
+      );
+
+      server.close();
+      expect(stdout).toBe('ok');
+      expect(server.received).toHaveLength(0);
+    });
+
+    itBuilt('does not hold the status line open for a server that never answers', async () => {
+      const server = http.createServer(() => {
+        // intentionally never respond
+      });
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+      const address = server.address();
+      if (address === null || typeof address === 'string') throw new Error('no TCP address');
+      writeServerJson(address.port, 'tok');
+
+      const start = Date.now();
+      const { code, stdout } = await runHookScript(statusLineInput, {}, [
+        '--status-line',
+        encode({ type: 'command', command: 'printf ok' }),
+      ]);
+      const elapsed = Date.now() - start;
+
+      server.close();
+      expect(code).toBe(0);
+      expect(stdout).toBe('ok');
+      expect(elapsed).toBeLessThan(1_500);
+    });
   });
 });

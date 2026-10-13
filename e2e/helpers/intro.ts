@@ -12,13 +12,18 @@ import { expect } from '@playwright/test';
  * advanced.
  */
 
-/** Walk the Intro from its opening step to the consent step. */
-export async function advanceIntroToConsentStep(dialog: Locator): Promise<void> {
+/** Walk the Intro from its opening step to the consent step. `actionLabel` is the consent step's Install button
+ *  text — 'Install Hooks' for Claude's hooks subject (the default, and every existing call site's subject), or
+ *  'Install Status Line' for its statusLine subject. */
+export async function advanceIntroToConsentStep(
+  dialog: Locator,
+  actionLabel = 'Install Hooks',
+): Promise<void> {
   await expect(dialog).toContainText('Welcome to Terrarium!');
   await dialog.getByRole('button', { name: 'Continue' }).click();
   await expect(dialog).toContainText('Claude Code');
   await dialog.getByRole('button', { name: 'Continue' }).click();
-  await expect(dialog.getByRole('button', { name: 'Install Hooks' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: actionLabel })).toBeVisible();
 }
 
 /** Close the Intro from its closing step ("You're all set!"). */

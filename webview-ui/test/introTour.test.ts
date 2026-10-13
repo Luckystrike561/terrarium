@@ -22,8 +22,10 @@ import { INTRO_TOUR_IDLE, reduceIntroTour } from '../src/hooks/introTourState.js
 const REQUEST = {
   type: 'hooksConsentRequest',
   providerId: 'claude',
+  subjectId: 'hooks',
   headline: 'One more thing: hooks!',
   disclosure: 'What is written.\n\nWhat moves.\n\nHow to undo.',
+  actionLabel: 'Install Hooks',
 } as const;
 
 /** Fold a sequence of events over the idle state. */
@@ -63,6 +65,7 @@ test('a status arriving with no wait armed is noise, not a verdict', () => {
   const after = reduceIntroTour(opened, {
     kind: 'statusArrived',
     providerId: 'claude',
+    subjectId: 'hooks',
     installed: false,
   });
   assert.equal(after, opened, 'no-op events return the same state reference');
@@ -74,7 +77,7 @@ test('a failed install is detected by ARRIVAL, not by the value changing', () =>
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'claude', installed: false },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: false },
   );
   assert.equal(state.installFailed, true);
 });
@@ -83,7 +86,7 @@ test('a landed install reports no failure', () => {
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'claude', installed: true },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: true },
   );
   assert.equal(state.installFailed, false);
 });
@@ -95,7 +98,7 @@ test('declines never arm the verdict wait', () => {
     const state = play(
       { kind: 'requestChanged', request: REQUEST },
       { kind: 'choiceSent', choice },
-      { kind: 'statusArrived', providerId: 'claude', installed: false },
+      { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: false },
     );
     assert.equal(state.installFailed, false, `${choice} must not read a status as a verdict`);
   }
@@ -117,6 +120,7 @@ test('the pending window is exactly install-click to verdict-arrival', () => {
   const settled = reduceIntroTour(armed, {
     kind: 'statusArrived',
     providerId: 'claude',
+    subjectId: 'hooks',
     installed: false,
   });
   assert.equal(settled.awaitingOutcome, false, 'the verdict closes the window');
@@ -137,7 +141,7 @@ test('a Back-and-revised choice clears the earlier verdict', () => {
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'claude', installed: false },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: false },
     { kind: 'choiceSent', choice: 'notNow' },
   );
   assert.equal(state.installFailed, false);
@@ -150,8 +154,8 @@ test('the verdict settles on the FIRST arrival after the click', () => {
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'claude', installed: false },
-    { kind: 'statusArrived', providerId: 'claude', installed: true },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: false },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: true },
   );
   assert.equal(state.installFailed, true);
 });
@@ -160,7 +164,7 @@ test('closing resets everything, so the next request starts a fresh tour', () =>
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'claude', installed: false },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'hooks', installed: false },
     { kind: 'closed' },
   );
   assert.deepEqual(state, INTRO_TOUR_IDLE);
@@ -177,16 +181,42 @@ test("another provider's status is noise, never this tour's verdict", () => {
   const state = play(
     { kind: 'requestChanged', request: REQUEST },
     { kind: 'choiceSent', choice: 'install' },
-    { kind: 'statusArrived', providerId: 'copilot', installed: false },
+    { kind: 'statusArrived', providerId: 'copilot', subjectId: 'hooks', installed: false },
   );
   assert.equal(state.installFailed, false, 'the wait stays armed');
 
   const settled = reduceIntroTour(state, {
     kind: 'statusArrived',
     providerId: 'claude',
+    subjectId: 'hooks',
     installed: true,
   });
   assert.equal(settled.installFailed, false, "this tour's own status settles it");
+});
+
+test("the SAME provider's other subject status is noise, never this tour's verdict", () => {
+  // Claude has two independent subjects, hooks and statusLine. A statusLine
+  // install failing while this tour (about hooks) waits on its own verdict
+  // must not be misread as that verdict — only a matching (provider, subject)
+  // pair settles it.
+  const state = play(
+    { kind: 'requestChanged', request: REQUEST },
+    { kind: 'choiceSent', choice: 'install' },
+    { kind: 'statusArrived', providerId: 'claude', subjectId: 'statusLine', installed: false },
+  );
+  assert.equal(state.installFailed, false, 'the wait stays armed');
+
+  const settled = reduceIntroTour(state, {
+    kind: 'statusArrived',
+    providerId: 'claude',
+    subjectId: 'hooks',
+    installed: true,
+  });
+  assert.equal(
+    settled.installFailed,
+    false,
+    "this tour's own (provider, subject) status settles it",
+  );
 });
 
 test("a different provider's request replaces an UNANSWERED tour as a fresh one", () => {
@@ -216,4 +246,93 @@ test("an ANSWERED tour holds its snapshot against a different provider's request
   );
   assert.equal(state.intro, REQUEST, 'the answered tour keeps its own snapshot');
   assert.equal(state.awaitingOutcome, true, 'its verdict wait survives');
+});
+
+test("the SAME provider's second subject (hooks then statusLine) is a fresh, independent tour", () => {
+  // Claude asks for 'hooks' first and 'statusLine' second (handleWebviewReady's
+  // ordering). The two subjects are two genuinely separate asks, never one
+  // update to the other, even though providerId is identical both times:
+  // only the (provider, subject) PAIR identifies a tour.
+  const STATUS_LINE = {
+    ...REQUEST,
+    subjectId: 'statusLine',
+    headline: 'One more thing: the status line!',
+    actionLabel: 'Use the Status Line',
+  } as const;
+
+  const state = play(
+    { kind: 'requestChanged', request: REQUEST },
+    { kind: 'requestChanged', request: STATUS_LINE },
+  );
+  assert.equal(
+    state.intro,
+    STATUS_LINE,
+    'an unanswered hooks tour is replaced by the fresh statusLine ask',
+  );
+  assert.equal(state.sentChoice, null);
+  assert.equal(state.awaitingOutcome, false);
+  assert.equal(state.installFailed, false);
+
+  // Answering 'hooks' first, THEN the 'statusLine' ask arrives: the answered
+  // hooks tour (its snapshot and verdict wait) must survive untouched, exactly
+  // as it does against a genuinely different provider's request.
+  const answeredHooks = play(
+    { kind: 'requestChanged', request: REQUEST },
+    { kind: 'choiceSent', choice: 'install' },
+    { kind: 'requestChanged', request: STATUS_LINE },
+  );
+  assert.equal(answeredHooks.intro, REQUEST, 'the answered hooks tour keeps its own snapshot');
+  assert.equal(
+    answeredHooks.awaitingOutcome,
+    true,
+    'its verdict wait survives the statusLine ask arriving',
+  );
+
+  // Once the hooks tour closes, the queued statusLine ask drives a brand new,
+  // independent tour with its own choice and verdict, unrelated to hooks'.
+  const hooksSettled = reduceIntroTour(answeredHooks, {
+    kind: 'statusArrived',
+    providerId: 'claude',
+    subjectId: 'hooks',
+    installed: true,
+  });
+  const hooksClosed = reduceIntroTour(hooksSettled, { kind: 'closed' });
+  assert.deepEqual(hooksClosed, INTRO_TOUR_IDLE);
+
+  const statusLineTour = reduceIntroTour(hooksClosed, {
+    kind: 'requestChanged',
+    request: STATUS_LINE,
+  });
+  assert.equal(statusLineTour.intro, STATUS_LINE);
+  assert.equal(statusLineTour.sentChoice, null);
+  assert.equal(statusLineTour.installFailed, false);
+
+  const statusLineArmed = reduceIntroTour(statusLineTour, {
+    kind: 'choiceSent',
+    choice: 'install',
+  });
+  assert.equal(statusLineArmed.awaitingOutcome, true);
+
+  // A hooks-pair status must not settle the statusLine tour's own wait: the
+  // two subjects' installs are independent writes.
+  const noise = reduceIntroTour(statusLineArmed, {
+    kind: 'statusArrived',
+    providerId: 'claude',
+    subjectId: 'hooks',
+    installed: false,
+  });
+  assert.equal(
+    noise.awaitingOutcome,
+    true,
+    "a hooks status never settles the statusLine tour's wait",
+  );
+
+  const statusLineSettled = reduceIntroTour(statusLineArmed, {
+    kind: 'statusArrived',
+    providerId: 'claude',
+    subjectId: 'statusLine',
+    installed: true,
+  });
+  assert.equal(statusLineSettled.awaitingOutcome, false);
+  assert.equal(statusLineSettled.installFailed, false);
 });

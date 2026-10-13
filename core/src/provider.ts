@@ -1,7 +1,7 @@
 /**
  * Provider modules: the integration boundary between the office and the tools that run agents.
  *
- * Two kinds of module, each usable alone or together:
+ * Three kinds of module, each usable alone or together:
  *
  * - An AgentModule speaks for one agent CLI (Claude Code, omp, ...). It owns that CLI's vocabulary (tool names,
  *   status text, context windows) and knows how to read what the CLI reports (installed hooks, transcripts, or
@@ -9,12 +9,16 @@
  * - A MultiplexerModule speaks for one terminal multiplexer (herdr, ...). It knows which agents are alive, what
  *   kind of CLI each one is, its status level, name and task, but never what the agent is doing. For that it hands
  *   each agent to the AgentModule registered for its kind, and falls back to status alone when none is.
+ * - A QuotaSourceModule reads an account quota of a provider that runs no agent CLI of its own. An agent module
+ *   that sees its provider's quota reports it through its ModuleHost instead.
  *
- * Every module reduces what it reads to AgentEvents. The runtime dispatches on `AgentEvent.kind` and never on
- * CLI-specific names.
+ * Agent and multiplexer modules reduce what they read to AgentEvents, quota sources to QuotaReadings. The runtime
+ * dispatches on `AgentEvent.kind` and never on CLI-specific names.
  */
 
-// ── Normalized Events (every module produces these) ───────────
+import type { QuotaUnit } from './messages.js';
+
+// ── Normalized Events (every agent and multiplexer module produces these) ───────────
 
 /** How an agent sits in a team, as its module reports it. The office shows it; the runtime never interprets it. */
 export interface TeamMembership {
@@ -109,9 +113,8 @@ export type AgentEvent =
 
 /** What a running module feeds. One host per module, bound to its id: every event emitted through it is attributed
  *  to that module. */
-export interface ModuleHost {
+export interface ModuleHost extends QuotaHost {
   emit(sessionId: string, event: AgentEvent): void;
-  log(message: string): void;
 }
 
 export interface ModuleHandle {
@@ -154,20 +157,23 @@ export interface RunningAgentModule extends ModuleHandle {
 // ── Agent modules ─────────────────────────────────────────────
 
 /** Hooks written into a third-party settings file. Writing there is consent-gated: the consent gate asks once per
- *  module that has one of these, with the module's own disclosure. */
+ *  (module, subject) that has one of these, with the subject's own disclosure. A module lists every subject it
+ *  writes — Claude's hook entries and its status line are two independent subjects, asked and revised separately —
+ *  so nothing is written for a subject until ITS OWN ask is answered `install`. */
 export interface HookInstaller {
-  /** Install hook entries that POST to this server's `/api/hooks/<module id>`. */
+  /** Stable id of what this installer writes, scoped to the owning module (e.g. 'hooks' | 'statusLine' for Claude).
+   *  Echoed on every consent-bearing wire message beside the module's own id, never branched on by value outside
+   *  the module that defined it. */
+  readonly id: string;
+  /** Install this subject's write, POSTing to this server's `/api/hooks/<module id>` where relevant. */
   installHooks(serverUrl: string, authToken: string): Promise<void>;
   uninstallHooks(): Promise<void>;
   areHooksInstalled(): Promise<boolean>;
-  /** First-run consent copy for THIS module's hook install: the headline titles the ask, the disclosure is its body
-   *  (what is written, what data moves, how to undo; paragraphs split on blank lines). Required, not optional: a
-   *  module that installs anything must state its terms, and the gate ships these verbatim so no client copy can
-   *  drift. */
-  consentDisclosure(): { headline: string; disclosure: string };
-  /** Put the files the hook entries execute in place, from the installed package root. Callers run it BEFORE
-   *  `installHooks` and abort on false: an entry whose command points at a missing file is worse than no hook. */
-  stageHookFiles?(packageRoot: string): boolean;
+  /** First-run consent copy for THIS subject's install: the headline titles the ask, the disclosure is its body
+   *  (what is written, what data moves, how to undo; paragraphs split on blank lines), and actionLabel is the
+   *  consent step's Install button text. Required, not optional: a subject that installs anything must state its
+   *  terms, and the gate ships these verbatim so no client copy can drift. */
+  consentDisclosure(): { headline: string; disclosure: string; actionLabel: string };
 }
 
 export interface AgentModule {
@@ -179,9 +185,13 @@ export interface AgentModule {
    *  / AgentModule / RunningAgentModule. */
   readonly protocolVersion: number;
 
-  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.terrarium/`.
-   *  The running module receives what they POST (`RunningAgentModule.receiveHook`). */
-  readonly hooks?: HookInstaller;
+  /** Consent-gated subjects this module writes outside `~/.terrarium/`, asked in array order. Absent/empty when
+   *  nothing is written. The running module receives what they POST (`RunningAgentModule.receiveHook`). */
+  readonly hooks?: readonly HookInstaller[];
+  /** Put the files every subject's hook entries execute in place, from the installed package root. A shared
+   *  prerequisite, not one subject's own: callers run it BEFORE any subject's `installHooks` and abort on false —
+   *  an entry whose command points at a missing file is worse than no hook. */
+  stageHookFiles?(packageRoot: string): boolean;
 
   /** Format tool status for display (e.g., "Read" -> "Reading foo.ts") */
   formatToolStatus(toolName: string, input?: unknown): string;
@@ -264,4 +274,50 @@ export interface MultiplexerModule {
   probe(endpoint: MultiplexerEndpoint): Promise<string | undefined>;
 }
 
-export type ProviderModule = AgentModule | MultiplexerModule;
+// ── Quota sources ─────────────────────────────────────────────
+
+/** How much of a quota is used: a share the provider computed, or an amount against a limit. An amount may carry the
+ *  provider's own share beside it when the two are read at different times: the share is then the one shown. */
+export type QuotaUsage =
+  | { readonly kind: 'fraction'; readonly usedFraction: number }
+  | {
+      readonly kind: 'amount';
+      readonly usedAmount: number;
+      readonly limitAmount: number;
+      readonly unit: QuotaUnit;
+      readonly usedFraction?: number;
+    };
+
+/** One reading of one quota meter, as its source saw it. */
+export interface QuotaReading {
+  /** Unique within the reporting module ('five_hour', 'month', ...). A new reading replaces the last one. */
+  readonly meterId: string;
+  /** What the office shows for the meter ('Claude · 5h'). */
+  readonly label: string;
+  /** Null when the source cannot read the meter (no credentials, an expired session): shown as unavailable, never as
+   *  empty or full. */
+  readonly usage: QuotaUsage | null;
+  /** Epoch ms when the provider resets the meter. The reading goes stale then: it belongs to an ended window. */
+  readonly resetsAt?: number;
+  /** Epoch ms when the source took the reading. */
+  readonly observedAt: number;
+  /** How long the reading counts as fresh: the interval the source expects to report in. */
+  readonly staleAfterMs: number;
+}
+
+/** What a quota source reports to. Push or poll is the source's choice: the runtime keeps the latest reading of each
+ *  meter and broadcasts it. */
+export interface QuotaHost {
+  reportQuota(reading: QuotaReading): void;
+  log(message: string): void;
+}
+
+export interface QuotaSourceModule {
+  readonly kind: 'quota';
+  readonly id: string;
+  readonly displayName: string;
+  /** Start reading quotas until the handle is stopped. */
+  start(host: QuotaHost): ModuleHandle;
+}
+
+export type ProviderModule = AgentModule | MultiplexerModule | QuotaSourceModule;

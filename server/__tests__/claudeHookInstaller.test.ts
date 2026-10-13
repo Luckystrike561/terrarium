@@ -46,8 +46,15 @@ vi.mock('fs', async () => {
   };
 });
 
-const { areHooksInstalled, installHooks, uninstallHooks, copyHookScript } =
-  await import('../src/providers/claude/claudeHookInstaller.js');
+const {
+  areHooksInstalled,
+  installHooks,
+  uninstallHooks,
+  installStatusLineEntry,
+  uninstallStatusLineEntry,
+  isStatusLineInstalled,
+  copyHookScript,
+} = await import('../src/providers/claude/claudeHookInstaller.js');
 const {
   CLAUDE_HOOK_EVENTS,
   LEGACY_SETTINGS_BACKUP_SUFFIX,
@@ -1045,5 +1052,224 @@ describe('claudeHookInstaller', () => {
 
     expect(copyHookScript(mockExtPath)).toBe(false);
     expect(fs.existsSync(dst)).toBe(false);
+  });
+
+  describe('status line', () => {
+    const userStatusLine = {
+      type: 'command',
+      command: '~/.claude/statusline.sh --compact',
+      padding: 2,
+      refreshInterval: 5,
+    };
+    const statusLineKeyOf = (raw: string): string => {
+      const parsed: unknown = JSON.parse(raw);
+      const isSettings = parsed !== null && typeof parsed === 'object' && 'statusLine' in parsed;
+      return JSON.stringify(isSettings ? parsed.statusLine : undefined);
+    };
+
+    it('chains an existing status line, keeping its display fields', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+
+      await installStatusLineEntry();
+
+      const statusLine = readSettings().statusLine as Record<string, unknown>;
+      const encoded = Buffer.from(JSON.stringify(userStatusLine)).toString('base64url');
+      expect(statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line ${encoded}`,
+        padding: 2,
+        refreshInterval: 5,
+      });
+    });
+
+    it('uninstall restores the original status line byte for byte', async () => {
+      const original = JSON.stringify({ model: 'opus', statusLine: userStatusLine }, null, 2);
+      fs.writeFileSync(settingsPathFor(), original);
+
+      await installStatusLineEntry();
+      await uninstallStatusLineEntry();
+
+      const restored = fs.readFileSync(settingsPathFor(), 'utf-8');
+      expect(statusLineKeyOf(restored)).toBe(statusLineKeyOf(original));
+      expect(isStatusLineInstalled()).toBe(false);
+    });
+
+    it('reinstalling chains the original once, not our own status line', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+
+      await installStatusLineEntry();
+      await installStatusLineEntry();
+      await uninstallStatusLineEntry();
+
+      expect(readSettings().statusLine).toEqual(userStatusLine);
+    });
+
+    /** Rewrite the installed status line as a user editing settings.json by hand would. */
+    const editStatusLine = (edit: (statusLine: Record<string, unknown>) => unknown): void => {
+      const settings = readSettings();
+      const statusLine = settings.statusLine;
+      if (statusLine === null || typeof statusLine !== 'object') throw new Error('no statusLine');
+      const edited = edit(Object.fromEntries(Object.entries(statusLine)));
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ ...settings, statusLine: edited }));
+    };
+
+    it('keeps display fields changed on our status line across a reinstall and the uninstall', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+      await installStatusLineEntry();
+      editStatusLine(({ refreshInterval: _removed, ...ours }) => ({ ...ours, padding: 4 }));
+
+      await installStatusLineEntry();
+      expect(readSettings().statusLine).toMatchObject({ padding: 4 });
+      expect(readSettings().statusLine).not.toHaveProperty('refreshInterval');
+
+      await uninstallStatusLineEntry();
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: userStatusLine.command,
+        padding: 4,
+      });
+    });
+
+    it('keeps a display field added to our status line in an empty slot across a reinstall', async () => {
+      await installStatusLineEntry();
+      editStatusLine((ours) => ({ ...ours, padding: 1 }));
+
+      await installStatusLineEntry();
+
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line`,
+        padding: 1,
+      });
+    });
+
+    it('fills an empty slot, and uninstall leaves the slot empty again', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ model: 'opus' }));
+
+      await installStatusLineEntry();
+      expect(readSettings().statusLine).toEqual({
+        type: 'command',
+        command: `${ourCommand()} --status-line`,
+      });
+
+      await uninstallStatusLineEntry();
+      expect(readSettings()).toEqual({ model: 'opus' });
+    });
+
+    it('leaves a status line it cannot chain untouched', async () => {
+      const foreign = { type: 'static', text: 'hello' };
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: foreign }));
+
+      await installStatusLineEntry();
+      expect(readSettings().statusLine).toEqual(foreign);
+      await uninstallStatusLineEntry();
+      expect(readSettings().statusLine).toEqual(foreign);
+    });
+
+    it('counts as installed on its own (isStatusLineInstalled), independent of areHooksInstalled', async () => {
+      fs.writeFileSync(
+        settingsPathFor(),
+        JSON.stringify({
+          statusLine: { type: 'command', command: `${ourCommand()} --status-line` },
+        }),
+      );
+
+      expect(isStatusLineInstalled()).toBe(true);
+      expect(areHooksInstalled()).toBe(false);
+      await uninstallStatusLineEntry();
+      expect(isStatusLineInstalled()).toBe(false);
+    });
+
+    it('refuses to write over a chained status line it cannot decode', async () => {
+      const broken = { type: 'command', command: `${ourCommand()} --status-line not!base64url` };
+      const raw = JSON.stringify({ statusLine: broken });
+      fs.writeFileSync(settingsPathFor(), raw);
+
+      await expect(uninstallStatusLineEntry()).rejects.toThrow(
+        'chained status line cannot be read',
+      );
+      await expect(installStatusLineEntry()).rejects.toThrow('chained status line cannot be read');
+      expect(fs.readFileSync(settingsPathFor(), 'utf-8')).toBe(raw);
+    });
+
+    it('takes no backup of a fresh home that only ever held our install', async () => {
+      await installStatusLineEntry();
+      await uninstallStatusLineEntry();
+
+      expect(fs.existsSync(`${settingsPathFor()}${SETTINGS_BACKUP_SUFFIX}`)).toBe(false);
+    });
+  });
+
+  // Entries and status line are two independently-consented subjects: each gets its OWN
+  // mutateClaudeSettings pass, and install/uninstall of one must never touch the other's
+  // fields. These tests compare the UNTOUCHED subject's raw bytes before and after, not just
+  // its parsed value, so a write that happens to round-trip to the same JSON would still fail.
+  describe('installer independence (hook entries vs status line)', () => {
+    const userStatusLine = { type: 'command', command: '~/.claude/statusline.sh --compact' };
+
+    it('installing the status line leaves existing hook entries byte-identical', async () => {
+      await installHooks();
+      const beforeHooks = JSON.stringify(readSettings().hooks);
+
+      await installStatusLineEntry();
+
+      expect(JSON.stringify(readSettings().hooks)).toBe(beforeHooks);
+      expect(readSettings().statusLine).toBeTruthy();
+    });
+
+    it('uninstalling the status line leaves existing hook entries byte-identical', async () => {
+      await installHooks();
+      await installStatusLineEntry();
+      const beforeHooks = JSON.stringify(readSettings().hooks);
+
+      await uninstallStatusLineEntry();
+
+      expect(JSON.stringify(readSettings().hooks)).toBe(beforeHooks);
+      expect(readSettings().statusLine).toBeUndefined();
+    });
+
+    it('installing hook entries leaves an existing status line slot byte-identical', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+      await installStatusLineEntry();
+      const beforeStatusLine = JSON.stringify(readSettings().statusLine);
+
+      await installHooks();
+
+      expect(JSON.stringify(readSettings().statusLine)).toBe(beforeStatusLine);
+      expect(readSettings().hooks).toBeTruthy();
+    });
+
+    it('uninstalling hook entries leaves an existing status line slot byte-identical', async () => {
+      fs.writeFileSync(settingsPathFor(), JSON.stringify({ statusLine: userStatusLine }));
+      await installStatusLineEntry();
+      await installHooks();
+      const beforeStatusLine = JSON.stringify(readSettings().statusLine);
+
+      await uninstallHooks();
+
+      expect(JSON.stringify(readSettings().statusLine)).toBe(beforeStatusLine);
+      expect(readSettings().hooks).toBeUndefined();
+    });
+
+    it('areHooksInstalled and isStatusLineInstalled are independent checks', async () => {
+      expect(areHooksInstalled()).toBe(false);
+      expect(isStatusLineInstalled()).toBe(false);
+
+      await installHooks();
+      expect(areHooksInstalled()).toBe(true);
+      expect(isStatusLineInstalled()).toBe(false);
+
+      await installStatusLineEntry();
+      expect(areHooksInstalled()).toBe(true);
+      expect(isStatusLineInstalled()).toBe(true);
+
+      await uninstallHooks();
+      expect(areHooksInstalled()).toBe(false);
+      expect(isStatusLineInstalled()).toBe(true);
+
+      await uninstallStatusLineEntry();
+      expect(areHooksInstalled()).toBe(false);
+      expect(isStatusLineInstalled()).toBe(false);
+    });
   });
 });

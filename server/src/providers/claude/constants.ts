@@ -6,6 +6,14 @@
  * Adding another module? Create its own `providers/<id>/constants.ts`.
  */
 
+/** Ids of Claude's two independently-consented hook subjects (HookInstaller.id), shared by `claude.ts`,
+ *  `claudeHookInstaller.ts` and their tests so the spelling lives in exactly one place. `HOOKS_SUBJECT_ID` is also
+ *  the subject a pre-per-subject-consent config's flat `hooksConsent`/`hooksEnabled` value migrates onto
+ *  (configPersistence.ts's `LEGACY_SUBJECT_ID`) — the one write every installer made before the status line got
+ *  its own ask. */
+export const HOOKS_SUBJECT_ID = 'hooks';
+export const STATUS_LINE_SUBJECT_ID = 'statusLine';
+
 /** Output filename after esbuild compiles claude-hook.ts to CJS (source is .ts, output is .js) */
 export const CLAUDE_HOOK_SCRIPT_NAME = 'claude-hook.js';
 
@@ -44,6 +52,42 @@ export const CLAUDE_HOOK_EVENTS = [
   'TeammateIdle',
   'TaskCompleted',
 ] as const;
+
+/** The hook script's argument that makes it Claude Code's status line command instead of a hook. Our status line
+ *  runs `node "<hook script>" --status-line [<the user's status line, base64url JSON>]`. */
+export const STATUS_LINE_FLAG = '--status-line';
+
+/** `hook_event_name` of what the status line POSTs. Not a Claude Code hook event: the prefix keeps a future one of
+ *  the same name from being mistaken for ours. */
+export const STATUS_LINE_EVENT = 'TerrariumStatusLine';
+
+/** How long the hook script waits for one server to answer a hook event POST. */
+export const HOOK_DELIVERY_TIMEOUT_MS = 2_000;
+
+/** How long the status line waits for one server to answer its quota POST. Claude Code debounces status line updates
+ *  at 300 ms and cancels a run still in flight when the next one fires, so a server that accepts and never answers
+ *  must not hold the user's status line open for HOOK_DELIVERY_TIMEOUT_MS. */
+export const STATUS_LINE_DELIVERY_TIMEOUT_MS = 250;
+
+/** The variable that tells Claude Code where Git Bash's `bash.exe` is on Windows. We honour it the same way. */
+export const CLAUDE_CODE_GIT_BASH_PATH_ENV = 'CLAUDE_CODE_GIT_BASH_PATH';
+
+/** The executable whose directory on PATH locates Git for Windows. */
+export const GIT_EXECUTABLE = 'git.exe';
+
+/** Git for Windows keeps `bash.exe` in its `bin` directory, a sibling of the `cmd` directory that puts `git.exe` on
+ *  PATH. */
+export const GIT_BASH_FROM_GIT_DIR = ['..', 'bin', 'bash.exe'] as const;
+
+/** Git for Windows' default install, under %ProgramFiles%. */
+export const GIT_BASH_DEFAULT_SEGMENTS = ['Git', 'bin', 'bash.exe'] as const;
+
+/** The shell Claude Code runs status lines through on Windows when it finds no Git Bash. */
+export const WINDOWS_STATUS_LINE_FALLBACK_SHELL = 'powershell.exe';
+
+/** How long a status-line quota reading counts as fresh. Claude Code runs the status line after every assistant
+ *  message, so a quiet quarter hour means no Claude session is working and the reading may be behind. */
+export const CLAUDE_QUOTA_STALE_AFTER_MS = 15 * 60_000;
 
 /** Suffix of the one-time pre-modification backup of settings.json. Brand-named
  *  rather than a generic `.backup`, which collides with other tools' backup

@@ -11,9 +11,10 @@ import { Tooltip } from './components/Tooltip.js';
 import { Modal } from './components/ui/Modal.js';
 import { VersionIndicator } from './components/VersionIndicator.js';
 import { ZOOM_MIN } from './constants.js';
-import { useExtensionMessages } from './hooks/useExtensionMessages.js';
+import { hooksSubjectKey, useExtensionMessages } from './hooks/useExtensionMessages.js';
 import { useIntroTour } from './hooks/useIntroTour.js';
 import { OfficeCanvas } from './office/components/OfficeCanvas.js';
+import { QuotaJars } from './office/components/QuotaJars.js';
 import { ToolOverlay } from './office/components/ToolOverlay.js';
 import { OfficeState } from './office/engine/officeState.js';
 import { isE2E } from './runtime.js';
@@ -67,6 +68,7 @@ function App() {
     dismissConsentRequest,
     connections,
     addConnection,
+    quotaMeters,
   } = useExtensionMessages(getOfficeState);
 
   // Show migration notice once layout reset is detected
@@ -100,8 +102,9 @@ function App() {
     onClose: handleIntroClose,
   } = useIntroTour({ consentRequest, hooksInstalled, hooksStatusSeq, dismissConsentRequest });
 
-  // The hooks tooltip binds to the Claude row of the per-provider install-state map.
-  const claudeHooksInstalled = hooksInstalled['claude'] === true;
+  // The hooks tooltip binds to the Claude row of the hooks-entries subject's install-state map — the
+  // 'Instant Detection Active' message is about heuristic suppression, never the status line.
+  const claudeHooksInstalled = hooksInstalled[hooksSubjectKey('claude', 'hooks')] === true;
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -149,6 +152,14 @@ function App() {
         zoom={zoom}
         panRef={panRef}
         onCloseAgent={handleCloseAgent}
+      />
+
+      <QuotaJars
+        officeState={officeState}
+        meters={quotaMeters}
+        containerRef={containerRef}
+        zoom={zoom}
+        panRef={panRef}
       />
 
       {/* Hooks first-run tooltip. Gated on hooksInstalled (the hooksStatus
@@ -252,6 +263,7 @@ function App() {
           officeState={officeState}
           headline={intro.headline}
           disclosure={intro.disclosure}
+          actionLabel={intro.actionLabel}
           containerRef={containerRef}
           zoom={zoom}
           panRef={panRef}

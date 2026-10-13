@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONSENT_DISCLOSURE,
   CONSENT_INSTALL_HEADLINE,
+  STATUS_LINE_DISCLOSURE,
 } from '../src/providers/claude/consentCopy.js';
 import { CLAUDE_HOOK_EVENTS, SETTINGS_BACKUP_SUFFIX } from '../src/providers/claude/constants.js';
 
@@ -61,5 +62,11 @@ describe('consent copy', () => {
   // would be a silent legibility regression.
   it('is a paragraph-separated block', () => {
     expect(CONSENT_DISCLOSURE.split('\n\n')).toHaveLength(3);
+  });
+
+  it('tells a user with no status line that taking the slot hides footer hints', () => {
+    expect(STATUS_LINE_DISCLOSURE).toContain('esc to interrupt');
+    expect(STATUS_LINE_DISCLOSURE).toContain('? for shortcuts');
+    expect(STATUS_LINE_DISCLOSURE).toContain('hold space to speak');
   });
 });

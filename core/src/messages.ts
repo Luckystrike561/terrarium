@@ -37,7 +37,8 @@ export type ServerMessage =
   | HooksConsentRequest
   | AreaMappingsLoaded
   | ConnectionsLoaded
-  | ConnectionAddResult;
+  | ConnectionAddResult
+  | QuotaUpdate;
 
 export type ClientMessage =
   | WebviewReady
@@ -267,14 +268,17 @@ export interface SettingsLoaded {
 export interface HooksStatus {
   type: 'hooksStatus';
   providerId: string;
+  subjectId: string;
   installed: boolean;
 }
 
 export interface HooksConsentRequest {
   type: 'hooksConsentRequest';
   providerId: string;
+  subjectId: string;
   headline: string;
   disclosure: string;
+  actionLabel: string;
 }
 
 export interface AreaMappingsLoaded {
@@ -308,6 +312,26 @@ export interface ConnectionAddResult {
   error?: string;
 }
 
+export interface QuotaUpdate {
+  type: 'quotaUpdate';
+  meters: QuotaMeter[];
+}
+
+export interface QuotaMeter {
+  id: string;
+  providerId: string;
+  label: string;
+  usedFraction?: number;
+  usedAmount?: number;
+  limitAmount?: number;
+  unit?: QuotaUnit;
+  resetsAt?: number;
+  observedAt: number;
+  stale: boolean;
+}
+
+export type QuotaUnit = 'usd' | 'tokens' | 'requests';
+
 export interface WebviewReady {
   type: 'webviewReady';
 }
@@ -336,6 +360,7 @@ export interface SetLastSeenVersion {
 export interface HooksConsentResponse {
   type: 'hooksConsentResponse';
   providerId: string;
+  subjectId: string;
   choice: HooksConsentChoice;
 }
 

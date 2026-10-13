@@ -4,7 +4,12 @@ import * as path from 'path';
 import type { MockInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AgentEvent, ModuleHost, RunningAgentModule } from '../../core/src/provider.js';
+import type {
+  AgentEvent,
+  ModuleHost,
+  QuotaReading,
+  RunningAgentModule,
+} from '../../core/src/provider.js';
 import { startClaudeModule } from '../src/providers/claude/claudeRunningModule.js';
 import { getSessionDirs } from '../src/providers/claude/claudeVocabulary.js';
 import {
@@ -37,6 +42,7 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
   let file3: string;
   let cwdSpy: MockInstance<typeof process.cwd>;
   let recorded: Recorded[];
+  let quotaReadings: QuotaReading[];
   let host: ModuleHost;
   let runningModule: RunningAgentModule | undefined;
 
@@ -73,8 +79,10 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
 
     recorded = [];
+    quotaReadings = [];
     host = {
       emit: (sessionId, event) => recorded.push({ sessionId, event }),
+      reportQuota: (reading) => quotaReadings.push(reading),
       log: () => {},
     };
   });
@@ -85,6 +93,25 @@ describe('ClaudeRunningModule: discovery -> bridge pipeline', () => {
     vi.useRealTimers();
     cwdSpy.mockRestore();
     fs.rmSync(tmpHome, { recursive: true, force: true });
+  });
+
+  it("reports the status line's rate limits as quota, and no agent activity", () => {
+    runningModule = startClaudeModule(host);
+
+    runningModule.receiveHook?.({
+      hook_event_name: 'TerrariumStatusLine',
+      session_id: SESSION_1,
+      rate_limits: {
+        five_hour: { used_percentage: 70, resets_at: 1_999_999_999 },
+        seven_day: { used_percentage: 25, resets_at: 2_000_500_000 },
+      },
+    });
+
+    expect(quotaReadings.map((r) => [r.meterId, r.usage])).toEqual([
+      ['five_hour', { kind: 'fraction', usedFraction: 0.7 }],
+      ['seven_day', { kind: 'fraction', usedFraction: 0.25 }],
+    ]);
+    expect(recorded).toEqual([]);
   });
 
   it('adopts a live session on startup, tracks its tools and turn end, discovers a teammate, restores an undiscovered session, and ends a dismissed one', async () => {

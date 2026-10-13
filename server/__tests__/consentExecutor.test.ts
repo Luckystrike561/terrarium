@@ -12,6 +12,7 @@ import {
   recordHooksDecline,
   setHooksEnabled as persistHooksEnabled,
 } from '../src/configPersistence.js';
+import { HOOKS_SUBJECT_ID } from '../src/providers/claude/constants.js';
 import type { ConsentEffects } from '../src/providers/consentExecutor.js';
 import { applyConsentChoice } from '../src/providers/consentExecutor.js';
 
@@ -109,6 +110,7 @@ describe('consentExecutor', () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'install',
         makeEffects({ tag: 'A', log, installedSequence: [false] }),
       );
@@ -123,6 +125,7 @@ describe('consentExecutor', () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'A', log, installedSequence: [false] }),
       );
@@ -132,14 +135,15 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'syncHooksPreferenceOff', args: [] },
         { tag: 'A', method: 'reportHooksStatus', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
     });
 
     it('never over live hooks takes the full toggle-off path and persists the decline only once the disk agrees', async () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'A', log, installedSequence: [true, false] }),
       );
@@ -149,14 +153,15 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'setHooksEnabled', args: [false] },
         { tag: 'A', method: 'areHooksInstalled', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
     });
 
     it('notNow over a grant with live hooks uninstalls, then clears the grant only once removal is verified', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [true, false] }),
       );
@@ -167,14 +172,15 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'areHooksInstalled', args: [] },
         { tag: 'A', method: 'reportHooksStatus', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
 
     it('notNow over a grant with nothing on disk clears it unconditionally, without ever calling uninstall', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [false] }),
       );
@@ -183,14 +189,15 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'areHooksInstalled', args: [] },
         { tag: 'A', method: 'reportHooksStatus', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
 
     it('notNow over a decline with nothing installed restores the default unconditionally', async () => {
-      recordHooksDecline('claude');
+      recordHooksDecline('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [false] }),
       );
@@ -199,15 +206,16 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'areHooksInstalled', args: [] },
         { tag: 'A', method: 'reportHooksStatus', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
     });
 
     it('notNow over a decline with stray entries on disk uninstalls first, then restores the default', async () => {
-      recordHooksDecline('claude');
+      recordHooksDecline('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [true, false] }),
       );
@@ -218,20 +226,21 @@ describe('consentExecutor', () => {
         { tag: 'A', method: 'areHooksInstalled', args: [] },
         { tag: 'A', method: 'reportHooksStatus', args: [] },
       ]);
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
     });
 
     it('an unrecognized choice reads the disk once and writes nothing at all', async () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         { weird: true },
         makeEffects({ tag: 'A', log, installedSequence: [false] }),
       );
 
       expect(log).toEqual([{ tag: 'A', method: 'areHooksInstalled', args: [] }]);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
   });
 
@@ -240,23 +249,25 @@ describe('consentExecutor', () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'A', log, installedSequence: [true, true] }),
       );
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
 
     it('a revert that cannot verify its uninstall keeps the grant and still reports the true (installed) status', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [true, true] }),
       );
 
-      expect(getHooksConsent('claude')).toBe('granted');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
       expect(methods(log)).toEqual([
         'areHooksInstalled',
         'uninstallHooks',
@@ -266,16 +277,17 @@ describe('consentExecutor', () => {
     });
 
     it('a revertDecline that cannot verify its uninstall keeps the decline and its hooks-off preference', async () => {
-      recordHooksDecline('claude');
+      recordHooksDecline('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [true, true] }),
       );
 
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
       expect(methods(log)).toEqual([
         'areHooksInstalled',
         'uninstallHooks',
@@ -285,16 +297,17 @@ describe('consentExecutor', () => {
     });
 
     it('fail-closed: an unreadable settings file degrades to installed:false and a grant-only revert never attempts an uninstall', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'A', log, installedSequence: [new Error('EACCES')] }),
       );
 
       expect(methods(log)).toEqual(['areHooksInstalled', 'reportHooksStatus']);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
   });
 
@@ -320,7 +333,7 @@ describe('consentExecutor', () => {
         },
       });
 
-      await applyConsentChoice('claude', 'install', throwing);
+      await applyConsentChoice('claude', HOOKS_SUBJECT_ID, 'install', throwing);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[Terrarium] Consent action failed:',
@@ -328,11 +341,11 @@ describe('consentExecutor', () => {
       );
       // Nothing downstream of the throw ran, and the throw itself happens
       // before any config write in the 'install' arm.
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
 
     it('a throwing uninstallHooks mid-revert is caught, leaving the grant exactly as the last good state left it', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       const log: EffectCall[] = [];
       const throwing = makeEffects({
         tag: 'A',
@@ -343,10 +356,10 @@ describe('consentExecutor', () => {
         },
       });
 
-      await applyConsentChoice('claude', 'notNow', throwing);
+      await applyConsentChoice('claude', HOOKS_SUBJECT_ID, 'notNow', throwing);
 
       expect(consoleErrorSpy).toHaveBeenCalled();
-      expect(getHooksConsent('claude')).toBe('granted');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
     });
 
     it('a failure in one answer never blocks the next answer queued behind it', async () => {
@@ -361,8 +374,8 @@ describe('consentExecutor', () => {
       });
       const healthy = makeEffects({ tag: 'B', log, installedSequence: [false] });
 
-      const first = applyConsentChoice('claude', 'install', throwing);
-      const second = applyConsentChoice('claude', 'never', healthy);
+      const first = applyConsentChoice('claude', HOOKS_SUBJECT_ID, 'install', throwing);
+      const second = applyConsentChoice('claude', HOOKS_SUBJECT_ID, 'never', healthy);
       await Promise.all([first, second]);
 
       expect(log.filter((call) => call.tag === 'B').map((call) => call.method)).toEqual([
@@ -370,7 +383,7 @@ describe('consentExecutor', () => {
         'syncHooksPreferenceOff',
         'reportHooksStatus',
       ]);
-      expect(getHooksConsent('claude')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
     });
   });
 
@@ -379,35 +392,38 @@ describe('consentExecutor', () => {
       const log: EffectCall[] = [];
       // The install's own write failed, so the grant is recorded with
       // nothing on disk — the population the ADR's failed-install case names.
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
 
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'revert', log, installedSequence: [false] }),
       );
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
     });
 
     it('a decline, then a revised notNow, restores the world to exactly unanswered', async () => {
       const log: EffectCall[] = [];
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'decline', log, installedSequence: [false] }),
       );
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
 
       await applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'notNow',
         makeEffects({ tag: 'revert', log, installedSequence: [false] }),
       );
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
     });
 
     it('install, then never, then notNow ends unanswered — not at the decline the middle answer wrote', async () => {
@@ -420,8 +436,8 @@ describe('consentExecutor', () => {
           async setHooksEnabled(enabled) {
             log.push({ tag, method: 'setHooksEnabled', args: [enabled] });
             disk.installed = enabled;
-            if (enabled) grantHooksConsent(providerId);
-            persistHooksEnabled(providerId, enabled);
+            if (enabled) grantHooksConsent(providerId, HOOKS_SUBJECT_ID);
+            persistHooksEnabled(providerId, HOOKS_SUBJECT_ID, enabled);
           },
           async uninstallHooks() {
             log.push({ tag, method: 'uninstallHooks', args: [] });
@@ -440,26 +456,31 @@ describe('consentExecutor', () => {
         };
       }
 
-      await applyConsentChoice(providerId, 'install', makeChainEffects('install'));
-      expect(getHooksConsent(providerId)).toBe('granted');
-      expect(getHooksEnabled(providerId)).toBe(true);
+      await applyConsentChoice(
+        providerId,
+        HOOKS_SUBJECT_ID,
+        'install',
+        makeChainEffects('install'),
+      );
+      expect(getHooksConsent(providerId, HOOKS_SUBJECT_ID)).toBe('granted');
+      expect(getHooksEnabled(providerId, HOOKS_SUBJECT_ID)).toBe(true);
 
-      await applyConsentChoice(providerId, 'never', makeChainEffects('never'));
-      expect(getHooksConsent(providerId)).toBe('declined');
-      expect(getHooksEnabled(providerId)).toBe(false);
+      await applyConsentChoice(providerId, HOOKS_SUBJECT_ID, 'never', makeChainEffects('never'));
+      expect(getHooksConsent(providerId, HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled(providerId, HOOKS_SUBJECT_ID)).toBe(false);
       expect(disk.installed).toBe(false);
 
-      await applyConsentChoice(providerId, 'notNow', makeChainEffects('notNow'));
-      expect(getHooksConsent(providerId)).toBe('unanswered');
-      expect(getHooksEnabled(providerId)).toBe(true);
+      await applyConsentChoice(providerId, HOOKS_SUBJECT_ID, 'notNow', makeChainEffects('notNow'));
+      expect(getHooksConsent(providerId, HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled(providerId, HOOKS_SUBJECT_ID)).toBe(true);
     });
 
     it('clearHooksAnswer leaves a never-answered provider indistinguishable from one untouched', () => {
       // Pin the "no leftovers at all" baseline the revision tests above
       // converge on, using the real function the revertDecline arm calls.
-      clearHooksAnswer('claude');
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      clearHooksAnswer('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
     });
   });
 
@@ -471,6 +492,7 @@ describe('consentExecutor', () => {
 
       const first = applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'install',
         makeEffects({
           tag: 'A',
@@ -487,6 +509,7 @@ describe('consentExecutor', () => {
 
       const second = applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'B', log, installedSequence: [false] }),
       );
@@ -508,6 +531,7 @@ describe('consentExecutor', () => {
 
       const first = applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({
           tag: 'claude',
@@ -524,6 +548,7 @@ describe('consentExecutor', () => {
 
       const second = applyConsentChoice(
         'other-provider',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'other-provider', log, installedSequence: [false] }),
       );
@@ -540,8 +565,8 @@ describe('consentExecutor', () => {
         'other-provider',
         'other-provider',
       ]);
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksConsent('other-provider')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksConsent('other-provider', HOOKS_SUBJECT_ID)).toBe('declined');
     });
 
     it('a rejecting first answer still releases the queue before the second answer starts', async () => {
@@ -552,6 +577,7 @@ describe('consentExecutor', () => {
 
       const first = applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'install',
         makeEffects({
           tag: 'A',
@@ -568,6 +594,7 @@ describe('consentExecutor', () => {
 
       const second = applyConsentChoice(
         'claude',
+        HOOKS_SUBJECT_ID,
         'never',
         makeEffects({ tag: 'B', log, installedSequence: [false] }),
       );
@@ -581,7 +608,7 @@ describe('consentExecutor', () => {
         '[Terrarium] Consent action failed:',
         expect.any(Error),
       );
-      expect(getHooksConsent('claude')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
       consoleErrorSpy.mockRestore();
     });
   });

@@ -13,10 +13,15 @@ import {
 } from '../src/configPersistence.js';
 import { FileStateAdapter } from '../src/fileStateAdapter.js';
 import {
+  CONSENT_ACTION_LABEL,
   CONSENT_DISCLOSURE,
   CONSENT_INSTALL_HEADLINE,
 } from '../src/providers/claude/consentCopy.js';
-import { CLAUDE_HOOK_EVENTS } from '../src/providers/claude/constants.js';
+import {
+  CLAUDE_HOOK_EVENTS,
+  HOOKS_SUBJECT_ID,
+  STATUS_LINE_SUBJECT_ID,
+} from '../src/providers/claude/constants.js';
 
 /** Let a dispatch's async chain (side effect → areHooksInstalled → persist →
  *  send) run to completion. */
@@ -60,9 +65,13 @@ describe('clientMessageHandler: hooks consent flow', () => {
     return fs.existsSync(path.join(tempHome, '.terrarium', 'config.json'));
   }
 
-  function answer(choice: unknown, providerId: unknown = 'claude'): void {
+  function answer(
+    choice: unknown,
+    providerId: unknown = 'claude',
+    subjectId: unknown = HOOKS_SUBJECT_ID,
+  ): void {
     handleClientMessage(
-      { type: 'hooksConsentResponse', providerId, choice },
+      { type: 'hooksConsentResponse', providerId, subjectId, choice },
       (m) => sent.push(m),
       ctx,
     );
@@ -102,12 +111,16 @@ describe('clientMessageHandler: hooks consent flow', () => {
     it('asks a privileged connection, carrying the provider disclosure verbatim', async () => {
       await connect();
 
-      const request = sent.find((m) => m.type === 'hooksConsentRequest');
+      const request = sent.find(
+        (m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID,
+      );
       expect(request).toEqual({
         type: 'hooksConsentRequest',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         headline: CONSENT_INSTALL_HEADLINE,
         disclosure: CONSENT_DISCLOSURE,
+        actionLabel: CONSENT_ACTION_LABEL,
       });
       // After the truthful install state, never before: the webview treats
       // hooksStatus installed=true as "the ask is moot", so a request sent
@@ -122,14 +135,18 @@ describe('clientMessageHandler: hooks consent flow', () => {
       ctx.privileged = false;
       await connect();
 
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeUndefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeUndefined();
     });
 
     it('never asks once consent is recorded', async () => {
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       await connect();
 
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeUndefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeUndefined();
     });
 
     // The silent-grant population (a pre-consent version's install, migrated at
@@ -139,16 +156,20 @@ describe('clientMessageHandler: hooks consent flow', () => {
       seedInstalledHooks();
       await connect();
 
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeUndefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeUndefined();
     });
 
     it('never asks while the hooks preference is off', async () => {
       // The preference alone (a Settings toggle-off records no consent), so
       // this isolates the hooksEnabled gate from the consentAnswered gate.
-      setHooksEnabled('claude', false);
+      setHooksEnabled('claude', HOOKS_SUBJECT_ID, false);
       await connect();
 
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeUndefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeUndefined();
     });
 
     // Not-now writes nothing, so the gate must still be open on the next
@@ -160,7 +181,9 @@ describe('clientMessageHandler: hooks consent flow', () => {
       sent = [];
 
       await connect();
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeDefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeDefined();
     });
   });
 
@@ -169,7 +192,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
   describe('hooksConsentResponse', () => {
     it('install runs the install side effect and persists the preference on success', async () => {
       let sideEffect: { providerId: string; enabled: boolean } | undefined;
-      ctx.onSetHooksEnabled = (providerId, enabled) => {
+      ctx.onSetHooksEnabled = (providerId, _subjectId, enabled) => {
         sideEffect = { providerId, enabled };
         seedInstalledHooks(); // the install landed
       };
@@ -178,10 +201,11 @@ describe('clientMessageHandler: hooks consent flow', () => {
       await settle();
 
       expect(sideEffect).toEqual({ providerId: 'claude', enabled: true });
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: true,
       });
     });
@@ -198,10 +222,11 @@ describe('clientMessageHandler: hooks consent flow', () => {
       answer('install');
       await settle();
 
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
       expect(sent.filter((m) => m.type === 'hooksStatus').at(-1)).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: false,
       });
     });
@@ -215,9 +240,9 @@ describe('clientMessageHandler: hooks consent flow', () => {
       answer('never');
       await settle();
 
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
       // The decline is durable AND revisable: it is what a later notNow undoes.
-      expect(getHooksConsent('claude')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
       expect(sideEffectRan).toBe(false);
       expect(settingsJsonExists()).toBe(false);
     });
@@ -233,7 +258,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
       expect(sideEffectRan).toBe(false);
       expect(settingsJsonExists()).toBe(false);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
       expect(configJsonExists()).toBe(false);
     });
 
@@ -254,7 +279,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
         expect(sideEffectRan).toBe(false);
         expect(settingsJsonExists()).toBe(false);
-        expect(getHooksConsent('claude')).toBe('unanswered');
+        expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
         expect(configJsonExists()).toBe(false);
       },
     );
@@ -276,7 +301,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
         await settle();
 
         expect(sideEffectRan).toBe(false);
-        expect(getHooksConsent('claude')).toBe('unanswered');
+        expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
         expect(configJsonExists()).toBe(false);
       },
     );
@@ -297,7 +322,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
       expect(sideEffectRan).toBe(false);
       expect(settingsJsonExists()).toBe(false);
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
       expect(configJsonExists()).toBe(false);
     });
   });
@@ -317,9 +342,9 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
     it('a revised never takes the full toggle-off path: uninstall, then persist off', async () => {
       seedInstalledHooks();
-      grantHooksConsent('claude'); // the earlier Install recorded the grant
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID); // the earlier Install recorded the grant
       let sideEffect: { providerId: string; enabled: boolean } | undefined;
-      ctx.onSetHooksEnabled = (providerId, enabled) => {
+      ctx.onSetHooksEnabled = (providerId, _subjectId, enabled) => {
         sideEffect = { providerId, enabled };
         if (!enabled) removeOurHooks();
       };
@@ -328,33 +353,35 @@ describe('clientMessageHandler: hooks consent flow', () => {
       await settle();
 
       expect(sideEffect).toEqual({ providerId: 'claude', enabled: false });
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
       // The record flips to the decline — the truthful current answer, and
       // the provenance a later notNow revision reads.
-      expect(getHooksConsent('claude')).toBe('declined');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
       expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: false,
       });
     });
 
     it('a revised notNow reverts everything: uninstall, clear the record, preference untouched', async () => {
       seedInstalledHooks();
-      grantHooksConsent('claude');
-      ctx.onSetHooksEnabled = (_providerId, enabled) => {
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      ctx.onSetHooksEnabled = (_providerId, _subjectId, enabled) => {
         if (!enabled) removeOurHooks();
       };
 
       answer('notNow');
       await settle();
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
       // "Not now" must not persist hooks-off — that would retire the ask.
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: false,
       });
 
@@ -362,7 +389,9 @@ describe('clientMessageHandler: hooks consent flow', () => {
       // connect asks again.
       sent = [];
       await connect();
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeDefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeDefined();
     });
 
     // Fail closed on a failed undo: while entries are still on disk and still
@@ -371,7 +400,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
     // hooksStatus is what the UI renders either way.
     it('a failed revert keeps the grant and reports hooks still installed', async () => {
       seedInstalledHooks();
-      grantHooksConsent('claude');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       ctx.onSetHooksEnabled = () => {
         /* the uninstall failed: our entries stay */
       };
@@ -379,10 +408,11 @@ describe('clientMessageHandler: hooks consent flow', () => {
       answer('notNow');
       await settle();
 
-      expect(getHooksConsent('claude')).toBe('granted');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
       expect(sent.find((m) => m.type === 'hooksStatus')).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: true,
       });
     });
@@ -391,7 +421,7 @@ describe('clientMessageHandler: hooks consent flow', () => {
     // BEFORE it writes, so a failed install leaves a grant with nothing on disk — and the grant alone retires the ask.
     // Reading the revert off `installed` saw "nothing to undo" and stranded the user with an ask that never came back.
     it('a revised notNow clears a grant left by a FAILED install', async () => {
-      grantHooksConsent('claude'); // the Install click landed the grant...
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID); // the Install click landed the grant...
       // ...and nothing is on disk: the install threw and wrote nothing.
       let uninstallAttempted = false;
       ctx.onSetHooksEnabled = () => {
@@ -401,17 +431,19 @@ describe('clientMessageHandler: hooks consent flow', () => {
       answer('notNow');
       await settle();
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
       // Nothing of ours is installed, so there is nothing to remove — and
       // routing through the uninstaller would surface a file error for the act
       // of declining.
       expect(uninstallAttempted).toBe(false);
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
 
       // The load-bearing half: the ask genuinely comes back.
       sent = [];
       await connect();
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeDefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeDefined();
     });
 
     // The other stranding cell: "Don't Ask Again", Back, "Not Now". The decline persisted hooks-off and the gate
@@ -425,23 +457,25 @@ describe('clientMessageHandler: hooks consent flow', () => {
 
       answer('never');
       await settle();
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
 
       answer('notNow');
       await settle();
 
       // The world is as if never answered: no record, default preference,
       // nothing installed, and no settings-file access for either answer.
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       expect(sideEffectRan).toBe(false);
       expect(settingsJsonExists()).toBe(false);
 
       // The load-bearing half: the ask genuinely comes back.
       sent = [];
       await connect();
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeDefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeDefined();
     });
 
     // The three-answer stranding cell: never → install (which FAILS) → notNow. The install's grant replaces the
@@ -449,32 +483,34 @@ describe('clientMessageHandler: hooks consent flow', () => {
     // enabled and the final notNow reverts to a world where the ask returns. Leaving the remnant would end at
     // unanswered + hooks-off: an ask suppressed forever although the final answer was "ask me again".
     it('never, then a FAILED install, then notNow — the ask still returns', async () => {
-      ctx.onSetHooksEnabled = (_providerId, enabled) => {
+      ctx.onSetHooksEnabled = (_providerId, _subjectId, enabled) => {
         // The real side effect (cli.ts) grants BEFORE it writes; here the
         // write itself fails, so settings.json stays absent.
-        if (enabled) grantHooksConsent('claude');
+        if (enabled) grantHooksConsent('claude', HOOKS_SUBJECT_ID);
       };
 
       answer('never');
       await settle();
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
 
       answer('install');
       await settle();
-      expect(getHooksConsent('claude')).toBe('granted');
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
       // The grant took the decline's preference remnant with it.
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
 
       answer('notNow');
       await settle();
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
 
       // The load-bearing half: the ask genuinely comes back.
       sent = [];
       await connect();
-      expect(sent.find((m) => m.type === 'hooksConsentRequest')).toBeDefined();
+      expect(
+        sent.find((m) => m.type === 'hooksConsentRequest' && m.subjectId === HOOKS_SUBJECT_ID),
+      ).toBeDefined();
     });
 
     // The Intro is DESIGNED to produce two answers in a row (walk Back, revise). Both dispatch without awaiting and
@@ -483,12 +519,12 @@ describe('clientMessageHandler: hooks consent flow', () => {
     // against the user's final answer.
     it('serializes a revision sent while the first answer is still installing', async () => {
       let resolveInstall: (() => void) | undefined;
-      ctx.onSetHooksEnabled = (_providerId, enabled) => {
+      ctx.onSetHooksEnabled = (_providerId, _subjectId, enabled) => {
         if (enabled) {
           // The real side effect (cli.ts) grants BEFORE it writes, then
           // installs. Here the write is a slow one that only lands when we
           // let it, so the revision can arrive mid-flight.
-          grantHooksConsent('claude');
+          grantHooksConsent('claude', HOOKS_SUBJECT_ID);
           return new Promise<void>((resolve) => {
             resolveInstall = () => {
               seedInstalledHooks();
@@ -511,13 +547,88 @@ describe('clientMessageHandler: hooks consent flow', () => {
       // The revision ran AFTER the install landed, so it saw the hooks and
       // took the full toggle-off path rather than merely persisting a
       // preference beside live entries.
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
       expect(sent.filter((m) => m.type === 'hooksStatus').at(-1)).toEqual({
         type: 'hooksStatus',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         installed: false,
       });
+    });
+  });
+
+  // ── per-(provider, subject) isolation: hooks and statusLine are consented independently ───
+  // The two Claude subjects share one config.json, so these pin that an answer to one never
+  // touches the other's consent record, preference, or settings.json entries.
+  describe('hooks and statusLine consent never touch one another', () => {
+    it('declining the status line leaves the hooks subject completely unanswered', async () => {
+      answer('never', 'claude', STATUS_LINE_SUBJECT_ID);
+      await settle();
+
+      expect(getHooksConsent('claude', STATUS_LINE_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', STATUS_LINE_SUBJECT_ID)).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
+      const raw = JSON.parse(
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
+      ) as {
+        hooksConsent?: Record<string, Record<string, string>>;
+        hooksEnabled?: Record<string, Record<string, boolean>>;
+      };
+      expect(HOOKS_SUBJECT_ID in (raw.hooksConsent?.claude ?? {})).toBe(false);
+      expect(HOOKS_SUBJECT_ID in (raw.hooksEnabled?.claude ?? {})).toBe(false);
+    });
+
+    it('declining the hooks entries leaves the status line subject completely unanswered', async () => {
+      answer('never', 'claude', HOOKS_SUBJECT_ID);
+      await settle();
+
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
+      expect(getHooksConsent('claude', STATUS_LINE_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', STATUS_LINE_SUBJECT_ID)).toBe(true);
+      const raw = JSON.parse(
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
+      ) as {
+        hooksConsent?: Record<string, Record<string, string>>;
+        hooksEnabled?: Record<string, Record<string, boolean>>;
+      };
+      expect(STATUS_LINE_SUBJECT_ID in (raw.hooksConsent?.claude ?? {})).toBe(false);
+      expect(STATUS_LINE_SUBJECT_ID in (raw.hooksEnabled?.claude ?? {})).toBe(false);
+    });
+
+    it('reverting one subject with a revised notNow leaves the other subject byte-identical', async () => {
+      answer('never', 'claude', HOOKS_SUBJECT_ID);
+      answer('never', 'claude', STATUS_LINE_SUBJECT_ID);
+      await settle();
+      const statusLineBefore = JSON.parse(
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
+      ) as {
+        hooksConsent: Record<string, Record<string, string>>;
+        hooksEnabled: Record<string, Record<string, boolean>>;
+      };
+
+      answer('notNow', 'claude', HOOKS_SUBJECT_ID);
+      await settle();
+
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
+      // The sibling subject's record is untouched by the revision.
+      expect(getHooksConsent('claude', STATUS_LINE_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', STATUS_LINE_SUBJECT_ID)).toBe(false);
+      const after = JSON.parse(
+        fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
+      ) as {
+        hooksConsent: Record<string, Record<string, string>>;
+        hooksEnabled: Record<string, Record<string, boolean>>;
+      };
+      expect(after.hooksConsent.claude[STATUS_LINE_SUBJECT_ID]).toBe(
+        statusLineBefore.hooksConsent.claude[STATUS_LINE_SUBJECT_ID],
+      );
+      expect(after.hooksEnabled.claude[STATUS_LINE_SUBJECT_ID]).toBe(
+        statusLineBefore.hooksEnabled.claude[STATUS_LINE_SUBJECT_ID],
+      );
     });
   });
 });

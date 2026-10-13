@@ -183,7 +183,9 @@ function seedHome(tmpHome: string, options: LaunchStandaloneOptions): void {
   const configPath = path.join(paDir, 'config.json');
   if (!fs.existsSync(configPath)) {
     const seedConfig = options.seedConfig ?? {
-      ...((options.seedHooksConsent ?? true) ? { hooksConsent: { claude: 'granted' } } : {}),
+      ...((options.seedHooksConsent ?? true)
+        ? { hooksConsent: { claude: { hooks: 'granted', statusLine: 'granted' } } }
+        : {}),
     };
     fs.writeFileSync(configPath, JSON.stringify(seedConfig, null, 2));
   }

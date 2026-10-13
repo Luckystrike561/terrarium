@@ -79,6 +79,7 @@ function fakeHost(): { host: ModuleHost; emitted: { sessionId: string; event: Ag
   return {
     host: {
       emit: (sessionId, event) => emitted.push({ sessionId, event }),
+      reportQuota: () => {},
       log: () => {},
     },
     emitted,

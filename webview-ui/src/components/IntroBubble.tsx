@@ -23,6 +23,9 @@ interface IntroBubbleProps {
    *  terms, only orientation. */
   headline: string;
   disclosure: string;
+  /** The consent step's Install button text (e.g. "Install Hooks", "Install Status Line"), sourced from the same
+   *  server disclosure so the button never claims to install something a different subject's ask would have. */
+  actionLabel: string;
   containerRef: React.RefObject<HTMLDivElement | null>;
   zoom: number;
   panRef: React.RefObject<{ x: number; y: number }>;
@@ -95,6 +98,7 @@ export function IntroBubble({
   officeState,
   headline,
   disclosure,
+  actionLabel,
   containerRef,
   zoom,
   panRef,
@@ -385,7 +389,7 @@ export function IntroBubble({
                 disabled={installPending}
                 onClick={() => choose('install')}
               >
-                {installPending ? 'Installing...' : 'Install Hooks'}
+                {installPending ? 'Installing...' : actionLabel}
               </Button>
             </div>
           ) : step === CLOSING_STEP ? (

@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as os from 'os';
@@ -11,6 +12,15 @@ import {
 } from '../../../constants.js';
 import type { ServerConfig, ServerTarget } from '../../../serverConfig.js';
 import { isServerConfig, isServerTarget } from '../../../serverConfig.js';
+import type { CommandStatusLine } from '../claudeStatusLine.js';
+import { decodeStatusLine } from '../claudeStatusLine.js';
+import { statusLineShell } from '../claudeStatusLineShell.js';
+import {
+  HOOK_DELIVERY_TIMEOUT_MS,
+  STATUS_LINE_DELIVERY_TIMEOUT_MS,
+  STATUS_LINE_EVENT,
+  STATUS_LINE_FLAG,
+} from '../constants.js';
 
 const SERVER_JSON = path.join(os.homedir(), SERVER_JSON_DIR, SERVER_JSON_NAME);
 const SERVERS_REGISTRY_DIR = path.join(os.homedir(), SERVER_JSON_DIR, SERVERS_DIR);
@@ -102,6 +112,7 @@ function postToServer(
   body: string,
   eventName: string,
   sid: string,
+  timeoutMs: number,
 ): Promise<void> {
   hookDebug(`POST event=${eventName} sid=${sid} port=${server.port}`);
   return new Promise((resolve) => {
@@ -117,7 +128,7 @@ function postToServer(
             'Content-Length': Buffer.byteLength(body),
             Authorization: `Bearer ${server.token}`,
           },
-          timeout: 2000,
+          timeout: timeoutMs,
         },
         (res) => {
           hookDebug(
@@ -148,39 +159,30 @@ function postToServer(
   });
 }
 
-async function main(): Promise<void> {
-  let input = '';
-  for await (const chunk of process.stdin) input += chunk;
-
-  let data: Record<string, unknown>;
+/** Every live server to deliver to: the registry, or the single legacy server.json when the registry has no live
+ *  entries (a server on disk that predates the registry). Empty when neither names one. */
+function liveServers(eventName: string, sid: string): ServerTarget[] {
+  const registered: ServerTarget[] = readRegistry();
+  if (registered.length > 0) return registered;
   try {
-    data = JSON.parse(input);
-  } catch {
-    hookDebug('exit reason=bad-stdin');
-    process.exit(0);
+    const legacy = JSON.parse(fs.readFileSync(SERVER_JSON, 'utf-8')) as unknown;
+    if (!isServerTarget(legacy)) {
+      throw new Error('invalid legacy server config');
+    }
+    return [legacy];
+  } catch (e) {
+    hookDebug(
+      `exit reason=no-server-json event=${eventName} sid=${sid} path=${SERVER_JSON} err=${e instanceof Error ? e.message : String(e)}`,
+    );
+    return [];
   }
+}
 
+/** POST `data` to every live server (several `terrarium` instances can run at once), giving each `timeoutMs`. */
+async function deliver(data: Record<string, unknown>, timeoutMs: number): Promise<void> {
   const eventName = (data.hook_event_name as string | undefined) ?? '?';
   const sid = (data.session_id as string | undefined)?.slice(0, 8) ?? '?';
-
-  // Multi-server fan-out (D4): deliver to every live server in the registry.
-  // Falls back to the single legacy server.json when the registry has no live
-  // entries -- e.g. a server on disk that predates the registry (A1/A2).
-  let servers: ServerTarget[] = readRegistry();
-  if (servers.length === 0) {
-    try {
-      const legacy = JSON.parse(fs.readFileSync(SERVER_JSON, 'utf-8')) as unknown;
-      if (!isServerTarget(legacy)) {
-        throw new Error('invalid legacy server config');
-      }
-      servers = [legacy];
-    } catch (e) {
-      hookDebug(
-        `exit reason=no-server-json event=${eventName} sid=${sid} path=${SERVER_JSON} err=${e instanceof Error ? e.message : String(e)}`,
-      );
-      process.exit(0);
-    }
-  }
+  const servers = liveServers(eventName, sid);
 
   // Adopt the first live server's debug-log path if the env var didn't reach
   // us (diagnostic-only; harmless if more than one server has it set).
@@ -190,9 +192,75 @@ async function main(): Promise<void> {
   }
 
   const body = JSON.stringify(data);
-  await Promise.all(servers.map((server) => postToServer(server, body, eventName, sid)));
+  await Promise.all(servers.map((server) => postToServer(server, body, eventName, sid, timeoutMs)));
+}
+
+/** Forward the `rate_limits` Claude Code gave the status line, and nothing else it gave: Pro and Max sessions carry
+ *  them once the session's first API response arrived, every other session sends nothing. */
+async function deliverRateLimits(statusLineInput: string): Promise<void> {
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(statusLineInput);
+  } catch {
+    hookDebug('status-line reason=bad-stdin');
+    return;
+  }
+  const rateLimits = data.rate_limits;
+  if (rateLimits === null || typeof rateLimits !== 'object') return;
+  if (typeof data.session_id !== 'string') return;
+  await deliver(
+    { hook_event_name: STATUS_LINE_EVENT, session_id: data.session_id, rate_limits: rateLimits },
+    STATUS_LINE_DELIVERY_TIMEOUT_MS,
+  );
+}
+
+/** Run the user's own status line on the same stdin, in the shell Claude Code would run it in, its output going
+ *  straight to Claude Code untouched. Resolves with its exit code. */
+function runChainedStatusLine(statusLine: CommandStatusLine, input: string): Promise<number> {
+  return new Promise((resolve) => {
+    const child = spawn(statusLine.command, {
+      shell: statusLineShell(process.platform, process.env, fs.existsSync),
+      stdio: ['pipe', 'inherit', 'inherit'],
+    });
+    child.on('error', () => resolve(1));
+    child.on('close', (code) => resolve(code ?? 1));
+    // A status line that never reads its stdin closes the pipe early: that is its business, not a failure.
+    child.stdin.on('error', () => {});
+    child.stdin.end(input);
+  });
+}
+
+/** Claude Code's status line: print what the user's status line prints, if they had one, and forward the quota. */
+async function runStatusLine(input: string, encodedOriginal: string | undefined): Promise<number> {
+  const delivery = deliverRateLimits(input);
+  const exitCode =
+    encodedOriginal === undefined
+      ? 0
+      : await runChainedStatusLine(decodeStatusLine(encodedOriginal), input);
+  await delivery;
+  return exitCode;
+}
+
+async function main(): Promise<number> {
+  let input = '';
+  for await (const chunk of process.stdin) input += chunk;
+
+  const statusLineFlagIndex = process.argv.indexOf(STATUS_LINE_FLAG);
+  if (statusLineFlagIndex !== -1) {
+    return runStatusLine(input, process.argv[statusLineFlagIndex + 1]);
+  }
+
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(input);
+  } catch {
+    hookDebug('exit reason=bad-stdin');
+    return 0;
+  }
+  await deliver(data, HOOK_DELIVERY_TIMEOUT_MS);
+  return 0;
 }
 
 main()
-  .catch(() => {})
-  .finally(() => process.exit(0));
+  .catch(() => 0)
+  .then((exitCode) => process.exit(exitCode));

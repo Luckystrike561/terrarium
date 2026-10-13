@@ -371,20 +371,77 @@ describe('dist/cli.js entry-point guard', () => {
       const configPath = path.join(tmpHome, '.terrarium', 'config.json');
       const consent = (
         JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
-          hooksConsent?: Record<string, string>;
+          hooksConsent?: Record<string, Record<string, string>>;
         }
-      ).hooksConsent?.claude;
+      ).hooksConsent?.claude?.hooks;
       expect(consent).toBe('granted');
 
-      // ZERO friction: nothing that reads as a question or a deferral was
-      // printed. The prompt headline, the [Y/n/never] question, and both
-      // no-consent notices would each be a prompt this user must not see.
-      expect(output()).not.toContain('needs to add its hooks');
+      // ZERO friction for the entries subject specifically: migration is silent for it.
+      // The status line subject is unrelated to this migration (it was never on disk)
+      // and gets its own ask -- expected here, not a regression.
+      expect(output()).not.toContain('hooks not installed');
       expect(output()).not.toContain('[Y/n/never]');
-      expect(output()).not.toContain('needs one-time approval');
       expect(output()).not.toContain('asked again next time');
+      expect(output()).toContain('statusLine not installed');
     });
   });
+
+  // Per-subject grandfathering: a subject already on disk with no recorded answer is granted
+  // silently, independently of a SIBLING subject in the same module that has no answer and is
+  // NOT on disk. The status line here was written by an earlier unreleased build (no consent
+  // ever recorded for it); the 12 hook entries were never installed at all. Startup must grant
+  // and keep the status line with zero prompt, while still asking (in its own, unrelated log
+  // line) for the entries -- the two subjects' gates must not leak into each other.
+  itBuilt(
+    'grandfathers an on-disk status line with no recorded consent, independent of the hooks subject',
+    async () => {
+      const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-cli-statusline-grandfather-'));
+      const settingsPath = path.join(tmpHome, '.claude', 'settings.json');
+      fs.mkdirSync(path.join(tmpHome, '.claude'), { recursive: true });
+      const ourCommand = `node "${path.join(tmpHome, '.terrarium', 'hooks', 'claude-hook.js')}"`;
+      fs.writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          model: 'opus',
+          statusLine: { type: 'command', command: `${ourCommand} --status-line` },
+        }),
+      );
+
+      await runCliServer(tmpHome, async ({ output }) => {
+        await waitForCondition(() =>
+          output().includes("[Terrarium] Claude Code's statusLine installed"),
+        );
+
+        // No entries were ever on disk and no consent was ever recorded for them, so the
+        // entries subject is correctly still asking -- its own, unrelated gate.
+        expect(output()).toContain('hooks not installed');
+        // The status line gate fired no question at all: grandfathered silently.
+        expect(output()).not.toContain('statusLine not installed');
+        expect(output()).not.toContain('[Y/n/never]');
+
+        const after = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as {
+          model?: string;
+          statusLine?: unknown;
+          hooks?: unknown;
+        };
+        expect(after.model).toBe('opus');
+        expect(after.statusLine).toEqual({
+          type: 'command',
+          command: `${ourCommand} --status-line`,
+        });
+        expect(after.hooks).toBeUndefined();
+
+        const configPath = path.join(tmpHome, '.terrarium', 'config.json');
+        const consent = (
+          JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
+            hooksConsent?: Record<string, Record<string, string>>;
+          }
+        ).hooksConsent?.claude;
+        expect(consent?.statusLine).toBe('granted');
+        expect(consent?.hooks).toBeUndefined();
+      });
+    },
+  );
 
   // W5: the hook script is copied BEFORE the settings entries, and a failed
   // copy aborts the install. An entry pointing at a script that does not exist
@@ -560,7 +617,7 @@ describe('dist/cli.js entry-point guard', () => {
         const after = fs.readFileSync(settingsPath, 'utf-8');
         expect(after).not.toContain('claude-hook.js');
         expect(after).toContain(thirdParty.command);
-        expect(readHooksEnabled(tmpHome)).toEqual({ claude: false });
+        expect(readHooksEnabled(tmpHome)).toEqual({ claude: { hooks: false, statusLine: false } });
       } finally {
         fs.rmSync(tmpHome, { recursive: true, force: true });
       }

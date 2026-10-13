@@ -1,23 +1,22 @@
 /**
- * The first-run hooks consent POLICY: when to ask, and what an answer means. Provider-agnostic — the provider
- * contributes only its id and disclosure copy, and the storage is keyed per provider. Written once rather than once
- * per surface: a duplicated gate drifts silently, and a settings file in the user's home directory is on the other
- * side of it. The full rule, with its rejected alternatives, is docs/adr/0001.
+ * The first-run hooks consent POLICY: when to ask, and what an answer means. Provider-agnostic — the subject
+ * contributes only its id and disclosure copy, and the storage is keyed per (provider, subject). Written once rather
+ * than once per surface: a duplicated gate drifts silently, and a settings file in the user's home directory is on
+ * the other side of it. The full rule, with its rejected alternatives, is docs/adr/0001 and docs/adr/0002.
  */
 
 import type { HooksConsentRequest } from '../../../core/src/messages.js';
-import type { HookModule } from './index.js';
+import type { HookInstaller } from '../../../core/src/provider.js';
 
 /** Inputs to the ask-or-not decision, as each surface already knows them. */
 export interface ConsentGateState {
-  /** Are any of this provider's hook commands on disk right now
-   *  (areHooksInstalled)? */
+  /** Is this subject's write on disk right now (areHooksInstalled)? */
   installed: boolean;
-  /** The provider's persisted hooks preference. Defaults true, so it is only
+  /** The subject's persisted preference. Defaults true, so it is only
    *  false after an explicit decline or a Settings toggle-off. */
   hooksEnabled: boolean;
-  /** Has this provider's ask been durably answered (config.json
-   *  hooksConsent[providerId] holds 'granted' or 'declined')? */
+  /** Has this (provider, subject) ask been durably answered (config.json
+   *  hooksConsent[providerId][subjectId] holds 'granted' or 'declined')? */
   consentAnswered: boolean;
   /** May this client's answer actually be acted on? Embedded webviews are
    *  privileged by construction; a standalone connection must have proved the
@@ -27,20 +26,28 @@ export interface ConsentGateState {
 }
 
 /**
- * The `hooksConsentRequest` for one provider's `webviewReady` handshake, or null when this client must not be asked.
- * Each condition is a reason the ask would be WRONG, not merely redundant: nothing to approve, already answered
- * durably, a preference turned off, or a client whose answer would be dropped. All four are checked in their own
- * right, so a hand-edited config cannot resurrect a retired ask.
+ * The `hooksConsentRequest` for one (provider, subject) pair's `webviewReady` handshake, or null when this client
+ * must not be asked. Each condition is a reason the ask would be WRONG, not merely redundant: nothing to approve,
+ * already answered durably, a preference turned off, or a client whose answer would be dropped. All four are checked
+ * in their own right, so a hand-edited config cannot resurrect a retired ask.
  */
 export function hooksConsentRequest(
   state: ConsentGateState,
-  module: Pick<HookModule, 'id' | 'hooks'>,
+  providerId: string,
+  subject: HookInstaller,
 ): HooksConsentRequest | null {
   if (state.installed || state.consentAnswered || !state.hooksEnabled || !state.privileged) {
     return null;
   }
-  const { headline, disclosure } = module.hooks.consentDisclosure();
-  return { type: 'hooksConsentRequest', providerId: module.id, headline, disclosure };
+  const { headline, disclosure, actionLabel } = subject.consentDisclosure();
+  return {
+    type: 'hooksConsentRequest',
+    providerId,
+    subjectId: subject.id,
+    headline,
+    disclosure,
+    actionLabel,
+  };
 }
 
 /** What the server should DO about an answer. The Intro lets the user walk BACK from the closing step and re-answer,
@@ -53,14 +60,14 @@ export type ConsentAction =
 /** What an earlier answer may have left behind, as the surface reads it when
  *  the next answer arrives. */
 export interface ConsentRevisionState {
-  /** Are any of this provider's hook commands on disk right now
-   *  (areHooksInstalled)? Callers that cannot read it pass false — the file is
-   *  then never touched on a guess. */
+  /** Is this subject's write on disk right now (areHooksInstalled)? Callers
+   *  that cannot read it pass false — the file is then never touched on a
+   *  guess. */
   installed: boolean;
-  /** The provider's durable consent record — a TRI-STATE, not a boolean, because each value is a different thing to
+  /** This subject's durable consent record — a TRI-STATE, not a boolean, because each value is a different thing to
    *  undo. `granted` can exist with nothing on disk (install records the grant BEFORE it writes, and the write can
    *  fail; keying the revert off `installed` stranded exactly that user), and `declined` carries the provenance that
-   *  the persisted hooks-off was the ANSWER's own write, which a revised "not now" takes back with it. */
+   *  the persisted off-preference was the ANSWER's own write, which a revised "not now" takes back with it. */
   consent: 'granted' | 'declined' | 'unanswered';
 }
 

@@ -38,6 +38,7 @@ import {
   type ClaudePendingSession,
   type ClaudeRoutedEvent,
 } from './claudeHookHandler.js';
+import { readClaudeQuota } from './claudeQuota.js';
 import { claudeTeamProvider } from './claudeTeamProvider.js';
 import { cancelPermissionTimer, cancelWaitingTimer } from './claudeTimers.js';
 import {
@@ -46,6 +47,7 @@ import {
   setTeamSwitchCallback,
 } from './claudeTranscriptParser.js';
 import { getAllSessionRoots, getSessionDirs } from './claudeVocabulary.js';
+import { STATUS_LINE_EVENT } from './constants.js';
 import { DismissalTracker } from './dismissalTracker.js';
 import { SubagentWatch } from './subagentWatch.js';
 import { TranscriptFollower } from './transcriptFollower.js';
@@ -222,6 +224,12 @@ class ClaudeRunningModule implements RunningAgentModule {
   }
 
   receiveHook(payload: Record<string, unknown>): void {
+    if (payload.hook_event_name === STATUS_LINE_EVENT) {
+      for (const reading of readClaudeQuota(payload.rate_limits, Date.now())) {
+        this.host.reportQuota(reading);
+      }
+      return;
+    }
     this.hookHandler.handleEvent(payload as ClaudeHookPayload);
   }
 

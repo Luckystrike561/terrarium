@@ -1,4 +1,5 @@
 import { CHAR_COUNT } from '../../core/src/assets/constants.js';
+import type { HookInstaller } from '../../core/src/provider.js';
 import { resendAgentActivity } from './agentActivityResend.js';
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
@@ -21,6 +22,7 @@ import type { HookModule, ModuleSet } from './providers/index.js';
 import {
   anyHooksEnabled,
   findHookModule,
+  HEURISTIC_TIMER_SUBJECT_ID,
   hookModules,
   loadEnabledModules,
   providerCapabilitiesMessage,
@@ -33,9 +35,11 @@ function modulesOf(ctx: ClientMessageContext): ModuleSet {
 
 type WsSend = (message: Record<string, unknown>) => void;
 
-/** Async hook toggle side effect (install/uninstall + script copy). Provided by cli.ts. */
+/** Async hook toggle side effect (install/uninstall + script copy) for one (module, subject) pair. Provided by
+ *  cli.ts. */
 export type SetHooksEnabledSideEffect = (
   providerId: string,
+  subjectId: string,
   enabled: boolean,
 ) => Promise<void> | void;
 
@@ -152,11 +156,17 @@ export function handleClientMessage(
         );
         break;
       }
-      // Fail-closed on the module exactly like on the choice: an id naming
-      // no enabled module that installs hooks writes nothing.
+      // Fail-closed on the module and subject exactly like on the choice: an
+      // id naming no enabled module, or no subject of it, writes nothing.
       const module = findHookModule(modulesOf(ctx), msg.providerId);
-      if (!module) break;
-      void applyConsentChoice(module.id, msg.choice, standaloneConsentEffects(ctx, send, module));
+      const subject = module?.hooks.find((s) => s.id === msg.subjectId);
+      if (!module || !subject) break;
+      void applyConsentChoice(
+        module.id,
+        subject.id,
+        msg.choice,
+        standaloneConsentEffects(ctx, send, module, subject),
+      );
       break;
     }
 
@@ -229,65 +239,73 @@ function changeableConnections(ctx: ClientMessageContext): MultiplexerConnection
 }
 
 /**
- * Run the install/uninstall side effect, then persist the provider's preference — only after it settled and only when
- * the on-disk result agrees. Writing it first strands the user when an uninstall fails: entries keep firing while the
- * persisted hooks-off makes the next startup skip the gate entirely. Shared by the consent dialog's Install and the
- * hooksConsentResponse flow (both are grants). Never rejects — it is fire-and-forget and bound by the
+ * Run the install/uninstall side effect, then persist the subject's preference — only after it settled and only when
+ * the on-disk result agrees. Writing it first strands the user when an uninstall fails: the write keeps firing while
+ * the persisted off-preference makes the next startup skip the gate entirely. Shared by the consent dialog's Install
+ * and the hooksConsentResponse flow (both are grants). Never rejects — it is fire-and-forget and bound by the
  * ConsentEffects contract, so a failure surfaces on the console here or nowhere.
  */
 async function applyHooksPreference(
   ctx: ClientMessageContext,
   send: WsSend,
   module: HookModule,
+  subject: HookInstaller,
   enabled: boolean,
 ): Promise<void> {
   try {
-    await ctx.onSetHooksEnabled?.(module.id, enabled);
-    const installed = await module.hooks.areHooksInstalled();
+    await ctx.onSetHooksEnabled?.(module.id, subject.id, enabled);
+    const installed = await subject.areHooksInstalled();
     if (installed === enabled) {
-      setHooksEnabled(module.id, enabled);
-      ctx.runtime?.setHooksEnabled(module.id, enabled);
+      setHooksEnabled(module.id, subject.id, enabled);
+      // The heuristic-timer gate is module-scoped and reads only the hooks-entries subject's preference — the
+      // status line has no bearing on detection, only on whether quota jars render.
+      if (subject.id === HEURISTIC_TIMER_SUBJECT_ID)
+        ctx.runtime?.setHooksEnabled(module.id, enabled);
     }
     // Always report the ACTUAL install state — the toggle expresses intent,
     // not outcome (the installer refuses to touch an unparseable file).
-    send({ type: 'hooksStatus', providerId: module.id, installed });
+    send({ type: 'hooksStatus', providerId: module.id, subjectId: subject.id, installed });
   } catch (err) {
     console.error('[Terrarium] Applying the hooks preference failed:', err);
   }
 }
 
 /**
- * This surface's half of carrying out a consent answer for one module. The choice→action rule and the write order
- * live in the shared consent modules; only these effects are standalone-specific (console, socket), each bound to the
- * one module being answered.
+ * This surface's half of carrying out a consent answer for one (module, subject) pair. The choice→action rule and
+ * the write order live in the shared consent modules; only these effects are standalone-specific (console, socket),
+ * each bound to the one subject being answered.
  */
 function standaloneConsentEffects(
   ctx: ClientMessageContext,
   send: WsSend,
   module: HookModule,
+  subject: HookInstaller,
 ): ConsentEffects {
   return {
-    setHooksEnabled: (enabled) => applyHooksPreference(ctx, send, module, enabled),
+    setHooksEnabled: (enabled) => applyHooksPreference(ctx, send, module, subject, enabled),
     uninstallHooks: async () => {
       // The same side effect the toggle runs, minus the preference write. The
       // catch keeps the never-reject contract true by construction — the host
       // callback's own contract is unstated.
       try {
-        await ctx.onSetHooksEnabled?.(module.id, false);
+        await ctx.onSetHooksEnabled?.(module.id, subject.id, false);
       } catch (err) {
         console.error('[Terrarium] Hook uninstall failed:', err);
       }
     },
-    areHooksInstalled: () => module.hooks.areHooksInstalled(),
+    areHooksInstalled: () => subject.areHooksInstalled(),
     // Durable writes are the executor's own atomic recordHooksDecline. This only
-    // mirrors the live runtime ref, which follows this module's preference alone.
-    syncHooksPreferenceOff: () => ctx.runtime?.setHooksEnabled(module.id, false),
+    // mirrors the live runtime ref, which follows the hooks-entries subject's preference alone.
+    syncHooksPreferenceOff: () => {
+      if (subject.id === HEURISTIC_TIMER_SUBJECT_ID) ctx.runtime?.setHooksEnabled(module.id, false);
+    },
     reportHooksStatus: async () => {
       try {
         send({
           type: 'hooksStatus',
           providerId: module.id,
-          installed: await module.hooks.areHooksInstalled(),
+          subjectId: subject.id,
+          installed: await subject.areHooksInstalled(),
         });
       } catch {
         // Never let a status broadcast mask the error already surfaced.
@@ -357,38 +375,44 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
 
   // 4a. Actual install state, distinct from the hooksEnabled preference —
   // hooksEnabled defaults true while first-run consent is still pending. The
-  // provider checks are async, so these land as follow-ups right after the
+  // subject checks are async, so these land as follow-ups right after the
   // synchronous handshake; the webview's default (not installed) is the safe
-  // assumption until each arrives. One status + at most one ask PER PROVIDER.
+  // assumption until each arrives. One status + at most one ask PER (provider, subject) pair.
   for (const module of hookModules(modules)) {
-    // One provider's unreadable settings file must degrade to
-    // installed=false (matching the executor's fail-closed read: no choice
-    // ever uninstalls on a guess) rather than surface as an unhandled
-    // rejection that can take the process down — and must never block the
-    // other providers' statuses.
-    void module.hooks
-      .areHooksInstalled()
-      .catch((err: unknown) => {
-        console.error(`[Terrarium] hooks status check failed for provider ${module.id}:`, err);
-        return false;
-      })
-      .then((installed) => {
-        send({ type: 'hooksStatus', providerId: module.id, installed });
-        // 4a-bis. First-run consent, asked in the app: this connect is the moment the user can be asked, so the ask
-        // rides the handshake and consentGate owns every condition. The record is
-        // re-read here rather than taken from startup — another tab may have answered while this one loaded.
-        // Dismissing sends nothing, so the ask returns on the next connect: fail-closed, never nagging in-session.
-        const request = hooksConsentRequest(
-          {
-            installed,
-            hooksEnabled: getHooksEnabled(module.id),
-            consentAnswered: getHooksConsent(module.id) !== 'unanswered',
-            privileged: ctx.privileged === true,
-          },
-          module,
-        );
-        if (request) send({ ...request }); // spread: WsSend takes an index-signature shape
-      });
+    for (const subject of module.hooks) {
+      // One subject's unreadable settings file must degrade to
+      // installed=false (matching the executor's fail-closed read: no choice
+      // ever uninstalls on a guess) rather than surface as an unhandled
+      // rejection that can take the process down — and must never block the
+      // other subjects' statuses.
+      void subject
+        .areHooksInstalled()
+        .catch((err: unknown) => {
+          console.error(
+            `[Terrarium] hooks status check failed for ${module.id}.${subject.id}:`,
+            err,
+          );
+          return false;
+        })
+        .then((installed) => {
+          send({ type: 'hooksStatus', providerId: module.id, subjectId: subject.id, installed });
+          // 4a-bis. First-run consent, asked in the app: this connect is the moment the user can be asked, so the
+          // ask rides the handshake and consentGate owns every condition. The record is re-read here rather than
+          // taken from startup — another tab may have answered while this one loaded. Dismissing sends nothing, so
+          // the ask returns on the next connect: fail-closed, never nagging in-session.
+          const request = hooksConsentRequest(
+            {
+              installed,
+              hooksEnabled: getHooksEnabled(module.id, subject.id),
+              consentAnswered: getHooksConsent(module.id, subject.id) !== 'unanswered',
+              privileged: ctx.privileged === true,
+            },
+            module.id,
+            subject,
+          );
+          if (request) send({ ...request }); // spread: WsSend takes an index-signature shape
+        });
+    }
   }
 
   // 4b. Folder→Area mappings (must arrive before existingAgents so the
@@ -403,11 +427,15 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     send({ type: 'connectionsLoaded', connections: runtime.connections.list() });
   }
 
+  // 4d. Account quotas, the whole board: a reconnect after a restart replaces whatever the client still draws.
+  if (runtime) send({ ...runtime.quota.message() });
+
   // Sync runtime refs with the persisted settings so modules behave correctly
-  // from the first tick after a server restart.
+  // from the first tick after a server restart. Module-scoped, driven by the
+  // hooks-entries subject's preference alone — see HEURISTIC_TIMER_SUBJECT_ID.
   if (runtime) {
     for (const module of hookModules(modules)) {
-      runtime.setHooksEnabled(module.id, getHooksEnabled(module.id));
+      runtime.setHooksEnabled(module.id, getHooksEnabled(module.id, HEURISTIC_TIMER_SUBJECT_ID));
     }
   }
 
