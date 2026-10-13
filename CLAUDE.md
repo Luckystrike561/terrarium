@@ -259,7 +259,7 @@ npm run test:server        # server Vitest only
 npm run test:webview       # webview Vitest only
 npm run e2e                # Playwright (needs a build)
 npm run e2e:inventory      # regenerate the e2e/README.md inventory
-npm run lint               # core + server + webview ESLint
+npm run lint               # core + server + webview + e2e ESLint
 npm run check-types        # tsc across all packages
 npm run asyncapi:validate  # validate the contract
 npm run asyncapi:generate  # regenerate core/src/messages.ts
