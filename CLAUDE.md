@@ -138,7 +138,7 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
         pets.ts, petEntity.ts        Pet roster and relocation, and the per-pet FSM
         furnitureAutoState.ts        Auto-on electronics and furniture animation frames
         hitTesting.ts                Character hit-testing
-        characters.ts, matrixEffectState.ts, existingAgents.ts, worldAccess.ts, isoSort.ts, gameLoop.ts
+        characters.ts, matrixEffect.ts, matrixEffectState.ts, existingAgents.ts, worldAccess.ts, isoSort.ts, gameLoop.ts, pixiColor.ts, index.ts
         sceneRenderer.ts             OfficeSceneRenderer: Pixi stage and per-frame sequencing of the scene* layers
         sceneFloor.ts, sceneAreas.ts, sceneEntities.ts, sceneBubbles.ts, sceneBuilding.ts, scenePools.ts   Floor and carpet, areas and seat indicator, iso-sorted entities, bubbles and badges, pillars and floor names, sprite pools
       components/                    OfficeCanvas.tsx, ToolOverlay.tsx, QuotaJars.tsx (coffee-bean quota jars)
