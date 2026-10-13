@@ -30,6 +30,12 @@ export interface BubblePools {
   petBubble: Map<string, Sprite>;
 }
 
+export interface BubbleLayers {
+  bubble: Container;
+  badge: Container;
+  petBubble: Container;
+}
+
 export function createBubblePools(): BubblePools {
   return { bubble: new Map(), badge: new Map(), petBubble: new Map() };
 }
@@ -45,9 +51,7 @@ function statusBadgeSprite(ch: Character): SpriteData {
 
 export function updateBubblesAndBadges(
   pools: BubblePools,
-  bubbleContainer: Container,
-  badgeContainer: Container,
-  petBubbleContainer: Container,
+  layers: BubbleLayers,
   state: FloorRenderState,
 ): void {
   const liveBubbles = new Set<number>();
@@ -66,7 +70,7 @@ export function updateBubblesAndBadges(
       const texture = getTexture(spriteData);
       const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
       const anchor = worldToIso(ch.x, ch.y);
-      const sprite = getOrCreateSprite(pools.bubble, ch.id, bubbleContainer);
+      const sprite = getOrCreateSprite(pools.bubble, ch.id, layers.bubble);
       sprite.texture = texture;
       sprite.position.set(
         Math.round(anchor.x - texture.width / 2),
@@ -81,7 +85,7 @@ export function updateBubblesAndBadges(
       const texture = getTexture(statusBadgeSprite(ch));
       const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
       const anchor = worldToIso(ch.x, ch.y);
-      const sprite = getOrCreateSprite(pools.badge, ch.id, badgeContainer);
+      const sprite = getOrCreateSprite(pools.badge, ch.id, layers.badge);
       sprite.texture = texture;
       sprite.position.set(
         Math.round(anchor.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2),
@@ -99,7 +103,7 @@ export function updateBubblesAndBadges(
       alpha = Math.max(0, pet.bubbleTimer / BUBBLE_FADE_DURATION_SEC);
     }
     const texture = getTexture(BUBBLE_HEART_SPRITE);
-    const sprite = getOrCreateSprite(pools.petBubble, pet.id, petBubbleContainer);
+    const sprite = getOrCreateSprite(pools.petBubble, pet.id, layers.petBubble);
     sprite.texture = texture;
     const anchor = worldToIso(pet.x, pet.y);
     sprite.position.set(
@@ -110,7 +114,7 @@ export function updateBubblesAndBadges(
     sprite.visible = true;
   }
 
-  pruneStale(pools.bubble, bubbleContainer, liveBubbles);
-  pruneStale(pools.badge, badgeContainer, liveBadges);
-  pruneStale(pools.petBubble, petBubbleContainer, livePetBubbles);
+  pruneStale(pools.bubble, layers.bubble, liveBubbles);
+  pruneStale(pools.badge, layers.badge, liveBadges);
+  pruneStale(pools.petBubble, layers.petBubble, livePetBubbles);
 }

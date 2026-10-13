@@ -58,7 +58,7 @@ import {
   repositionAreaLabels,
   updateSeatIndicator,
 } from './sceneAreas.js';
-import type { BubblePools } from './sceneBubbles.js';
+import type { BubbleLayers, BubblePools } from './sceneBubbles.js';
 import { createBubblePools, updateBubblesAndBadges } from './sceneBubbles.js';
 import type { FloorNameEntry } from './sceneBuilding.js';
 import { drawPillars, updateFloorNames } from './sceneBuilding.js';
@@ -121,9 +121,11 @@ class FloorScene {
   private areaOverlayGfx = new Graphics();
   private seatIndicatorGfx = new Graphics();
   private entityContainer = new Container({ isRenderGroup: true });
-  private bubbleContainer = new Container();
-  private badgeContainer = new Container();
-  private petBubbleContainer = new Container();
+  private bubbleLayers: BubbleLayers = {
+    bubble: new Container(),
+    badge: new Container(),
+    petBubble: new Container(),
+  };
   private areaLabelContainer = new Container();
 
   private lastLayout: OfficeLayout | null = null;
@@ -140,9 +142,9 @@ class FloorScene {
       this.areaOverlayGfx,
       this.seatIndicatorGfx,
       this.entityContainer,
-      this.bubbleContainer,
-      this.badgeContainer,
-      this.petBubbleContainer,
+      this.bubbleLayers.bubble,
+      this.bubbleLayers.badge,
+      this.bubbleLayers.petBubble,
     );
     this.entityContainer.sortableChildren = true;
     worldLayer.addChild(this.root);
@@ -168,13 +170,7 @@ class FloorScene {
 
     updateSeatIndicator(this.seatIndicatorGfx, state);
     updateEntities(this.entityPools, this.entityContainer, state);
-    updateBubblesAndBadges(
-      this.bubblePools,
-      this.bubbleContainer,
-      this.badgeContainer,
-      this.petBubbleContainer,
-      state,
-    );
+    updateBubblesAndBadges(this.bubblePools, this.bubbleLayers, state);
   }
 
   destroy(): void {
