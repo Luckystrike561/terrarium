@@ -18,7 +18,7 @@ import {
   TEAM_ROLE_COLOR,
   TOOL_OVERLAY_VERTICAL_OFFSET,
 } from '../../constants.js';
-import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js';
+import type { SubagentCharacter } from '../../hooks/serverMessages/messageContext.js';
 import { isE2E } from '../../runtime.js';
 import type { Building } from '../engine/building.js';
 import { overlayProjection } from '../projection.js';

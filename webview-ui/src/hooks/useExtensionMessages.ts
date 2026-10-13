@@ -15,12 +15,9 @@ import { transport } from '../transport/index.js';
 import { handleAgentLifecycleMessage } from './serverMessages/agentLifecycleMessages.js';
 import { handleAssetMessage } from './serverMessages/assetMessages.js';
 import type { MessageContext, SubagentCharacter } from './serverMessages/messageContext.js';
-import { hooksSubjectKey } from './serverMessages/messageContext.js';
 import { handleSettingsMessage } from './serverMessages/settingsMessages.js';
 import { handleTeamAndContextMessage } from './serverMessages/teamAndContextMessages.js';
 import { handleToolActivityMessage } from './serverMessages/toolActivityMessages.js';
-
-export type { SubagentCharacter };
 
 interface ExtensionMessageState {
   agents: number[];
@@ -61,8 +58,6 @@ interface ExtensionMessageState {
   /** Every account quota meter, as the last quotaUpdate listed them. Empty draws no beans. */
   quotaMeters: QuotaMeter[];
 }
-
-export { hooksSubjectKey };
 
 export function useExtensionMessages(getBuilding: () => Building): ExtensionMessageState {
   const [agents, setAgents] = useState<number[]>([]);
