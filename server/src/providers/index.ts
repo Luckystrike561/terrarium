@@ -86,8 +86,17 @@ export interface ModuleSet {
   readonly quotaSources?: readonly QuotaSourceModule[];
 }
 
-/** An agent module that writes hooks into its CLI's settings, and so goes through the consent gate. */
-export type HookModule = AgentModule & { readonly hooks: HookInstaller };
+/** An agent module that writes hooks into its CLI's settings, and so goes through the consent gate. At least one
+ *  subject: an empty array is never registered as a HookModule, since nothing would ever be asked. */
+export type HookModule = AgentModule & { readonly hooks: readonly HookInstaller[] };
+
+/** The subject id `AgentRuntime.setHooksEnabled` reads, by convention — module-scoped, never subject-scoped (it
+ *  gates a running module's heuristic fallback timers, which know nothing about the status line or any other
+ *  non-detection subject). Not a module id, and not branched on anywhere else: every module registered today names
+ *  its hook-entries subject 'hooks' (Claude's HOOKS_SUBJECT_ID; the implicit single subject every other module had
+ *  before consent became per-subject — configPersistence.ts's LEGACY_SUBJECT_ID is the same value). This is the one
+ *  place cli.ts and clientMessageHandler.ts read a subject id by VALUE rather than pass it through opaquely. */
+export const HEURISTIC_TIMER_SUBJECT_ID = 'hooks';
 
 export const registeredModuleIds: readonly string[] = allModules.map((m) => m.id);
 
@@ -119,19 +128,30 @@ export function loadEnabledModules(): ModuleSet {
 }
 
 export function hookModules(modules: ModuleSet): HookModule[] {
-  return modules.agents.filter((m): m is HookModule => m.hooks !== undefined);
+  return modules.agents.filter((m): m is HookModule => (m.hooks?.length ?? 0) > 0);
 }
 
 /** Every REGISTERED agent module that writes hooks, regardless of which modules this machine runs. Used by
  *  `--uninstall-hooks`, which must be able to remove hooks a module installed before it was disabled or dropped. */
 export const allHookModules: readonly HookModule[] = agentModules.filter(
-  (m): m is HookModule => m.hooks !== undefined,
+  (m): m is HookModule => (m.hooks?.length ?? 0) > 0,
 );
 
 /** Resolve a wire-supplied module id to one of `modules` that installs hooks, or undefined (the caller then writes
  *  nothing: fail-closed, like a junk consent choice). */
 export function findHookModule(modules: ModuleSet, id: unknown): HookModule | undefined {
   return typeof id === 'string' ? hookModules(modules).find((m) => m.id === id) : undefined;
+}
+
+/** Resolve a wire-supplied (providerId, subjectId) pair to the one subject that writes it, or undefined for an
+ *  unknown module or an id naming no subject of it — fail-closed, like a junk consent choice. */
+export function findHookSubject(
+  modules: ModuleSet,
+  providerId: unknown,
+  subjectId: unknown,
+): HookInstaller | undefined {
+  const module = findHookModule(modules, providerId);
+  return typeof subjectId === 'string' ? module?.hooks.find((s) => s.id === subjectId) : undefined;
 }
 
 /** The handshake's `providerCapabilities`: every enabled agent module's tool taxonomy. */
@@ -149,5 +169,5 @@ export function providerCapabilitiesMessage(modules: ModuleSet): ProviderCapabil
 /** The single `settingsLoaded.hooksEnabled` flag (its one reader is the hooks tooltip): on when any enabled module's
  *  hooks preference is. */
 export function anyHooksEnabled(modules: ModuleSet): boolean {
-  return hookModules(modules).some((m) => getHooksEnabled(m.id));
+  return hookModules(modules).some((m) => m.hooks.some((s) => getHooksEnabled(m.id, s.id)));
 }

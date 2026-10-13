@@ -296,7 +296,7 @@ Errors are caught and logged, and never crash the server. Malformed JSONL lines 
 - **Provider modules are the integration boundary.** No module id appears in the runtime, the UI, `cli.ts` or `clientMessageHandler.ts`.
 - **Single-namespace persistence** under `~/.terrarium/`.
 - **The server always starts** regardless of the hooks preference. Only hook installation is gated by it.
-- **Consent before any first write outside `~/.terrarium/`**, asked once per module in the Intro, and a choice is an absolute state command. The hooks preference is persisted only after the install or uninstall verifiably landed. See [consent.md](docs/architecture/consent.md) and ADR 0001.
+- **Consent before any first write outside `~/.terrarium/`**, asked once per `(module, subject)` pair in the Intro (Claude has two: `hooks` for the 12 entries, `statusLine` for the quota slot, each with its own grant, disclosure and revision), and a choice is an absolute state command. A subject's preference is persisted only after its own install or uninstall verifiably landed. See [consent.md](docs/architecture/consent.md), ADR 0001 and ADR 0002.
 - **Never rewrite a JSON shape we did not author**, and identify our hook by an anchored, case-insensitive path suffix, never a substring. See [consent.md](docs/architecture/consent.md#writing-settingsjson-safely).
 - **Privilege is a token, never a network position.** See [consent.md](docs/architecture/consent.md#who-may-answer-the-ws-gate).
 - **E2E over webview unit tests** for user-facing behaviour. See [testing.md](docs/architecture/testing.md).

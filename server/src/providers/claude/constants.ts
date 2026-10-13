@@ -6,6 +6,14 @@
  * Adding another module? Create its own `providers/<id>/constants.ts`.
  */
 
+/** Ids of Claude's two independently-consented hook subjects (HookInstaller.id), shared by `claude.ts`,
+ *  `claudeHookInstaller.ts` and their tests so the spelling lives in exactly one place. `HOOKS_SUBJECT_ID` is also
+ *  the subject a pre-per-subject-consent config's flat `hooksConsent`/`hooksEnabled` value migrates onto
+ *  (configPersistence.ts's `LEGACY_SUBJECT_ID`) — the one write every installer made before the status line got
+ *  its own ask. */
+export const HOOKS_SUBJECT_ID = 'hooks';
+export const STATUS_LINE_SUBJECT_ID = 'statusLine';
+
 /** Output filename after esbuild compiles claude-hook.ts to CJS (source is .ts, output is .js) */
 export const CLAUDE_HOOK_SCRIPT_NAME = 'claude-hook.js';
 

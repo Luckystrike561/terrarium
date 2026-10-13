@@ -157,20 +157,23 @@ export interface RunningAgentModule extends ModuleHandle {
 // ── Agent modules ─────────────────────────────────────────────
 
 /** Hooks written into a third-party settings file. Writing there is consent-gated: the consent gate asks once per
- *  module that has one of these, with the module's own disclosure. */
+ *  (module, subject) that has one of these, with the subject's own disclosure. A module lists every subject it
+ *  writes — Claude's hook entries and its status line are two independent subjects, asked and revised separately —
+ *  so nothing is written for a subject until ITS OWN ask is answered `install`. */
 export interface HookInstaller {
-  /** Install hook entries that POST to this server's `/api/hooks/<module id>`. */
+  /** Stable id of what this installer writes, scoped to the owning module (e.g. 'hooks' | 'statusLine' for Claude).
+   *  Echoed on every consent-bearing wire message beside the module's own id, never branched on by value outside
+   *  the module that defined it. */
+  readonly id: string;
+  /** Install this subject's write, POSTing to this server's `/api/hooks/<module id>` where relevant. */
   installHooks(serverUrl: string, authToken: string): Promise<void>;
   uninstallHooks(): Promise<void>;
   areHooksInstalled(): Promise<boolean>;
-  /** First-run consent copy for THIS module's hook install: the headline titles the ask, the disclosure is its body
-   *  (what is written, what data moves, how to undo; paragraphs split on blank lines). Required, not optional: a
-   *  module that installs anything must state its terms, and the gate ships these verbatim so no client copy can
-   *  drift. */
-  consentDisclosure(): { headline: string; disclosure: string };
-  /** Put the files the hook entries execute in place, from the installed package root. Callers run it BEFORE
-   *  `installHooks` and abort on false: an entry whose command points at a missing file is worse than no hook. */
-  stageHookFiles?(packageRoot: string): boolean;
+  /** First-run consent copy for THIS subject's install: the headline titles the ask, the disclosure is its body
+   *  (what is written, what data moves, how to undo; paragraphs split on blank lines), and actionLabel is the
+   *  consent step's Install button text. Required, not optional: a subject that installs anything must state its
+   *  terms, and the gate ships these verbatim so no client copy can drift. */
+  consentDisclosure(): { headline: string; disclosure: string; actionLabel: string };
 }
 
 export interface AgentModule {
@@ -182,9 +185,13 @@ export interface AgentModule {
    *  / AgentModule / RunningAgentModule. */
   readonly protocolVersion: number;
 
-  /** Hooks this module installs into its CLI's settings. Absent when nothing is written outside `~/.terrarium/`.
-   *  The running module receives what they POST (`RunningAgentModule.receiveHook`). */
-  readonly hooks?: HookInstaller;
+  /** Consent-gated subjects this module writes outside `~/.terrarium/`, asked in array order. Absent/empty when
+   *  nothing is written. The running module receives what they POST (`RunningAgentModule.receiveHook`). */
+  readonly hooks?: readonly HookInstaller[];
+  /** Put the files every subject's hook entries execute in place, from the installed package root. A shared
+   *  prerequisite, not one subject's own: callers run it BEFORE any subject's `installHooks` and abort on false —
+   *  an entry whose command points at a missing file is worse than no hook. */
+  stageHookFiles?(packageRoot: string): boolean;
 
   /** Format tool status for display (e.g., "Read" -> "Reading foo.ts") */
   formatToolStatus(toolName: string, input?: unknown): string;

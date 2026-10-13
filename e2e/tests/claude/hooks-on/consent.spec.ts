@@ -61,20 +61,38 @@ function readSettings(tmpHome: string): {
   }
 }
 
-function readConsent(tmpHome: string): boolean {
+function readConsent(tmpHome: string, subjectId = 'hooks'): boolean {
   try {
     const raw = fs.readFileSync(path.join(tmpHome, '.terrarium', 'config.json'), 'utf8');
-    const consent = (JSON.parse(raw) as { hooksConsent?: Record<string, string> }).hooksConsent;
-    return consent?.claude === 'granted';
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object' || !('hooksConsent' in parsed)) return false;
+    const { hooksConsent } = parsed;
+    if (hooksConsent === null || typeof hooksConsent !== 'object' || !('claude' in hooksConsent)) {
+      return false;
+    }
+    const { claude } = hooksConsent;
+    if (claude === null || typeof claude !== 'object' || !(subjectId in claude)) return false;
+    return claude[subjectId as keyof typeof claude] === 'granted';
   } catch {
     return false;
   }
 }
 
-function readHooksEnabled(tmpHome: string): boolean | undefined {
+function readHooksEnabled(tmpHome: string, subjectId = 'hooks'): boolean | undefined {
   try {
     const raw = fs.readFileSync(path.join(tmpHome, '.terrarium', 'config.json'), 'utf8');
-    return (JSON.parse(raw) as { hooksEnabled?: Record<string, boolean> }).hooksEnabled?.claude;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object' || !('hooksEnabled' in parsed)) {
+      return undefined;
+    }
+    const { hooksEnabled } = parsed;
+    if (hooksEnabled === null || typeof hooksEnabled !== 'object' || !('claude' in hooksEnabled)) {
+      return undefined;
+    }
+    const { claude } = hooksEnabled;
+    if (claude === null || typeof claude !== 'object' || !(subjectId in claude)) return undefined;
+    const value = claude[subjectId as keyof typeof claude];
+    return typeof value === 'boolean' ? value : undefined;
   } catch {
     return undefined;
   }
@@ -200,9 +218,21 @@ test.describe('Hooks consent gate', () => {
 
     narrator.step("finishing the tour with Let's Go");
     await finishIntro(dialog);
+
+    // The hooks subject's own ask is answered and closed, but Claude's statusLine subject is independent and
+    // still unanswered — its ask follows as a fresh, separate tour (CONTEXT: Hooks consent gate / sequencing in
+    // this file's module doc). Declining it here keeps this test's own point — the hooks disclosure and install —
+    // from being diluted by the statusLine subject's own disclosure, which the dedicated sequencing test covers.
+    narrator.step('declining the follow-up statusLine ask so the tour can end');
+    const statusLineDialog = await openConsentDialog(page);
+    await advanceIntroToConsentStep(statusLineDialog, 'Install Status Line');
+    await statusLineDialog.getByRole('button', { name: 'Not Now' }).click();
+    await finishIntro(statusLineDialog);
+    narrator.check('the statusLine ask followed, separately, and was declined');
+
     // Closing the tour despawns the greeter (matrix effect, then removal).
     await expect.poll(() => greeterPresent(page), { timeout: 15_000 }).toBe(false);
-    narrator.check('the greeter despawned once the tour ended');
+    narrator.check('the greeter despawned once both tours ended');
   });
 
   test('Not Now writes nothing, continues the tour, and leaves consent ungranted @area:cross-cutting', async ({
@@ -435,6 +465,53 @@ test.describe('Hooks consent gate', () => {
     expect(readHooksEnabled(tmpHome)).not.toBe(false);
     narrator.check('bubble still open, nothing written — a stray click is not an answer');
   });
+
+  // Claude's two consent-gated subjects are asked, answered and revised completely independently: the hooks
+  // entries land first, then a SEPARATE statusLine ask follows as its own fresh tour. Declining statusLine must
+  // leave the 12 hooks entries untouched and write no statusLine key; a revised Install must write exactly one,
+  // chaining nothing on a fresh home with no prior status line to chain.
+  test('the statusLine ask follows the hooks ask separately, with its own independent decline/accept @area:cross-cutting', async ({
+    page,
+    standalone,
+  }) => {
+    const { tmpHome, narrator } = standalone;
+
+    narrator.step('answering the hooks ask with Install Hooks');
+    const dialog = await openConsentDialog(page);
+    await advanceIntroToConsentStep(dialog);
+    await dialog.getByRole('button', { name: 'Install Hooks' }).click();
+    await expect.poll(() => ourHookEvents(tmpHome).length, { timeout: 15_000 }).toBe(12);
+    await finishIntro(dialog);
+    narrator.check('the 12 hook entries landed via the first, separate ask');
+
+    narrator.step('waiting for the follow-up statusLine ask');
+    const statusLineDialog = await openConsentDialog(page);
+    await advanceIntroToConsentStep(statusLineDialog, 'Install Status Line');
+    const statusLineText = (await statusLineDialog.textContent()) ?? '';
+    expect(statusLineText).toContain('One more thing: a status line!');
+    narrator.check('the statusLine subject gets its own, separate ask after the hooks ask');
+
+    narrator.step('declining the statusLine ask with Not Now');
+    await statusLineDialog.getByRole('button', { name: 'Not Now' }).click();
+    await expect(statusLineDialog).toContainText("You're all set!");
+    expect(ourHookEvents(tmpHome).length).toBe(12);
+    expect('statusLine' in readSettings(tmpHome)).toBe(false);
+    narrator.check('declining statusLine leaves the 12 hook entries and writes no statusLine key');
+
+    narrator.step('revising to Install Status Line');
+    await statusLineDialog.getByRole('button', { name: 'Back' }).click();
+    await expect(
+      statusLineDialog.getByRole('button', { name: 'Install Status Line' }),
+    ).toBeVisible();
+    await statusLineDialog.getByRole('button', { name: 'Install Status Line' }).click();
+    await expect.poll(() => 'statusLine' in readSettings(tmpHome), { timeout: 15_000 }).toBe(true);
+    expect(ourHookEvents(tmpHome).length).toBe(12);
+    narrator.check(
+      'accepting on revision writes a statusLine key, chaining nothing on this fresh home',
+    );
+
+    await finishIntro(statusLineDialog);
+  });
 });
 
 const THIRD_PARTY = 'node /elsewhere/other-tool.js';
@@ -448,11 +525,12 @@ test.describe('Hooks consent gate / pre-consent install', () => {
     seedClaudeSettings: legacyClaudeSettings(THIRD_PARTY),
   });
 
-  // ZERO friction for the population that already had our hooks: no prompt at
-  // all, just the migration. The reinstall only ever REDUCES scope — it drops
-  // UserPromptSubmit and TaskCreated, the two events that forwarded prompt text
-  // and were consumed by nothing — so a prompt would buy this user nothing they
-  // do not already have.
+  // ZERO friction for the population that already had our hooks: no prompt for the HOOKS subject at all, just the
+  // migration (the legacy flat grant migrates onto the hooks subject, configPersistence's migration, see ADR
+  // 0002). The reinstall only ever REDUCES scope, it drops UserPromptSubmit and TaskCreated, the two events that
+  // forwarded prompt text and were consumed by nothing, so a prompt would buy this user nothing they do not
+  // already have. The statusLine subject is independent and never migrates: it is always asked fresh, even for
+  // this already-consented population.
   test('a pre-consent 14-event install migrates to 12 with no prompt @area:cross-cutting', async ({
     page,
     standalone,
@@ -469,17 +547,25 @@ test.describe('Hooks consent gate / pre-consent install', () => {
     expect(readSettings(tmpHome).permissions).toEqual({ allow: ['Bash(ls:*)'] });
     narrator.check('migrated to 12 events; third-party hook and unrelated keys survived');
 
-    // The whole point: nothing was ever asked. The consent dialog stays open
-    // until answered, so it would still be on screen right now — an absent
-    // dialog here means none was ever raised. Two ways this fails if a prompt
-    // comes back: the dialog assertion below, and the migration poll above,
-    // which could not have reached 12 with the install gated behind an
-    // unanswered dialog. Matched on the dialog role and again on the tail of
-    // the shared disclosure block, which EVERY consent variant carries, so a
-    // re-introduced prompt of any wording fails this.
-    narrator.step('checking for a consent dialog');
-    await expect(consentDialog(page)).toHaveCount(0);
+    // The hooks subject itself: nothing was ever asked for it. Matched on the
+    // tail of its own disclosure block, which only the hooks subject's wording
+    // carries, so a re-introduced hooks prompt of any wording fails this even
+    // while the statusLine subject's own, separate ask is still open below.
+    narrator.step('checking that no HOOKS consent dialog was ever raised');
     await expect(page.getByText(/remove the hooks at any time/i)).toHaveCount(0);
-    narrator.check('no consent dialog was ever raised');
+    narrator.check('no hooks consent dialog was ever raised');
+
+    // The statusLine subject is independent and never migrates from the old flat
+    // grant: it is unanswered here, so its own ask follows as a fresh, separate
+    // tour. Declining it keeps this test's own point about the hooks migration.
+    narrator.step('declining the separate, still-unanswered statusLine ask');
+    const statusLineDialog = await openConsentDialog(page);
+    await advanceIntroToConsentStep(statusLineDialog, 'Install Status Line');
+    await statusLineDialog.getByRole('button', { name: 'Not Now' }).click();
+    await finishIntro(statusLineDialog);
+    narrator.check('the statusLine ask followed, separately, and was declined');
+
+    await expect(consentDialog(page)).toHaveCount(0);
+    narrator.check('no dialog remains once both subjects are settled');
   });
 });

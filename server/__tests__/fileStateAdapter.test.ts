@@ -4,6 +4,7 @@ import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PersistedAgent } from '../../core/src/schemas.js';
+import { HOOKS_SUBJECT_ID } from '../src/providers/claude/constants.js';
 
 // Mock os.homedir() so the adapter resolves to an isolated temp dir on every
 // platform. Overriding process.env.HOME is not portable: os.homedir() reads
@@ -49,8 +50,8 @@ describe('FileStateAdapter', () => {
     // per-provider accessors own it.
     adapter.setSetting('terrarium.hooksEnabled', false);
     expect(adapter.getSetting('terrarium.hooksEnabled', true)).toBe(true);
-    setHooksEnabled('claude', false);
-    expect(getHooksEnabled('claude')).toBe(false);
+    setHooksEnabled('claude', HOOKS_SUBJECT_ID, false);
+    expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
   });
 
   it('ignores unknown setting keys (returns default, does not write)', () => {

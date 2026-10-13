@@ -18,6 +18,7 @@ import {
   setHooksEnabled,
   writeConfig,
 } from '../src/configPersistence.js';
+import { HOOKS_SUBJECT_ID, STATUS_LINE_SUBJECT_ID } from '../src/providers/claude/constants.js';
 
 describe('configPersistence: areas', () => {
   let tempHome: string;
@@ -100,8 +101,8 @@ describe('configPersistence: areas', () => {
 
   describe('hooksConsent / hooksEnabled maps', () => {
     it('defaults to unanswered/enabled when the config file is missing or predates the maps', () => {
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       writeConfig(readConfig()); // full config on disk...
       const raw = JSON.parse(
         fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
@@ -112,8 +113,8 @@ describe('configPersistence: areas', () => {
         path.join(tempHome, '.terrarium', 'config.json'),
         JSON.stringify(raw, null, 2),
       );
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
     });
 
     it('drops junk values from hand-edited maps instead of crashing or trusting them', () => {
@@ -126,29 +127,45 @@ describe('configPersistence: areas', () => {
         }),
       );
       // Only exact values survive; everything else degrades to the default.
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksConsent('other')).toBe('declined');
-      expect(getHooksConsent('junk')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
-      expect(getHooksEnabled('other')).toBe(false);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksConsent('other', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksConsent('junk', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
+      expect(getHooksEnabled('other', HOOKS_SUBJECT_ID)).toBe(false);
     });
 
-    it('grantHooksConsent persists per provider and is idempotent', () => {
-      grantHooksConsent('claude');
-      expect(getHooksConsent('claude')).toBe('granted');
-      expect(getHooksConsent('other')).toBe('unanswered');
-      grantHooksConsent('claude');
-      expect(getHooksConsent('claude')).toBe('granted');
+    it('migrates an old flat config onto the hooks subject, leaving statusLine unanswered', () => {
+      fs.mkdirSync(path.join(tempHome, '.terrarium'), { recursive: true });
+      fs.writeFileSync(
+        path.join(tempHome, '.terrarium', 'config.json'),
+        JSON.stringify({
+          hooksConsent: { claude: 'granted' },
+          hooksEnabled: { claude: true },
+        }),
+      );
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
+      expect(getHooksConsent('claude', STATUS_LINE_SUBJECT_ID)).toBe('unanswered');
+      expect(readConfig().hooksConsent).toEqual({ claude: { [HOOKS_SUBJECT_ID]: 'granted' } });
+      expect(readConfig().hooksEnabled).toEqual({ claude: { [HOOKS_SUBJECT_ID]: true } });
+    });
+
+    it('grantHooksConsent persists per (provider, subject) and is idempotent', () => {
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
+      expect(getHooksConsent('other', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
     });
 
     it('recordHooksDecline writes consent + preference in ONE cycle; clearHooksAnswer undoes both', () => {
-      grantHooksConsent('claude');
-      recordHooksDecline('claude');
-      expect(getHooksConsent('claude')).toBe('declined');
-      expect(getHooksEnabled('claude')).toBe(false);
-      clearHooksAnswer('claude');
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      recordHooksDecline('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('declined');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
+      clearHooksAnswer('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       // Both keys are genuinely gone — "never answered" and "answered and
       // reverted" must be indistinguishable on disk.
       const raw = JSON.parse(
@@ -164,11 +181,11 @@ describe('configPersistence: areas', () => {
     // install then leaves granted + default-enabled, which a later notNow
     // revert fully takes back (the ask returns).
     it('a grant replacing a decline clears the decline preference remnant', () => {
-      recordHooksDecline('claude');
-      expect(getHooksEnabled('claude')).toBe(false);
-      grantHooksConsent('claude');
-      expect(getHooksConsent('claude')).toBe('granted');
-      expect(getHooksEnabled('claude')).toBe(true);
+      recordHooksDecline('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('granted');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       const raw = JSON.parse(
         fs.readFileSync(path.join(tempHome, '.terrarium', 'config.json'), 'utf-8'),
       );
@@ -178,17 +195,17 @@ describe('configPersistence: areas', () => {
     // A grant must NOT clobber a Settings toggle-off: the preference delete is
     // scoped to replacing a DECLINE, whose hooks-off was the answer's write.
     it('a repeat grant leaves a toggle-written preference alone', () => {
-      grantHooksConsent('claude');
-      setHooksEnabled('claude', false); // the Settings toggle, not an answer
-      grantHooksConsent('claude'); // idempotent repeat
-      expect(getHooksEnabled('claude')).toBe(false);
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      setHooksEnabled('claude', HOOKS_SUBJECT_ID, false); // the Settings toggle, not an answer
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID); // idempotent repeat
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
     });
 
     it('clearHooksEnabled removes the key so the default (true) applies again', () => {
-      setHooksEnabled('claude', false);
-      expect(getHooksEnabled('claude')).toBe(false);
-      clearHooksEnabled('claude');
-      expect(getHooksEnabled('claude')).toBe(true);
+      setHooksEnabled('claude', HOOKS_SUBJECT_ID, false);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(false);
+      clearHooksEnabled('claude', HOOKS_SUBJECT_ID);
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
       // The key is genuinely gone, not written back as true: "never answered"
       // and "answered and reverted" must be indistinguishable on disk.
       const raw = JSON.parse(
@@ -198,20 +215,20 @@ describe('configPersistence: areas', () => {
     });
 
     it('resetHooksConfig returns all hooks choices to factory state (uninstall → ask again)', () => {
-      grantHooksConsent('claude');
-      recordHooksDecline('other');
-      setHooksEnabled('claude', false); // a persisted "off" must not survive uninstall,
-      setHooksEnabled('other', false); // or the next install never prompts
+      grantHooksConsent('claude', HOOKS_SUBJECT_ID);
+      recordHooksDecline('other', HOOKS_SUBJECT_ID);
+      setHooksEnabled('claude', HOOKS_SUBJECT_ID, false); // a persisted "off" must not survive uninstall,
+      setHooksEnabled('other', HOOKS_SUBJECT_ID, false); // or the next install never prompts
       const cfg = readConfig();
       cfg.standalone.hooksInfoShown = true;
       writeConfig(cfg);
 
       resetHooksConfig();
 
-      expect(getHooksConsent('claude')).toBe('unanswered');
-      expect(getHooksConsent('other')).toBe('unanswered');
-      expect(getHooksEnabled('claude')).toBe(true);
-      expect(getHooksEnabled('other')).toBe(true);
+      expect(getHooksConsent('claude', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksConsent('other', HOOKS_SUBJECT_ID)).toBe('unanswered');
+      expect(getHooksEnabled('claude', HOOKS_SUBJECT_ID)).toBe(true);
+      expect(getHooksEnabled('other', HOOKS_SUBJECT_ID)).toBe(true);
       const reset = readConfig();
       expect(reset.standalone.hooksInfoShown).toBe(false);
     });

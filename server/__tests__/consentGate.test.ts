@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { claudeModule } from '../src/providers/claude/claude.js';
 import {
+  CONSENT_ACTION_LABEL,
   CONSENT_DISCLOSURE,
   CONSENT_INSTALL_HEADLINE,
 } from '../src/providers/claude/consentCopy.js';
@@ -22,18 +23,20 @@ describe('hooksConsentRequest — when to ask', () => {
   };
 
   it('asks the one population with nothing of ours installed', () => {
-    expect(hooksConsentRequest(askable, claudeModule)).toEqual({
+    expect(hooksConsentRequest(askable, claudeModule.id, claudeModule.hooks[0])).toEqual({
       type: 'hooksConsentRequest',
       providerId: 'claude',
+      subjectId: 'hooks',
       headline: CONSENT_INSTALL_HEADLINE,
       disclosure: CONSENT_DISCLOSURE,
+      actionLabel: CONSENT_ACTION_LABEL,
     });
   });
 
   // The payload carries the provider's copy so the webview renders the exact
   // terms being approved. A client-side duplicate is the failure this guards.
   it("ships the provider's disclosure, not a summary of it", () => {
-    const request = hooksConsentRequest(askable, claudeModule);
+    const request = hooksConsentRequest(askable, claudeModule.id, claudeModule.hooks[0]);
     expect(request?.disclosure).toBe(CONSENT_DISCLOSURE);
     expect(request?.disclosure).toContain('~/.claude/settings.json');
   });
@@ -45,14 +48,22 @@ describe('hooksConsentRequest — when to ask', () => {
     ['the user turned hooks off', { hooksEnabled: false }],
     ['the client could not act on an answer', { privileged: false }],
   ])('does not ask when %s', (_why, override) => {
-    expect(hooksConsentRequest({ ...askable, ...override }, claudeModule)).toBeNull();
+    expect(
+      hooksConsentRequest({ ...askable, ...override }, claudeModule.id, claudeModule.hooks[0]),
+    ).toBeNull();
   });
 
   // An untokened standalone spectator's hooksConsentResponse is dropped by the
   // handler, so showing it the dialog would be asking a question whose answer
   // is discarded. The privilege check gates the ASK, not just the response.
   it('never asks an unprivileged client, even when everything else lines up', () => {
-    expect(hooksConsentRequest({ ...askable, privileged: false }, claudeModule)).toBeNull();
+    expect(
+      hooksConsentRequest(
+        { ...askable, privileged: false },
+        claudeModule.id,
+        claudeModule.hooks[0],
+      ),
+    ).toBeNull();
   });
 });
 

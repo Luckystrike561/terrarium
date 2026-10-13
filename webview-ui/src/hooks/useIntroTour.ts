@@ -9,14 +9,15 @@ import { INTRO_TOUR_IDLE, reduceIntroTour } from './introTourState.js';
  * Everything the App needs to run the Intro, off the wire state useExtensionMessages already tracks. The semantics —
  * which asks survive being mooted, when a hooksStatus is this tour's verdict — live in the pure reducer
  * (introTourState.ts); this only turns props into events and choices into sends. The verdict is driven by
- * `hooksStatusSeq` per provider, not `hooksInstalled`: a FAILED install re-reports the `false` already held, so only
- * the message's ARRIVAL says the server answered, and another provider's status never settles this tour.
+ * `hooksStatusSeq` per (provider, subject) pair, not `hooksInstalled`: a FAILED install re-reports the `false`
+ * already held, so only the message's ARRIVAL says the server answered, and a DIFFERENT pair's status never settles
+ * this tour.
  */
 export function useIntroTour(args: {
   consentRequest: HooksConsentRequest | null;
   hooksInstalled: Record<string, boolean>;
   hooksStatusSeq: Record<string, number>;
-  dismissConsentRequest: (providerId: string | null) => void;
+  dismissConsentRequest: (providerId: string | null, subjectId: string | null) => void;
 }): {
   /** The ask to render, or null while no tour should be up. */
   intro: HooksConsentRequest | null;
@@ -37,21 +38,22 @@ export function useIntroTour(args: {
   useEffect(() => {
     dispatch({ kind: 'requestChanged', request: args.consentRequest });
     // state.intro is a dependency for the DEFERRED-ask case: an answered tour holds its snapshot and ignores another
-    // provider's request, so once it closes this effect must re-deliver the still-pending head even though the prop
+    // pair's request, so once it closes this effect must re-deliver the still-pending head even though the prop
     // never changed. The reducer is idempotent on repeats, so the extra dispatches are no-ops, not loops.
   }, [args.consentRequest, state.intro]);
 
-  // Fan the per-provider seq map out into one statusArrived event per bumped
-  // provider. The previous counts live in a ref: the dispatch must fire once
-  // per ARRIVAL, and only for the provider whose seq moved.
+  // Fan the per-(provider, subject) seq map out into one statusArrived event per bumped pair. The previous counts
+  // live in a ref: the dispatch must fire once per ARRIVAL, and only for the pair whose seq moved.
   const prevSeqRef = useRef<Record<string, number>>({});
   useEffect(() => {
-    for (const [providerId, seq] of Object.entries(args.hooksStatusSeq)) {
-      if (seq !== (prevSeqRef.current[providerId] ?? 0)) {
+    for (const [key, seq] of Object.entries(args.hooksStatusSeq)) {
+      if (seq !== (prevSeqRef.current[key] ?? 0)) {
+        const [providerId, subjectId] = key.split(':');
         dispatch({
           kind: 'statusArrived',
           providerId,
-          installed: args.hooksInstalled[providerId] === true,
+          subjectId,
+          installed: args.hooksInstalled[key] === true,
         });
       }
     }
@@ -61,24 +63,32 @@ export function useIntroTour(args: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [args.hooksStatusSeq]);
 
-  // The snapshot's provider is what a choice answers about — captured in a
-  // ref so onChoice stays referentially stable across the per-frame renders.
-  const providerIdRef = useRef<string | null>(null);
-  providerIdRef.current = state.intro?.providerId ?? providerIdRef.current;
+  // The snapshot's (provider, subject) pair is what a choice answers about — captured in a ref so onChoice stays
+  // referentially stable across the per-frame renders.
+  const pairRef = useRef<{ providerId: string; subjectId: string } | null>(null);
+  pairRef.current = state.intro
+    ? { providerId: state.intro.providerId, subjectId: state.intro.subjectId }
+    : pairRef.current;
 
   const onChoice = useCallback((choice: ConsentChoice) => {
-    const providerId = providerIdRef.current;
-    if (!providerId) return; // no ask on screen: nothing to answer about
+    const pair = pairRef.current;
+    if (!pair) return; // no ask on screen: nothing to answer about
     dispatch({ kind: 'choiceSent', choice });
-    transport.send({ type: 'hooksConsentResponse', providerId, choice });
+    transport.send({
+      type: 'hooksConsentResponse',
+      providerId: pair.providerId,
+      subjectId: pair.subjectId,
+      choice,
+    });
   }, []);
 
   const { dismissConsentRequest } = args;
   const onClose = useCallback(() => {
     dispatch({ kind: 'closed' });
-    // Dismiss the ask THIS tour was about (the snapshot's provider) so a
-    // queued ask for another provider is never dropped in its place.
-    dismissConsentRequest(providerIdRef.current);
+    // Dismiss the ask THIS tour was about (the snapshot's pair) so a queued
+    // ask for another pair is never dropped in its place.
+    const pair = pairRef.current;
+    dismissConsentRequest(pair?.providerId ?? null, pair?.subjectId ?? null);
   }, [dismissConsentRequest]);
 
   return {

@@ -10,6 +10,7 @@
 
 import * as path from 'path';
 
+import type { HookInstaller } from '../../core/src/provider.js';
 import { AgentRuntime } from './agentRuntime.js';
 import { AgentStateStore } from './agentStateStore.js';
 import { buildAssetCache } from './assetReload.js';
@@ -27,6 +28,7 @@ import type { HookModule } from './providers/index.js';
 import {
   allHookModules,
   findHookModule,
+  HEURISTIC_TIMER_SUBJECT_ID,
   hookModules,
   loadEnabledModules,
   registeredModuleIds,
@@ -132,84 +134,100 @@ Options:
 /**
  * Stage the files a module's hook entries run, reporting failure.
  *
- * Callers run this BEFORE installing the entries and abort when it returns
- * false: an entry whose command points at a missing script makes the CLI
- * spawn a dead process for every event, which is strictly worse than no hooks
- * at all.
+ * Callers run this BEFORE installing any subject's entries and abort when it
+ * returns false: an entry whose command points at a missing script makes the
+ * CLI spawn a dead process for every event, which is strictly worse than no
+ * hooks at all. Module-level, not per subject: every subject's command runs
+ * the same staged script, so this runs once per module no matter how many of
+ * its subjects are about to install.
  */
 function stageHookFilesOrReport(module: HookModule, packageRoot: string, context = ''): boolean {
-  if (module.hooks.stageHookFiles?.(packageRoot) ?? true) return true;
+  if (module.stageHookFiles?.(packageRoot) ?? true) return true;
   console.error(`[Terrarium] Hooks NOT installed${context}: hook script missing.`);
   return false;
 }
 
-/** Install a module's hooks at startup when its persisted preference is on, gated on its one-time consent. */
+/** Install a module's subjects at startup, each gated independently on its own persisted preference and one-time
+ *  consent. A subject already on disk with no recorded answer is granted silently (the pre-consent-version
+ *  migration, generalized to apply per subject): for `hooks` that is the long-standing REDUCES-scope-only
+ *  migration; for a future subject on disk from an earlier unreleased build of this one, the same silent grant
+ *  applies. A subject that has never been asked for — never on disk, never answered — stays unasked here; it is
+ *  asked, in full, in the browser UI when a tokened client connects (clientMessageHandler's webviewReady). */
 async function installHooksOnStartup(
   module: HookModule,
   packageRoot: string,
   serverUrl: string,
   token: string,
 ): Promise<void> {
-  if (!getHooksEnabled(module.id)) {
-    // Without this line, a persisted hooks-off makes startup skip the entire
-    // consent/install flow with zero output: indistinguishable from a bug.
-    console.log(
-      `[Terrarium] Hooks are off for ${module.displayName}. Delete hooksEnabled.${module.id} ` +
-        `from ~/.terrarium/config.json to reinstall them on the next start.`,
-    );
-    return;
+  const consentedSubjects: HookInstaller[] = [];
+  for (const subject of module.hooks) {
+    if (!getHooksEnabled(module.id, subject.id)) {
+      // Without this line, a persisted off-preference makes startup skip this
+      // subject's consent/install flow with zero output: indistinguishable from a bug.
+      console.log(
+        `[Terrarium] ${module.displayName}'s ${subject.id} is off. Delete hooksEnabled.${module.id}.${subject.id} ` +
+          `from ~/.terrarium/config.json to reinstall it on the next start.`,
+      );
+      continue;
+    }
+    let consent = getHooksConsent(module.id, subject.id) === 'granted';
+    if (!consent && (await subject.areHooksInstalled())) {
+      grantHooksConsent(module.id, subject.id);
+      consent = true;
+    }
+    if (!consent) {
+      console.log(
+        `[Terrarium] ${subject.id} not installed: writing ${module.displayName}'s settings needs one-time approval — open the URL below to review and approve it.`,
+      );
+      continue;
+    }
+    consentedSubjects.push(subject);
   }
-  let consent = getHooksConsent(module.id) === 'granted';
-  if (!consent && (await module.hooks.areHooksInstalled())) {
-    // Our hooks are already installed and already firing (a pre-consent
-    // version put them there). Grant and continue with NO prompt: the hooks
-    // install below only ever REDUCES their scope (Claude's 14 -> 12 migration
-    // drops the two events that forwarded prompt text). It does add the
-    // status line, which chains any status line the user had and shows
-    // exactly what it showed. A fresh install still is asked, in full, in the
-    // browser UI, when a tokened client connects (clientMessageHandler's
-    // webviewReady).
-    grantHooksConsent(module.id);
-    consent = true;
-  }
-  if (!consent) {
-    console.log(
-      `[Terrarium] Hooks not installed: writing ${module.displayName}'s settings needs one-time approval — open the URL below to review and approve it.`,
-    );
-    return;
-  }
+  if (consentedSubjects.length === 0) return;
   if (!stageHookFilesOrReport(module, packageRoot)) return;
-  try {
-    await module.hooks.installHooks(serverUrl, token);
-    console.log('[Terrarium] Hooks installed');
-  } catch (err) {
-    console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
+  for (const subject of consentedSubjects) {
+    try {
+      await subject.installHooks(serverUrl, token);
+      console.log(`[Terrarium] ${module.displayName}'s ${subject.id} installed`);
+    } catch (err) {
+      console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 }
 
 /**
- * The `--uninstall-hooks` command. Hooks-off is persisted per module only once the on-disk read agrees the entries
- * are gone: persisting it over live entries would make the next start skip the consent gate while they keep firing.
+ * The `--uninstall-hooks` command. Each subject's off-preference is persisted only once the on-disk read agrees its
+ * write is gone: persisting it over a live write would make the next start skip that subject's consent gate while it
+ * keeps firing. One summary line per module (matching the pre-subject log a user already searches console output
+ * for), covering every subject's outcome.
  */
 async function uninstallHooksCommand(modules: readonly HookModule[]): Promise<boolean> {
   let allRemoved = true;
   for (const module of modules) {
-    try {
-      const wasInstalled = await module.hooks.areHooksInstalled();
-      await module.hooks.uninstallHooks();
-      if (await module.hooks.areHooksInstalled()) {
-        throw new Error('its entries are still present after the uninstall');
+    let moduleOk = true;
+    let anyWasInstalled = false;
+    for (const subject of module.hooks) {
+      try {
+        if (await subject.areHooksInstalled()) anyWasInstalled = true;
+        await subject.uninstallHooks();
+        if (await subject.areHooksInstalled()) {
+          throw new Error(`its ${subject.id} entries are still present after the uninstall`);
+        }
+        setHooksEnabled(module.id, subject.id, false);
+      } catch (err) {
+        console.error(
+          `[Terrarium] Could not remove ${module.displayName}'s ${subject.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        moduleOk = false;
       }
-      setHooksEnabled(module.id, false);
+    }
+    if (moduleOk) {
       console.log(
-        wasInstalled
+        anyWasInstalled
           ? `[Terrarium] ${module.displayName} hooks removed.`
           : `[Terrarium] No ${module.displayName} hooks were installed. They stay off.`,
       );
-    } catch (err) {
-      console.error(
-        `[Terrarium] Could not remove ${module.displayName}'s hooks: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } else {
       allRemoved = false;
     }
   }
@@ -271,33 +289,34 @@ async function main(): Promise<void> {
       runtime.handleHookEvent(providerId, event);
     });
 
-    // onSetHooksEnabled side effect: install/uninstall the named module's
-    // hooks when the user toggles in the UI (or answers the consent ask).
+    // onSetHooksEnabled side effect: install/uninstall the named (module, subject) pair's write
+    // when the user toggles it in the UI (or answers the consent ask).
     // Captures config from the outer scope after server.start().
     let currentConfig: { port: number; token: string } | null = null;
-    const onSetHooksEnabled = async (providerId: string, enabled: boolean): Promise<void> => {
+    const onSetHooksEnabled = async (
+      providerId: string,
+      subjectId: string,
+      enabled: boolean,
+    ): Promise<void> => {
       if (!currentConfig) return;
       const module = findHookModule(modules, providerId);
-      if (!module) return; // unknown id: nothing to install into
+      const subject = module?.hooks.find((s) => s.id === subjectId);
+      if (!module || !subject) return; // unknown id: nothing to install into
       if (enabled) {
-        // An explicit toggle in the UI IS the consent to modify the module's
-        // settings file.
-        grantHooksConsent(module.id);
+        // An explicit toggle in the UI IS the consent to modify this subject's write.
+        grantHooksConsent(module.id, subject.id);
         if (!stageHookFilesOrReport(module, packageRoot, ' (user toggle)')) return;
         try {
-          await module.hooks.installHooks(
-            `http://127.0.0.1:${currentConfig.port}`,
-            currentConfig.token,
-          );
+          await subject.installHooks(`http://127.0.0.1:${currentConfig.port}`, currentConfig.token);
         } catch (err) {
           console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
-        console.log('[Terrarium] Hooks installed (user toggle)');
+        console.log(`[Terrarium] ${subject.id} installed (user toggle)`);
       } else {
         try {
-          await module.hooks.uninstallHooks();
-          console.log('[Terrarium] Hooks uninstalled (user toggle)');
+          await subject.uninstallHooks();
+          console.log(`[Terrarium] ${subject.id} uninstalled (user toggle)`);
         } catch (err) {
           console.error(`[Terrarium] ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -315,9 +334,10 @@ async function main(): Promise<void> {
     });
     currentConfig = { port: config.port, token: config.token };
 
-    // Sync runtime refs with persisted settings BEFORE the first scan tick.
+    // Sync runtime refs with persisted settings BEFORE the first scan tick. The heuristic-timer gate is
+    // module-scoped, driven by the hooks-entries subject's preference alone (see HEURISTIC_TIMER_SUBJECT_ID).
     for (const module of hookModules(modules)) {
-      runtime.setHooksEnabled(module.id, getHooksEnabled(module.id));
+      runtime.setHooksEnabled(module.id, getHooksEnabled(module.id, HEURISTIC_TIMER_SUBJECT_ID));
     }
 
     runtime.startModules();

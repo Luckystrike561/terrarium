@@ -46,8 +46,8 @@ export type IntroTourEvent =
   | { kind: 'requestChanged'; request: HooksConsentRequest | null }
   /** A hooksStatus ARRIVED — the event, not the value. A failed install re-reports the `false` already held, so the
    *  value alone cannot tell "still pending" from "failed"; only the arrival settles the verdict. Carries its
-   *  provider: a status about a DIFFERENT provider is never a verdict on this tour's install. */
-  | { kind: 'statusArrived'; providerId: string; installed: boolean }
+   *  (provider, subject) pair: a status about a DIFFERENT pair is never a verdict on this tour's install. */
+  | { kind: 'statusArrived'; providerId: string; subjectId: string; installed: boolean }
   /** A consent-step button sent its choice to the server. */
   | { kind: 'choiceSent'; choice: ConsentChoice }
   /** The tour closed (the X, Escape, Let's Go) — back to idle, so the next
@@ -58,11 +58,16 @@ export function reduceIntroTour(state: IntroTourState, event: IntroTourEvent): I
   switch (event.kind) {
     case 'requestChanged':
       if (event.request) {
-        // A request for a DIFFERENT provider is a fresh ask, not an update. While THIS tour is unanswered the new ask
-        // replaces it as a CLEAN tour: choice, armed wait and verdict belong to the previous provider, and an
-        // inherited awaitingOutcome would read the new provider's first status as a verdict on an install it never
+        // A request for a DIFFERENT (provider, subject) pair is a fresh ask, not an update — two subjects of the
+        // same provider (Claude's hooks and statusLine) are two independent asks. While THIS tour is unanswered the
+        // new ask replaces it as a CLEAN tour: choice, armed wait and verdict belong to the previous pair, and an
+        // inherited awaitingOutcome would read the new pair's first status as a verdict on an install it never
         // sent. While ANSWERED, hold the snapshot — the caller re-delivers the deferred ask once this tour closes.
-        if (state.intro !== null && state.intro.providerId !== event.request.providerId) {
+        const samePair =
+          state.intro !== null &&
+          state.intro.providerId === event.request.providerId &&
+          state.intro.subjectId === event.request.subjectId;
+        if (state.intro !== null && !samePair) {
           if (state.sentChoice !== null) return state;
           return { ...INTRO_TOUR_IDLE, intro: event.request };
         }
@@ -78,10 +83,15 @@ export function reduceIntroTour(state: IntroTourState, event: IntroTourEvent): I
 
     case 'statusArrived':
       // Only an armed wait reads a status as its verdict; every other arrival (the handshake's initial report, an
-      // install succeeding in another tab, another provider's install) is about someone else's write. The provider comes
-      // from the snapshot request — this tour's install was sent for exactly that one.
+      // install succeeding in another tab, a different pair's install) is about someone else's write. The pair
+      // comes from the snapshot request — this tour's install was sent for exactly that one.
       if (!state.awaitingOutcome) return state;
-      if (state.intro !== null && event.providerId !== state.intro.providerId) return state;
+      if (
+        state.intro !== null &&
+        (event.providerId !== state.intro.providerId || event.subjectId !== state.intro.subjectId)
+      ) {
+        return state;
+      }
       return { ...state, awaitingOutcome: false, installFailed: !event.installed };
 
     case 'choiceSent':

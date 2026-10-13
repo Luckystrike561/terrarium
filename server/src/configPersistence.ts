@@ -16,29 +16,39 @@ export interface AdapterSettings {
 }
 
 /** All keys in AdapterSettings. Used by adapters to map `terrarium.foo` → `foo`.
- *  The hooks preference is NOT here: it is per-provider and machine-global
+ *  The hooks preference is NOT here: it is per-provider, per-subject and machine-global
  *  (the hooks it governs live in one home-directory file per provider), so it
  *  lives beside `hooksConsent` at the config top level, not per namespace. */
 export const ADAPTER_SETTING_KEYS = ['lastSeenVersion', 'hooksInfoShown', 'areaMappings'] as const;
 
 export type AdapterSettingKey = (typeof ADAPTER_SETTING_KEYS)[number];
 
-/** What the user answered a provider's consent ask with, durably. `granted` is recorded BEFORE the install writes, so
- *  it can exist with nothing on disk; `declined` means the ANSWER itself turned hooks off, the provenance a revised
- *  "Not Now" needs to know the preference is its to take back (a Settings toggle never records consent). Absent =
- *  unanswered, the ask is still open. */
+/** What the user answered a (provider, subject) consent ask with, durably. `granted` is recorded BEFORE the install
+ *  writes, so it can exist with nothing on disk; `declined` means the ANSWER itself turned that subject off, the
+ *  provenance a revised "Not Now" needs to know the preference is its to take back (a Settings toggle never records
+ *  consent). Absent = unanswered, the ask is still open. */
 export type HooksConsentState = 'granted' | 'declined';
+
+/** Per-provider, per-subject consent/preference maps: `{ [providerId]: { [subjectId]: value } }`. A module with one
+ *  subject (today, every module but Claude) still nests one level — the shape is uniform so no accessor needs two
+ *  code paths. */
+export type HooksConsentMap = Record<string, Record<string, HooksConsentState>>;
+export type HooksEnabledMap = Record<string, Record<string, boolean>>;
+
+/** Subject id every installer wrote implicitly before consent became per-subject. Old flat configs
+ *  (`hooksConsent: { claude: 'granted' }`) migrate their one value onto this subject; a module's additional
+ *  subjects (Claude's `statusLine`) start unanswered, since they were never askable under the old shape. */
+const LEGACY_SUBJECT_ID = 'hooks';
 
 export interface TerrariumConfig {
   standalone: AdapterSettings;
-  /** Per-provider consent to modify that provider's settings file (Claude:
-   *  ~/.claude/settings.json). Shared across surfaces — consent is per-human
-   *  per-provider, not per-adapter. A provider absent from the map has never
-   *  been answered. */
-  hooksConsent: Record<string, HooksConsentState>;
-  /** Per-provider hooks preference, machine-global for the same reason as the
-   *  consent above. A provider absent from the map takes the default (true). */
-  hooksEnabled: Record<string, boolean>;
+  /** Per-(provider, subject) consent to modify that subject's write (Claude hooks: ~/.claude/settings.json's
+   *  `hooks`; Claude's status line: the same file's `statusLine`). Shared across surfaces — consent is per-human
+   *  per-provider per-subject, not per-adapter. A (provider, subject) absent from the map has never been answered. */
+  hooksConsent: HooksConsentMap;
+  /** Per-(provider, subject) preference, machine-global for the same reason as the consent above. A pair absent
+   *  from the map takes the default (true). */
+  hooksEnabled: HooksEnabledMap;
   /** Ids of the provider modules this machine runs, as last chosen with `--provider`. Absent = never chosen: the
    *  registry's default set runs. */
   modules?: string[];
@@ -56,23 +66,45 @@ function getConfigFilePath(): string {
   return path.join(os.homedir(), LAYOUT_FILE_DIR, CONFIG_FILE_NAME);
 }
 
-/** Coerce a loose object into the per-provider consent map, dropping entries whose value is not exactly 'granted' or
- *  'declined'. */
-function parseHooksConsent(raw: unknown): Record<string, HooksConsentState> {
+/** Coerce a loose object into the nested `{ providerId: { subjectId: state } }` consent map. A value that is itself
+ *  `'granted'`/`'declined'` is the OLD flat shape (`hooksConsent: { claude: 'granted' }`, from before consent was
+ *  per-subject) and migrates onto `LEGACY_SUBJECT_ID` — the one write every installer made implicitly. Any other
+ *  subject a module now asks about (Claude's `statusLine`) was never askable under that shape, so it starts
+ *  unanswered rather than inheriting the provider's old answer. */
+function parseHooksConsent(raw: unknown): HooksConsentMap {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const out: Record<string, HooksConsentState> = {};
-  for (const [providerId, state] of Object.entries(raw as Record<string, unknown>)) {
-    if (state === 'granted' || state === 'declined') out[providerId] = state;
+  const out: HooksConsentMap = {};
+  for (const [providerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value === 'granted' || value === 'declined') {
+      out[providerId] = { [LEGACY_SUBJECT_ID]: value };
+      continue;
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const subjects: Record<string, HooksConsentState> = {};
+    for (const [subjectId, state] of Object.entries(value as Record<string, unknown>)) {
+      if (state === 'granted' || state === 'declined') subjects[subjectId] = state;
+    }
+    if (Object.keys(subjects).length > 0) out[providerId] = subjects;
   }
   return out;
 }
 
-/** Coerce a loose object into the per-provider hooks-preference map, dropping non-boolean values. */
-function parseHooksEnabled(raw: unknown): Record<string, boolean> {
+/** Coerce a loose object into the nested `{ providerId: { subjectId: enabled } }` preference map, migrating the old
+ *  flat shape (`hooksEnabled: { claude: false }`) onto `LEGACY_SUBJECT_ID` the same way parseHooksConsent does. */
+function parseHooksEnabled(raw: unknown): HooksEnabledMap {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const out: Record<string, boolean> = {};
-  for (const [providerId, enabled] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof enabled === 'boolean') out[providerId] = enabled;
+  const out: HooksEnabledMap = {};
+  for (const [providerId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'boolean') {
+      out[providerId] = { [LEGACY_SUBJECT_ID]: value };
+      continue;
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const subjects: Record<string, boolean> = {};
+    for (const [subjectId, enabled] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof enabled === 'boolean') subjects[subjectId] = enabled;
+    }
+    if (Object.keys(subjects).length > 0) out[providerId] = subjects;
   }
   return out;
 }
@@ -174,87 +206,111 @@ export function writeConnections(connections: readonly ConnectionSettings[]): vo
   writeConfig(cfg);
 }
 
-// ── Per-provider hooks consent + preference ─────────────────
-// The provider id keys these maps (AgentModule.id — 'claude' today). All
-// writers go through readConfig→writeConfig, so a hand-edited or older file
+// ── Per-(provider, subject) hooks consent + preference ───────
+// The provider id and subject id key these maps (AgentModule.id and HookInstaller.id — 'claude'/'hooks' and
+// 'claude'/'statusLine' today). All writers go through readConfig→writeConfig, so a hand-edited or older file
 // degrades to "unanswered"/default rather than crashing.
 
-/** What the user durably answered this provider's ask with, or 'unanswered'. */
-export function getHooksConsent(providerId: string): HooksConsentState | 'unanswered' {
-  return readConfig().hooksConsent[providerId] ?? 'unanswered';
+/** Delete `subjectId` from `map[providerId]`, and drop the now-empty provider object too — so "never answered" (no
+ *  provider key) and "every subject cleared" read identically on disk, matching the pre-subject behavior the
+ *  existing tests pin. */
+function deleteSubject<T>(
+  map: Record<string, Record<string, T>>,
+  providerId: string,
+  subjectId: string,
+): void {
+  const subjects = map[providerId];
+  if (!subjects || !(subjectId in subjects)) return;
+  delete subjects[subjectId];
+  if (Object.keys(subjects).length === 0) delete map[providerId];
 }
 
-/** Persist the one-time approval for modifying this provider's settings file. A grant REPLACING a decline also
- *  deletes that decline's hooks-off remnant in the same write: without it, an install that then FAILS leaves a grant
- *  beside the retracted hooks-off, and a later "Not Now" (which leaves the preference alone, since the grant never
- *  wrote it) ends at unanswered + hooks-off — an ask that never returns. A successful install persists hooks-on
+/** What the user durably answered this (provider, subject) ask with, or 'unanswered'. */
+export function getHooksConsent(
+  providerId: string,
+  subjectId: string,
+): HooksConsentState | 'unanswered' {
+  return readConfig().hooksConsent[providerId]?.[subjectId] ?? 'unanswered';
+}
+
+/** Persist the one-time approval for modifying this (provider, subject) write. A grant REPLACING a decline also
+ *  deletes that decline's off-remnant in the same write: without it, an install that then FAILS leaves a grant
+ *  beside the retracted off-preference, and a later "Not Now" (which leaves the preference alone, since the grant
+ *  never wrote it) ends at unanswered + off — an ask that never returns. A successful install persists on-enabled
  *  anyway, so this only changes the failure path. */
-export function grantHooksConsent(providerId: string): void {
+export function grantHooksConsent(providerId: string, subjectId: string): void {
   const cfg = readConfig();
-  if (cfg.hooksConsent[providerId] !== 'granted') {
-    const replacingDecline = cfg.hooksConsent[providerId] === 'declined';
-    cfg.hooksConsent[providerId] = 'granted';
-    if (replacingDecline) delete cfg.hooksEnabled[providerId];
+  const subjects = cfg.hooksConsent[providerId] ?? {};
+  if (subjects[subjectId] !== 'granted') {
+    const replacingDecline = subjects[subjectId] === 'declined';
+    cfg.hooksConsent[providerId] = { ...subjects, [subjectId]: 'granted' };
+    if (replacingDecline) deleteSubject(cfg.hooksEnabled, providerId, subjectId);
     writeConfig(cfg);
   }
 }
 
-/** Record a durable decline ("Don't Ask Again"): consent 'declined' AND hooks-off, in ONE readConfig→writeConfig
- *  cycle. They are one logical answer — split across two writes, a failed second leaves a state the answer disavows
- *  (a decline with the default-on preference, or a hooks-off with no provenance). */
-export function recordHooksDecline(providerId: string): void {
+/** Record a durable decline ("Don't Ask Again") for this subject: consent 'declined' AND that subject off, in ONE
+ *  readConfig→writeConfig cycle. They are one logical answer — split across two writes, a failed second leaves a
+ *  state the answer disavows (a decline with the default-on preference, or an off-preference with no provenance). */
+export function recordHooksDecline(providerId: string, subjectId: string): void {
   const cfg = readConfig();
-  if (cfg.hooksConsent[providerId] !== 'declined' || cfg.hooksEnabled[providerId] !== false) {
-    cfg.hooksConsent[providerId] = 'declined';
-    cfg.hooksEnabled[providerId] = false;
+  const alreadyDeclined =
+    cfg.hooksConsent[providerId]?.[subjectId] === 'declined' &&
+    cfg.hooksEnabled[providerId]?.[subjectId] === false;
+  if (!alreadyDeclined) {
+    cfg.hooksConsent[providerId] = { ...cfg.hooksConsent[providerId], [subjectId]: 'declined' };
+    cfg.hooksEnabled[providerId] = { ...cfg.hooksEnabled[providerId], [subjectId]: false };
     writeConfig(cfg);
   }
 }
 
-/** Un-record an answer AND restore the preference default in ONE cycle — the revised-notNow revert over a decline.
- *  Both keys go together so "never answered" and "answered and reverted" are indistinguishable on disk, and no
- *  partial-write order can leave a half-reverted answer. */
-export function clearHooksAnswer(providerId: string): void {
+/** Un-record a subject's answer AND restore its preference default in ONE cycle — the revised-notNow revert over a
+ *  decline. Both keys go together so "never answered" and "answered and reverted" are indistinguishable on disk,
+ *  and no partial-write order can leave a half-reverted answer. */
+export function clearHooksAnswer(providerId: string, subjectId: string): void {
   const cfg = readConfig();
-  if (providerId in cfg.hooksConsent || providerId in cfg.hooksEnabled) {
-    delete cfg.hooksConsent[providerId];
-    delete cfg.hooksEnabled[providerId];
+  const hadEither =
+    cfg.hooksConsent[providerId]?.[subjectId] !== undefined ||
+    cfg.hooksEnabled[providerId]?.[subjectId] !== undefined;
+  if (hadEither) {
+    deleteSubject(cfg.hooksConsent, providerId, subjectId);
+    deleteSubject(cfg.hooksEnabled, providerId, subjectId);
     writeConfig(cfg);
   }
 }
 
-/** Un-record an answer entirely, so the ask genuinely returns. Used when the
+/** Un-record a subject's answer entirely, so the ask genuinely returns. Used when the
  *  user walks the Intro back from its closing step and revises an earlier
  *  answer down to "Not Now": whatever that answer left (a grant, a decline)
  *  must go, or the consent gate reads it as asked-and-answered forever.
  *  Callers only clear a grant after any uninstall verifiably landed. */
-export function clearHooksConsent(providerId: string): void {
+export function clearHooksConsent(providerId: string, subjectId: string): void {
   const cfg = readConfig();
-  if (providerId in cfg.hooksConsent) {
-    delete cfg.hooksConsent[providerId];
+  if (cfg.hooksConsent[providerId]?.[subjectId] !== undefined) {
+    deleteSubject(cfg.hooksConsent, providerId, subjectId);
     writeConfig(cfg);
   }
 }
 
-/** The per-provider hooks preference. Absent = the default, true. */
-export function getHooksEnabled(providerId: string): boolean {
-  return readConfig().hooksEnabled[providerId] ?? true;
+/** The per-(provider, subject) preference. Absent = the default, true. */
+export function getHooksEnabled(providerId: string, subjectId: string): boolean {
+  return readConfig().hooksEnabled[providerId]?.[subjectId] ?? true;
 }
 
-export function setHooksEnabled(providerId: string, enabled: boolean): void {
+export function setHooksEnabled(providerId: string, subjectId: string, enabled: boolean): void {
   const cfg = readConfig();
-  if (cfg.hooksEnabled[providerId] !== enabled) {
-    cfg.hooksEnabled[providerId] = enabled;
+  if (cfg.hooksEnabled[providerId]?.[subjectId] !== enabled) {
+    cfg.hooksEnabled[providerId] = { ...cfg.hooksEnabled[providerId], [subjectId]: enabled };
     writeConfig(cfg);
   }
 }
 
-/** Restore the provider's preference to its default (true) by REMOVING the key. Deleting rather than writing `true`
+/** Restore the subject's preference to its default (true) by REMOVING the key. Deleting rather than writing `true`
  *  keeps "never answered" and "answered and reverted" indistinguishable on disk. */
-export function clearHooksEnabled(providerId: string): void {
+export function clearHooksEnabled(providerId: string, subjectId: string): void {
   const cfg = readConfig();
-  if (providerId in cfg.hooksEnabled) {
-    delete cfg.hooksEnabled[providerId];
+  if (cfg.hooksEnabled[providerId]?.[subjectId] !== undefined) {
+    deleteSubject(cfg.hooksEnabled, providerId, subjectId);
     writeConfig(cfg);
   }
 }

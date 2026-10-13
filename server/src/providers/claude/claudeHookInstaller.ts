@@ -451,7 +451,8 @@ function makeHookEntry(): ClaudeHookEntry {
 }
 
 /**
- * Whether ANY Terrarium hook command is present in ~/.claude/settings.json.
+ * Whether ANY Terrarium hook ENTRY (not the status line — see isStatusLineInstalled) is present in
+ * ~/.claude/settings.json.
  *
  * "Any", not "all 12", and the difference is the whole point. Every caller asks
  * this question for one of two reasons — "are our hooks firing right now?"
@@ -482,7 +483,6 @@ export function areHooksInstalled(): boolean {
   } catch {
     return false;
   }
-  if (isOurStatusLine(settings.statusLine)) return true;
   const hooks = settings.hooks;
   if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) return false;
   return Object.values(hooks).some(
@@ -490,11 +490,23 @@ export function areHooksInstalled(): boolean {
   );
 }
 
+/** Whether our status line is in ~/.claude/settings.json's `statusLine` slot — the status line subject's own
+ *  install-state check, independent of the hook entries above. An unparseable file reads as "not installed", same
+ *  rule as areHooksInstalled. */
+export function isStatusLineInstalled(): boolean {
+  let settings: ClaudeSettings;
+  try {
+    settings = readClaudeSettings();
+  } catch {
+    return false;
+  }
+  return isOurStatusLine(settings.statusLine);
+}
+
 /**
  * Install Terrarium hook entries into ~/.claude/settings.json for every event
- * in CLAUDE_HOOK_EVENTS, and our status line (chaining the user's) for the
- * quota meters. Idempotent: removes any existing Terrarium entries before
- * adding fresh ones.
+ * in CLAUDE_HOOK_EVENTS. Idempotent: removes any existing Terrarium entries before
+ * adding fresh ones. The status line is a separate subject — see installStatusLineEntry.
  *
  * Rejects (before any write) when settings.json exists but cannot be parsed or
  * keeps changing concurrently — callers surface the error to the user instead
@@ -578,12 +590,12 @@ function installEntries(): Promise<boolean> {
         changed = true;
       }
     }
-    return installStatusLine(settings, getHookScriptPath()) || changed;
+    return changed;
   });
 }
 
-/** Remove all Terrarium hook entries from ~/.claude/settings.json, and put back
- *  the status line ours chained. Cleans up empty objects.
+/** Remove all Terrarium hook entries from ~/.claude/settings.json. Cleans up empty objects. The status line is a
+ *  separate subject — see uninstallStatusLineEntry.
  *  Rejects (before any write) when the file cannot be parsed — same protection
  *  as install: never rewrite a file we could not read. Callers surface the
  *  error; claiming success after an aborted uninstall is how a "removed"
@@ -592,9 +604,8 @@ export async function uninstallHooks(): Promise<void> {
   let wrote: boolean;
   try {
     wrote = await mutateClaudeSettings((settings) => {
-      const statusLineChanged = uninstallStatusLine(settings);
       if (!settings.hooks || typeof settings.hooks !== 'object' || Array.isArray(settings.hooks)) {
-        return statusLineChanged;
+        return false;
       }
       const hooks = settings.hooks;
       let changed = false;
@@ -617,7 +628,7 @@ export async function uninstallHooks(): Promise<void> {
       if (changed && Object.keys(hooks).length === 0) {
         delete settings.hooks;
       }
-      return changed || statusLineChanged;
+      return changed;
     });
   } catch (e) {
     throw new Error(`${e instanceof Error ? e.message : String(e)} — hook entries left in place.`, {
@@ -626,6 +637,41 @@ export async function uninstallHooks(): Promise<void> {
   }
   if (wrote) {
     console.log('[Terrarium] Hooks removed from ~/.claude/settings.json');
+  }
+}
+
+/** Install the status line subject: take the `statusLine` slot, chaining whatever is there. Its own
+ *  `mutateClaudeSettings` pass, independent of installEntries — install/uninstall of one subject must never touch
+ *  the other's fields. Rejects (before any write) under the same conditions as installHooks. */
+export async function installStatusLineEntry(): Promise<void> {
+  let wrote: boolean;
+  try {
+    wrote = await mutateClaudeSettings((settings) =>
+      installStatusLine(settings, getHookScriptPath()),
+    );
+  } catch (e) {
+    throw new Error(`${e instanceof Error ? e.message : String(e)} — status line not installed.`, {
+      cause: e,
+    });
+  }
+  if (wrote) {
+    console.log('[Terrarium] Status line installed in ~/.claude/settings.json');
+  }
+}
+
+/** Uninstall the status line subject: put back whatever it chained. Its own `mutateClaudeSettings` pass, independent
+ *  of uninstallHooks. Rejects (before any write) under the same conditions as uninstallHooks. */
+export async function uninstallStatusLineEntry(): Promise<void> {
+  let wrote: boolean;
+  try {
+    wrote = await mutateClaudeSettings((settings) => uninstallStatusLine(settings));
+  } catch (e) {
+    throw new Error(`${e instanceof Error ? e.message : String(e)} — status line left in place.`, {
+      cause: e,
+    });
+  }
+  if (wrote) {
+    console.log('[Terrarium] Status line removed from ~/.claude/settings.json');
   }
 }
 

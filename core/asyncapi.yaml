@@ -645,7 +645,7 @@ components:
         install state changes (consent granted, hooks uninstalled via CLI).
       type: object
       additionalProperties: false
-      required: [type, providerId, installed]
+      required: [type, providerId, subjectId, installed]
       properties:
         type:
           const: hooksStatus
@@ -655,36 +655,52 @@ components:
             The hook provider this install state is about (HookProvider.id,
             e.g. "claude"). Consumers keyed on install state must never mix
             one provider's status into another's — the Intro's install
-            verdict in particular reads only the provider it asked about.
+            verdict in particular reads only the (provider, subject) pair it
+            asked about.
+        subjectId:
+          type: string
+          description: >-
+            The subject of that provider's install this status is about
+            (HookInstaller.id, e.g. "hooks" or "statusLine" for Claude).
+            Independently consented and independently installed: one
+            subject's status says nothing about another's.
         installed:
           type: boolean
 
     HooksConsentRequest:
       description: |
         Ask this client to run the first-run hooks consent dialog. Sent during the
-        `webviewReady` handshake when the hooks preference is on, consent has not
-        been recorded, and nothing of ours is installed — and, in standalone, only
-        on privileged (tokened) connections, since an untokened spectator could not
-        act on it anyway (its `hooksConsentResponse` would be ignored).
+        `webviewReady` handshake when the subject's preference is on, consent has
+        not been recorded, and nothing of it is installed — and, in standalone,
+        only on privileged (tokened) connections, since an untokened spectator
+        could not act on it anyway (its `hooksConsentResponse` would be ignored).
 
-        Carries the provider being asked about and its disclosure copy so the
-        client renders the server's exact terms (the provider's
+        Carries the (provider, subject) pair being asked about and its disclosure
+        copy so the client renders the server's exact terms (the subject's
         consentDisclosure(), shared with no client-side duplicate to drift).
-        The client answers with `hooksConsentResponse`, echoing the providerId;
-        dismissing the dialog sends nothing and the request fires again on the
-        next connect. One request per provider that needs an answer.
+        The client answers with `hooksConsentResponse`, echoing the providerId and
+        subjectId; dismissing the dialog sends nothing and the request fires again
+        on the next connect. One request per (provider, subject) pair that needs
+        an answer.
       type: object
       additionalProperties: false
-      required: [type, providerId, headline, disclosure]
+      required: [type, providerId, subjectId, headline, disclosure, actionLabel]
       properties:
         type:
           const: hooksConsentRequest
         providerId:
           type: string
           description: >-
-            The hook provider whose install is being approved (HookProvider.id).
+            The hook provider whose subject is being approved (HookProvider.id).
             The client never originates this value — it echoes it back in its
             `hooksConsentResponse`.
+        subjectId:
+          type: string
+          description: >-
+            The subject of that provider's install being approved
+            (HookInstaller.id). The client never originates this value either —
+            it echoes it back beside providerId. Two subjects of the same
+            provider are two independent asks, never the same tour revised.
         headline:
           type: string
           description: One-sentence summary of what is being approved.
@@ -693,6 +709,12 @@ components:
           description: |
             Full disclosure body (what is written, what data moves, how to undo),
             paragraphs separated by blank lines.
+        actionLabel:
+          type: string
+          description: >-
+            The consent step's Install button text (e.g. "Install Hooks",
+            "Install Status Line"), so the client never hardcodes copy that
+            could lie about what a different subject's ask installs.
 
     AreaMappingsLoaded:
       description: |
@@ -815,8 +837,8 @@ components:
         The user's answer to `hooksConsentRequest` — an ABSOLUTE statement of
         the state the user wants, revisable from the Intro's closing step. Only
         an exact `install` grants consent and installs; only an exact `never`
-        records a durable decline and persists hooks-off (uninstalling first
-        when this provider's hooks are on disk from an earlier answer).
+        records a durable decline and persists this subject off (uninstalling
+        first when it is on disk from an earlier answer).
         `notNow` writes nothing on a fresh ask, but over anything an EARLIER
         answer left behind it reverts it — uninstalling a landed install,
         clearing a recorded grant or decline — so the ask genuinely returns on
@@ -827,7 +849,7 @@ components:
         the request.
       type: object
       additionalProperties: false
-      required: [type, providerId, choice]
+      required: [type, providerId, subjectId, choice]
       properties:
         type:
           const: hooksConsentResponse
@@ -838,6 +860,13 @@ components:
             `hooksConsentRequest` that solicited it. An id naming no
             registered provider is treated exactly like a junk choice:
             write nothing.
+        subjectId:
+          type: string
+          description: >-
+            The subject of that provider this answer is about, echoed verbatim
+            from the `hooksConsentRequest` that solicited it. An id naming no
+            subject of the provider is treated exactly like a junk choice:
+            write nothing. Answering one subject never writes another's.
         choice:
           $ref: '#/components/schemas/HooksConsentChoice'
 

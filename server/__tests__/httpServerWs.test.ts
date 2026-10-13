@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { WS_CLOSE_FORBIDDEN_ORIGIN } from '../src/constants.js';
+import { HOOKS_SUBJECT_ID } from '../src/providers/claude/constants.js';
 
 // Isolated temp HOME: the server writes ~/.terrarium/{server.json,servers/}
 // and the consent assertions below read ~/.terrarium/config.json.
@@ -93,8 +94,8 @@ function waitForMessage(socket: WebSocket, type: string, ms = 2_000): Promise<un
 function readHooksConsent(): boolean {
   try {
     const raw = fs.readFileSync(path.join(tmpBase, '.terrarium', 'config.json'), 'utf-8');
-    const consent = (JSON.parse(raw) as { hooksConsent?: Record<string, string> }).hooksConsent;
-    return consent?.claude === 'granted';
+    const parsed = JSON.parse(raw) as { hooksConsent?: Record<string, Record<string, string>> };
+    return parsed.hooksConsent?.claude?.[HOOKS_SUBJECT_ID] === 'granted';
   } catch {
     return false;
   }
@@ -127,8 +128,8 @@ describe('/ws connection gate', () => {
       // Mirrors the standalone CLI's own side effect (server/src/cli.ts): an
       // install choice over this socket IS the consent grant. Wired here so the
       // cross-origin test asserts the real privilege, not just a close code.
-      onSetHooksEnabled: async (providerId: string, enabled: boolean) => {
-        if (enabled) grantHooksConsent(providerId);
+      onSetHooksEnabled: async (providerId: string, subjectId: string, enabled: boolean) => {
+        if (enabled) grantHooksConsent(providerId, subjectId);
       },
     });
     return { port: config.port };
@@ -150,7 +151,12 @@ describe('/ws connection gate', () => {
     // Even if the attacker keeps writing, nothing is processed.
     try {
       result.socket.send(
-        JSON.stringify({ type: 'hooksConsentResponse', providerId: 'claude', choice: 'install' }),
+        JSON.stringify({
+          type: 'hooksConsentResponse',
+          providerId: 'claude',
+          subjectId: HOOKS_SUBJECT_ID,
+          choice: 'install',
+        }),
       );
     } catch {
       /* socket already closed — that IS the point */
@@ -250,9 +256,9 @@ describe('/ws privileged-message gate', () => {
       store: new AgentStateStore(),
       // The real cli.ts side effect, minus the actual install: a granted
       // hooksConsentResponse over this socket IS the consent grant (server/src/cli.ts).
-      onSetHooksEnabled: (providerId: string, enabled: boolean) => {
+      onSetHooksEnabled: (providerId: string, subjectId: string, enabled: boolean) => {
         sideEffects.push(enabled);
-        if (enabled) grantHooksConsent(providerId);
+        if (enabled) grantHooksConsent(providerId, subjectId);
       },
     });
     return { port: config.port, token: config.token };
@@ -264,6 +270,7 @@ describe('/ws privileged-message gate', () => {
       JSON.stringify({
         type: 'hooksConsentResponse',
         providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
         choice: enabled ? 'install' : 'never',
       }),
     );
@@ -416,7 +423,12 @@ describe('/ws privileged-message gate', () => {
     expect(await request).toBeNull();
 
     result.socket.send(
-      JSON.stringify({ type: 'hooksConsentResponse', providerId: 'claude', choice: 'install' }),
+      JSON.stringify({
+        type: 'hooksConsentResponse',
+        providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
+        choice: 'install',
+      }),
     );
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(sideEffects).toEqual([]);
@@ -435,7 +447,12 @@ describe('/ws privileged-message gate', () => {
     sockets.push(result.socket);
 
     result.socket.send(
-      JSON.stringify({ type: 'hooksConsentResponse', providerId: 'claude', choice: 'install' }),
+      JSON.stringify({
+        type: 'hooksConsentResponse',
+        providerId: 'claude',
+        subjectId: HOOKS_SUBJECT_ID,
+        choice: 'install',
+      }),
     );
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(sideEffects).toEqual([true]);
