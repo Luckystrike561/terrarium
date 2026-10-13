@@ -21,6 +21,8 @@ export interface AgentState {
   /** Session ref a module announced for this agent (transcript path or the CLI's session id): the identity that lets
    *  a multiplexer pane and an agent module reporting the same session share this one character. */
   sessionRef?: string;
+  /** Floor id of the machine the agent runs on: `LOCAL_MACHINE_ID` for this one. */
+  machineId: string;
   activeToolIds: Set<string>;
   activeToolStatuses: Map<string, string>;
   activeToolNames: Map<string, string>;

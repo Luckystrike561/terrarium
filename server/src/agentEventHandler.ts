@@ -18,6 +18,7 @@ const debug = process.env.TERRARIUM_DEBUG !== '0';
 export interface AnnouncedSession extends PendingSession {
   folderName?: string;
   team?: TeamMembership;
+  machineId?: string;
 }
 
 interface AgentLifecycleCallbacks {
@@ -302,6 +303,7 @@ export class AgentEventHandler {
       sourceIds: [sourceId],
       folderName: event.folderName,
       team: event.team,
+      machineId: event.machineId,
     };
     if (event.live) {
       this.lifecycleCallbacks.onSessionDetected?.(announced);

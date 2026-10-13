@@ -107,6 +107,7 @@ describe('AgentRuntime -- restore through the agent module', () => {
       sessionId: 'k',
       providerId: 'fake-cli',
       sessionRef: 'sess-rt',
+      machineId: 'local',
       activeToolIds: new Set(),
       activeToolStatuses: new Map(),
       activeToolNames: new Map(),

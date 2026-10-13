@@ -18,6 +18,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     id: 1,
     sessionId: 'sess-1',
     providerId: 'claude',
+    machineId: 'local',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),
@@ -170,6 +171,46 @@ describe('clientMessageHandler: areas + carpet wire ordering', () => {
 
       const existing = sent[iExistingAgents] as { agents?: number[] };
       expect(existing.agents).toEqual([1]);
+    });
+
+    it('sends the floors before existingAgents, and each agent with the floor it runs on', () => {
+      store.set(1, createTestAgent({ id: 1 }));
+      store.set(2, createTestAgent({ id: 2, sessionId: 'pane', machineId: 'ssh:pi' }));
+
+      handleClientMessage({ type: 'webviewReady' }, (m) => sent.push(m), ctx);
+
+      const types = sent.map((m) => m.type);
+      expect(types.indexOf('floorsLoaded')).toBeLessThan(types.indexOf('existingAgents'));
+      expect(sent[types.indexOf('floorsLoaded')]).toEqual({
+        type: 'floorsLoaded',
+        floors: [{ id: 'local', name: os.hostname() }],
+      });
+      expect(sent[types.indexOf('existingAgents')]).toMatchObject({
+        machineIds: { 1: 'local', 2: 'ssh:pi' },
+      });
+    });
+
+    it('furnishes floors above the first with the bundled layout when layout.json replaces it', () => {
+      const bundled = { version: 1, cols: 2, rows: 2, tiles: [1, 1, 1, 1], furniture: [] };
+      const saved = { ...bundled, cols: 1, rows: 1, tiles: [1] };
+      fs.mkdirSync(path.join(tempHome, '.terrarium'), { recursive: true });
+      fs.writeFileSync(path.join(tempHome, '.terrarium', 'layout.json'), JSON.stringify(saved));
+      ctx = freshCtx({
+        characters: null,
+        pets: null,
+        floorTiles: null,
+        wallTiles: null,
+        carpetTiles: null,
+        furniture: null,
+        defaultLayout: bundled,
+      });
+
+      handleClientMessage({ type: 'webviewReady' }, (m) => sent.push(m), ctx);
+
+      expect(sent.find((m) => m.type === 'layoutLoaded')).toMatchObject({
+        layout: saved,
+        floorLayout: bundled,
+      });
     });
 
     it('replays agent activity after layoutLoaded so it lands on real characters', () => {

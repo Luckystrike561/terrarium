@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { LOCAL_MACHINE_ID } from '../../../core/src/constants.js';
 import type {
   AddConnection,
   CharacterSpriteSet,
   Connection,
+  Floor,
   HooksConsentRequest,
   QuotaMeter,
 } from '../../../core/src/messages.js';
 import { playDoneSound, playPermissionSound } from '../notificationSound.js';
+import type { Building } from '../office/engine/building.js';
 import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
 import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
-import type { OfficeState } from '../office/engine/officeState.js';
 import { setFloorSprites } from '../office/floorTiles.js';
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';
@@ -105,11 +107,11 @@ export function hooksSubjectKey(providerId: string, subjectId: string): string {
   return `${providerId}:${subjectId}`;
 }
 
-function saveAgentSeats(os: OfficeState): void {
-  transport.send({ type: 'saveAgentSeats', seats: os.getPersistableSeats() });
+function saveAgentSeats(building: Building): void {
+  transport.send({ type: 'saveAgentSeats', seats: building.getPersistableSeats() });
 }
 
-export function useExtensionMessages(getOfficeState: () => OfficeState): ExtensionMessageState {
+export function useExtensionMessages(getBuilding: () => Building): ExtensionMessageState {
   const [agents, setAgents] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [agentTools, setAgentTools] = useState<Record<number, ToolActivity[]>>({});
@@ -167,7 +169,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = (msg: any) => {
-      const os = getOfficeState();
+      const building = getBuilding();
       // CI / e2e diagnostic: record every received transport message on the
       // window-side log. The fixture reads window.__terrariumTestHooks.
       // messageLog and attaches as JSON so CI failures can see the exact
@@ -197,12 +199,15 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
       if (msg.type === 'layoutLoaded') {
         const rawLayout = msg.layout as OfficeLayout | null;
         const layout = rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null;
+        const rawFloorLayout = msg.floorLayout as OfficeLayout | undefined;
+        const floorLayout =
+          rawFloorLayout?.version === 1 ? migrateLayoutColors(rawFloorLayout) : layout;
         if (layout) {
-          os.rebuildFromLayout(layout);
+          building.setLayouts(layout, floorLayout ?? layout);
         }
         // Add buffered agents now that layout (and seats) are correct
         for (const p of pendingAgents) {
-          os.addAgent(p.id, p.palette, p.hueShift, p.seatId, true, p.folderName);
+          building.addAgent(p.machineId, p.id, p.palette, p.hueShift, p.seatId, true, p.folderName);
         }
         pendingAgents = [];
         layoutReadyRef.current = true;
@@ -210,11 +215,14 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         if (msg.wasReset) {
           setLayoutWasReset(true);
         }
-        if (os.characters.size > 0) {
-          saveAgentSeats(os);
+        if (building.floors.some((floor) => floor.office.characters.size > 0)) {
+          saveAgentSeats(building);
         }
+      } else if (msg.type === 'floorsLoaded') {
+        if (Array.isArray(msg.floors)) building.setFloors(msg.floors as Floor[]);
       } else if (msg.type === 'agentCreated') {
         const id = msg.id as number;
+        const machineId = (msg.machineId as string | undefined) ?? LOCAL_MACHINE_ID;
         const folderName = msg.folderName as string | undefined;
         const isTeammate = msg.isTeammate as boolean | undefined;
         const teammateName = msg.teammateName as string | undefined;
@@ -229,10 +237,11 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           // Teammate: inherit parent's palette and workspace folderName (teammate runs
           // in the same workspace as the lead). Name shown via agentName (teamRoleLabel).
           // Seat them at the free seat closest to the lead so the team clusters.
-          const parentCh = os.characters.get(teammateParentId);
+          const parentCh = building.getCharacter(teammateParentId);
           const palette = parentCh ? parentCh.palette : undefined;
           const hueShift = parentCh ? parentCh.hueShift : undefined;
-          os.addAgent(
+          building.addAgent(
+            machineId,
             id,
             palette,
             hueShift,
@@ -242,7 +251,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
             teammateParentId,
           );
           // Set team metadata on the character
-          const ch = os.characters.get(id);
+          const ch = building.getCharacter(id);
           if (ch) {
             ch.leadAgentId = teammateParentId;
             ch.teamName = teamName ?? parentCh?.teamName;
@@ -251,9 +260,9 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         } else {
           const palette = msg.palette as number | undefined;
           const hueShift = msg.hueShift as number | undefined;
-          os.addAgent(id, palette, hueShift, undefined, undefined, folderName);
+          building.addAgent(machineId, id, palette, hueShift, undefined, undefined, folderName);
         }
-        saveAgentSeats(os);
+        saveAgentSeats(building);
       } else if (msg.type === 'agentClosed') {
         const id = msg.id as number;
         setAgents((prev) => prev.filter((a) => a !== id));
@@ -278,31 +287,30 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         });
         // Remove all sub-agent characters belonging to this agent
         delete backgroundParentToolIdsRef.current[id];
-        os.removeAllSubagents(id);
+        building.removeAllSubagents(id);
         setSubagentCharacters((prev) => prev.filter((s) => s.parentAgentId !== id));
-        os.removeAgent(id);
+        building.removeAgent(id);
         // removeAgent can migrate another agent off a rest seat onto the freed desk
         // (rebalanceRestSeatedAgents) — persist so the server copy follows.
-        saveAgentSeats(os);
+        saveAgentSeats(building);
       } else if (msg.type === 'existingAgents') {
         const incoming = msg.agents as number[];
         const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
         const folderNames = (msg.folderNames || {}) as Record<number, string>;
+        const machineIds = (msg.machineIds || {}) as Record<number, string>;
         // Order-independent restore: add agents now if the layout (and its seats)
         // is already built, otherwise buffer them for the next layoutLoaded.
         // Depending on layoutLoaded always arriving last stranded restored agents
         // on surfaces that send layout first (issue #334).
         if (
           reconcileExistingAgents(
-            os,
-            incoming,
-            meta,
-            folderNames,
+            building,
+            { agents: incoming, meta, folderNames, machineIds },
             layoutReadyRef.current,
             pendingAgents,
           )
         ) {
-          saveAgentSeats(os);
+          saveAgentSeats(building);
         }
         setAgents((prev) => {
           const ids = new Set(prev);
@@ -331,11 +339,12 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           };
         });
         const toolName = (msg.toolName as string | undefined) ?? extractToolName(status);
-        os.setAgentTool(id, toolName);
-        os.setAgentActive(id, true);
+        const office = building.officeOf(id);
+        office?.setAgentTool(id, toolName);
+        office?.setAgentActive(id, true);
         // Don't clear the permission bubble if the hook already confirmed permission is needed
         if (!permissionActive) {
-          os.clearPermissionBubble(id);
+          office?.clearPermissionBubble(id);
         }
         // Create sub-agent character for Task/Agent tool subtasks.
         // agentToolStart for Task/Agent is always emitted via JSONL (with the stable
@@ -353,7 +362,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         // Named spawns are Teammates-to-be: a teammate character will represent
         // them, so never create the Subtask ghost the teammate would replace.
         const isTeammateSpawn = msg.isTeammateSpawn as boolean | undefined;
-        const parentChar = os.characters.get(id);
+        const parentChar = building.getCharacter(id);
         const parentHasTeam = !!parentChar?.teamName;
         if (
           isSubagentToolName(toolName) &&
@@ -361,7 +370,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           (!runInBackground || !parentHasTeam)
         ) {
           const label = status.startsWith('Subtask:') ? status.slice('Subtask:'.length).trim() : '';
-          const subId = os.addSubagent(id, toolId);
+          const subId = building.addSubagent(id, toolId);
           setSubagentCharacters((prev) => {
             if (prev.some((s) => s.id === subId)) return prev;
             return [...prev, { id: subId, parentAgentId: id, parentToolId: toolId, label }];
@@ -409,25 +418,23 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         //   teammates, removed only by SubagentStop/subagentClear;
         // - live background spawns: removing + re-creating them on every turn
         //   end teleported the character (subagentClear removes them for real).
-        const clearCh = os.characters.get(id);
+        const clearCh = building.getCharacter(id);
         const hasInlineTeammates =
           clearCh?.teamName && clearCh?.isTeamLead && !clearCh?.teamUsesTmux;
         if (!hasInlineTeammates) {
           const doomed: string[] = [];
-          for (const meta of os.subagentMeta.values()) {
-            if (meta.parentAgentId === id && !bgSet?.has(meta.parentToolId)) {
-              doomed.push(meta.parentToolId);
-            }
+          for (const sub of building.subagentsOf(id)) {
+            if (!bgSet?.has(sub.parentToolId)) doomed.push(sub.parentToolId);
           }
           for (const parentToolId of doomed) {
-            os.removeSubagent(id, parentToolId);
+            building.removeSubagent(id, parentToolId);
           }
           setSubagentCharacters((prev) =>
             prev.filter((s) => s.parentAgentId !== id || bgSet?.has(s.parentToolId)),
           );
         }
-        os.setAgentTool(id, null);
-        os.clearPermissionBubble(id);
+        building.officeOf(id)?.setAgentTool(id, null);
+        building.officeOf(id)?.clearPermissionBubble(id);
       } else if (msg.type === 'agentStatus') {
         const id = msg.id as number;
         const status = msg.status as string;
@@ -440,12 +447,12 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           }
           return { ...prev, [id]: status };
         });
-        os.setAgentActive(id, status === 'active');
+        building.officeOf(id)?.setAgentActive(id, status === 'active');
         // Going active can steal a desk from an idle colleague (claimWorkSeatForActiveAgent) —
         // persist so the server copy of seat ownership follows.
-        if (status === 'active') saveAgentSeats(os);
+        if (status === 'active') saveAgentSeats(building);
         if (status === 'waiting') {
-          os.showWaitingBubble(id, msg.awaitingInput === true);
+          building.officeOf(id)?.showWaitingBubble(id, msg.awaitingInput === true);
           playDoneSound();
         }
       } else if (msg.type === 'agentToolPermission') {
@@ -458,15 +465,15 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
             [id]: list.map((t) => (t.done ? t : { ...t, permissionWait: true })),
           };
         });
-        os.showPermissionBubble(id);
+        building.officeOf(id)?.showPermissionBubble(id);
         playPermissionSound();
       } else if (msg.type === 'subagentToolPermission') {
         const id = msg.id as number;
         const parentToolId = msg.parentToolId as string;
         // Show permission bubble on the sub-agent character
-        const subId = os.getSubagentId(id, parentToolId);
+        const subId = building.getSubagentId(id, parentToolId);
         if (subId !== null) {
-          os.showPermissionBubble(subId);
+          building.officeOf(subId)?.showPermissionBubble(subId);
         }
       } else if (msg.type === 'agentToolPermissionClear') {
         const id = msg.id as number;
@@ -480,12 +487,10 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
             [id]: list.map((t) => (t.permissionWait ? { ...t, permissionWait: false } : t)),
           };
         });
-        os.clearPermissionBubble(id);
+        building.officeOf(id)?.clearPermissionBubble(id);
         // Also clear permission bubbles on all sub-agent characters of this parent
-        for (const [subId, meta] of os.subagentMeta) {
-          if (meta.parentAgentId === id) {
-            os.clearPermissionBubble(subId);
-          }
+        for (const sub of building.subagentsOf(id)) {
+          building.officeOf(sub.id)?.clearPermissionBubble(sub.id);
         }
       } else if (msg.type === 'subagentToolStart') {
         const id = msg.id as number;
@@ -506,9 +511,9 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         // (real) parentToolId. When it's missing — a teamed lead's background
         // spawn (the creation gate above suppressed the Subtask) or a reloaded
         // panel that lost it — create it lazily; addSubagent is idempotent.
-        let subId = os.getSubagentId(id, parentToolId);
+        let subId = building.getSubagentId(id, parentToolId);
         if (subId === null) {
-          subId = os.addSubagent(id, parentToolId);
+          subId = building.addSubagent(id, parentToolId);
           const newSubId = subId;
           setSubagentCharacters((prev) => {
             if (prev.some((s) => s.id === newSubId)) return prev;
@@ -520,8 +525,8 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           set.add(parentToolId);
         }
         const subToolName = extractToolName(status);
-        os.setAgentTool(subId, subToolName);
-        os.setAgentActive(subId, true);
+        building.officeOf(subId)?.setAgentTool(subId, subToolName);
+        building.officeOf(subId)?.setAgentActive(subId, true);
       } else if (msg.type === 'subagentToolDone') {
         const id = msg.id as number;
         const parentToolId = msg.parentToolId as string;
@@ -556,7 +561,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
           return { ...prev, [id]: next };
         });
         // Remove sub-agent character
-        os.removeSubagent(id, parentToolId);
+        building.removeSubagent(id, parentToolId);
         setSubagentCharacters((prev) =>
           prev.filter((s) => !(s.parentAgentId === id && s.parentToolId === parentToolId)),
         );
@@ -595,7 +600,7 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         setCarpetSprites(sets);
       } else if (msg.type === 'areaMappingsLoaded') {
         const mappings = (msg.mappings ?? {}) as Record<string, string[]>;
-        os.setAreaMappings(mappings);
+        building.setAreaMappings(mappings);
       } else if (msg.type === 'settingsLoaded') {
         if (typeof msg.hooksEnabled === 'boolean') {
           setHooksEnabled(msg.hooksEnabled as boolean);
@@ -681,23 +686,26 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
         }
       } else if (msg.type === 'agentTeamInfo') {
         const id = msg.id as number;
-        os.setTeamInfo(
-          id,
-          msg.teamName as string | undefined,
-          msg.agentName as string | undefined,
-          msg.isTeamLead as boolean | undefined,
-          msg.leadAgentId as number | undefined,
-          msg.teamUsesTmux as boolean | undefined,
-        );
+        building
+          .officeOf(id)
+          ?.setTeamInfo(
+            id,
+            msg.teamName as string | undefined,
+            msg.agentName as string | undefined,
+            msg.isTeamLead as boolean | undefined,
+            msg.leadAgentId as number | undefined,
+            msg.teamUsesTmux as boolean | undefined,
+          );
       } else if (msg.type === 'agentContextUsage') {
         const id = msg.id as number;
-        os.setAgentContext(id, msg.contextTokens as number, msg.maxContextTokens as number);
+        building
+          .officeOf(id)
+          ?.setAgentContext(id, msg.contextTokens as number, msg.maxContextTokens as number);
       } else if (msg.type === 'agentInfo') {
-        os.setAgentInfo(
-          msg.id as number,
-          msg.name as string | undefined,
-          msg.task as string | undefined,
-        );
+        const id = msg.id as number;
+        building
+          .officeOf(id)
+          ?.setAgentInfo(id, msg.name as string | undefined, msg.task as string | undefined);
       } else if (msg.type === 'quotaUpdate') {
         if (Array.isArray(msg.meters)) {
           setQuotaMeters(msg.meters as QuotaMeter[]);
@@ -707,22 +715,22 @@ export function useExtensionMessages(getOfficeState: () => OfficeState): Extensi
     const unsubscribe = transport.onMessage(handler);
     transport.send({ type: 'webviewReady' });
     return unsubscribe;
-  }, [getOfficeState]);
+  }, [getBuilding]);
 
   // Idle sub-agent characters between their turns: when every tracked tool row
   // for a sub is done, stop its typing animation (a later subagentToolStart
   // reactivates it). Watched background sub-agents get a synthesized done for
   // each live tool at their turn end, so they sit idle instead of typing forever.
   useEffect(() => {
-    const os = getOfficeState();
+    const building = getBuilding();
     for (const sub of subagentCharacters) {
       const rows = subagentTools[sub.parentAgentId]?.[sub.parentToolId];
       if (rows && rows.length > 0 && rows.every((t) => t.done)) {
-        os.setAgentTool(sub.id, null);
-        os.setAgentActive(sub.id, false);
+        building.officeOf(sub.id)?.setAgentTool(sub.id, null);
+        building.officeOf(sub.id)?.setAgentActive(sub.id, false);
       }
     }
-  }, [subagentTools, subagentCharacters, getOfficeState]);
+  }, [subagentTools, subagentCharacters, getBuilding]);
 
   return {
     agents,

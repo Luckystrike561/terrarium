@@ -4,11 +4,11 @@ The webview (`webview-ui/`) is React 19 for the HUD and DOM overlays, and PixiJS
 
 ## Rendering
 
-Game state lives in the imperative `OfficeState` class (`office/engine/officeState.ts`), not in React state. It is rendered as **2:1 isometric pixel art** through a PixiJS retained scene graph (`office/engine/sceneRenderer.ts`), not Canvas 2D.
+Game state lives in the imperative `Building` class (`office/engine/building.ts`), a stack of `OfficeState` floors (`office/engine/officeState.ts`), not in React state. It is rendered as **2:1 isometric pixel art** through a PixiJS retained scene graph (`office/engine/sceneRenderer.ts`), not Canvas 2D.
 
 - **Projection.** The simulation (pathfinding, seats, layout) stays on the top-down tile grid. Only drawing and hit-testing go through `office/iso.ts`: `isoX = x - y`, `isoY = (x + y)/2 - z`, and a tile is a 32×16 diamond.
 - **Pixels.** Zoom is device pixels per sprite pixel, with `antialias: false`, `roundPixels: true` and nearest-neighbor texture sampling. There is no `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly.
-- **World layer.** World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container, positioned and scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and built in local, unscaled iso pixel coordinates. Area labels render in device-pixel space directly, since their minimum font size is deliberately constant in device pixels.
+- **World layer.** World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container, positioned and scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and built in local, unscaled iso pixel coordinates. Each floor is one child container of it, raised by the floor's elevation. Area labels and floor names render in device-pixel space directly, since their minimum font size is deliberately constant in device pixels.
 - **Textures.** `office/sprites/textureCache.ts` turns `SpriteData` into one `PIXI.Texture` per sprite, regardless of zoom.
 - **CSP.** `pixi.js/unsafe-eval` is imported before any renderer is created, so a CSP without `unsafe-eval` never blocks Pixi's uniform-buffer sync path.
 - **Game loop.** `office/engine/gameLoop.ts` is a rAF loop with a delta-time cap of 0.1 s, decoupled from the render target.
@@ -21,17 +21,26 @@ One backdrop pixel is `round(zoom)` device pixels (integral, so nearest sampling
 
 ### Fitted view and camera
 
-**The office fits the viewport exactly. There is no user zoom.** `OfficeCanvas` derives the zoom every frame as `fitZoom` (`office/projection.ts`): the zoom at which the iso bounding box of the non-VOID tiles (`boundsRect(contentBounds)`, raised by the back-wall height) touches the canvas on its tighter axis, centered. It is deliberately **not an integer**, so sprite pixels can be uneven. It reports up through `onZoomChange` for the DOM overlays.
+**The office fits the viewport exactly. There is no user zoom.** `OfficeCanvas` derives the zoom every frame as `fitZoom` (`office/projection.ts`): the zoom at which `Building.viewRect()` touches the canvas on its tighter axis, centered. For a lone floor that is the iso bounding box of the non-VOID tiles (`boundsRect(contentBounds)`, raised by the back-wall height), exactly as before floors existed. For a building it spans every floor and its slab. It is deliberately **not an integer**, so sprite pixels can be uneven. It reports up through `onZoomChange` for the DOM overlays.
 
 Only a canvas too small for `ZOOM_MIN` (1x) scrolls (wheel, trackpad, Shift+wheel for horizontal, middle-mouse drag), and every pan goes through `clampPan` so it never scrolls past the office edge. Ctrl+wheel is swallowed.
 
-**Camera follow.** `cameraFollowId` (separate from `selectedAgentId`) smoothly centers the camera on the followed agent, clamped like any pan. It is set on agent click and cleared on deselection or manual scroll.
+**Camera follow.** `cameraFollowId` (separate from `selectedAgentId`, both on the `Building`) smoothly centers the camera on the followed agent on its own floor, clamped like any pan. It is set on agent click and cleared on deselection or manual scroll.
+
+### Floors
+
+The office is a building with one floor per machine (see [CLAUDE.md](../../CLAUDE.md#office-ui) for where machines come from). `Building.floors` runs bottom to top. The first is always this machine's and holds the greeter. Each floor is a whole `OfficeState` (seats, lounge, CTO office, CTO queue, pets), so everything below stays per floor and an agent only ever finds a seat or a queue spot on its own.
+
+- **Stacking.** Floor N is drawn and hit-tested `elevation` iso px higher (`worldToIso(x, y, elevation)`). `Building.restack` puts each floor's slab `BUILDING_FLOOR_GAP_PX` above the top of the back walls of the floor below, so no two floors overlap on screen: no floor hides a character of another, and the draw order between floors is just floor order.
+- **Building look.** With more than one floor every floor stands on a `BUILDING_SLAB_PX` slab (a lone office keeps the thin `FLOOR_SLAB_PX` edge), two pillars join each floor to the floor below at the side corners of the area both floors cover (their layouts can differ: `layout.json` furnishes only the first), and the floor's name (`floorsLoaded`) is written on the front of its slab.
+- **Input.** `Building.getCharacterAt` tries the top floor first, shifting the point by each floor's elevation. Seat reassignment and right-click walking resolve the tile on the selected agent's floor only (`Building.tileAt`), so a seat on another floor is never offered. `ToolOverlay` raises each label by its floor's elevation.
+- **Sub-agents** spawn on their parent's floor. Their ids come from one counter shared by every floor, so an id names one character in the whole building.
 
 ### Draw order
 
 `office/engine/isoSort.ts`: every wall tile, furniture piece, character and pet carries a footprint box. Two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort correctly where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). A chair whose sitter faces away (`back` or `left`) uses the attached layer so its backrest covers the sitter. Other chairs draw under them.
 
-Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space, because tall sprites cover tiles behind their footprint.
+Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space, because tall sprites cover tiles behind their footprint. Floors never overlap, so a draw order across floors needs no sort box.
 
 ## UI styling
 
@@ -103,7 +112,7 @@ A seat facing no electronics (sofas and benches around the coffee table) is a **
 
 ## Layout
 
-There is no in-app layout editor. The office is authored in code (`scripts/iso-art/layout.ts`, see [assets.md](assets.md)) and loaded read-only. On `webviewReady` the server sends `~/.terrarium/layout.json` when it exists, otherwise the bundled default. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
+There is no in-app layout editor. The office is authored in code (`scripts/iso-art/layout.ts`, see [assets.md](assets.md)) and loaded read-only. On `webviewReady` the server sends `~/.terrarium/layout.json` when it exists, otherwise the bundled default, for the first floor. Every other floor uses the bundled default, sent alongside as `floorLayout` when `layout.json` replaced it. Fields no tool can author now (`areas`, `areaTiles`, `pets`) still load and render, as do `carpetTiles`. Folder→Area mappings live in `config.json` `standalone.areaMappings`.
 
 **Layout model**: `{ version: 1, cols, rows, tiles: TileType[], furniture: PlacedFurniture[], tileColors?: ColorValue[], carpetTiles?, areas?, areaTiles?, pets?, layoutRevision? }`. Grid dimensions are dynamic. `TileType.VOID` tiles are transparent and non-walkable. `office/layout/layoutSerializer.ts` converts between the layout and the runtime tile map, furniture and seats. `office/layout/tileMap.ts` holds walkability and BFS pathfinding.
 

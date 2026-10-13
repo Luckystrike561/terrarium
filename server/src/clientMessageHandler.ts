@@ -13,6 +13,7 @@ import {
 } from './configPersistence.js';
 import { parseNewConnection } from './connectionSettings.js';
 import { HUE_SHIFT_MAX_DEG } from './constants.js';
+import { listFloors } from './floors.js';
 import { readLayoutFromFile } from './layoutPersistence.js';
 import type { MultiplexerConnections } from './multiplexerConnections.js';
 import type { ConsentEffects } from './providers/consentExecutor.js';
@@ -430,6 +431,9 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // 4d. Account quotas, the whole board: a reconnect after a restart replaces whatever the client still draws.
   if (runtime) send({ ...runtime.quota.message() });
 
+  // 4e. Floors, before existingAgents: every agent lands on its machine's floor.
+  send({ type: 'floorsLoaded', floors: runtime?.floors() ?? listFloors([]) });
+
   // Sync runtime refs with the persisted settings so modules behave correctly
   // from the first tick after a server restart. Module-scoped, driven by the
   // hooks-entries subject's preference alone — see HEURISTIC_TIMER_SUBJECT_ID.
@@ -442,6 +446,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // 5. Existing agents (persisted ones were handed back to their modules at startup)
   const agentIds: number[] = [];
   const folderNames: Record<number, string> = {};
+  const machineIds: Record<number, string> = {};
   const persistedSeats = adapter?.loadSeats() ?? {};
   const agentMeta: Record<number, { palette?: number; hueShift?: number; seatId?: string }> = {};
   for (const [id, agent] of store) {
@@ -449,6 +454,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     if (agent.folderName) {
       folderNames[id] = agent.folderName;
     }
+    machineIds[id] = agent.machineId;
     const persisted = persistedSeats[String(id)];
     agentMeta[id] = {
       palette: agent.palette,
@@ -461,12 +467,18 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     agents: agentIds,
     agentMeta,
     folderNames,
+    machineIds,
   });
 
   // 6. Layout last (see step 3): flushes the webview's buffered existingAgents
   // into characters once seats are rebuilt.
   const savedLayout = readLayoutFromFile();
-  send({ type: 'layoutLoaded', layout: savedLayout ?? cache?.defaultLayout ?? null });
+  const defaultLayout = cache?.defaultLayout ?? null;
+  send({
+    type: 'layoutLoaded',
+    layout: savedLayout ?? defaultLayout,
+    floorLayout: savedLayout && defaultLayout ? defaultLayout : undefined,
+  });
 
   // 7. Agent state, AFTER layoutLoaded -- the characters they target only
   // exist once the layout flush creates them. Without this a reconnecting

@@ -1,4 +1,5 @@
 import type { ColorValue } from './components/ui/types.js';
+import type { Building } from './office/engine/building.js';
 import { OfficeState } from './office/engine/officeState.js';
 import { carpetJunctionCase } from './office/sprites/carpetTiles.js';
 
@@ -40,6 +41,8 @@ declare global {
         seatId: string | null;
         areaLabel: string | null;
         folderName?: string;
+        /** The floor (machine) the agent's seat is on. */
+        machineId: string;
       }>;
       /** All seats with grid coords + the area their tile falls in, so a spec
        *  can find seats inside a seeded Area without hardcoding coordinates. */
@@ -75,6 +78,10 @@ declare global {
         parentToolId?: string;
       }>;
       selectAgent?: (id: number) => void;
+      /** The floors bottom to top, with the agents (not sub-agents) on each and its height. */
+      getFloors?: () => Array<{ id: string; name: string; elevation: number; agentIds: number[] }>;
+      /** The CTO queue of one floor: who waits there, by reason, in arrival order. */
+      getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
     };
   }
 }
@@ -83,7 +90,8 @@ declare global {
  * Install e2e test observables on window.__terrariumTestHooks. Mostly
  * read-only / append-only; the one action (selectAgent) only sets selection
  * state and changes no production logic. Called once at module-load from
- * App.tsx with the singleton officeStateRef.
+ * App.tsx with the singleton buildingRef. Floor-specific reads (pets, seats,
+ * layout) describe the first floor.
  *
  * - getCharacters(): point-in-time snapshot of every character's matrix, team, and bubble state.
  * - addAgentLog: append-only history of every OfficeState.addAgent call. The
@@ -98,37 +106,58 @@ declare global {
  *   (see closeAgentFromOverlay in e2e/helpers/office.ts). ToolOverlay reads
  *   selectedAgentId every rAF, so the × button surfaces on the next frame.
  */
-export function installTestHooks(officeStateRef: { current: OfficeState | null }): void {
+export function installTestHooks(buildingRef: { current: Building | null }): void {
   if (typeof window === 'undefined') return;
   if (!window.__terrariumTestHooks) window.__terrariumTestHooks = {};
   const hooks = window.__terrariumTestHooks;
   if (!hooks.addAgentLog) hooks.addAgentLog = [];
 
   hooks.getCharacters = () => {
-    const os = officeStateRef.current;
-    if (!os) return [];
+    const building = buildingRef.current;
+    if (!building) return [];
     // getCharacters(), not `characters`: e2e asserts on the consent greeter,
     // which lives outside the agent map and joins only at the render seam.
-    return os.getCharacters().map((ch) => ({
-      id: ch.id,
-      matrixEffect: ch.matrixEffect,
-      agentName: ch.agentName,
-      bubbleType: ch.bubbleType,
-      waitingAwaitingInput: ch.waitingAwaitingInput,
-      isGreeter: ch.isGreeter,
-    }));
+    return building.floors
+      .flatMap((floor) => floor.office.getCharacters())
+      .map((ch) => ({
+        id: ch.id,
+        matrixEffect: ch.matrixEffect,
+        agentName: ch.agentName,
+        bubbleType: ch.bubbleType,
+        waitingAwaitingInput: ch.waitingAwaitingInput,
+        isGreeter: ch.isGreeter,
+      }));
   };
 
   hooks.selectAgent = (id) => {
-    const os = officeStateRef.current;
-    if (os) os.selectedAgentId = id;
+    const building = buildingRef.current;
+    if (building) building.selectedAgentId = id;
   };
+
+  hooks.getFloors = () =>
+    (buildingRef.current?.floors ?? []).map((floor) => ({
+      id: floor.id,
+      name: floor.name,
+      elevation: floor.elevation,
+      agentIds: [...floor.office.characters.values()]
+        .filter((ch) => !ch.isSubagent && ch.matrixEffect !== 'despawn')
+        .map((ch) => ch.id),
+    }));
+
+  hooks.getCtoQueue = (floorId) =>
+    [
+      ...(buildingRef.current?.floors
+        .find((floor) => floor.id === floorId)
+        ?.office.characters.values() ?? []),
+    ]
+      .filter((ch) => ch.ctoQueueSlot)
+      .map((ch) => ({ id: ch.id, reason: ch.ctoQueueSlot!.reason }));
 
   // Point-in-time snapshot of every live pet. Pets render only on the canvas
   // (no DOM) and the heart bubble is never persisted, so e2e reads pet state
   // through here — the same rationale as getCharacters() above.
   hooks.getPets = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return [];
     return os.pets.map((pet) => ({
       id: pet.id,
@@ -146,7 +175,7 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
   // instead of a hit-test result, so tests don't pixel-hunt the randomly
   // spawned sprite — the same tradeoff selectAgent makes for characters.
   hooks.petClick = (petId) => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return;
     const pet = os.pets.find((p) => p.id === petId);
     if (!pet) return;
@@ -159,7 +188,7 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
 
   // ── Carpet + Areas read hooks (canvas-only state, read like getPets) ──
   hooks.getCarpetTiles = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return [];
     const layout = os.getLayout();
     const tiles = layout.carpetTiles;
@@ -188,20 +217,20 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
   };
 
   hooks.getCarpetJunctionCase = (jx, jy, variant) => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return 0;
     const layout = os.getLayout();
     return carpetJunctionCase(jx, jy, variant, layout.carpetTiles ?? [], layout.cols, layout.rows);
   };
 
   hooks.getAreas = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return [];
     return (os.getLayout().areas ?? []).map((a) => ({ label: a.label, color: a.color }));
   };
 
   hooks.getAreaTiles = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return [];
     const layout = os.getLayout();
     const tiles = layout.areaTiles;
@@ -216,26 +245,26 @@ export function installTestHooks(officeStateRef: { current: OfficeState | null }
   };
 
   hooks.getFurnitureCount = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return 0;
     return os.furniture.length;
   };
 
-  hooks.getAgentSeats = () => {
-    const os = officeStateRef.current;
-    if (!os) return [];
-    return Array.from(os.characters.values())
-      .filter((ch) => !ch.isSubagent)
-      .map((ch) => ({
-        id: ch.id,
-        seatId: ch.seatId,
-        areaLabel: ch.seatId ? os.seatZone(ch.seatId) : null,
-        folderName: ch.folderName,
-      }));
-  };
+  hooks.getAgentSeats = () =>
+    (buildingRef.current?.floors ?? []).flatMap(({ id: machineId, office }) =>
+      Array.from(office.characters.values())
+        .filter((ch) => !ch.isSubagent)
+        .map((ch) => ({
+          id: ch.id,
+          seatId: ch.seatId,
+          areaLabel: ch.seatId ? office.seatZone(ch.seatId) : null,
+          folderName: ch.folderName,
+          machineId,
+        })),
+    );
 
   hooks.getSeats = () => {
-    const os = officeStateRef.current;
+    const os = buildingRef.current?.ground;
     if (!os) return [];
     return Array.from(os.seats.entries()).map(([uid, seat]) => ({
       uid,

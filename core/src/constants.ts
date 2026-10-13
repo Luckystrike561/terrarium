@@ -21,6 +21,9 @@ export const TASK_DESCRIPTION_DISPLAY_MAX_LENGTH = 40;
 // A connection label's length cap, shared by the server's validation and the webview's inputs.
 export const CONNECTION_LABEL_MAX_CHARS = 64;
 
+// The machine the server runs on, as a floor id. The webview builds that floor before any floorsLoaded arrives.
+export const LOCAL_MACHINE_ID = 'local';
+
 // ── Transport ────────────────────────────────────────────────
 // Connection-state names for the MessageTransport state machine.
 

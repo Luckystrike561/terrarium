@@ -273,12 +273,19 @@ export function dispatchMockMessages(): void {
 
   // Must match the order the server sends on webviewReady (pets omitted, the mock has none):
   // characterSpritesLoaded -> floorTilesLoaded -> wallTilesLoaded -> carpetTilesLoaded
-  //   -> furnitureAssetsLoaded -> layoutLoaded
+  //   -> furnitureAssetsLoaded -> floorsLoaded -> layoutLoaded
   dispatch({ type: 'characterSpritesLoaded', ...characters });
   dispatch({ type: 'floorTilesLoaded', sprites: floorSprites });
   dispatch({ type: 'wallTilesLoaded', sets: wallSets });
   dispatch({ type: 'carpetTilesLoaded', sets: carpetSets });
   dispatch({ type: 'furnitureAssetsLoaded', catalog: furnitureCatalog, sprites: furnitureSprites });
+  dispatch({
+    type: 'floorsLoaded',
+    floors: [
+      { id: 'local', name: 'laptop' },
+      { id: '3f9a1c2b7d4e6f80', name: 'Build box' },
+    ],
+  });
   dispatch({ type: 'layoutLoaded', layout });
   dispatch({
     type: 'settingsLoaded',

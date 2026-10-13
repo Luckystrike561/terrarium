@@ -114,9 +114,10 @@ components:
         - $ref: '#/components/schemas/HooksStatus'
         - $ref: '#/components/schemas/HooksConsentRequest'
         - $ref: '#/components/schemas/AreaMappingsLoaded'
-        # Connections
+        # Connections and floors
         - $ref: '#/components/schemas/ConnectionsLoaded'
         - $ref: '#/components/schemas/ConnectionAddResult'
+        - $ref: '#/components/schemas/FloorsLoaded'
         # Quotas
         - $ref: '#/components/schemas/QuotaUpdate'
       discriminator: type
@@ -158,7 +159,7 @@ components:
       description: A new agent has appeared in the office.
       type: object
       additionalProperties: false
-      required: [type, id]
+      required: [type, id, machineId]
       properties:
         type:
           const: agentCreated
@@ -166,6 +167,9 @@ components:
           type: integer
         folderName:
           type: string
+        machineId:
+          type: string
+          description: Id of the floor (the machine) the agent runs on, as listed in `floorsLoaded`.
         palette:
           type: integer
           description: Server-assigned character palette index.
@@ -190,7 +194,7 @@ components:
         changes that the client missed. Includes seat/palette assignments.
       type: object
       additionalProperties: false
-      required: [type, agents, agentMeta, folderNames]
+      required: [type, agents, agentMeta, folderNames, machineIds]
       properties:
         type:
           const: existingAgents
@@ -206,6 +210,11 @@ components:
         folderNames:
           type: object
           description: Map of agent ID (string) to workspace folder name.
+          additionalProperties:
+            type: string
+        machineIds:
+          type: object
+          description: Map of agent ID (string) to the id of the floor (the machine) it runs on.
           additionalProperties:
             type: string
 
@@ -430,7 +439,9 @@ components:
       description: |
         Office layout (tiles, furniture, colors). `null` when no layout file or
         bundled default exists. `wasReset` is true when the bundled default
-        replaced an outdated user layout.
+        replaced an outdated user layout. `layout` furnishes the first floor;
+        every other floor uses `floorLayout`, the bundled default, sent only
+        when it differs from `layout`.
       type: object
       additionalProperties: false
       required: [type, layout]
@@ -447,6 +458,11 @@ components:
             - type: 'null'
         wasReset:
           type: boolean
+        floorLayout:
+          type: object
+          description: |
+            The bundled default layout, for every floor above the first. Absent
+            when `layout` already is the bundled default.
 
     FurnitureAssetsLoaded:
       description: Furniture catalog and sprite data, sent once after webviewReady.
@@ -785,6 +801,23 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/QuotaMeter'
+    FloorsLoaded:
+      description: |
+        The floors of the office, bottom to top: one per machine whose agents
+        it shows. The first is the machine the server runs on. Every other
+        machine is a host reached through at least one connection, so two
+        connections to the same host share a floor. Sent on connect, before
+        `existingAgents`, and again whenever the list changes.
+      type: object
+      additionalProperties: false
+      required: [type, floors]
+      properties:
+        type:
+          const: floorsLoaded
+        floors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Floor'
 
     # ── Client message variants ────────────────────────────────────
 
@@ -1133,6 +1166,19 @@ components:
         message:
           type: string
           description: Last error from SSH or herdr, set while the state is `error` or `reconnecting`.
+
+    Floor:
+      description: One floor of the office, holding every agent of one machine.
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          description: The machine's id, the `machineId` its agents carry. `local` for the machine the server runs on, otherwise opaque, so it never names the SSH host that `connectionsLoaded` shows only to privileged sockets.
+        name:
+          type: string
+          description: Shown on the floor's slab. The host name of this machine, or the label of the first connection to another.
 
     ConnectionKind:
       description: >-
