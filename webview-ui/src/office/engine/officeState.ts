@@ -53,7 +53,7 @@ import {
   withPathableSeatsUnblocked,
 } from './seatAssignment.js';
 import { anchorTile } from './seatPlacement.js';
-import { addSubagent, removeAllSubagents, removeSubagent } from './subagents.js';
+import { addSubagent, removeAllSubagents, removeSubagent, subagentKey } from './subagents.js';
 
 /** The `saveAgentSeats` payload: each agent's palette, hue and seat, by agent id. */
 export type PersistableSeats = Record<
@@ -338,7 +338,7 @@ export class OfficeState {
 
   /** Look up the sub-agent character ID for a given parent+toolId, or null */
   getSubagentId(parentAgentId: number, parentToolId: string): number | null {
-    return this.subagentIdMap.get(`${parentAgentId}:${parentToolId}`) ?? null;
+    return this.subagentIdMap.get(subagentKey(parentAgentId, parentToolId)) ?? null;
   }
 
   setAgentActive(id: number, active: boolean): void {
