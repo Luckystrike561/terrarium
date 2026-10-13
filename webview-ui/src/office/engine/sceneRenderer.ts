@@ -46,6 +46,7 @@ import {
   BUBBLE_FADE_DURATION_SEC,
   BUBBLE_SITTING_OFFSET_PX,
   BUBBLE_VERTICAL_OFFSET_PX,
+  BUILDING_PILLAR_WIDTH_PX,
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
   CHARACTER_SITTING_OFFSET_PX,
@@ -61,7 +62,6 @@ import {
   SELECTED_OUTLINE_ALPHA,
   STATUS_BADGE_HORIZONTAL_OFFSET_PX,
   STATUS_BADGE_VERTICAL_OFFSET_PX,
-  STOREY_PILLAR_WIDTH_PX,
 } from '../../constants.js';
 import { paintNightSkyline } from '../backdrop.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
@@ -814,7 +814,7 @@ export class OfficeSceneRenderer {
   private backdrop = new Sprite();
   private backdropKey = '';
 
-  /** Pillars first, then one container per floor, bottom to top (zIndex = storey). */
+  /** Pillars first, then one container per floor, bottom to top (zIndex = floor index). */
   private worldLayer = new Container();
   private pillarGfx = new Graphics();
   /** Device-pixel text: every floor's area labels, and the floor names. */
@@ -883,14 +883,14 @@ export class OfficeSceneRenderer {
     this.updateBackdrop(canvasWidth, canvasHeight, state.zoom);
 
     const liveFloors = new Set<string>();
-    state.floors.forEach((floor, storey) => {
+    state.floors.forEach((floor, index) => {
       liveFloors.add(floor.id);
       let scene = this.floorScenes.get(floor.id);
       if (!scene) {
         scene = new FloorScene(this.worldLayer, this.labelLayer);
         this.floorScenes.set(floor.id, scene);
       }
-      scene.root.zIndex = storey;
+      scene.root.zIndex = index;
       scene.update(floor, offsetX, offsetY, state.zoom);
     });
     for (const [id, scene] of this.floorScenes) {
@@ -934,25 +934,25 @@ export class OfficeSceneRenderer {
 
   // ── Building: pillars and floor names (per-frame, cheap) ───────
 
-  /** Two pillars per storey, at the side corners both floors share, from under the slab down to the floor below. */
+  /** Two pillars under every upper floor, at the side corners it shares with the floor below, down to that floor. */
   private drawPillars(floors: FloorRenderState[]): void {
     this.pillarGfx.clear();
     const leftColor = hexToNumber(FLOOR_SLAB_LEFT_COLOR);
     const rightColor = hexToNumber(FLOOR_SLAB_RIGHT_COLOR);
-    for (let storey = 1; storey < floors.length; storey++) {
-      const upper = floors[storey];
-      const lower = floors[storey - 1];
+    for (let index = 1; index < floors.length; index++) {
+      const upper = floors[index];
+      const lower = floors[index - 1];
       const { left, right } = sharedSideCorners(upper.layout, lower.layout);
       const leftTop = left.y - upper.elevation + upper.slabPx;
       this.pillarGfx
-        .rect(left.x, leftTop, STOREY_PILLAR_WIDTH_PX, left.y - lower.elevation - leftTop)
+        .rect(left.x, leftTop, BUILDING_PILLAR_WIDTH_PX, left.y - lower.elevation - leftTop)
         .fill(leftColor);
       const rightTop = right.y - upper.elevation + upper.slabPx;
       this.pillarGfx
         .rect(
-          right.x - STOREY_PILLAR_WIDTH_PX,
+          right.x - BUILDING_PILLAR_WIDTH_PX,
           rightTop,
-          STOREY_PILLAR_WIDTH_PX,
+          BUILDING_PILLAR_WIDTH_PX,
           right.y - lower.elevation - rightTop,
         )
         .fill(rightColor);

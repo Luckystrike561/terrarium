@@ -1,6 +1,6 @@
 import { LOCAL_MACHINE_ID } from '../../../../core/src/constants.js';
 import type { Floor as FloorDefinition } from '../../../../core/src/messages.js';
-import { FLOOR_SLAB_PX, STOREY_GAP_PX, STOREY_SLAB_PX } from '../../constants.js';
+import { BUILDING_FLOOR_GAP_PX, BUILDING_SLAB_PX, FLOOR_SLAB_PX } from '../../constants.js';
 import { isoToWorld } from '../iso.js';
 import type { LocalRect } from '../projection.js';
 import { boundsRect, contentBounds } from '../projection.js';
@@ -9,7 +9,7 @@ import { TILE_SIZE } from '../types.js';
 import type { PersistableSeats } from './officeState.js';
 import { OfficeState } from './officeState.js';
 
-/** One storey of the building: the office of one machine, with every agent that runs there. */
+/** One floor of the building: the office of one machine, with every agent that runs there. */
 export interface Floor {
   readonly id: string;
   name: string;
@@ -59,9 +59,9 @@ export class Building {
     return this.floors[0].office;
   }
 
-  /** Slab thickness under every floor: today's thin edge for a lone office, a storey slab in a building. */
+  /** Slab thickness under every floor: today's thin edge for a lone office, a building slab once there are several. */
   get slabPx(): number {
-    return this.floors.length > 1 ? STOREY_SLAB_PX : FLOOR_SLAB_PX;
+    return this.floors.length > 1 ? BUILDING_SLAB_PX : FLOOR_SLAB_PX;
   }
 
   /** Furnish the first floor with `groundLayout` and every other with `floorLayout`. */
@@ -248,13 +248,13 @@ export class Building {
     return { id: definition.id, name: definition.name, office, elevation: 0 };
   }
 
-  /** Raise each floor so its slab clears the top of the walls of the floor below by STOREY_GAP_PX. */
+  /** Raise each floor so its slab clears the top of the walls of the floor below by BUILDING_FLOOR_GAP_PX. */
   private restack(): void {
     let below: { elevation: number; minY: number } | undefined;
     for (const floor of this.floors) {
       const rect = boundsRect(contentBounds(floor.office.getLayout()));
       floor.elevation = below
-        ? below.elevation + rect.maxY + this.slabPx + STOREY_GAP_PX - below.minY
+        ? below.elevation + rect.maxY + this.slabPx + BUILDING_FLOOR_GAP_PX - below.minY
         : 0;
       below = { elevation: floor.elevation, minY: rect.minY };
     }

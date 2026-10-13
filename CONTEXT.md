@@ -123,7 +123,7 @@ _Avoid_: map, scene, room, level
 The office as a stack of floors, one per machine, all on screen at once. The first floor is the machine the server runs on.
 
 **Floor**:
-One storey of the building: the whole office of one machine, with its own seats, lounge and CTO queue. Every agent of that machine works there and never on another floor. A machine reached through several connections still has one floor.
+One floor of the building: the whole office of one machine, with its own seats, lounge and CTO queue. Every agent of that machine works there and never on another floor. Several connections to the same SSH host share one floor.
 _Avoid_: level, storey
 
 **Layout**:

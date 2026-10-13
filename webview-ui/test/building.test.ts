@@ -107,10 +107,10 @@ test('floors stack bottom to top without overlapping on screen', () => {
     };
   };
 
-  for (let storey = 1; storey < building.floors.length; storey++) {
+  for (let index = 1; index < building.floors.length; index++) {
     assert.ok(
-      screenRect(storey).bottom < screenRect(storey - 1).top,
-      `floor ${storey} sits wholly above floor ${storey - 1}`,
+      screenRect(index).bottom < screenRect(index - 1).top,
+      `floor ${index} sits wholly above floor ${index - 1}`,
     );
   }
   const view = building.viewRect();

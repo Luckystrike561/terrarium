@@ -1168,7 +1168,7 @@ components:
           description: Last error from SSH or herdr, set while the state is `error` or `reconnecting`.
 
     Floor:
-      description: One storey of the office, holding every agent of one machine.
+      description: One floor of the office, holding every agent of one machine.
       type: object
       additionalProperties: false
       required: [id, name]
