@@ -20,7 +20,7 @@ import { CharacterState, Direction, TILE_SIZE } from '../types.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
 import type { WorldAccess } from './worldAccess.js';
 
-/** Internal helper: facing-tile coords for a seat. Returns null for invalid direction. */
+/** Facing-tile offset for a seat direction. Any direction other than RIGHT, LEFT or DOWN faces UP. */
 function seatFacingOffset(direction: Direction): { dCol: number; dRow: number } {
   if (direction === Direction.RIGHT) return { dCol: 1, dRow: 0 };
   if (direction === Direction.LEFT) return { dCol: -1, dRow: 0 };
