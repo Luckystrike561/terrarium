@@ -8,6 +8,8 @@
 
 import * as path from 'path';
 
+import { LOCAL_MACHINE_ID } from '../../core/src/constants.js';
+import type { Floor } from '../../core/src/messages.js';
 import type {
   ModuleHandle,
   ModuleHost,
@@ -19,6 +21,7 @@ import type { AnnouncedSession } from './agentEventHandler.js';
 import { AgentEventHandler } from './agentEventHandler.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import { DEFAULT_MAX_CONTEXT_TOKENS } from './constants.js';
+import { listFloors } from './floors.js';
 import { MultiplexerConnections } from './multiplexerConnections.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import type { ModuleSet } from './providers/index.js';
@@ -47,6 +50,8 @@ export class AgentRuntime {
   connections: MultiplexerConnections | undefined;
   /** The latest reading of every quota meter any module reported. */
   readonly quota: QuotaBoard;
+  /** The office's floors as last broadcast, bottom to top. */
+  private floorList: Floor[] = listFloors([]);
   /** Set by dispose: modules winding down (a multiplexer ending its panes) must not edit the persisted agents. */
   private isDisposed = false;
 
@@ -87,6 +92,7 @@ export class AgentRuntime {
       sessionId: session.sessionId,
       providerId,
       sessionRef: session.sessionRef,
+      machineId: session.machineId ?? LOCAL_MACHINE_ID,
       activeToolIds: new Set(),
       activeToolStatuses: new Map(),
       activeToolNames: new Map(),
@@ -156,7 +162,28 @@ export class AgentRuntime {
       this.connections = connections;
       this.runningModules.push(connections);
       connections.start();
+      connections.onChange(() => this.refreshFloors());
+      this.refreshFloors();
     }
+  }
+
+  /** The office's floors, bottom to top: this machine first, then one per other host a connection reaches. */
+  floors(): Floor[] {
+    return this.floorList;
+  }
+
+  /** Broadcast the floors when a connection was added, removed or renamed in a way that changes them. Every other
+   *  connection change (a link state) leaves them as they were. */
+  private refreshFloors(): void {
+    const floors = listFloors(this.connections?.list() ?? []);
+    const isUnchanged =
+      floors.length === this.floorList.length &&
+      floors.every(
+        (floor, i) => floor.id === this.floorList[i].id && floor.name === this.floorList[i].name,
+      );
+    if (isUnchanged) return;
+    this.floorList = floors;
+    this.store.broadcast({ type: 'floorsLoaded', floors });
   }
 
   private hostFor(module: ProviderModule): ModuleHost {

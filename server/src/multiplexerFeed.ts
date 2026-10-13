@@ -30,6 +30,8 @@ export interface MultiplexerFeedOptions {
   readonly agentModules: ReadonlyMap<string, RunningAgentModule>;
   /** Appended to every pane's name as ` @<label>`, so a character shows which machine or session it runs on. */
   readonly label?: string;
+  /** Floor id of the machine the endpoint runs on, carried by every pane's `sessionStart`. */
+  readonly machineId: string;
   onState(state: MultiplexerLinkState, message?: string): void;
 }
 
@@ -136,6 +138,7 @@ export class MultiplexerFeed {
       source: 'startup',
       cwd: agent.cwd,
       sessionRef,
+      machineId: this.options.machineId,
     });
     const followed = follower && sessionRef ? follower.followSession(sessionRef) : null;
     return { sessionId, followed, binding, name: '', task: '', status: null };

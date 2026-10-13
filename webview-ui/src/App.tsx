@@ -16,24 +16,24 @@ import { useIntroTour } from './hooks/useIntroTour.js';
 import { OfficeCanvas } from './office/components/OfficeCanvas.js';
 import { QuotaJars } from './office/components/QuotaJars.js';
 import { ToolOverlay } from './office/components/ToolOverlay.js';
-import { OfficeState } from './office/engine/officeState.js';
+import { Building } from './office/engine/building.js';
 import { isE2E } from './runtime.js';
 import { installTestHooks } from './testHooks.js';
 import { transport } from './transport/index.js';
 
 // Game state lives outside React — updated imperatively by message handlers
-const officeStateRef = { current: null as OfficeState | null };
+const buildingRef = { current: null as Building | null };
 
 // Test-only observability hooks (message/sound logs, addAgent wrapper, selectAgent).
 // Installed only under the e2e harness so they never patch prototypes or grow
 // unbounded logs in a real user's session.
-if (isE2E) installTestHooks(officeStateRef);
+if (isE2E) installTestHooks(buildingRef);
 
-function getOfficeState(): OfficeState {
-  if (!officeStateRef.current) {
-    officeStateRef.current = new OfficeState();
+function getBuilding(): Building {
+  if (!buildingRef.current) {
+    buildingRef.current = new Building();
   }
-  return officeStateRef.current;
+  return buildingRef.current;
 }
 
 function App() {
@@ -69,7 +69,7 @@ function App() {
     connections,
     addConnection,
     quotaMeters,
-  } = useExtensionMessages(getOfficeState);
+  } = useExtensionMessages(getBuilding);
 
   // Show migration notice once layout reset is detected
   const [migrationNoticeDismissed, setMigrationNoticeDismissed] = useState(false);
@@ -115,15 +115,13 @@ function App() {
   const handleClick = useCallback(
     (agentId: number) => {
       // If clicked agent is a sub-agent, select the parent instead
-      const os = getOfficeState();
-      const meta = os.subagentMeta.get(agentId);
-      const focusId = meta ? meta.parentAgentId : agentId;
+      const focusId = getBuilding().subagentParentOf(agentId) ?? agentId;
       setSelectedAgent(focusId);
     },
     [setSelectedAgent],
   );
 
-  const officeState = getOfficeState();
+  const building = getBuilding();
 
   if (!layoutReady) {
     return <div className="w-full h-full flex items-center justify-center ">Loading...</div>;
@@ -132,7 +130,7 @@ function App() {
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
       <OfficeCanvas
-        officeState={officeState}
+        building={building}
         onClick={handleClick}
         onZoomChange={setZoom}
         panRef={panRef}
@@ -143,7 +141,7 @@ function App() {
       />
 
       <ToolOverlay
-        officeState={officeState}
+        building={building}
         agents={agents}
         agentTools={agentTools}
         subagentTools={subagentTools}
@@ -155,7 +153,7 @@ function App() {
       />
 
       <QuotaJars
-        officeState={officeState}
+        officeState={building.ground}
         meters={quotaMeters}
         containerRef={containerRef}
         zoom={zoom}
@@ -260,7 +258,7 @@ function App() {
 
       {intro && (
         <IntroBubble
-          officeState={officeState}
+          officeState={building.ground}
           headline={intro.headline}
           disclosure={intro.disclosure}
           actionLabel={intro.actionLabel}

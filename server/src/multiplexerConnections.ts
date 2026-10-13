@@ -17,6 +17,7 @@ import {
   type NewConnection,
 } from './connectionSettings.js';
 import { CONNECTION_ID_BYTES } from './constants.js';
+import { machineIdOf } from './floors.js';
 import { MultiplexerFeed } from './multiplexerFeed.js';
 
 interface LinkStatus {
@@ -155,6 +156,7 @@ export class MultiplexerConnections implements ModuleHandle {
         host,
         agentModules: this.options.agentModules,
         label: characterLabelOf(connection),
+        machineId: machineIdOf(connection),
         onState: (state, message) =>
           this.onLinkState(connection.id, multiplexer, host, { state, message }),
       });

@@ -22,6 +22,7 @@ export interface TestHooksWindow extends Window {
       seatId: string | null;
       areaLabel: string | null;
       folderName?: string;
+      machineId: string;
     }>;
     getSeats?: () => Array<{
       uid: string;
@@ -32,6 +33,8 @@ export interface TestHooksWindow extends Window {
     }>;
     getFurnitureCount?: () => number;
     selectAgent?: (id: number) => void;
+    getFloors?: () => OfficeFloor[];
+    getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
     messageLog?: Array<{ type: string }>;
   };
 }
@@ -325,13 +328,54 @@ export async function readAreas(page: Page): Promise<Array<{ label: string; colo
   return page.evaluate(() => (window as TestHooksWindow).__terrariumTestHooks?.getAreas?.() ?? []);
 }
 
-/** Read seated agents with the area their seat falls in. */
-export async function readAgentSeats(
-  page: Page,
-): Promise<
-  Array<{ id: number; seatId: string | null; areaLabel: string | null; folderName?: string }>
+/** Read seated agents with the area their seat falls in and the floor it is on. */
+export async function readAgentSeats(page: Page): Promise<
+  Array<{
+    id: number;
+    seatId: string | null;
+    areaLabel: string | null;
+    folderName?: string;
+    machineId: string;
+  }>
 > {
   return page.evaluate(
     () => (window as TestHooksWindow).__terrariumTestHooks?.getAgentSeats?.() ?? [],
   );
+}
+
+/** One floor of the office as the webview holds it: a machine, its height, and the agents on it. */
+export interface OfficeFloor {
+  id: string;
+  name: string;
+  elevation: number;
+  agentIds: number[];
+}
+
+/** The floors bottom to top. */
+export async function readFloors(page: Page): Promise<OfficeFloor[]> {
+  return page.evaluate(() => (window as TestHooksWindow).__terrariumTestHooks?.getFloors?.() ?? []);
+}
+
+/** Who waits in one floor's CTO queue, and why. */
+export async function readCtoQueue(
+  page: Page,
+  floorId: string,
+): Promise<Array<{ id: number; reason: string }>> {
+  return page.evaluate(
+    (id) => (window as TestHooksWindow).__terrariumTestHooks?.getCtoQueue?.(id) ?? [],
+    floorId,
+  );
+}
+
+/** Where on the page a click lands on a character's hit box, on whichever floor it stands. The overlay carries the
+ *  point because the sprite exists only on the canvas. */
+export async function readCharacterHitPoint(
+  page: Page,
+  agentId: number,
+): Promise<{ x: number; y: number }> {
+  const overlay = getOverlayByAgentId(page, agentId).first();
+  const container = await page.locator('canvas').boundingBox();
+  const x = Number(await overlay.getAttribute('data-hit-x'));
+  const y = Number(await overlay.getAttribute('data-hit-y'));
+  return { x: (container?.x ?? 0) + x, y: (container?.y ?? 0) + y };
 }

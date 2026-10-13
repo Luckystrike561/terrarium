@@ -51,7 +51,7 @@ Server discovery is written to `~/.terrarium/server.json` as `{ port, pid, authT
 
 `handleClientMessage` in `server/src/clientMessageHandler.ts` is the single dispatch point for `ClientMessage`. Each variant calls into `AgentRuntime`, `AgentStateStore`, `layoutPersistence.ts` or `FileStateAdapter`, or delegates to host callbacks (`onSetHooksEnabled` in `cli.ts`, the install and uninstall side effects the consent executor runs).
 
-The connection messages go to `runtime.connections` and, like `hooksConsentResponse`, are accepted only from a privileged (tokened) socket, because they open SSH sessions to other machines. `connectionsLoaded` is sent on the handshake and on every change, to privileged sockets only, because it names SSH targets.
+The connection messages go to `runtime.connections` and, like `hooksConsentResponse`, are accepted only from a privileged (tokened) socket, because they open SSH sessions to other machines. `connectionsLoaded` is sent on the handshake and on every change, to privileged sockets only, because it names SSH targets. `floorsLoaded` goes to every socket: it names machines by their connection labels, never by target. `AgentRuntime` recomputes the floor list (`listFloors`) on every connection change and broadcasts it only when it changed, after the removed connection's agents are gone.
 
 On `webviewReady` the handler sends assets, then `layoutLoaded`, then agent state. Agent state comes AFTER `layoutLoaded`, because the characters it targets only exist once the layout flush creates them. The asset order is in [assets.md](assets.md#load-order).
 

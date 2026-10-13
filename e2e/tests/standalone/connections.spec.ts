@@ -2,24 +2,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { Locator, Page, TestInfo } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { applyAllureLabels } from '../../helpers/allure-labels';
-import type { FakeHerdrAgent, FakeHerdrServer } from '../../helpers/herdr';
-import { startFakeHerdrServer } from '../../helpers/herdr';
+import {
+  addConnection,
+  CONNECTION_TIMEOUT_MS,
+  connectionRow,
+  installFakeSsh,
+  openConnections,
+  serveHerdr,
+} from '../../helpers/connections';
+import type { FakeHerdrServer } from '../../helpers/herdr';
 import { expectOverlayCount, expectOverlayVisible } from '../../helpers/office';
 import type { StandaloneSession } from '../../helpers/standalone';
 import { launchStandalone } from '../../helpers/standalone';
-
-/**
- * Connections reach herdr servers other than this machine's default session. The far ends are faked at their
- * process boundaries, per e2e/README.md "Mocking model & rules": herdr is a Unix-socket JSON-RPC server, and the
- * OpenSSH client is a stand-in `ssh` on PATH that forwards a local socket to a "remote" home on this machine.
- */
-
-const FAKE_SSH = path.join(__dirname, '../../fixtures/fake-ssh.cjs');
-const CONNECTION_TIMEOUT_MS = 20_000;
 
 interface ConnectionsFixture {
   root: string;
@@ -30,48 +28,12 @@ interface ConnectionsFixture {
   standalone: StandaloneSession;
 }
 
-function paneAgent(workspace: string, overrides: Partial<FakeHerdrAgent> = {}): FakeHerdrAgent {
-  return {
-    pane_id: 'w1:p1',
-    workspace_id: `ws-${workspace}`,
-    agent: 'codex',
-    agent_status: 'working',
-    cwd: `/work/${workspace}`,
-    foreground_cwd: `/work/${workspace}`,
-    terminal_title_stripped: `Working in ${workspace}`,
-    ...overrides,
-  };
-}
-
-async function serveHerdr(
-  home: string,
-  workspace: string,
-  overrides: Partial<FakeHerdrAgent> = {},
-  session?: string,
-): Promise<FakeHerdrServer> {
-  const herdr = await startFakeHerdrServer(home, session);
-  herdr.setWorkspaces([{ workspace_id: `ws-${workspace}`, label: workspace }]);
-  herdr.setAgents([paneAgent(workspace, overrides)]);
-  return herdr;
-}
-
-/** Install the stand-in `ssh` where the server's PATH finds it, knowing one host whose home is `remoteHome`. */
-function installFakeSsh(binDir: string, remoteHome: string): void {
-  fs.mkdirSync(binDir, { recursive: true });
-  fs.copyFileSync(FAKE_SSH, path.join(binDir, 'ssh'));
-  fs.chmodSync(path.join(binDir, 'ssh'), 0o755);
-  fs.writeFileSync(
-    path.join(binDir, 'fake-ssh-hosts.json'),
-    JSON.stringify({ buildbox: { home: remoteHome } }),
-  );
-}
-
 async function launchWithConnections(page: Page): Promise<ConnectionsFixture> {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pxl-conn-'));
   const home = path.join(root, 'home');
   const remoteHome = path.join(root, 'remote');
   const binDir = path.join(root, 'bin');
-  installFakeSsh(binDir, remoteHome);
+  installFakeSsh(binDir, { buildbox: remoteHome });
   const localHerdr = await serveHerdr(home, 'local-desk');
   const standalone = await launchStandalone(page, {
     homeDir: home,
@@ -86,30 +48,6 @@ async function cleanup(fixture: ConnectionsFixture, ...servers: FakeHerdrServer[
   await fixture.standalone.cleanup();
   for (const server of [fixture.localHerdr, ...servers]) await server.stop();
   fs.rmSync(fixture.root, { recursive: true, force: true });
-}
-
-async function openConnections(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Connections' }).click();
-  const menu = page
-    .locator('div.fixed')
-    .filter({ has: page.getByText('Connections', { exact: true }) });
-  await expect(menu).toBeVisible();
-  return menu;
-}
-
-function connectionRow(menu: Locator, label: string): Locator {
-  return menu.getByTestId('connection-row').filter({ hasText: label });
-}
-
-async function addConnection(
-  menu: Locator,
-  connection: { kind: 'ssh' | 'local'; label: string; target?: string; session?: string },
-): Promise<void> {
-  await menu.getByLabel('Connection kind').selectOption(connection.kind);
-  await menu.getByLabel('New connection label').fill(connection.label);
-  if (connection.target) await menu.getByLabel('SSH target').fill(connection.target);
-  if (connection.session) await menu.getByLabel('herdr session').fill(connection.session);
-  await menu.getByRole('button', { name: 'Add', exact: true }).click();
 }
 
 test.beforeEach(async ({}, testInfo: TestInfo) => {

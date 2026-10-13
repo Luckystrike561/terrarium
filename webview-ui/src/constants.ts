@@ -67,6 +67,16 @@ export const WALL_COLOR = '#d9c4a0';
 export const FLOOR_SLAB_PX = 5;
 export const FLOOR_SLAB_LEFT_COLOR = '#4a3f5c';
 export const FLOOR_SLAB_RIGHT_COLOR = '#362d45';
+/** A building of several floors (one per machine): each floor stands on a slab this thick, the
+ *  floor above starts this far over the top of the walls below, and two pillars along the side
+ *  corners join each floor to the one under it. */
+export const STOREY_SLAB_PX = 12;
+export const STOREY_GAP_PX = 16;
+export const STOREY_PILLAR_WIDTH_PX = 4;
+/** Floor name written on its slab: base size (pre-zoom), legibility floor in device px, colour. */
+export const FLOOR_NAME_FONT_SIZE_PX = 20;
+export const FLOOR_NAME_MIN_FONT_SIZE_PX = 20;
+export const FLOOR_NAME_COLOR = '#f4ecd8';
 /** Interior glass partitions: height (sprite px), frame (ink), pane and sheen. */
 export const WALL_GLASS_HEIGHT_PX = 30;
 export const GLASS_FRAME_COLOR = '#1a1426';

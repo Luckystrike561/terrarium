@@ -21,6 +21,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     id: 1,
     sessionId: 'sess-1',
     providerId: 'claude',
+    machineId: 'local',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),

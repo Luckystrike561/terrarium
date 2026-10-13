@@ -3,32 +3,55 @@ import { useCallback, useEffect, useRef } from 'react';
 import { CAMERA_FOLLOW_LERP, CAMERA_FOLLOW_SNAP_THRESHOLD, ZOOM_MIN } from '../../constants.js';
 import { unlockAudio } from '../../notificationSound.js';
 import { transport } from '../../transport/index.js';
+import type { Building, Floor } from '../engine/building.js';
 import { startGameLoop } from '../engine/gameLoop.js';
-import type { OfficeState } from '../engine/officeState.js';
-import type { SelectionRenderState, WorldRenderState } from '../engine/sceneRenderer.js';
+import type { FloorRenderState, WorldRenderState } from '../engine/sceneRenderer.js';
 import { OfficeSceneRenderer } from '../engine/sceneRenderer.js';
-import { isoToWorld, worldToIso } from '../iso.js';
-import {
-  boundsRect,
-  centeredPan,
-  clampPan,
-  contentBounds,
-  fitZoom,
-  gridRect,
-  panToCenter,
-} from '../projection.js';
-import { TILE_SIZE } from '../types.js';
+import { worldToIso } from '../iso.js';
+import { centeredPan, clampPan, fitZoom, gridRect, panToCenter } from '../projection.js';
 import { computeNormalModeCursor } from './officeCanvasCursor.js';
 
 interface OfficeCanvasProps {
-  officeState: OfficeState;
+  building: Building;
   onClick: (agentId: number) => void;
   /** Reports the fit zoom the canvas derived from the viewport and layout. */
   onZoomChange: (zoom: number) => void;
   panRef: React.MutableRefObject<{ x: number; y: number }>;
 }
 
-export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: OfficeCanvasProps) {
+/** What one floor draws this frame. Only the selected agent's floor shows the seat under the cursor. */
+function floorRenderState(building: Building, floor: Floor): FloorRenderState {
+  const { office } = floor;
+  const layout = office.getLayout();
+  const selectedFloor =
+    building.selectedAgentId === null ? undefined : building.floorOf(building.selectedAgentId);
+  return {
+    id: floor.id,
+    name: floor.name,
+    elevation: floor.elevation,
+    slabPx: building.slabPx,
+    layout,
+    tileMap: office.tileMap,
+    furniture: office.furniture,
+    characters: office.getCharacters(),
+    selection: {
+      selectedAgentId: building.selectedAgentId,
+      hoveredAgentId: building.hoveredAgentId,
+      hoveredTile: selectedFloor === floor ? building.hoveredTile : null,
+      seats: office.seats,
+      characters: office.characters,
+    },
+    tileColors: layout.tileColors,
+    layoutCols: layout.cols,
+    layoutRows: layout.rows,
+    carpetTiles: layout.carpetTiles,
+    areas: layout.areas,
+    areaTiles: layout.areaTiles,
+    pets: office.pets,
+  };
+}
+
+export function OfficeCanvas({ building, onClick, onZoomChange, panRef }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const officeRendererRef = useRef<OfficeSceneRenderer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,15 +87,21 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
   // it on every prop change would tear down and rebuild the WebGL context (and
   // every retained sprite), so the loop reads these through a ref instead of
   // closing over props and re-running the effect when they change.
-  const frameParamsRef = useRef({ officeState });
-  frameParamsRef.current = { officeState };
+  const frameParamsRef = useRef({ building });
+  frameParamsRef.current = { building };
 
   const clampToView = useCallback((pan: { x: number; y: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return pan;
-    const layout = frameParamsRef.current.officeState.getLayout();
-    const view = boundsRect(contentBounds(layout));
-    return clampPan(pan, gridRect(layout), view, viewZoomRef.current, canvas.width, canvas.height);
+    const { building } = frameParamsRef.current;
+    return clampPan(
+      pan,
+      gridRect(building.ground.getLayout()),
+      building.viewRect(),
+      viewZoomRef.current,
+      canvas.width,
+      canvas.height,
+    );
   }, []);
 
   useEffect(() => {
@@ -100,25 +129,19 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
 
     const stop = startGameLoop({
       update: (dt) => {
-        frameParamsRef.current.officeState.update(dt);
+        frameParamsRef.current.building.update(dt);
       },
       render: () => {
-        const { officeState } = frameParamsRef.current;
-        const layout = officeState.getLayout();
+        const { building } = frameParamsRef.current;
+        const grid = gridRect(building.ground.getLayout());
 
         if (canvas.width > 0 && canvas.height > 0) {
-          const view = boundsRect(contentBounds(layout));
+          const view = building.viewRect();
           const target = fitZoom(view, canvas.width, canvas.height);
           if (!hasViewRef.current) {
             hasViewRef.current = true;
             viewZoomRef.current = target;
-            panRef.current = centeredPan(
-              gridRect(layout),
-              view,
-              target,
-              canvas.width,
-              canvas.height,
-            );
+            panRef.current = centeredPan(grid, view, target, canvas.width, canvas.height);
             onZoomChangeRef.current(target);
           } else if (target !== viewZoomRef.current) {
             // Scale the pan with the zoom so the world point under the canvas
@@ -131,34 +154,31 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
         }
         const zoom = viewZoomRef.current;
 
-        // Camera: smoothly center on the followed agent, or while the greeter
-        // is speaking the Intro, on the character+bubble center the IntroBubble
-        // overlay feeds via greeterCameraTarget. An explicit follow (clicking an
+        // Camera: smoothly center on the followed agent, on its own floor, or
+        // while the greeter is speaking the Intro, on the character+bubble
+        // center the IntroBubble overlay feeds via greeterCameraTarget (the
+        // greeter stands on the first floor). An explicit follow (clicking an
         // agent) outranks the greeter target; a manual pan cancels both.
-        const followCh =
-          officeState.cameraFollowId !== null
-            ? officeState.characters.get(officeState.cameraFollowId)
-            : undefined;
-        const cameraFocus = followCh ?? officeState.greeterCameraTarget;
+        const followId = building.cameraFollowId;
+        const followCh = followId === null ? undefined : building.getCharacter(followId);
+        const cameraFocus = followCh
+          ? worldToIso(followCh.x, followCh.y, building.floorOf(followCh.id)?.elevation)
+          : building.ground.greeterCameraTarget &&
+            worldToIso(
+              building.ground.greeterCameraTarget.x,
+              building.ground.greeterCameraTarget.y,
+            );
         if (cameraFocus) {
           const target = clampToView(
-            panToCenter(
-              worldToIso(cameraFocus.x, cameraFocus.y),
-              gridRect(layout),
-              zoom,
-              canvas.width,
-              canvas.height,
-            ),
+            panToCenter(cameraFocus, grid, zoom, canvas.width, canvas.height),
           );
-          const targetX = target.x;
-          const targetY = target.y;
-          const dx = targetX - panRef.current.x;
-          const dy = targetY - panRef.current.y;
+          const dx = target.x - panRef.current.x;
+          const dy = target.y - panRef.current.y;
           if (
             Math.abs(dx) < CAMERA_FOLLOW_SNAP_THRESHOLD &&
             Math.abs(dy) < CAMERA_FOLLOW_SNAP_THRESHOLD
           ) {
-            panRef.current = { x: targetX, y: targetY };
+            panRef.current = target;
           } else {
             panRef.current = {
               x: panRef.current.x + dx * CAMERA_FOLLOW_LERP,
@@ -168,31 +188,12 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
         }
         panRef.current = clampToView(panRef.current);
 
-        // Build selection render state
-        const selectionRender: SelectionRenderState = {
-          selectedAgentId: officeState.selectedAgentId,
-          hoveredAgentId: officeState.hoveredAgentId,
-          hoveredTile: officeState.hoveredTile,
-          seats: officeState.seats,
-          characters: officeState.characters,
-        };
-
         const worldState: WorldRenderState = {
-          layout,
-          tileMap: officeState.tileMap,
-          furniture: officeState.furniture,
-          characters: officeState.getCharacters(),
+          floors: building.floors.map((floor) => floorRenderState(building, floor)),
+          grid: building.ground.getLayout(),
           zoom,
           panX: panRef.current.x,
           panY: panRef.current.y,
-          selection: selectionRender,
-          tileColors: layout.tileColors,
-          layoutCols: layout.cols,
-          layoutRows: layout.rows,
-          carpetTiles: layout.carpetTiles,
-          areas: layout.areas,
-          areaTiles: layout.areaTiles,
-          pets: officeState.pets,
         };
         const { offsetX, offsetY } = officeRenderer.renderFrame(worldState);
         offsetRef.current = { x: offsetX, y: offsetY };
@@ -208,46 +209,37 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
     };
   }, [resizeCanvas, panRef, clampToView]);
 
-  // Convert CSS mouse coords to world (sprite pixel) coords
-  const screenToWorld = useCallback((clientX: number, clientY: number) => {
+  // Convert CSS mouse coords to iso local (unscaled sprite px) coords
+  const screenToIso = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    // CSS coords relative to canvas
-    const cssX = clientX - rect.left;
-    const cssY = clientY - rect.top;
-    // Convert to device pixels
-    const deviceX = cssX * dpr;
-    const deviceY = cssY * dpr;
-    // Device px → iso local (unscaled sprite px) → top-down world px
+    const deviceX = (clientX - rect.left) * dpr;
+    const deviceY = (clientY - rect.top) * dpr;
     const zoom = viewZoomRef.current;
-    const isoX = (deviceX - offsetRef.current.x) / zoom;
-    const isoY = (deviceY - offsetRef.current.y) / zoom;
-    const world = isoToWorld(isoX, isoY);
     return {
-      worldX: world.x,
-      worldY: world.y,
-      isoX,
-      isoY,
-      screenX: cssX,
-      screenY: cssY,
-      deviceX,
-      deviceY,
+      isoX: (deviceX - offsetRef.current.x) / zoom,
+      isoY: (deviceY - offsetRef.current.y) / zoom,
     };
   }, []);
 
+  /** The selected agent's floor: the only floor its seat reassignment and walk commands can target. */
+  const selectedFloor = useCallback(
+    () =>
+      building.selectedAgentId === null ? undefined : building.floorOf(building.selectedAgentId),
+    [building],
+  );
+
+  /** The tile under the cursor on the selected agent's floor, or null. */
   const screenToTile = useCallback(
     (clientX: number, clientY: number): { col: number; row: number } | null => {
-      const pos = screenToWorld(clientX, clientY);
-      if (!pos) return null;
-      const col = Math.floor(pos.worldX / TILE_SIZE);
-      const row = Math.floor(pos.worldY / TILE_SIZE);
-      const layout = officeState.getLayout();
-      if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return null;
-      return { col, row };
+      const pos = screenToIso(clientX, clientY);
+      const floor = selectedFloor();
+      if (!pos || !floor) return null;
+      return building.tileAt(floor, pos.isoX, pos.isoY);
     },
-    [screenToWorld, officeState],
+    [screenToIso, selectedFloor, building],
   );
 
   const handleMouseMove = useCallback(
@@ -264,28 +256,29 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
         return;
       }
 
-      const pos = screenToWorld(e.clientX, e.clientY);
+      const pos = screenToIso(e.clientX, e.clientY);
       if (!pos) return;
-      const hitId = officeState.getCharacterAt(pos.isoX, pos.isoY);
+      const hitId = building.getCharacterAt(pos.isoX, pos.isoY);
       // Only run pet hit-test if no character was hit (avoids redundant work).
-      const petId = hitId === null ? officeState.getPetAt(pos.isoX, pos.isoY) : null;
+      const pet = hitId === null ? building.getPetAt(pos.isoX, pos.isoY) : null;
       const tile = screenToTile(e.clientX, e.clientY);
-      officeState.hoveredTile = tile;
+      building.hoveredTile = tile;
       const canvas = canvasRef.current;
+      const office = selectedFloor()?.office;
       if (canvas) {
         canvas.style.cursor = computeNormalModeCursor({
           hitId,
-          petId,
-          selectedAgentId: officeState.selectedAgentId,
+          petId: pet?.petId ?? null,
+          selectedAgentId: building.selectedAgentId,
           tile,
-          getSeatAtTile: (col, row) => officeState.getSeatAtTile(col, row),
-          getSeat: (seatId) => officeState.seats.get(seatId),
-          getCharacter: (id) => officeState.characters.get(id),
+          getSeatAtTile: (col, row) => office?.getSeatAtTile(col, row) ?? null,
+          getSeat: (seatId) => office?.seats.get(seatId),
+          getCharacter: (id) => building.getCharacter(id),
         });
       }
-      officeState.hoveredAgentId = hitId;
+      building.hoveredAgentId = hitId;
     },
-    [officeState, screenToWorld, screenToTile, panRef, clampToView],
+    [building, screenToIso, screenToTile, selectedFloor, panRef, clampToView],
   );
 
   const handleMouseDown = useCallback(
@@ -295,8 +288,8 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
       // Middle mouse button starts panning
       e.preventDefault();
       // Break camera follow + greeter centering on manual pan
-      officeState.cameraFollowId = null;
-      officeState.cancelGreeterCamera();
+      building.cameraFollowId = null;
+      building.ground.cancelGreeterCamera();
       isPanningRef.current = true;
       panStartRef.current = {
         mouseX: e.clientX,
@@ -307,7 +300,7 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
       const canvas = canvasRef.current;
       if (canvas) canvas.style.cursor = 'grabbing';
     },
-    [officeState, panRef],
+    [building, panRef],
   );
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
@@ -319,100 +312,93 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
-      const pos = screenToWorld(e.clientX, e.clientY);
+      const pos = screenToIso(e.clientX, e.clientY);
       if (!pos) return;
 
-      const hitId = officeState.getCharacterAt(pos.isoX, pos.isoY);
+      const hitId = building.getCharacterAt(pos.isoX, pos.isoY);
       if (hitId !== null) {
         // Dismiss any active bubble on click
-        officeState.dismissBubble(hitId);
+        building.officeOf(hitId)?.dismissBubble(hitId);
         // Toggle selection: click same agent deselects, different agent selects
-        if (officeState.selectedAgentId === hitId) {
-          officeState.selectedAgentId = null;
-          officeState.cameraFollowId = null;
+        if (building.selectedAgentId === hitId) {
+          building.selectedAgentId = null;
+          building.cameraFollowId = null;
         } else {
-          officeState.selectedAgentId = hitId;
-          officeState.cameraFollowId = hitId;
+          building.selectedAgentId = hitId;
+          building.cameraFollowId = hitId;
         }
         onClick(hitId); // still focus terminal
         return;
       }
 
       // Pet hit: toggle the heart bubble.
-      const petId = officeState.getPetAt(pos.isoX, pos.isoY);
-      if (petId !== null) {
-        const pet = officeState.pets.find((p) => p.id === petId);
-        if (pet?.bubbleType) {
-          officeState.dismissPetBubble(petId);
+      const pet = building.getPetAt(pos.isoX, pos.isoY);
+      if (pet !== null) {
+        if (pet.office.pets.find((p) => p.id === pet.petId)?.bubbleType) {
+          pet.office.dismissPetBubble(pet.petId);
         } else {
-          officeState.showPetBubble(petId);
+          pet.office.showPetBubble(pet.petId);
         }
         return;
       }
 
       // No agent hit — check seat click while agent is selected
-      if (officeState.selectedAgentId !== null) {
-        const selectedCh = officeState.characters.get(officeState.selectedAgentId);
+      const selectedId = building.selectedAgentId;
+      if (selectedId !== null) {
+        const office = selectedFloor()?.office;
+        const selectedCh = office?.characters.get(selectedId);
         // Skip seat reassignment for sub-agents
-        if (selectedCh && !selectedCh.isSubagent) {
+        if (office && selectedCh && !selectedCh.isSubagent) {
           const tile = screenToTile(e.clientX, e.clientY);
-          if (tile) {
-            const seatId = officeState.getSeatAtTile(tile.col, tile.row);
-            if (seatId) {
-              const seat = officeState.seats.get(seatId);
-              if (seat && selectedCh) {
-                if (selectedCh.seatId === seatId) {
-                  // Clicked own seat — send agent back to it
-                  officeState.sendToSeat(officeState.selectedAgentId);
-                  officeState.selectedAgentId = null;
-                  officeState.cameraFollowId = null;
-                  return;
-                } else if (!seat.assigned) {
-                  // Clicked available seat — reassign
-                  officeState.reassignSeat(officeState.selectedAgentId, seatId);
-                  officeState.selectedAgentId = null;
-                  officeState.cameraFollowId = null;
-                  transport.send({
-                    type: 'saveAgentSeats',
-                    seats: officeState.getPersistableSeats(),
-                  });
-                  return;
-                }
-              }
+          const seatId = tile ? office.getSeatAtTile(tile.col, tile.row) : null;
+          const seat = seatId ? office.seats.get(seatId) : undefined;
+          if (seatId && seat) {
+            if (selectedCh.seatId === seatId) {
+              // Clicked own seat — send agent back to it
+              office.sendToSeat(selectedId);
+              building.selectedAgentId = null;
+              building.cameraFollowId = null;
+              return;
+            } else if (!seat.assigned) {
+              // Clicked available seat — reassign
+              office.reassignSeat(selectedId, seatId);
+              building.selectedAgentId = null;
+              building.cameraFollowId = null;
+              transport.send({ type: 'saveAgentSeats', seats: building.getPersistableSeats() });
+              return;
             }
           }
         }
         // Clicked empty space — deselect
-        officeState.selectedAgentId = null;
-        officeState.cameraFollowId = null;
+        building.selectedAgentId = null;
+        building.cameraFollowId = null;
       }
     },
-    [officeState, onClick, screenToWorld, screenToTile],
+    [building, onClick, screenToIso, screenToTile, selectedFloor],
   );
 
   const handleMouseLeave = useCallback(() => {
     isPanningRef.current = false;
-    officeState.hoveredAgentId = null;
-    officeState.hoveredTile = null;
+    building.hoveredAgentId = null;
+    building.hoveredTile = null;
     // Reset the cursor so it doesn't stay a pointer after hovering a pet.
     const canvas = canvasRef.current;
     if (canvas) {
       canvas.style.cursor = 'default';
     }
-  }, [officeState]);
+  }, [building]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      // Right-click to walk selected agent to tile
-      if (officeState.selectedAgentId !== null) {
-        const tile = screenToTile(e.clientX, e.clientY);
-        if (tile) {
-          officeState.walkToTile(officeState.selectedAgentId, tile.col, tile.row);
-        }
+      // Right-click to walk selected agent to a tile of its own floor
+      const selectedId = building.selectedAgentId;
+      const tile = screenToTile(e.clientX, e.clientY);
+      if (selectedId !== null && tile) {
+        selectedFloor()?.office.walkToTile(selectedId, tile.col, tile.row);
       }
     },
-    [officeState, screenToTile],
+    [building, screenToTile, selectedFloor],
   );
 
   // Wheel / trackpad scrolls the office. Ctrl+wheel (trackpad pinch) is
@@ -426,14 +412,14 @@ export function OfficeCanvas({ officeState, onClick, onZoomChange, panRef }: Off
       const horizontalOnly = e.shiftKey && e.deltaX === 0;
       const deltaX = horizontalOnly ? e.deltaY : e.deltaX;
       const deltaY = horizontalOnly ? 0 : e.deltaY;
-      officeState.cameraFollowId = null;
-      officeState.cancelGreeterCamera();
+      building.cameraFollowId = null;
+      building.ground.cancelGreeterCamera();
       panRef.current = clampToView({
         x: panRef.current.x - deltaX * dpr,
         y: panRef.current.y - deltaY * dpr,
       });
     },
-    [officeState, panRef, clampToView],
+    [building, panRef, clampToView],
   );
 
   // Attach wheel listener with { passive: false } so preventDefault() works.

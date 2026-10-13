@@ -38,6 +38,7 @@ export type ServerMessage =
   | AreaMappingsLoaded
   | ConnectionsLoaded
   | ConnectionAddResult
+  | FloorsLoaded
   | QuotaUpdate;
 
 export type ClientMessage =
@@ -67,6 +68,7 @@ export interface AgentCreated {
   type: 'agentCreated';
   id: number;
   folderName?: string;
+  machineId: string;
   palette?: number;
   hueShift?: number;
 }
@@ -81,6 +83,7 @@ export interface ExistingAgents {
   agents: number[];
   agentMeta: Record<string, AgentSeatMeta>;
   folderNames: Record<string, string>;
+  machineIds: Record<string, string>;
 }
 
 export interface AgentSeatMeta {
@@ -185,6 +188,7 @@ export interface LayoutLoaded {
   type: 'layoutLoaded';
   layout: Record<string, any> | null;
   wasReset?: boolean;
+  floorLayout?: Record<string, any>;
 }
 
 export interface FurnitureAssetsLoaded {
@@ -310,6 +314,16 @@ export interface ConnectionAddResult {
   type: 'connectionAddResult';
   requestId: string;
   error?: string;
+}
+
+export interface FloorsLoaded {
+  type: 'floorsLoaded';
+  floors: Floor[];
+}
+
+export interface Floor {
+  id: string;
+  name: string;
 }
 
 export interface QuotaUpdate {

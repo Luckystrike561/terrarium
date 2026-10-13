@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '../../components/ui/Button.js';
 import {
+  CHARACTER_HIT_HEIGHT,
   CHARACTER_SITTING_OFFSET_PX,
   CONTEXT_CRITICAL_THRESHOLD,
   CONTEXT_DANGER_THRESHOLD,
@@ -19,7 +20,7 @@ import {
 } from '../../constants.js';
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js';
 import { isE2E } from '../../runtime.js';
-import type { OfficeState } from '../engine/officeState.js';
+import type { Building } from '../engine/building.js';
 import { overlayProjection } from '../projection.js';
 import type { ToolActivity } from '../types.js';
 import { CharacterState } from '../types.js';
@@ -31,7 +32,7 @@ import { CharacterState } from '../types.js';
 const WAITING_INPUT_ACTIVITY_TEXT = 'Waiting for input';
 
 interface ToolOverlayProps {
-  officeState: OfficeState;
+  building: Building;
   agents: number[];
   agentTools: Record<number, ToolActivity[]>;
   subagentTools: Record<number, Record<string, ToolActivity[]>>;
@@ -82,7 +83,7 @@ function getFuelColor(ratio: number): string {
 }
 
 export function ToolOverlay({
-  officeState,
+  building,
   agents,
   agentTools,
   subagentTools,
@@ -106,15 +107,15 @@ export function ToolOverlay({
   const el = containerRef.current;
   if (!el) return null;
   const project = overlayProjection(
-    officeState.getLayout(),
+    building.ground.getLayout(),
     el.getBoundingClientRect(),
     zoom,
     panRef.current,
     window.devicePixelRatio || 1,
   );
 
-  const selectedId = officeState.selectedAgentId;
-  const hoveredId = officeState.hoveredAgentId;
+  const selectedId = building.selectedAgentId;
+  const hoveredId = building.hoveredAgentId;
 
   // All character IDs
   const allIds = [...agents, ...subagentCharacters.map((s) => s.id)];
@@ -122,8 +123,9 @@ export function ToolOverlay({
   return (
     <>
       {allIds.map((id) => {
-        const ch = officeState.characters.get(id);
-        if (!ch) return null;
+        const floor = building.floorOf(id);
+        const ch = floor?.office.characters.get(id);
+        if (!floor || !ch) return null;
 
         const isSelected = selectedId === id;
         const isHovered = hoveredId === id;
@@ -136,9 +138,19 @@ export function ToolOverlay({
 
         // Position above character
         const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
-        const point = project.project(ch.x, ch.y, TOOL_OVERLAY_VERTICAL_OFFSET - sittingOffset);
+        const point = project.project(
+          ch.x,
+          ch.y,
+          floor.elevation + TOOL_OVERLAY_VERTICAL_OFFSET - sittingOffset,
+        );
         const screenX = point.x;
         const screenY = point.y;
+        // The middle of the character's hit box, on whichever floor it stands: where a click selects it.
+        const hitPoint = project.project(
+          ch.x,
+          ch.y,
+          floor.elevation + CHARACTER_HIT_HEIGHT / 2 - sittingOffset,
+        );
 
         // A "Done" agent (finished turn: waiting bubble without awaitingInput)
         // shows ONLY its floating green checkmark bubble, never the label panel
@@ -154,6 +166,8 @@ export function ToolOverlay({
               style={{ left: screenX, top: screenY, pointerEvents: 'none' }}
               data-testid="agent-overlay"
               data-agent-id={id}
+              data-hit-x={hitPoint.x}
+              data-hit-y={hitPoint.y}
             />
           );
         }
@@ -225,6 +239,8 @@ export function ToolOverlay({
             }}
             data-testid="agent-overlay"
             data-agent-id={id}
+            data-hit-x={hitPoint.x}
+            data-hit-y={hitPoint.y}
           >
             <div className="flex items-center px-8 pt-2 pb-4 gap-5 paper-tag whitespace-nowrap max-w-2xs">
               {dotColor && (

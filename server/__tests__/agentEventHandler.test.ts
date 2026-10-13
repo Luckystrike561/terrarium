@@ -13,6 +13,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     id: 1,
     sessionId: '',
     providerId: 'fake-cli',
+    machineId: 'local',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),

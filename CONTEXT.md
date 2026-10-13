@@ -116,17 +116,24 @@ _Avoid_: progress bar, quota HUD
 ## Office & Layout
 
 **Office**:
-The whole simulated world: the layout plus its inhabitants — characters and pets — and their live state.
+The whole simulated world: the layout plus its inhabitants — characters and pets — and their live state. It is a building of one or more floors.
 _Avoid_: map, scene, room, level
 
+**Building**:
+The office as a stack of floors, one per machine, all on screen at once. The first floor is the machine the server runs on.
+
+**Floor**:
+One storey of the building: the whole office of one machine, with its own seats, lounge and CTO queue. Every agent of that machine works there and never on another floor. A machine reached through several connections still has one floor.
+_Avoid_: level, storey
+
 **Layout**:
-The office's spatial arrangement: the tile grid, floors, walls, carpets, areas, and furniture. It is the static part of the office, generated in code or read from a saved layout file, while characters and pets move through it.
+A floor's spatial arrangement: the tile grid, floor tiles, walls, carpets, areas, and furniture. It is the static part of the office, generated in code or read from a saved layout file, while characters and pets move through it.
 _Avoid_: floor plan, blueprint, map
 
 **Tile**:
 One cell of the office grid.
 
-**Floor**:
+**Floor tile**:
 The walkable surface of a tile, painted with a pattern and color.
 
 **Wall**:

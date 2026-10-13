@@ -112,7 +112,7 @@ Anyone who can reach the server can watch the office. Changing hook installation
 
 ## Connections
 
-With the herdr module, **Connections** on the bottom plank lists every herdr server the office listens to, with its live state. Agents from every enabled connection share the office. A character from any connection but the default carries its label (`api @Build box`).
+With the herdr module, **Connections** on the bottom plank lists every herdr server the office listens to, with its live state. A character from any connection but the default carries its label (`api @Build box`).
 
 - **This machine**: herdr's socket from `HERDR_SOCKET_PATH`, then `HERDR_SESSION`, then `~/.config/herdr/herdr.sock`.
 - **Local session**: another herdr session on this machine (`~/.config/herdr/sessions/<name>/herdr.sock`). Left empty, it reaches the default herdr.
@@ -122,9 +122,18 @@ A connection is saved only after herdr answers a `ping`. Connections live in `~/
 
 SSH connections run `ssh -N -L` to forward the remote socket to an owner-only socket under `~/.terrarium/herdr/`. They need `ssh` on `PATH`, herdr on the remote, Unix-socket forwarding allowed by sshd (OpenSSH's default) and a POSIX `sh` there. The session runs in batch mode, so authentication must already work through your agent, keys and `~/.ssh/config`, and the host key must be in `known_hosts` (run `ssh <target>` once). No credentials are stored. Remote agents show status only: their transcripts are on the other machine.
 
+### Floors
+
+The office is a building with one floor per machine, stacked bottom to top and all on screen at once. The first floor is the machine Terrarium runs on, named after its host name: every local agent, whatever reports it (Claude, omp, herdr, …), works there. In Docker that is the container, so give it a name with `--hostname`. Each other host reached through a connection gets the next floor, named after the first connection to it.
+
+- Two connections to one host share its floor. The host is the SSH target's host part: `pi`, `luc@pi` and `ssh://pi:2222` are one machine, while a `~/.ssh/config` alias and the address it stands for are two.
+- A floor appears when its host's first connection is added, and goes with its last one, characters included. A floor whose connections are all turned off stays, empty.
+- Each floor is a whole office, furnished with the bundled default layout (`layout.json` furnishes only the first floor): its own desks, lounge, CTO office and CTO queue. An agent never takes a seat or a queue spot on another machine's floor, even when its own is full.
+- A building too tall for the window scrolls rather than shrinking sprites below 1x.
+
 ## Customizing the office
 
-There is no in-app layout editor. If `~/.terrarium/layout.json` exists, the server loads it instead of the default, including carpets, pets and named areas. Map workspace folders to areas under `standalone.areaMappings` in `~/.terrarium/config.json` (`{ "folder-name": ["Area label"] }`). Click a character, then a free seat, to move it.
+There is no in-app layout editor. If `~/.terrarium/layout.json` exists, the server loads it instead of the default for the first floor (other floors keep the default), including carpets, pets and named areas. Map workspace folders to areas under `standalone.areaMappings` in `~/.terrarium/config.json` (`{ "folder-name": ["Area label"] }`). Click a character, then a free seat on its floor, to move it.
 
 The bundled art is generated: `npx tsx scripts/iso-art/generate.ts` rewrites the sprites and `npx tsx scripts/iso-art/layout.ts` the default layout.
 

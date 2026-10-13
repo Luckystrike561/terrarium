@@ -9,6 +9,7 @@ function createTestAgent(overrides: Partial<AgentState> = {}): AgentState {
     id: 0,
     sessionId: 'test-session',
     providerId: 'claude',
+    machineId: 'local',
     activeToolIds: new Set(),
     activeToolStatuses: new Map(),
     activeToolNames: new Map(),

@@ -66,6 +66,12 @@ function seatFacingOffset(direction: Direction): { dCol: number; dRow: number } 
   return { dCol: 0, dRow: -1 };
 }
 
+/** The `saveAgentSeats` payload: each agent's palette, hue and seat, by agent id. */
+export type PersistableSeats = Record<
+  number,
+  { palette: number; hueShift: number; seatId: string | null }
+>;
+
 export class OfficeState {
   layout: OfficeLayout;
   tileMap: TileTypeVal[][];
@@ -83,15 +89,12 @@ export class OfficeState {
   pets: Pet[] = [];
   /** Accumulated time for furniture animation frame cycling */
   furnitureAnimTimer = 0;
-  selectedAgentId: number | null = null;
-  cameraFollowId: number | null = null;
-  hoveredAgentId: number | null = null;
-  hoveredTile: { col: number; row: number } | null = null;
   /** Maps "parentId:toolId" → sub-agent character ID (negative) */
   subagentIdMap: Map<string, number> = new Map();
   /** Reverse lookup: sub-agent character ID → parent info */
   subagentMeta: Map<number, { parentAgentId: number; parentToolId: string }> = new Map();
-  private nextSubagentId = -1;
+  /** Sub-agent ids are negative and unique across every floor of the building: the next one to hand out. */
+  private readonly subagentIds: { next: number };
 
   /**
    * folderName → list of Area labels that workspace folder belongs to.
@@ -141,7 +144,8 @@ export class OfficeState {
     this.areaMappings = mappings;
   }
 
-  constructor(layout?: OfficeLayout) {
+  constructor(layout?: OfficeLayout, subagentIds: { next: number } = { next: -1 }) {
+    this.subagentIds = subagentIds;
     this.layout = layout || createDefaultLayout();
     this.tileMap = layoutToTileMap(this.layout);
     this.seats = layoutToSeats(this.layout.furniture);
@@ -894,15 +898,13 @@ export class OfficeState {
     const ch = this.characters.get(id);
     if (!ch) return;
     if (ch.matrixEffect === 'despawn') return; // already despawning
-    // Free seat and clear selection immediately
+    // Free seat immediately
     if (ch.seatId) {
       const seat = this.seats.get(ch.seatId);
       if (seat) seat.assigned = false;
       this.rebalanceRestSeatedAgents(id);
     }
     releaseRestSeat(ch, this.restSeatClaims);
-    if (this.selectedAgentId === id) this.selectedAgentId = null;
-    if (this.cameraFollowId === id) this.cameraFollowId = null;
     this.leaveCtoQueue(id);
     // Start despawn animation instead of immediate delete
     startMatrixEffect(ch, 'despawn');
@@ -1037,7 +1039,7 @@ export class OfficeState {
     const key = `${parentAgentId}:${parentToolId}`;
     if (this.subagentIdMap.has(key)) return this.subagentIdMap.get(key)!;
 
-    const id = this.nextSubagentId--;
+    const id = this.subagentIds.next--;
     const parentCh = this.characters.get(parentAgentId);
     const palette = parentCh ? parentCh.palette : 0;
     const hueShift = parentCh ? parentCh.hueShift : 0;
@@ -1092,8 +1094,6 @@ export class OfficeState {
     // Clean up tracking maps immediately so keys don't collide
     this.subagentIdMap.delete(key);
     this.subagentMeta.delete(id);
-    if (this.selectedAgentId === id) this.selectedAgentId = null;
-    if (this.cameraFollowId === id) this.cameraFollowId = null;
   }
 
   /** Remove all sub-agents belonging to a parent agent */
@@ -1119,8 +1119,6 @@ export class OfficeState {
           ch.bubbleType = null;
         }
         this.subagentMeta.delete(id);
-        if (this.selectedAgentId === id) this.selectedAgentId = null;
-        if (this.cameraFollowId === id) this.cameraFollowId = null;
         toRemove.push(key);
       }
     }
@@ -1471,11 +1469,8 @@ export class OfficeState {
    *  restoring. Sub-agents are excluded because they are derived state the
    *  runtime re-materializes, and the greeter never reaches here at all —
    *  it is not in `characters`. */
-  getPersistableSeats(): Record<
-    number,
-    { palette: number; hueShift: number; seatId: string | null }
-  > {
-    const seats: Record<number, { palette: number; hueShift: number; seatId: string | null }> = {};
+  getPersistableSeats(): PersistableSeats {
+    const seats: PersistableSeats = {};
     for (const ch of this.characters.values()) {
       if (ch.isSubagent) continue;
       seats[ch.id] = { palette: ch.palette, hueShift: ch.hueShift, seatId: ch.seatId };

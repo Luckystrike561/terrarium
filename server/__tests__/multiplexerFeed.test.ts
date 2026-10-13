@@ -54,6 +54,7 @@ function startFeed(
     endpoint: LOCAL,
     host,
     agentModules,
+    machineId: 'local',
     onState: (state, message) => states.push({ state, message }),
     ...overrides,
   });
@@ -313,6 +314,21 @@ describe('MultiplexerFeed endpoints', () => {
       sessionRef: undefined,
     });
     expect(emitted.some((e) => e.event.kind === 'turnEnd')).toBe(true);
+  });
+
+  it("announces every pane on its endpoint's machine", () => {
+    const { host, emitted } = fakeHost();
+    const mux = fakeMultiplexer();
+    startFeed(mux, host, new Map(), {
+      endpoint: { id: 'c0ffee', kind: 'ssh', target: 'pi' },
+      machineId: 'ssh:pi',
+    });
+
+    mux.publish([pane({ paneId: 'p1' })]);
+
+    expect(emitted.find((e) => e.event.kind === 'sessionStart')?.event).toMatchObject({
+      machineId: 'ssh:pi',
+    });
   });
 
   it('names characters after the endpoint label, and renames them from the next snapshot on', () => {

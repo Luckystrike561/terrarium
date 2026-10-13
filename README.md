@@ -14,6 +14,8 @@ Terrarium turns each agent into a character. It types at a desk while its agent 
 
 It watches Claude Code, omp, Codex, OpenCode, Gemini CLI and 17 more CLIs through their own session stores, plus every agent in [herdr](https://github.com/herdrdev/herdr) panes, locally or over SSH. It never modifies your agents: its data lives in `~/.terrarium/`, and the only outside file it writes is `~/.claude/settings.json`, after you approve Claude hooks.
 
+The office is a building with one floor per machine. Agents on this machine work on the first floor, and each host reached over SSH (a VPS, a Raspberry Pi) gets its own floor stacked above, labelled with its name, with its own desks, lounge and CTO queue. Every floor is on screen at once, and an agent never leaves its machine's floor. See [floors](docs/guide.md#floors).
+
 ## Quick start
 
 Node.js 22.13 or later. Terrarium runs from source (`npx terrarium` is an unrelated package).
