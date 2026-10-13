@@ -283,7 +283,7 @@ export function dispatchMockMessages(): void {
     type: 'floorsLoaded',
     floors: [
       { id: 'local', name: 'laptop' },
-      { id: 'ssh:build.example.com', name: 'Build box' },
+      { id: '3f9a1c2b7d4e6f80', name: 'Build box' },
     ],
   });
   dispatch({ type: 'layoutLoaded', layout });

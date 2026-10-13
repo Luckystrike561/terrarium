@@ -117,12 +117,19 @@ test.describe('Standalone / floors', () => {
       await waitForFloors(page, [ground.name, 'Raspberry Pi', 'VPS']);
       await closeConnections(menu);
 
+      // Every socket sees the floor ids, so a remote one never names its host.
+      const floorIdOf = async (name: string) =>
+        (await readFloors(page)).find((floor) => floor.name === name)!.id;
+      const piFloor = await floorIdOf('Raspberry Pi');
+      const vpsFloor = await floorIdOf('VPS');
+      for (const id of [piFloor, vpsFloor]) expect(id).not.toMatch(/pi|vps/);
+
       // Every agent sits on its own machine's floor, whatever connection reported it.
       expect(await agentsOn(page, 'local')).toHaveLength(2);
-      expect(await agentsOn(page, 'ssh:pi')).toHaveLength(5);
-      const [hermes] = await agentsOn(page, 'ssh:vps');
+      expect(await agentsOn(page, piFloor)).toHaveLength(5);
+      const [hermes] = await agentsOn(page, vpsFloor);
       const seats = await readAgentSeats(page);
-      for (const floorId of ['local', 'ssh:pi', 'ssh:vps']) {
+      for (const floorId of ['local', piFloor, vpsFloor]) {
         const ids = await agentsOn(page, floorId);
         expect(
           seats.filter((seat) => ids.includes(seat.id)).every((seat) => seat.machineId === floorId),
@@ -131,12 +138,12 @@ test.describe('Standalone / floors', () => {
 
       // The VPS agent waits for approval in the VPS floor's CTO queue, not anyone else's.
       await expect
-        .poll(async () => (await readCtoQueue(page, 'ssh:vps')).map((entry) => entry.id), {
+        .poll(async () => (await readCtoQueue(page, vpsFloor)).map((entry) => entry.id), {
           timeout: FLOOR_TIMEOUT_MS,
         })
         .toEqual([hermes]);
       expect(await readCtoQueue(page, 'local')).toEqual([]);
-      expect(await readCtoQueue(page, 'ssh:pi')).toEqual([]);
+      expect(await readCtoQueue(page, piFloor)).toEqual([]);
 
       // The whole building is on screen at once, and a click on the top floor selects its agent.
       for (const id of [...(await agentsOn(page, 'local')), hermes]) {

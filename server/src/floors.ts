@@ -1,9 +1,14 @@
+import * as crypto from 'node:crypto';
 import * as os from 'node:os';
 
 import { LOCAL_MACHINE_ID } from '../../core/src/constants.js';
 import type { ConnectionKind, Floor } from '../../core/src/messages.js';
+import { MACHINE_ID_HEX_CHARS, MACHINE_ID_KEY_BYTES } from './constants.js';
 
 const SSH_URI_PREFIX = 'ssh://';
+/** Floor ids reach every socket while SSH targets are for tokened ones only, and a host like `pi` is guessable
+ *  from a plain hash, so the id is keyed. Per process: nothing stores a floor id. */
+const MACHINE_ID_KEY = crypto.randomBytes(MACHINE_ID_KEY_BYTES);
 
 /** What a floor needs from a connection: where it leads, and what the user called it. */
 interface FloorSource {
@@ -13,13 +18,17 @@ interface FloorSource {
 }
 
 /**
- * The floor id of the machine a connection reaches. A machine is the host part of the SSH destination, compared
- * case-insensitively: `pi`, `luc@pi` and `ssh://pi:2222` reach one machine. Nothing is resolved, so an SSH config
- * alias and the address it stands for are two machines.
+ * The floor id of the machine a connection reaches, opaque so it never names the host. A machine is the host part
+ * of the SSH destination, compared case-insensitively: `pi`, `luc@pi` and `ssh://pi:2222` reach one machine.
+ * Nothing is resolved, so an SSH config alias and the address it stands for are two machines.
  */
 export function machineIdOf(connection: Pick<FloorSource, 'kind' | 'target'>): string {
   if (connection.kind === 'local' || !connection.target) return LOCAL_MACHINE_ID;
-  return `ssh:${sshHostOf(connection.target)}`;
+  return crypto
+    .createHmac('sha256', MACHINE_ID_KEY)
+    .update(sshHostOf(connection.target))
+    .digest('hex')
+    .slice(0, MACHINE_ID_HEX_CHARS);
 }
 
 /** The host of a destination `connectionSettings` accepted: `[user@]host`, or `ssh://[user@]host[:port]` with a

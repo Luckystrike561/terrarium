@@ -1175,7 +1175,7 @@ components:
       properties:
         id:
           type: string
-          description: The machine's id, the `machineId` its agents carry.
+          description: The machine's id, the `machineId` its agents carry. `local` for the machine the server runs on, otherwise opaque, so it never names the SSH host that `connectionsLoaded` shows only to privileged sockets.
         name:
           type: string
           description: Shown on the floor's slab. The host name of this machine, or the label of the first connection to another.

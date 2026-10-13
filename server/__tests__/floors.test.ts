@@ -30,27 +30,35 @@ afterEach(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true });
 });
 
+/** The floor id of an SSH connection to `target`. */
+function sshFloor(target: string): string {
+  return machineIdOf({ kind: 'ssh', target });
+}
+
 describe('machineIdOf', () => {
   it('puts every local connection on this machine, whatever its herdr session', () => {
     expect(machineIdOf({ kind: 'local' })).toBe('local');
   });
 
-  it.each([['pi'], ['luc@pi'], ['PI'], ['ssh://pi'], ['ssh://luc@pi:2222'], ['jump@corp@pi']])(
+  it.each([['luc@pi'], ['PI'], ['ssh://pi'], ['ssh://luc@pi:2222'], ['jump@corp@pi']])(
     'reads %s as the host pi',
     (target) => {
-      expect(machineIdOf({ kind: 'ssh', target })).toBe('ssh:pi');
+      expect(sshFloor(target)).toBe(sshFloor('pi'));
     },
   );
 
   it('keeps a bare and a bracketed IPv6 address apart from their port', () => {
-    expect(machineIdOf({ kind: 'ssh', target: 'fe80::1' })).toBe('ssh:fe80::1');
-    expect(machineIdOf({ kind: 'ssh', target: 'ssh://luc@[fe80::1]:2222' })).toBe('ssh:fe80::1');
+    expect(sshFloor('ssh://luc@[fe80::1]:2222')).toBe(sshFloor('fe80::1'));
+    expect(sshFloor('fe80::1')).not.toBe(sshFloor('fe80::'));
   });
 
   it('tells two hosts apart', () => {
-    expect(machineIdOf({ kind: 'ssh', target: 'pi' })).not.toBe(
-      machineIdOf({ kind: 'ssh', target: 'vps' }),
-    );
+    expect(sshFloor('pi')).not.toBe(sshFloor('vps'));
+  });
+
+  it('never names the host, since every socket sees the id', () => {
+    const id = sshFloor('luc@pi.example.com');
+    expect(id).not.toMatch(/pi|example/);
   });
 });
 
@@ -80,8 +88,8 @@ describe('listFloors', () => {
       ),
     ).toEqual([
       { id: 'local', name: 'laptop' },
-      { id: 'ssh:vps', name: 'VPS' },
-      { id: 'ssh:pi', name: 'Raspberry Pi' },
+      { id: sshFloor('vps'), name: 'VPS' },
+      { id: sshFloor('pi'), name: 'Raspberry Pi' },
     ]);
   });
 });
@@ -139,18 +147,21 @@ describe('AgentRuntime floors', () => {
         type: 'floorsLoaded',
         floors: [
           { id: 'local', name: os.hostname() },
-          { id: 'ssh:pi', name: 'Pi' },
+          { id: sshFloor('pi'), name: 'Pi' },
         ],
       },
     ]);
 
     showPane(first.id, 'p1');
     showPane(second.id, 'p2');
-    expect([...store.values()].map((agent) => agent.machineId)).toEqual(['ssh:pi', 'ssh:pi']);
+    expect([...store.values()].map((agent) => agent.machineId)).toEqual([
+      sshFloor('pi'),
+      sshFloor('pi'),
+    ]);
 
     connections.remove(first.id);
     expect(floorBroadcasts().at(-1)).toMatchObject({
-      floors: [{ id: 'local' }, { id: 'ssh:pi', name: 'Pi night' }],
+      floors: [{ id: 'local' }, { id: sshFloor('pi'), name: 'Pi night' }],
     });
     connections.remove(second.id);
     expect(store.size).toBe(0);
@@ -173,7 +184,7 @@ describe('AgentRuntime floors', () => {
     await connections.add({ label: 'VPS', kind: 'ssh', target: 'vps' });
     connections.update(connections.list()[1].id, { label: 'Hermes box' });
     expect(floorBroadcasts().at(-1)).toMatchObject({
-      floors: [{ id: 'local' }, { id: 'ssh:vps', name: 'Hermes box' }],
+      floors: [{ id: 'local' }, { id: sshFloor('vps'), name: 'Hermes box' }],
     });
     runtime.dispose();
   });
