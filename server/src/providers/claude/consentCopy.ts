@@ -72,8 +72,9 @@ export const CONSENT_DISCLOSURE = [
 export const STATUS_LINE_FACT_WHAT =
   `Terrarium can also take the statusLine slot in ${SETTINGS_FILE} so it can read your plan's 5-hour and weekly ` +
   `usage limits and draw them as coffee beans in the office. A status line you already have keeps running and ` +
-  `prints exactly what it printed. Note that your existing settings are kept, and a one-time backup is saved as ` +
-  `settings.json${SETTINGS_BACKUP_SUFFIX}.`;
+  `prints exactly what it printed. If you have none, Terrarium's prints nothing, and like any custom status line it ` +
+  `makes Claude Code hide most footer hints: esc to interrupt, ? for shortcuts and hold space to speak. Note that ` +
+  `your existing settings are kept, and a one-time backup is saved as settings.json${SETTINGS_BACKUP_SUFFIX}.`;
 
 /** WHAT data moves, and where it stops. See CONSENT_FACT_DATA above for why this cannot promise nothing leaves the
  *  machine. */

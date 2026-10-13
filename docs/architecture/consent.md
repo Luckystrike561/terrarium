@@ -51,6 +51,8 @@ Claude Code passes `rate_limits` (the Pro and Max 5-hour and 7-day windows) only
 - A `statusLine` that is not a `command` is left alone, and the office then shows no Claude quota.
 - Ours is recognized by `isOurHookCommand` (the anchored rule below) followed by `--status-line`. `isStatusLineInstalled()` checks the status line slot alone, independent of `areHooksInstalled()`, which checks the 12 entries alone: a lone status line still has a removal route, a lone set of entries still has a removal route, and a bare status line in an empty slot counts as our own output for the backup rule.
 
+With no status line of the user's, ours fills the empty slot and prints nothing. Claude Code then hides most footer hints (`esc to interrupt`, `? for shortcuts`, `hold space to speak`), as it does for any custom status line, so the status line disclosure says so. Declining keeps the slot empty across restarts.
+
 A `statusLine` already on disk with no recorded answer is granted silently at startup, same as `hooks` (see "Who is asked, and when" above): anyone whose status line a pre-split build already chained keeps it, with no new ask. It is the one install step that adds rather than removes a slot's content, which is why its own first-run disclosure, not silent grandfathering, is the default path for everyone else. A project-level `statusLine` overrides ours, and those projects then report no quota.
 
 ## Writing `settings.json` safely
