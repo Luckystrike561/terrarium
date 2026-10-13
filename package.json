@@ -46,8 +46,8 @@
     "asyncapi:validate": "node scripts/validate-asyncapi.mjs",
     "check-types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.test.json",
     "prepare": "husky",
-    "lint": "eslint server core && cd webview-ui && eslint .",
-    "lint:fix": "eslint server core --fix && cd webview-ui && eslint . --fix",
+    "lint": "eslint server core e2e && cd webview-ui && eslint .",
+    "lint:fix": "eslint server core e2e --fix && cd webview-ui && eslint . --fix",
     "import-tileset": "tsx scripts/import-tileset-cli.ts",
     "format": "prettier --write \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
     "format:check": "prettier --check \"server/**/*.ts\" \"core/src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx,css}\" \"*.{js,mjs}\" \"webview-ui/*.{js,ts}\"",
@@ -93,6 +93,7 @@
   "lint-staged": {
     "server/**/*.ts": "eslint --fix",
     "core/src/**/*.ts": "eslint --fix",
+    "e2e/**/*.ts": "eslint --fix",
     "webview-ui/src/**/*.{ts,tsx}": "eslint --fix",
     "scripts/**/*.{js,mjs}": "prettier --write",
     "*.{ts,tsx,js,mjs,css,json,md}": "prettier --write",

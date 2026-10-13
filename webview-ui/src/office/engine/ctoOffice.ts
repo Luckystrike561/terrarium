@@ -9,9 +9,18 @@
  * the door, nearest first.
  */
 
-import { isWalkable } from '../layout/tileMap.js';
-import type { Seat, TileType as TileTypeVal } from '../types.js';
-import { Direction, TileType } from '../types.js';
+import {
+  CTO_COUCH_SEC,
+  CTO_DESK_SEC,
+  CTO_ID,
+  CTO_QUEUE_MAX_SLOTS,
+  CTO_VISIT_SEC,
+} from '../../constants.js';
+import { findPath, isWalkable } from '../layout/tileMap.js';
+import type { Character, CtoQueueReason, Seat, TileType as TileTypeVal } from '../types.js';
+import { CharacterState, Direction, TILE_SIZE, TileType } from '../types.js';
+import { advanceAlongPath, advancePoseFrame, createCharacter } from './characters.js';
+import type { WorldAccess } from './worldAccess.js';
 
 export const CTO_CHAIR_PREFIX = 'EXEC_CHAIR';
 /** Longest gap in a partition still read as a door. */
@@ -172,4 +181,197 @@ export function computeDoorQueue(
     row: t.row,
     facing: facingToward(t, door),
   }));
+}
+
+/** The office state the CTO loop and queue read: the live seat graph, grid and agents. */
+export type CtoWorld = Pick<
+  WorldAccess,
+  'layout' | 'seats' | 'tileMap' | 'blockedTiles' | 'restSeatUids' | 'characters'
+>;
+
+/** The fixed CTO character's desk and couch loop, and the queue of agents
+ *  waiting to see the human at its office. */
+export class CtoOffice {
+  /** The CTO character. Like the greeter it is not an agent and lives outside
+   *  `characters`. Null when the layout has no exec chair. */
+  cto: Character | null = null;
+  /** Agents that need the human, in arrival order. */
+  private readonly queue = new Map<number, CtoQueueReason>();
+  private couchSeatId: string | null = null;
+  private visitorSeatIds: string[] = [];
+  private onCouch = false;
+  private phaseTimer = CTO_DESK_SEC;
+  private visitTimer = CTO_VISIT_SEC;
+  private readonly world: CtoWorld;
+
+  constructor(world: CtoWorld) {
+    this.world = world;
+  }
+
+  /** Seat the CTO at the layout's executive chair, or drop it when the layout
+   *  has none. The whole office is the CTO's: every seat in it is claimed so
+   *  no agent is given one as a desk or rests there, and agents never wander
+   *  in. Its lounge seats are the CTO's couch; its other seats are visitor
+   *  chairs for the queue. Returns `walkableTiles` without the office's tiles. */
+  place(walkableTiles: Array<{ col: number; row: number }>): Array<{ col: number; row: number }> {
+    const { layout, seats, tileMap, restSeatUids } = this.world;
+    const types = new Map(layout.furniture.map((f) => [f.uid, f.type]));
+    const seatId = findCtoSeatId(seats, types);
+    const seat = seatId ? seats.get(seatId) : undefined;
+    this.couchSeatId = null;
+    this.visitorSeatIds = [];
+    if (!seatId || !seat) {
+      this.cto = null;
+      return walkableTiles;
+    }
+    const office = computeOfficeTiles(tileMap, seat);
+    for (const [uid, s] of seats) {
+      if (!office.has(`${s.seatCol},${s.seatRow}`)) continue;
+      s.assigned = true;
+      if (uid === seatId) continue;
+      if (!restSeatUids.has(uid)) this.visitorSeatIds.push(uid);
+      else this.couchSeatId ??= uid;
+    }
+    const cto = this.cto ?? createCharacter(CTO_ID, 0, seatId, seat);
+    cto.isCto = true;
+    cto.isActive = true;
+    cto.state = CharacterState.TYPE;
+    cto.seatId = seatId;
+    cto.path = [];
+    cto.moveProgress = 0;
+    cto.tileCol = seat.seatCol;
+    cto.tileRow = seat.seatRow;
+    cto.x = seat.seatCol * TILE_SIZE + TILE_SIZE / 2;
+    cto.y = seat.seatRow * TILE_SIZE + TILE_SIZE / 2;
+    cto.dir = seat.facingDir;
+    this.cto = cto;
+    this.onCouch = false;
+    this.phaseTimer = CTO_DESK_SEC;
+    return walkableTiles.filter((t) => !office.has(`${t.col},${t.row}`));
+  }
+
+  /** The CTO's loop: work at the desk for CTO_DESK_SEC, then walk to the
+   *  office couch for CTO_COUCH_SEC, and back. Types at the desk, which is
+   *  also the only place its monitor is on, and rests on the couch. Returns
+   *  true when the CTO's monitor turned on or off. */
+  update(dt: number): boolean {
+    const cto = this.cto;
+    if (!cto) return false;
+    const { seats, tileMap, blockedTiles } = this.world;
+    let monitorChanged = false;
+    this.phaseTimer -= dt;
+    if (this.phaseTimer <= 0 && this.couchSeatId && cto.seatId) {
+      this.onCouch = !this.onCouch;
+      this.phaseTimer = this.onCouch ? CTO_COUCH_SEC : CTO_DESK_SEC;
+      const target = seats.get(this.onCouch ? this.couchSeatId : cto.seatId);
+      if (target) {
+        const key = `${target.seatCol},${target.seatRow}`;
+        const wasBlocked = blockedTiles.delete(key);
+        cto.path = findPath(
+          cto.tileCol,
+          cto.tileRow,
+          target.seatCol,
+          target.seatRow,
+          tileMap,
+          blockedTiles,
+        );
+        if (wasBlocked) blockedTiles.add(key);
+        cto.moveProgress = 0;
+        cto.state = CharacterState.WALK;
+        cto.frame = 0;
+        cto.frameTimer = 0;
+        if (cto.isActive) {
+          cto.isActive = false;
+          monitorChanged = true;
+        }
+      }
+    }
+    cto.frameTimer += dt;
+    if (cto.state !== CharacterState.WALK) {
+      advancePoseFrame(cto);
+      return monitorChanged;
+    }
+    advanceAlongPath(cto, dt);
+    if (cto.path.length > 0 || cto.moveProgress > 0) return monitorChanged;
+    const seat = seats.get(this.onCouch && this.couchSeatId ? this.couchSeatId : cto.seatId!);
+    if (seat) {
+      cto.tileCol = seat.seatCol;
+      cto.tileRow = seat.seatRow;
+      cto.x = seat.seatCol * TILE_SIZE + TILE_SIZE / 2;
+      cto.y = seat.seatRow * TILE_SIZE + TILE_SIZE / 2;
+      cto.dir = seat.facingDir;
+    }
+    cto.state = CharacterState.TYPE;
+    cto.frame = 0;
+    cto.frameTimer = 0;
+    if (this.onCouch) return monitorChanged;
+    cto.isActive = true;
+    return true;
+  }
+
+  /** Hand out CTO queue spots in queue order: the visitor chairs in front of
+   *  the CTO's desk first, then standing spots outside the door. Agents beyond
+   *  every spot carry on as usual. An agent whose spot is taken away drops to
+   *  IDLE so the normal FSM walks it back to its desk. */
+  refreshQueue(): void {
+    const { seats, tileMap, blockedTiles, characters } = this.world;
+    const ctoSeat = this.cto?.seatId ? seats.get(this.cto.seatId) : undefined;
+    const slots: QueueSlot[] = [];
+    for (const uid of this.visitorSeatIds) {
+      const seat = seats.get(uid);
+      if (seat) {
+        slots.push({ col: seat.seatCol, row: seat.seatRow, facing: seat.facingDir, seated: true });
+      }
+    }
+    if (ctoSeat) {
+      slots.push(...computeDoorQueue(tileMap, blockedTiles, ctoSeat, CTO_QUEUE_MAX_SLOTS));
+    }
+    const assigned = new Map<number, Character['ctoQueueSlot']>();
+    let i = 0;
+    for (const [id, reason] of this.queue) {
+      if (characters.has(id) && i < slots.length) assigned.set(id, { ...slots[i++], reason });
+    }
+    for (const ch of characters.values()) {
+      const slot = assigned.get(ch.id) ?? null;
+      if (ch.ctoQueueSlot && !slot && ch.state !== CharacterState.WALK) {
+        ch.state = CharacterState.IDLE;
+        ch.frame = 0;
+        ch.frameTimer = 0;
+        ch.wanderTimer = 0;
+      }
+      ch.ctoQueueSlot = slot;
+    }
+  }
+
+  /** Rotate the queue every CTO_VISIT_SEC while agents wait at the door: the
+   *  longest-seated visitor goes to the back of the line and the next agent at
+   *  the door takes its chair. */
+  rotateQueue(dt: number): void {
+    if (this.queue.size <= this.visitorSeatIds.length || this.visitorSeatIds.length === 0) {
+      this.visitTimer = CTO_VISIT_SEC;
+      return;
+    }
+    this.visitTimer -= dt;
+    if (this.visitTimer > 0) return;
+    this.visitTimer = CTO_VISIT_SEC;
+    const [[firstId, reason]] = this.queue;
+    this.queue.delete(firstId);
+    this.queue.set(firstId, reason);
+    this.refreshQueue();
+  }
+
+  join(id: number, reason: CtoQueueReason): void {
+    const ch = this.world.characters.get(id);
+    if (!ch || ch.isSubagent) return;
+    if (this.queue.get(id) === 'permission') return;
+    this.queue.set(id, reason);
+    this.refreshQueue();
+  }
+
+  leave(id: number, reason?: CtoQueueReason): void {
+    const current = this.queue.get(id);
+    if (!current || (reason && current !== reason)) return;
+    this.queue.delete(id);
+    this.refreshQueue();
+  }
 }

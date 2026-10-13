@@ -214,7 +214,7 @@ The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` ta
 2. Make your changes
 3. Verify everything passes locally:
    ```bash
-   npm run lint                         # core + server + webview lint
+   npm run lint                         # core + server + webview + e2e lint
    npm run check-types                  # TypeScript strict check across all packages
    npm run asyncapi:validate            # AsyncAPI spec validation
    npm run asyncapi:generate            # Regen core/src/messages.ts (must produce no git diff)

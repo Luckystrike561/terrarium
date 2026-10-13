@@ -49,7 +49,7 @@ Teammate dismissal is driven by:
 
 ## The webview gate
 
-In `webview-ui/src/hooks/useExtensionMessages.ts`, `agentToolStart` with `runInBackground=true` only creates a Subtask sub-character when the **parent has no `teamName`**. With a team, `onTeammateDetected` creates the teammate instead, and the gate prevents a ghost sub-agent. Without a team, the teammate path never fires and the basic Subtask sub-character is the only visible representation, so the gate must let it through. `addSubagent` dedups via `subagentIdMap`, so that is safe even if a teammate is detected later.
+In `webview-ui/src/hooks/serverMessages/toolActivityMessages.ts`, `agentToolStart` with `runInBackground=true` only creates a Subtask sub-character when the **parent has no `teamName`**. With a team, `onTeammateDetected` creates the teammate instead, and the gate prevents a ghost sub-agent. Without a team, the teammate path never fires and the basic Subtask sub-character is the only visible representation, so the gate must let it through. `addSubagent` dedups via `subagentIdMap`, so that is safe even if a teammate is detected later.
 
 The gate's blind spot is a TEAMED lead's unnamed background spawn. `subagentToolStart` covers it by creating the sub-character lazily when it is missing (`addSubagent` is idempotent), and the same lazy path recreates subs after a page reload.
 

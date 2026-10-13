@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { test } from '../../../fixtures/standalone';
+import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 import {
   INLINE_TEAMMATE_ALIAS,
   INLINE_TEAMMATE_ROLE,
@@ -24,7 +25,6 @@ import {
   buildUserToolResultRecord,
   seedTeamConfig,
 } from '../../../helpers/team';
-import { buildHooksOffSeedConfig } from '../../../helpers/layout-seed';
 
 async function expectLeadActivity(page: Page, text: string): Promise<void> {
   await expectOverlayVisibleWithTexts(page, ['LEAD', text]);

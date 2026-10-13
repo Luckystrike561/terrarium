@@ -1,63 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { LOCAL_MACHINE_ID } from '../../../core/src/constants.js';
 import type {
   AddConnection,
-  CharacterSpriteSet,
   Connection,
-  Floor,
   HooksConsentRequest,
   QuotaMeter,
+  ServerMessage,
 } from '../../../core/src/messages.js';
-import { playDoneSound, playPermissionSound } from '../notificationSound.js';
 import type { Building } from '../office/engine/building.js';
-import type { ExistingAgentMeta, PendingAgent } from '../office/engine/existingAgents.js';
-import { reconcileExistingAgents } from '../office/engine/existingAgents.js';
-import { setFloorSprites } from '../office/floorTiles.js';
-import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
-import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';
-import { setCarpetSprites } from '../office/sprites/carpetTiles.js';
-import { setPetTemplates } from '../office/sprites/petSpriteData.js';
-import { setCharacterTemplates } from '../office/sprites/spriteData.js';
-import { destroyAllTextures } from '../office/sprites/textureCache.js';
-import {
-  extractToolName,
-  isSubagentToolName,
-  setProviderCapabilities,
-} from '../office/toolUtils.js';
-import type { OfficeLayout, ToolActivity } from '../office/types.js';
+import type { PendingAgent } from '../office/engine/existingAgents.js';
+import type { ToolActivity } from '../office/types.js';
 import { isE2E } from '../runtime.js';
 import { transport } from '../transport/index.js';
-
-export interface SubagentCharacter {
-  id: number;
-  parentAgentId: number;
-  parentToolId: string;
-  label: string;
-}
-
-interface FurnitureAsset {
-  id: string;
-  name: string;
-  label: string;
-  category: string;
-  file: string;
-  width: number;
-  height: number;
-  footprintW: number;
-  footprintH: number;
-  isDesk: boolean;
-  canPlaceOnWalls: boolean;
-  groupId?: string;
-  canPlaceOnSurfaces?: boolean;
-  backgroundTiles?: number;
-  orientation?: string;
-  state?: string;
-  mirrorSide?: boolean;
-  rotationScheme?: string;
-  animationGroup?: string;
-  frame?: number;
-}
+import { handleAgentLifecycleMessage } from './serverMessages/agentLifecycleMessages.js';
+import { handleAssetMessage } from './serverMessages/assetMessages.js';
+import type { MessageContext, SubagentCharacter } from './serverMessages/messageContext.js';
+import { handleSettingsMessage } from './serverMessages/settingsMessages.js';
+import { handleTeamAndContextMessage } from './serverMessages/teamAndContextMessages.js';
+import { handleToolActivityMessage } from './serverMessages/toolActivityMessages.js';
 
 interface ExtensionMessageState {
   agents: number[];
@@ -97,18 +57,6 @@ interface ExtensionMessageState {
   addConnection: (input: Omit<AddConnection, 'type' | 'requestId'>) => Promise<string | undefined>;
   /** Every account quota meter, as the last quotaUpdate listed them. Empty draws no beans. */
   quotaMeters: QuotaMeter[];
-}
-
-/** Composite key for `hooksInstalled`/`hooksStatusSeq`: two subjects of the same provider (Claude's `hooks` and
- *  `statusLine`) are two independently consented, independently installed asks, so one providerId key alone would
- *  conflate them. Exported so introTourState.ts and useIntroTour.ts build the identical key when they read these
- *  maps — the format must stay in lockstep across every reader. */
-export function hooksSubjectKey(providerId: string, subjectId: string): string {
-  return `${providerId}:${subjectId}`;
-}
-
-function saveAgentSeats(building: Building): void {
-  transport.send({ type: 'saveAgentSeats', seats: building.getPersistableSeats() });
 }
 
 export function useExtensionMessages(getBuilding: () => Building): ExtensionMessageState {
@@ -165,11 +113,35 @@ export function useExtensionMessages(getBuilding: () => Building): ExtensionMess
 
   useEffect(() => {
     // Buffer agents from existingAgents until layout is loaded
-    let pendingAgents: PendingAgent[] = [];
+    const pendingAgentsRef = { current: [] as PendingAgent[] };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handler = (msg: any) => {
-      const building = getBuilding();
+    const ctx: MessageContext = {
+      building: getBuilding(),
+      pendingAgentsRef,
+      layoutReadyRef,
+      backgroundParentToolIdsRef,
+      pendingConnectionAddsRef,
+      setAgents,
+      setSelectedAgent,
+      setAgentTools,
+      setAgentStatuses,
+      setSubagentTools,
+      setSubagentCharacters,
+      setLayoutReady,
+      setLayoutWasReset,
+      setLastSeenVersion,
+      setExtensionVersion,
+      setHooksEnabled,
+      setHooksInstalled,
+      setHooksStatusSeq,
+      setHooksInfoShown,
+      setConsentQueue,
+      setConnections,
+      setQuotaMeters,
+    };
+
+    const handler = (msg: ServerMessage) => {
+      ctx.building = getBuilding();
       // CI / e2e diagnostic: record every received transport message on the
       // window-side log. The fixture reads window.__terrariumTestHooks.
       // messageLog and attaches as JSON so CI failures can see the exact
@@ -180,536 +152,32 @@ export function useExtensionMessages(getBuilding: () => Building): ExtensionMess
         if (!window.__terrariumTestHooks.messageLog) {
           window.__terrariumTestHooks.messageLog = [];
         }
+        const { id, toolName, status, toolId, parentToolId } = msg as {
+          id?: number;
+          toolName?: string;
+          status?: string;
+          toolId?: string;
+          parentToolId?: string;
+        };
         window.__terrariumTestHooks.messageLog.push({
           at: Date.now(),
           type: msg.type,
-          id: msg.id,
-          toolName: msg.toolName,
-          status: msg.status,
-          toolId: msg.toolId,
-          parentToolId: msg.parentToolId,
+          id,
+          toolName,
+          status,
+          toolId,
+          parentToolId,
         });
       }
 
-      if (msg.type === 'providerCapabilities') {
-        setProviderCapabilities(msg.providers);
+      if (
+        handleAgentLifecycleMessage(msg, ctx) ||
+        handleToolActivityMessage(msg, ctx) ||
+        handleTeamAndContextMessage(msg, ctx) ||
+        handleAssetMessage(msg, ctx) ||
+        handleSettingsMessage(msg, ctx)
+      ) {
         return;
-      }
-
-      if (msg.type === 'layoutLoaded') {
-        const rawLayout = msg.layout as OfficeLayout | null;
-        const layout = rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null;
-        const rawFloorLayout = msg.floorLayout as OfficeLayout | undefined;
-        const floorLayout =
-          rawFloorLayout?.version === 1 ? migrateLayoutColors(rawFloorLayout) : layout;
-        if (layout) {
-          building.setLayouts(layout, floorLayout ?? layout);
-        }
-        // Add buffered agents now that layout (and seats) are correct
-        for (const p of pendingAgents) {
-          building.addAgent(p.machineId, p.id, p.palette, p.hueShift, p.seatId, true, p.folderName);
-        }
-        pendingAgents = [];
-        layoutReadyRef.current = true;
-        setLayoutReady(true);
-        if (msg.wasReset) {
-          setLayoutWasReset(true);
-        }
-        if (building.floors.some((floor) => floor.office.characters.size > 0)) {
-          saveAgentSeats(building);
-        }
-      } else if (msg.type === 'floorsLoaded') {
-        if (Array.isArray(msg.floors)) building.setFloors(msg.floors as Floor[]);
-      } else if (msg.type === 'agentCreated') {
-        const id = msg.id as number;
-        const machineId = (msg.machineId as string | undefined) ?? LOCAL_MACHINE_ID;
-        const folderName = msg.folderName as string | undefined;
-        const isTeammate = msg.isTeammate as boolean | undefined;
-        const teammateName = msg.teammateName as string | undefined;
-        const teammateParentId = msg.parentAgentId as number | undefined;
-        const teamName = msg.teamName as string | undefined;
-        setAgents((prev) => (prev.includes(id) ? prev : [...prev, id]));
-        // Don't auto-select teammates (keep focus on lead)
-        if (!isTeammate) {
-          setSelectedAgent(id);
-        }
-        if (isTeammate && teammateParentId !== undefined) {
-          // Teammate: inherit parent's palette and workspace folderName (teammate runs
-          // in the same workspace as the lead). Name shown via agentName (teamRoleLabel).
-          // Seat them at the free seat closest to the lead so the team clusters.
-          const parentCh = building.getCharacter(teammateParentId);
-          const palette = parentCh ? parentCh.palette : undefined;
-          const hueShift = parentCh ? parentCh.hueShift : undefined;
-          building.addAgent(
-            machineId,
-            id,
-            palette,
-            hueShift,
-            undefined,
-            undefined,
-            parentCh?.folderName,
-            teammateParentId,
-          );
-          // Set team metadata on the character
-          const ch = building.getCharacter(id);
-          if (ch) {
-            ch.leadAgentId = teammateParentId;
-            ch.teamName = teamName ?? parentCh?.teamName;
-            ch.agentName = teammateName;
-          }
-        } else {
-          const palette = msg.palette as number | undefined;
-          const hueShift = msg.hueShift as number | undefined;
-          building.addAgent(machineId, id, palette, hueShift, undefined, undefined, folderName);
-        }
-        saveAgentSeats(building);
-      } else if (msg.type === 'agentClosed') {
-        const id = msg.id as number;
-        setAgents((prev) => prev.filter((a) => a !== id));
-        setSelectedAgent((prev) => (prev === id ? null : prev));
-        setAgentTools((prev) => {
-          if (!(id in prev)) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-        setAgentStatuses((prev) => {
-          if (!(id in prev)) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-        setSubagentTools((prev) => {
-          if (!(id in prev)) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-        // Remove all sub-agent characters belonging to this agent
-        delete backgroundParentToolIdsRef.current[id];
-        building.removeAllSubagents(id);
-        setSubagentCharacters((prev) => prev.filter((s) => s.parentAgentId !== id));
-        building.removeAgent(id);
-        // removeAgent can migrate another agent off a rest seat onto the freed desk
-        // (rebalanceRestSeatedAgents) — persist so the server copy follows.
-        saveAgentSeats(building);
-      } else if (msg.type === 'existingAgents') {
-        const incoming = msg.agents as number[];
-        const meta = (msg.agentMeta || {}) as Record<number, ExistingAgentMeta>;
-        const folderNames = (msg.folderNames || {}) as Record<number, string>;
-        const machineIds = (msg.machineIds || {}) as Record<number, string>;
-        // Order-independent restore: add agents now if the layout (and its seats)
-        // is already built, otherwise buffer them for the next layoutLoaded.
-        // Depending on layoutLoaded always arriving last stranded restored agents
-        // on surfaces that send layout first (issue #334).
-        if (
-          reconcileExistingAgents(
-            building,
-            { agents: incoming, meta, folderNames, machineIds },
-            layoutReadyRef.current,
-            pendingAgents,
-          )
-        ) {
-          saveAgentSeats(building);
-        }
-        setAgents((prev) => {
-          const ids = new Set(prev);
-          const merged = [...prev];
-          for (const id of incoming) {
-            if (!ids.has(id)) {
-              merged.push(id);
-            }
-          }
-          return merged.sort((a, b) => a - b);
-        });
-      } else if (msg.type === 'agentToolStart') {
-        const id = msg.id as number;
-        const toolId = msg.toolId as string;
-        const status = msg.status as string;
-        const permissionActive = msg.permissionActive as boolean | undefined;
-        setAgentTools((prev) => {
-          const list = prev[id] || [];
-          if (list.some((t) => t.toolId === toolId)) return prev;
-          return {
-            ...prev,
-            [id]: [
-              ...list,
-              { toolId, status, done: false, permissionWait: permissionActive || false },
-            ],
-          };
-        });
-        const toolName = (msg.toolName as string | undefined) ?? extractToolName(status);
-        const office = building.officeOf(id);
-        office?.setAgentTool(id, toolName);
-        office?.setAgentActive(id, true);
-        // Don't clear the permission bubble if the hook already confirmed permission is needed
-        if (!permissionActive) {
-          office?.clearPermissionBubble(id);
-        }
-        // Create sub-agent character for Task/Agent tool subtasks.
-        // agentToolStart for Task/Agent is always emitted via JSONL (with the stable
-        // toolu_* id), never from the hook path — handlePreToolUse skips these tools.
-        // runInBackground routing:
-        //   - parent HAS teamName: teammate path (onTeammateDetected) creates the
-        //     teammate; we skip here so we don't spawn a ghost sub-agent alongside.
-        //   - parent has NO teamName: no teammate path exists, so we must still
-        //     create the Subtask sub-character or the background task is invisible.
-        const runInBackground = msg.runInBackground as boolean | undefined;
-        if (runInBackground) {
-          const set = (backgroundParentToolIdsRef.current[id] ??= new Set());
-          set.add(toolId);
-        }
-        // Named spawns are Teammates-to-be: a teammate character will represent
-        // them, so never create the Subtask ghost the teammate would replace.
-        const isTeammateSpawn = msg.isTeammateSpawn as boolean | undefined;
-        const parentChar = building.getCharacter(id);
-        const parentHasTeam = !!parentChar?.teamName;
-        if (
-          isSubagentToolName(toolName) &&
-          !isTeammateSpawn &&
-          (!runInBackground || !parentHasTeam)
-        ) {
-          const label = status.startsWith('Subtask:') ? status.slice('Subtask:'.length).trim() : '';
-          const subId = building.addSubagent(id, toolId);
-          setSubagentCharacters((prev) => {
-            if (prev.some((s) => s.id === subId)) return prev;
-            return [...prev, { id: subId, parentAgentId: id, parentToolId: toolId, label }];
-          });
-        }
-      } else if (msg.type === 'agentToolDone') {
-        const id = msg.id as number;
-        const toolId = msg.toolId as string;
-        setAgentTools((prev) => {
-          const list = prev[id];
-          if (!list) return prev;
-          return {
-            ...prev,
-            [id]: list.map((t) => (t.toolId === toolId ? { ...t, done: true } : t)),
-          };
-        });
-      } else if (msg.type === 'agentToolsClear') {
-        const id = msg.id as number;
-        const bgSet = backgroundParentToolIdsRef.current[id];
-        setAgentTools((prev) => {
-          if (!(id in prev)) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-        // Keep sub-tool rows of live background spawns: their sub-characters
-        // survive the parent's turn end and stay animated by their own activity.
-        setSubagentTools((prev) => {
-          const agentSubs = prev[id];
-          if (!agentSubs) return prev;
-          const kept: Record<string, ToolActivity[]> = {};
-          for (const [parentToolId, rows] of Object.entries(agentSubs)) {
-            if (bgSet?.has(parentToolId)) kept[parentToolId] = rows;
-          }
-          const next = { ...prev };
-          if (Object.keys(kept).length === 0) {
-            delete next[id];
-          } else {
-            next[id] = kept;
-          }
-          return next;
-        });
-        // Remove this agent's sub-agent characters, EXCEPT:
-        // - team leads with inline teammates: their sub-agents represent real
-        //   teammates, removed only by SubagentStop/subagentClear;
-        // - live background spawns: removing + re-creating them on every turn
-        //   end teleported the character (subagentClear removes them for real).
-        const clearCh = building.getCharacter(id);
-        const hasInlineTeammates =
-          clearCh?.teamName && clearCh?.isTeamLead && !clearCh?.teamUsesTmux;
-        if (!hasInlineTeammates) {
-          const doomed: string[] = [];
-          for (const sub of building.subagentsOf(id)) {
-            if (!bgSet?.has(sub.parentToolId)) doomed.push(sub.parentToolId);
-          }
-          for (const parentToolId of doomed) {
-            building.removeSubagent(id, parentToolId);
-          }
-          setSubagentCharacters((prev) =>
-            prev.filter((s) => s.parentAgentId !== id || bgSet?.has(s.parentToolId)),
-          );
-        }
-        building.officeOf(id)?.setAgentTool(id, null);
-        building.officeOf(id)?.clearPermissionBubble(id);
-      } else if (msg.type === 'agentStatus') {
-        const id = msg.id as number;
-        const status = msg.status as string;
-        setAgentStatuses((prev) => {
-          if (status === 'active') {
-            if (!(id in prev)) return prev;
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          }
-          return { ...prev, [id]: status };
-        });
-        building.officeOf(id)?.setAgentActive(id, status === 'active');
-        // Going active can steal a desk from an idle colleague (claimWorkSeatForActiveAgent) —
-        // persist so the server copy of seat ownership follows.
-        if (status === 'active') saveAgentSeats(building);
-        if (status === 'waiting') {
-          building.officeOf(id)?.showWaitingBubble(id, msg.awaitingInput === true);
-          playDoneSound();
-        }
-      } else if (msg.type === 'agentToolPermission') {
-        const id = msg.id as number;
-        setAgentTools((prev) => {
-          const list = prev[id];
-          if (!list) return prev;
-          return {
-            ...prev,
-            [id]: list.map((t) => (t.done ? t : { ...t, permissionWait: true })),
-          };
-        });
-        building.officeOf(id)?.showPermissionBubble(id);
-        playPermissionSound();
-      } else if (msg.type === 'subagentToolPermission') {
-        const id = msg.id as number;
-        const parentToolId = msg.parentToolId as string;
-        // Show permission bubble on the sub-agent character
-        const subId = building.getSubagentId(id, parentToolId);
-        if (subId !== null) {
-          building.officeOf(subId)?.showPermissionBubble(subId);
-        }
-      } else if (msg.type === 'agentToolPermissionClear') {
-        const id = msg.id as number;
-        setAgentTools((prev) => {
-          const list = prev[id];
-          if (!list) return prev;
-          const hasPermission = list.some((t) => t.permissionWait);
-          if (!hasPermission) return prev;
-          return {
-            ...prev,
-            [id]: list.map((t) => (t.permissionWait ? { ...t, permissionWait: false } : t)),
-          };
-        });
-        building.officeOf(id)?.clearPermissionBubble(id);
-        // Also clear permission bubbles on all sub-agent characters of this parent
-        for (const sub of building.subagentsOf(id)) {
-          building.officeOf(sub.id)?.clearPermissionBubble(sub.id);
-        }
-      } else if (msg.type === 'subagentToolStart') {
-        const id = msg.id as number;
-        const parentToolId = msg.parentToolId as string;
-        const toolId = msg.toolId as string;
-        const status = msg.status as string;
-        setSubagentTools((prev) => {
-          const agentSubs = prev[id] || {};
-          const list = agentSubs[parentToolId] || [];
-          if (list.some((t) => t.toolId === toolId)) return prev;
-          return {
-            ...prev,
-            [id]: { ...agentSubs, [parentToolId]: [...list, { toolId, status, done: false }] },
-          };
-        });
-        // Update sub-agent character's tool and active state. The sub-agent is
-        // usually created by an earlier agentToolStart from JSONL using the same
-        // (real) parentToolId. When it's missing — a teamed lead's background
-        // spawn (the creation gate above suppressed the Subtask) or a reloaded
-        // panel that lost it — create it lazily; addSubagent is idempotent.
-        let subId = building.getSubagentId(id, parentToolId);
-        if (subId === null) {
-          subId = building.addSubagent(id, parentToolId);
-          const newSubId = subId;
-          setSubagentCharacters((prev) => {
-            if (prev.some((s) => s.id === newSubId)) return prev;
-            return [...prev, { id: newSubId, parentAgentId: id, parentToolId, label: '' }];
-          });
-          // Only watched background spawns are created lazily -- mark the
-          // parent tool as background so agentToolsClear preserves the sub.
-          const set = (backgroundParentToolIdsRef.current[id] ??= new Set());
-          set.add(parentToolId);
-        }
-        const subToolName = extractToolName(status);
-        building.officeOf(subId)?.setAgentTool(subId, subToolName);
-        building.officeOf(subId)?.setAgentActive(subId, true);
-      } else if (msg.type === 'subagentToolDone') {
-        const id = msg.id as number;
-        const parentToolId = msg.parentToolId as string;
-        const toolId = msg.toolId as string;
-        setSubagentTools((prev) => {
-          const agentSubs = prev[id];
-          if (!agentSubs) return prev;
-          const list = agentSubs[parentToolId];
-          if (!list) return prev;
-          return {
-            ...prev,
-            [id]: {
-              ...agentSubs,
-              [parentToolId]: list.map((t) => (t.toolId === toolId ? { ...t, done: true } : t)),
-            },
-          };
-        });
-      } else if (msg.type === 'subagentClear') {
-        const id = msg.id as number;
-        const parentToolId = msg.parentToolId as string;
-        backgroundParentToolIdsRef.current[id]?.delete(parentToolId);
-        setSubagentTools((prev) => {
-          const agentSubs = prev[id];
-          if (!agentSubs || !(parentToolId in agentSubs)) return prev;
-          const next = { ...agentSubs };
-          delete next[parentToolId];
-          if (Object.keys(next).length === 0) {
-            const outer = { ...prev };
-            delete outer[id];
-            return outer;
-          }
-          return { ...prev, [id]: next };
-        });
-        // Remove sub-agent character
-        building.removeSubagent(id, parentToolId);
-        setSubagentCharacters((prev) =>
-          prev.filter((s) => !(s.parentAgentId === id && s.parentToolId === parentToolId)),
-        );
-      } else if (msg.type === 'characterSpritesLoaded') {
-        const characters = msg.characters as CharacterSpriteSet[];
-        console.log(`[Webview] Received ${characters.length} pre-colored character sprites`);
-        destroyAllTextures();
-        setCharacterTemplates(characters, msg.cto as CharacterSpriteSet);
-      } else if (msg.type === 'petSpritesLoaded') {
-        const pets = msg.pets;
-        if (!Array.isArray(pets)) {
-          return;
-        }
-        const petNames = Array.isArray(msg.petNames) ? (msg.petNames as string[]) : undefined;
-        console.log(`[Webview] Received ${pets.length} pet sprites`);
-        destroyAllTextures();
-        setPetTemplates(
-          pets as Array<{
-            walkDown: string[][][];
-            idleDown: string[][][];
-            walkUp: string[][][];
-            idleUp: string[][][];
-            walkRight: string[][][];
-          }>,
-          petNames,
-        );
-      } else if (msg.type === 'floorTilesLoaded') {
-        const sprites = msg.sprites as string[][][];
-        console.log(`[Webview] Received ${sprites.length} floor tile patterns`);
-        destroyAllTextures();
-        setFloorSprites(sprites);
-      } else if (msg.type === 'carpetTilesLoaded') {
-        const sets = msg.sets as string[][][][];
-        console.log(`[Webview] Received ${sets.length} carpet variant(s)`);
-        destroyAllTextures();
-        setCarpetSprites(sets);
-      } else if (msg.type === 'areaMappingsLoaded') {
-        const mappings = (msg.mappings ?? {}) as Record<string, string[]>;
-        building.setAreaMappings(mappings);
-      } else if (msg.type === 'settingsLoaded') {
-        if (typeof msg.hooksEnabled === 'boolean') {
-          setHooksEnabled(msg.hooksEnabled as boolean);
-        }
-        if (typeof msg.hooksInfoShown === 'boolean') {
-          setHooksInfoShown(msg.hooksInfoShown as boolean);
-        }
-        if (typeof msg.lastSeenVersion === 'string') {
-          setLastSeenVersion(msg.lastSeenVersion as string);
-        }
-        if (typeof msg.extensionVersion === 'string') {
-          setExtensionVersion(msg.extensionVersion as string);
-        }
-      } else if (msg.type === 'hooksStatus') {
-        if (
-          typeof msg.installed === 'boolean' &&
-          typeof msg.providerId === 'string' &&
-          typeof msg.subjectId === 'string'
-        ) {
-          const providerId = msg.providerId as string;
-          const subjectId = msg.subjectId as string;
-          const installed = msg.installed as boolean;
-          const key = hooksSubjectKey(providerId, subjectId);
-          setHooksInstalled((m) => ({ ...m, [key]: installed }));
-          setHooksStatusSeq((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
-          if (installed) {
-            // Moot once THIS (provider, subject) pair is installed — the hooks tooltip or another tab granted
-            // consent while the dialog was open. Drop it from the queue (head or queued) rather than let a stale
-            // approval re-install; a DIFFERENT pair's status is not about this ask.
-            setConsentQueue((q) =>
-              q.filter((r) => r.providerId !== providerId || r.subjectId !== subjectId),
-            );
-          }
-        }
-      } else if (msg.type === 'hooksConsentRequest') {
-        if (
-          typeof msg.providerId === 'string' &&
-          typeof msg.subjectId === 'string' &&
-          typeof msg.headline === 'string' &&
-          typeof msg.disclosure === 'string' &&
-          typeof msg.actionLabel === 'string'
-        ) {
-          const request: HooksConsentRequest = {
-            type: 'hooksConsentRequest',
-            providerId: msg.providerId as string,
-            subjectId: msg.subjectId as string,
-            headline: msg.headline as string,
-            disclosure: msg.disclosure as string,
-            actionLabel: msg.actionLabel as string,
-          };
-          setConsentQueue((q) => {
-            const i = q.findIndex(
-              (r) => r.providerId === request.providerId && r.subjectId === request.subjectId,
-            );
-            if (i === -1) return [...q, request];
-            const next = q.slice();
-            next[i] = request; // a re-ask carries the freshest copy
-            return next;
-          });
-        }
-      } else if (msg.type === 'connectionsLoaded') {
-        if (Array.isArray(msg.connections)) {
-          setConnections(msg.connections as Connection[]);
-        }
-      } else if (msg.type === 'connectionAddResult') {
-        if (typeof msg.requestId === 'string') {
-          const resolve = pendingConnectionAddsRef.current.get(msg.requestId as string);
-          if (resolve) {
-            pendingConnectionAddsRef.current.delete(msg.requestId as string);
-            resolve(typeof msg.error === 'string' ? (msg.error as string) : undefined);
-          }
-        }
-      } else if (msg.type === 'furnitureAssetsLoaded') {
-        try {
-          const catalog = msg.catalog as FurnitureAsset[];
-          const sprites = msg.sprites as Record<string, string[][]>;
-          console.log(`📦 Webview: Loaded ${catalog.length} furniture assets`);
-          // Build dynamic catalog immediately so getCatalogEntry() works when layoutLoaded arrives next
-          buildDynamicCatalog({ catalog, sprites });
-          destroyAllTextures();
-        } catch (err) {
-          console.error(`❌ Webview: Error processing furnitureAssetsLoaded:`, err);
-        }
-      } else if (msg.type === 'agentTeamInfo') {
-        const id = msg.id as number;
-        building
-          .officeOf(id)
-          ?.setTeamInfo(
-            id,
-            msg.teamName as string | undefined,
-            msg.agentName as string | undefined,
-            msg.isTeamLead as boolean | undefined,
-            msg.leadAgentId as number | undefined,
-            msg.teamUsesTmux as boolean | undefined,
-          );
-      } else if (msg.type === 'agentContextUsage') {
-        const id = msg.id as number;
-        building
-          .officeOf(id)
-          ?.setAgentContext(id, msg.contextTokens as number, msg.maxContextTokens as number);
-      } else if (msg.type === 'agentInfo') {
-        const id = msg.id as number;
-        building
-          .officeOf(id)
-          ?.setAgentInfo(id, msg.name as string | undefined, msg.task as string | undefined);
-      } else if (msg.type === 'quotaUpdate') {
-        if (Array.isArray(msg.meters)) {
-          setQuotaMeters(msg.meters as QuotaMeter[]);
-        }
       }
     };
     const unsubscribe = transport.onMessage(handler);

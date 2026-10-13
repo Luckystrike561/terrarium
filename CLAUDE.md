@@ -118,14 +118,29 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
     constants.ts, index.css          Webview magic numbers, CSS variables
     notificationSound.ts, changelogData.ts
     components/                      BottomToolbar, ConnectionsMenu, IntroBubble, ChangelogModal, Tooltip, ui/ …
-    hooks/                           useExtensionMessages.ts, introTourState.ts, useIntroTour.ts
+    hooks/                           useExtensionMessages.ts (dispatch), introTourState.ts, useIntroTour.ts
+      serverMessages/                One handler per message family (agentLifecycle, toolActivity, teamAndContext, asset, settings) and their shared messageContext.ts
     office/
       iso.ts, projection.ts          Iso projection, fitted view
       backdrop.ts, isoWalls.ts       Skyline, wall boxes and glass partitions
       colorize.ts, floorTiles.ts, wallTiles.ts, toolUtils.ts, types.ts
       sprites/                       spriteData.ts, textureCache.ts, carpetTiles.ts, petSpriteData.ts, *.json
       layout/                        furnitureCatalog.ts, layoutSerializer.ts, tileMap.ts
-      engine/                        building.ts (floors), officeState.ts (one floor), characters.ts, ctoOffice.ts, sceneRenderer.ts, isoSort.ts, gameLoop.ts, …
+      engine/
+        building.ts                  The floors, bottom to top
+        officeState.ts               One floor's world state (layout, seats, characters, pets), delegating every rule below
+        ctoOffice.ts                 CtoOffice: the CTO's desk and couch loop and the CTO queue, plus office and door geometry
+        seatAssignment.ts, seatPlacement.ts   Desk vs lounge seats, seat picking by area, work-seat claims, teammate clustering
+        greeterAgent.ts              The Intro greeter's spawn and despawn
+        subagents.ts                 Sub-agent characters and their id maps
+        agentMovement.ts             Seat reassignment, back-to-seat and walk-to-tile commands
+        agentStatus.ts               Tool, bubble, team, context and task setters
+        pets.ts, petEntity.ts        Pet roster and relocation, and the per-pet FSM
+        furnitureAutoState.ts        Auto-on electronics and furniture animation frames
+        hitTesting.ts                Character hit-testing
+        characters.ts, matrixEffect.ts, matrixEffectState.ts, existingAgents.ts, worldAccess.ts, isoSort.ts, gameLoop.ts, pixiColor.ts, index.ts
+        sceneRenderer.ts             OfficeSceneRenderer: Pixi stage and per-frame sequencing of the scene* layers
+        sceneFloor.ts, sceneAreas.ts, sceneEntities.ts, sceneBubbles.ts, sceneBuilding.ts, scenePools.ts   Floor and carpet, areas and seat indicator, iso-sorted entities, bubbles and badges, pillars and floor names, sprite pools
       components/                    OfficeCanvas.tsx, ToolOverlay.tsx, QuotaJars.tsx (coffee-bean quota jars)
   test/                              Vitest (Node runner)
 
@@ -135,7 +150,7 @@ e2e/                                 Playwright, Chromium only
   playwright.config.ts, global-setup.ts, run-config.ts
   fixtures/                          standalone.ts, mock-claude(.cmd), mock-claude-runner.cjs, fake-ssh.cjs
   helpers/                           mock-claude.ts, office.ts, hooks.ts, standalone.ts, lifecycle.ts, team.ts, herdr.ts, intro.ts, …
-  tests/claude/hooks-on/             basic, consent, lifecycle, teams
+  tests/claude/hooks-on/             basic, consent, clear-resume, subagent-and-teammate-spawns, teammate-routing-and-dismissal, cross-cutting-invariants, teams
   tests/claude/hooks-off/            lifecycle, matrix, areas, areas-multiroot, carpet, pets
   tests/standalone/                  hooks, omp, herdr, connections, ui
   demo/                              record.demo.ts (README demo GIF)
@@ -244,7 +259,7 @@ npm run test:server        # server Vitest only
 npm run test:webview       # webview Vitest only
 npm run e2e                # Playwright (needs a build)
 npm run e2e:inventory      # regenerate the e2e/README.md inventory
-npm run lint               # core + server + webview ESLint
+npm run lint               # core + server + webview + e2e ESLint
 npm run check-types        # tsc across all packages
 npm run asyncapi:validate  # validate the contract
 npm run asyncapi:generate  # regenerate core/src/messages.ts
@@ -273,6 +288,7 @@ The husky `pre-commit` hook runs gitleaks and lint-staged (ESLint, Prettier). Th
 - **`noUnusedLocals` / `noUnusedParameters`** everywhere.
 - **`.js` extensions** on all relative imports in the server (Node16 module resolution, target ES2022).
 - `noFallthroughCasesInSwitch` in the webview.
+- **At most 600 lines per file** in `server/src`, `webview-ui/src` and `e2e`: ESLint `max-lines` fails `npm run lint` past that. Split along a responsibility seam, as `office/engine/` does. The only exemptions are the four oversized Claude module files listed in `eslint.config.mjs`, until they are split too.
 
 ## Constants
 
