@@ -156,7 +156,7 @@ function pickSeatByArea(
  * would seat an agent on a sofa even while desks sat empty in another area.
  * A rest seat is now only a fallback for when no desk is free anywhere.
  */
-export function findFreeSeat(
+function findFreeSeat(
   seats: ReadonlyMap<string, Seat>,
   restSeatUids: ReadonlySet<string>,
   folderName: string | undefined,
@@ -177,7 +177,7 @@ export function findFreeSeat(
 }
 
 /** First free desk/work (non-rest) seat uid, or null if every one is taken. */
-export function findFreeWorkSeatUid(
+function findFreeWorkSeatUid(
   seats: ReadonlyMap<string, Seat>,
   restSeatUids: ReadonlySet<string>,
 ): string | null {
