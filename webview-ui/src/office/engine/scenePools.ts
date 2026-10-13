@@ -3,12 +3,6 @@ import { Graphics, Sprite } from 'pixi.js';
 
 import type { Point } from '../iso.js';
 import { tileCorner } from '../iso.js';
-import { TILE_SIZE } from '../types.js';
-import type { SortBox } from './isoSort.js';
-import { SortLayer } from './isoSort.js';
-
-/** Half-extent (tiles) of a character's or pet's sort box around its feet. */
-export const ACTOR_SORT_HALF = 0.01;
 
 export function getOrCreateSprite<K>(pool: Map<K, Sprite>, key: K, container: Container): Sprite {
   let sprite = pool.get(key);
@@ -60,16 +54,4 @@ export function footprintDiamond(col: number, row: number, w = 1, h = 1): Point[
 
 export function polyCoords(points: readonly Point[]): number[] {
   return points.flatMap((p) => [p.x, p.y]);
-}
-
-export function actorBox(x: number, y: number): SortBox {
-  const col = x / TILE_SIZE;
-  const row = y / TILE_SIZE;
-  return {
-    minCol: col - ACTOR_SORT_HALF,
-    minRow: row - ACTOR_SORT_HALF,
-    maxCol: col + ACTOR_SORT_HALF,
-    maxRow: row + ACTOR_SORT_HALF,
-    layer: SortLayer.ACTOR,
-  };
 }

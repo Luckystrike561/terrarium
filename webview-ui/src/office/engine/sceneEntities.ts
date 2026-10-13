@@ -11,15 +11,18 @@ import { getWallSprite } from '../isoWalls.js';
 import { getPetSprites } from '../sprites/petSpriteData.js';
 import { getCharacterSprites, getCtoSprites } from '../sprites/spriteData.js';
 import { getOutlineSprite, getTexture } from '../sprites/textureCache.js';
-import { CharacterState, TileType } from '../types.js';
+import { CharacterState, TILE_SIZE, TileType } from '../types.js';
 import { wallColorToHex } from '../wallTiles.js';
 import { getCharacterSprite } from './characters.js';
 import type { SortBox } from './isoSort.js';
 import { isoDrawOrder, SortLayer } from './isoSort.js';
 import { drawMatrixEffect } from './matrixEffect.js';
 import { getPetSpriteData } from './petEntity.js';
-import { actorBox, getOrCreateGraphics, getOrCreateSprite, pruneStale } from './scenePools.js';
+import { getOrCreateGraphics, getOrCreateSprite, pruneStale } from './scenePools.js';
 import type { FloorRenderState } from './sceneRenderer.js';
+
+/** Half-extent (tiles) of a character's or pet's sort box around its feet. */
+const ACTOR_SORT_HALF = 0.01;
 
 export interface EntityPools {
   furniture: Map<string, Sprite>;
@@ -38,6 +41,18 @@ export function createEntityPools(): EntityPools {
     outline: new Map(),
     matrix: new Map(),
     pet: new Map(),
+  };
+}
+
+function actorBox(x: number, y: number): SortBox {
+  const col = x / TILE_SIZE;
+  const row = y / TILE_SIZE;
+  return {
+    minCol: col - ACTOR_SORT_HALF,
+    minRow: row - ACTOR_SORT_HALF,
+    maxCol: col + ACTOR_SORT_HALF,
+    maxRow: row + ACTOR_SORT_HALF,
+    layer: SortLayer.ACTOR,
   };
 }
 
