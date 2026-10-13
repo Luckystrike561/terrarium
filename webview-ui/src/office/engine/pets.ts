@@ -124,13 +124,13 @@ export function relocateOutOfBoundsPets(
   walkableTiles: Array<{ col: number; row: number }>,
 ): void {
   for (const pet of pets) {
-    const inBounds =
+    const onWalkableTile =
       pet.tileCol >= 0 &&
       pet.tileCol < layout.cols &&
       pet.tileRow >= 0 &&
       pet.tileRow < layout.rows &&
       isWalkable(pet.tileCol, pet.tileRow, tileMap, blockedTiles);
-    if (inBounds || walkableTiles.length === 0) continue;
+    if (onWalkableTile || walkableTiles.length === 0) continue;
     const spawn = walkableTiles[Math.floor(Math.random() * walkableTiles.length)];
     pet.tileCol = spawn.col;
     pet.tileRow = spawn.row;
