@@ -69,21 +69,26 @@ export function dismissBubble(id: number, characters: ReadonlyMap<number, Charac
   }
 }
 
+export interface TeamInfo {
+  teamName?: string;
+  agentName?: string;
+  isTeamLead?: boolean;
+  leadAgentId?: number;
+  teamUsesTmux?: boolean;
+}
+
 /** A teammate discovered only after its plain external session was adopted is linked
  *  here, not at creation, so it never went through the seat-next-to-lead path addAgent
  *  runs for inline teammates. Cluster it now, once, on first link. */
 export function setTeamInfo(
   id: number,
-  teamName: string | undefined,
-  agentName: string | undefined,
-  isTeamLead: boolean | undefined,
-  leadAgentId: number | undefined,
-  teamUsesTmux: boolean | undefined,
+  info: TeamInfo,
   characters: ReadonlyMap<number, Character>,
   reseatNextToLead: (teammateId: number, leadId: number) => void,
 ): void {
   const ch = characters.get(id);
   if (!ch) return;
+  const { teamName, agentName, isTeamLead, leadAgentId, teamUsesTmux } = info;
   const wasUnlinked = ch.leadAgentId === undefined;
   ch.teamName = teamName;
   ch.agentName = agentName;

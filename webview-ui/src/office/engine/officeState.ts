@@ -433,11 +433,7 @@ export class OfficeState {
   ): void {
     setTeamInfo(
       id,
-      teamName,
-      agentName,
-      isTeamLead,
-      leadAgentId,
-      teamUsesTmux,
+      { teamName, agentName, isTeamLead, leadAgentId, teamUsesTmux },
       this.characters,
       (teammateId, leadId) => this.reseatNextToLead(teammateId, leadId),
     );
