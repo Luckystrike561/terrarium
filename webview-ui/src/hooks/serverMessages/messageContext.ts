@@ -16,13 +16,12 @@ export interface SubagentCharacter {
 }
 
 /** Everything a server-message family handler needs: the current Building and every
- *  React setter/ref useExtensionMessages owns. Built once per received message so each
- *  family module stays a plain function, never a hook. */
+ *  React setter/ref useExtensionMessages owns. Built once per effect run, with `building`
+ *  refreshed for each message, so each family module stays a plain function, never a hook. */
 export interface MessageContext {
   building: Building;
-  /** Agents restored by `existingAgents` before the layout (and its seats) is ready;
-   *  flushed by `layoutLoaded`. Mutated in place (never reassigned) so every family
-   *  module sees the same buffer. */
+  /** Agents restored by `existingAgents` before the layout (and its seats) is ready.
+   *  `layoutLoaded` flushes and replaces it, so always read it through `.current`. */
   pendingAgentsRef: { current: PendingAgent[] };
   layoutReadyRef: { current: boolean };
   backgroundParentToolIdsRef: { current: Record<number, Set<string>> };
