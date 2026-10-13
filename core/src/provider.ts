@@ -51,7 +51,7 @@ export type AgentEvent =
       folderName?: string;
       /** The session's place in a team, known when it starts. A teammate announced with its lead sits beside it. */
       team?: TeamMembership;
-      /** The machine the session runs on, as a floor id, when it is not the one the server runs on. Its character
+      /** The machine the session runs on, as a floor id. Absent means the machine the server runs on. Its character
        *  lives on that machine's floor. */
       machineId?: string;
     }
