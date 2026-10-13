@@ -124,11 +124,9 @@ export function handleAgentLifecycleMessage(msg: ServerMessage, ctx: MessageCont
     return true;
   } else if (msg.type === 'existingAgents') {
     const incoming = msg.agents;
-    // AgentSeatMeta and ExistingAgentMeta are the identical shape; only the Record key
-    // type differs (string vs number), and JS object keys are always strings regardless.
-    const meta = msg.agentMeta as unknown as Record<number, ExistingAgentMeta>;
-    const folderNames = msg.folderNames as unknown as Record<number, string>;
-    const machineIds = msg.machineIds as unknown as Record<number, string>;
+    const meta: Record<number, ExistingAgentMeta> = msg.agentMeta;
+    const folderNames: Record<number, string> = msg.folderNames;
+    const machineIds: Record<number, string> = msg.machineIds;
     // Order-independent restore: add agents now if the layout (and its seats)
     // is already built, otherwise buffer them for the next layoutLoaded.
     // Depending on layoutLoaded always arriving last stranded restored agents
