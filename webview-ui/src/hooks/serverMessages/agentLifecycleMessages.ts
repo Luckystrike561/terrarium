@@ -130,7 +130,7 @@ export function handleAgentLifecycleMessage(msg: ServerMessage, ctx: MessageCont
     // Order-independent restore: add agents now if the layout (and its seats)
     // is already built, otherwise buffer them for the next layoutLoaded.
     // Depending on layoutLoaded always arriving last stranded restored agents
-    // on surfaces that send layout first (issue #334).
+    // on surfaces that send layout first.
     if (
       reconcileExistingAgents(
         building,
