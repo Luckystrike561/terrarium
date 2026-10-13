@@ -85,8 +85,8 @@ export class OfficeState {
   /** Sub-agent ids are negative and unique across every floor of the building: the next one to hand out. */
   private readonly subagentIds: { next: number };
 
-  /** folderName → list of Area labels that workspace folder belongs to. Populated by
-   *  useExtensionMessages; biases new-agent seat picking toward the folder's Area. */
+  /** folderName → list of Area labels that workspace folder belongs to, as the server
+   *  last sent them. Biases new-agent seat picking toward the folder's Area. */
   areaMappings: Record<string, string[]> = {};
 
   /** The first-run consent greeter, deliberately NOT in `characters`: everything that
