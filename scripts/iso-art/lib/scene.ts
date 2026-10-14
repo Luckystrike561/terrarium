@@ -30,7 +30,7 @@ export interface SurfaceHit {
   a: number;
   b: number;
   normal: readonly [number, number, number];
-  /** 0 (darkest) .. 1 (fully lit). Top = 1, left faces 0.7, right faces 0.45. */
+  /** 0 (darkest) .. 1 (fully lit). Top = 1, left faces 0.8, right faces 0.6. */
   light: number;
 }
 
@@ -45,14 +45,15 @@ interface Primitive {
   trace(gx0: number, gy0: number): Hit | null;
 }
 
-const LIGHT = [0.45, 0.7, 1] as const;
-const SHADOW_TINT = hex('#1f1830');
-const OUTLINE_INK = hex('#1a1426');
+const LIGHT = [0.6, 0.8, 1] as const;
+const SHADOW_TINT = hex('#2c3446');
+const OUTLINE_INK = hex('#111111');
 /** How far toward ink an edge where one primitive passes in front of
  *  another is pulled: a dark line, lighter than the silhouette. */
 const INNER_EDGE_INK = 0.65;
 /** How far toward ink the darker thread of a fabric dither is pulled. */
 const FABRIC_THREAD_INK = 0.18;
+const GLOSS_WHITE = hex('#ffffff');
 
 function lightOf(n: readonly [number, number, number]): number {
   return Math.max(0.2, Math.min(1, LIGHT[0] * n[0] + LIGHT[1] * n[1] + LIGHT[2] * n[2]));
@@ -83,6 +84,34 @@ export function fabric(base: RGBA): Paint {
     const c = lit(base, hit.light);
     const thread = (Math.floor(hit.a) + Math.floor(hit.b)) % 2 === 0;
     return thread ? mix(c, OUTLINE_INK, FABRIC_THREAD_INK) : c;
+  };
+}
+
+/** Habbo's lacquer gloss: a soft white diagonal streak across a flat face,
+ *  offset toward the back-left corner the key light favours. `aSpan`/`bSpan`
+ *  are the face-local extent of `hit.a`/`hit.b` (a box face's own width and
+ *  height, a cylinder top's `2 * radius`). */
+export function glossStreak(
+  c: RGBA,
+  hit: SurfaceHit,
+  aSpan: number,
+  bSpan: number,
+  strength = 0.5,
+): RGBA {
+  const u = hit.a / aSpan;
+  const v = hit.b / bSpan;
+  const band = 1 - Math.min(1, Math.abs(u - v - 0.25) / 0.22);
+  return band > 0 ? mix(c, GLOSS_WHITE, strength * band) : c;
+}
+
+/** Paint a primitive one flat colour, with a gloss streak across its top
+ *  face: Habbo lacquer and glossy plastic. `w`/`h` are the top face's
+ *  world-unit width and depth (a box's x and y span, a cylinder's own
+ *  `2 * radius`). */
+export function glossyTop(base: RGBA, w: number, h: number, strength = 0.45): Paint {
+  return (hit) => {
+    const c = lit(base, hit.light);
+    return hit.face === 'top' ? glossStreak(c, hit, w, h, strength) : c;
   };
 }
 

@@ -1,6 +1,7 @@
 /**
- * Night city skyline painted behind the office, as raw RGBA pixels. DOM-free:
- * the scene renderer uploads the result as one nearest-sampled texture.
+ * Daylight hotel skyline painted behind the office, as raw RGBA pixels.
+ * DOM-free: the scene renderer uploads the result as one nearest-sampled
+ * texture.
  *
  * Everything is a pure function of the pixel coordinates (hashed, never
  * random), with the skyline anchored to the bottom-left corner, so a resize
@@ -8,24 +9,25 @@
  */
 
 import {
-  BACKDROP_ANTENNA_CHANCE,
-  BACKDROP_ANTENNA_HEIGHT_PX,
+  BACKDROP_CLOUD_BAND,
+  BACKDROP_CLOUD_CELL_PX,
+  BACKDROP_CLOUD_CHANCE,
+  BACKDROP_CLOUD_COLOR,
+  BACKDROP_CLOUD_HEIGHT_PX,
+  BACKDROP_CLOUD_SHADOW_COLOR,
+  BACKDROP_CLOUD_WIDTH_PX,
   BACKDROP_FAR_BUILDING_COLOR,
   BACKDROP_FAR_BUILDING_HEIGHT_PX,
   BACKDROP_FAR_BUILDING_WIDTH_PX,
   BACKDROP_NEAR_BUILDING_COLOR,
   BACKDROP_NEAR_BUILDING_HEIGHT_PX,
   BACKDROP_NEAR_BUILDING_WIDTH_PX,
+  BACKDROP_ROOFTOP_DETAIL_CHANCE,
+  BACKDROP_ROOFTOP_DETAIL_HEIGHT_PX,
   BACKDROP_SKY_COLORS,
-  BACKDROP_STAR_CELL_PX,
-  BACKDROP_STAR_CHANCE,
-  BACKDROP_STAR_COLORS,
-  BACKDROP_STAR_CUTOFF,
-  BACKDROP_WINDOW_DIM_COLOR,
+  BACKDROP_WINDOW_COLOR,
   BACKDROP_WINDOW_HEIGHT_PX,
   BACKDROP_WINDOW_INSET_PX,
-  BACKDROP_WINDOW_LIT_CHANCE,
-  BACKDROP_WINDOW_LIT_COLOR,
   BACKDROP_WINDOW_STEP_X_PX,
   BACKDROP_WINDOW_STEP_Y_PX,
 } from '../constants.js';
@@ -50,17 +52,17 @@ const BAYER_LEVELS = 16;
 
 /** Independent hash streams, one per decision. */
 const Salt = {
-  star: 1,
-  starX: 2,
-  starY: 3,
-  starBrightness: 4,
-  farWidth: 5,
-  farHeight: 6,
-  antenna: 7,
-  nearWidth: 8,
-  nearHeight: 9,
-  nearStagger: 10,
-  window: 11,
+  cloud: 1,
+  cloudWidth: 2,
+  cloudHeight: 3,
+  cloudX: 4,
+  cloudY: 5,
+  farWidth: 6,
+  farHeight: 7,
+  rooftopDetail: 8,
+  nearWidth: 9,
+  nearHeight: 10,
+  nearStagger: 11,
 } as const;
 
 /** Deterministic hash of two integers into [0, 1). */
@@ -137,17 +139,43 @@ function paintSky(canvas: PixelCanvas): void {
   }
 }
 
-function paintStars(canvas: PixelCanvas): void {
-  const stars = BACKDROP_STAR_COLORS.map(toPixel);
-  const skyHeight = Math.floor(canvas.height * BACKDROP_STAR_CUTOFF);
-  for (let cellY = 0; cellY * BACKDROP_STAR_CELL_PX < skyHeight; cellY++) {
-    for (let cellX = 0; cellX * BACKDROP_STAR_CELL_PX < canvas.width; cellX++) {
-      if (hash01(cellX, cellY, Salt.star) >= BACKDROP_STAR_CHANCE) continue;
-      const x = (cellX + hash01(cellX, cellY, Salt.starX)) * BACKDROP_STAR_CELL_PX;
-      const y = (cellY + hash01(cellX, cellY, Salt.starY)) * BACKDROP_STAR_CELL_PX;
-      if (y >= skyHeight) continue;
-      const brightness = Math.floor(hash01(cellX, cellY, Salt.starBrightness) * stars.length);
-      canvas.fillRect(Math.floor(x), Math.floor(y), 1, 1, stars[brightness]);
+const CLOUD_CAP_PX = 1;
+
+/** A flat white puff with a stepped cap and a shaded underside: pixel-art
+ *  cumulus, never a round gradient. */
+function paintCloudPuff(
+  canvas: PixelCanvas,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  top: number,
+  underside: number,
+): void {
+  const capInset = Math.max(1, Math.floor(width / 5));
+  canvas.fillRect(x + capInset, y, width - capInset * 2, CLOUD_CAP_PX, top);
+  canvas.fillRect(x, y + CLOUD_CAP_PX, width, Math.max(1, height - CLOUD_CAP_PX - 1), top);
+  canvas.fillRect(x, y + height - 1, width, 1, underside);
+}
+
+function paintClouds(canvas: PixelCanvas): void {
+  const top = toPixel(BACKDROP_CLOUD_COLOR);
+  const underside = toPixel(BACKDROP_CLOUD_SHADOW_COLOR);
+  const band = Math.floor(canvas.height * BACKDROP_CLOUD_BAND);
+  for (let cellY = 0; cellY * BACKDROP_CLOUD_CELL_PX < band; cellY++) {
+    for (let cellX = 0; cellX * BACKDROP_CLOUD_CELL_PX < canvas.width; cellX++) {
+      if (hash01(cellX, cellY, Salt.cloud) >= BACKDROP_CLOUD_CHANCE) continue;
+      const width = pickInRange(BACKDROP_CLOUD_WIDTH_PX, hash01(cellX, cellY, Salt.cloudWidth));
+      const height = pickInRange(BACKDROP_CLOUD_HEIGHT_PX, hash01(cellX, cellY, Salt.cloudHeight));
+      const x =
+        cellX * BACKDROP_CLOUD_CELL_PX +
+        Math.floor(hash01(cellX, cellY, Salt.cloudX) * Math.max(1, BACKDROP_CLOUD_CELL_PX - width));
+      const y =
+        cellY * BACKDROP_CLOUD_CELL_PX +
+        Math.floor(
+          hash01(cellX, cellY, Salt.cloudY) * Math.max(1, BACKDROP_CLOUD_CELL_PX - height),
+        );
+      paintCloudPuff(canvas, x, y, width, height, top, underside);
     }
   }
 }
@@ -159,12 +187,12 @@ function paintFarSkyline(canvas: PixelCanvas): void {
     const height = pickInRange(BACKDROP_FAR_BUILDING_HEIGHT_PX, hash01(index, 0, Salt.farHeight));
     const top = canvas.height - height;
     canvas.fillRect(x, top, width, height, color);
-    if (hash01(index, 0, Salt.antenna) < BACKDROP_ANTENNA_CHANCE) {
+    if (hash01(index, 0, Salt.rooftopDetail) < BACKDROP_ROOFTOP_DETAIL_CHANCE) {
       canvas.fillRect(
         x + Math.floor(width / 2),
-        top - BACKDROP_ANTENNA_HEIGHT_PX,
+        top - BACKDROP_ROOFTOP_DETAIL_HEIGHT_PX,
         1,
-        BACKDROP_ANTENNA_HEIGHT_PX,
+        BACKDROP_ROOFTOP_DETAIL_HEIGHT_PX,
         color,
       );
     }
@@ -174,10 +202,9 @@ function paintFarSkyline(canvas: PixelCanvas): void {
 
 function paintWindows(
   canvas: PixelCanvas,
-  building: { index: number; x: number; top: number; width: number },
+  building: { x: number; top: number; width: number },
 ): void {
-  const lit = toPixel(BACKDROP_WINDOW_LIT_COLOR);
-  const dim = toPixel(BACKDROP_WINDOW_DIM_COLOR);
+  const window = toPixel(BACKDROP_WINDOW_COLOR);
   const right = building.x + building.width - BACKDROP_WINDOW_INSET_PX;
   for (
     let y = building.top + BACKDROP_WINDOW_INSET_PX;
@@ -185,10 +212,7 @@ function paintWindows(
     y += BACKDROP_WINDOW_STEP_Y_PX
   ) {
     for (let x = building.x + BACKDROP_WINDOW_INSET_PX; x < right; x += BACKDROP_WINDOW_STEP_X_PX) {
-      const isLit =
-        hash01(building.index * BACKDROP_WINDOW_STEP_X_PX + x, canvas.height - y, Salt.window) <
-        BACKDROP_WINDOW_LIT_CHANCE;
-      canvas.fillRect(x, y, 1, BACKDROP_WINDOW_HEIGHT_PX, isLit ? lit : dim);
+      canvas.fillRect(x, y, 1, BACKDROP_WINDOW_HEIGHT_PX, window);
     }
   }
 }
@@ -201,16 +225,16 @@ function paintNearSkyline(canvas: PixelCanvas): void {
     const height = pickInRange(BACKDROP_NEAR_BUILDING_HEIGHT_PX, hash01(index, 0, Salt.nearHeight));
     const top = canvas.height - height;
     canvas.fillRect(x, top, width, height, color);
-    paintWindows(canvas, { index, x, top, width });
+    paintWindows(canvas, { x, top, width });
     x += width;
   }
 }
 
 /** Paints a `width`×`height` backdrop, every pixel opaque. */
-export function paintNightSkyline(width: number, height: number): BackdropImage {
+export function paintDaylightSkyline(width: number, height: number): BackdropImage {
   const canvas = new PixelCanvas(Math.max(1, width), Math.max(1, height));
   paintSky(canvas);
-  paintStars(canvas);
+  paintClouds(canvas);
   paintFarSkyline(canvas);
   paintNearSkyline(canvas);
   return { width: canvas.width, height: canvas.height, pixels: canvas.pixels };

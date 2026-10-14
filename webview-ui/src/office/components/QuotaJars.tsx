@@ -123,7 +123,7 @@ function Jar({
     >
       {isHovered && (
         <div
-          className={`absolute ${opensDownward ? 'top-full mt-4' : 'bottom-full mb-4'} px-8 py-4 paper-tag whitespace-nowrap flex flex-col gap-2 text-xs leading-none`}
+          className={`absolute ${opensDownward ? 'top-full mt-4' : 'bottom-full mb-4'} px-8 py-4 hud-tag whitespace-nowrap flex flex-col gap-2 text-xs leading-none`}
           style={{ zIndex: 43 }}
           data-testid="quota-tooltip"
         >

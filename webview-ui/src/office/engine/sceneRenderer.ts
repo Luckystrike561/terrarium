@@ -56,6 +56,7 @@ import {
   FLOOR_SLAB_LEFT_COLOR,
   FLOOR_SLAB_RIGHT_COLOR,
   HOVERED_OUTLINE_ALPHA,
+  ROOM_INK_COLOR,
   SEAT_AVAILABLE_COLOR,
   SEAT_BUSY_COLOR,
   SEAT_OWN_COLOR,
@@ -63,7 +64,7 @@ import {
   STATUS_BADGE_HORIZONTAL_OFFSET_PX,
   STATUS_BADGE_VERTICAL_OFFSET_PX,
 } from '../../constants.js';
-import { paintNightSkyline } from '../backdrop.js';
+import { paintDaylightSkyline } from '../backdrop.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
 import type { Point } from '../iso.js';
 import { ISO_TILE_H, ISO_TILE_W, projectToDiamond, tileCorner, worldToIso } from '../iso.js';
@@ -201,6 +202,33 @@ function footprintDiamond(col: number, row: number, w = 1, h = 1): Point[] {
   ];
 }
 
+/** A WALL tile carries no floor material of its own. The nearest open
+ *  interior neighbour's material and colour stand in for it, so the strip in
+ *  front of a thin back wall or glass partition shows floor, never the void
+ *  behind the wall sprite. */
+function nearestFloorNeighbor(
+  tileMap: TileTypeVal[][],
+  layoutCols: number,
+  tileColors: Array<ColorValue | null> | undefined,
+  r: number,
+  c: number,
+): { tile: TileTypeVal; color: ColorValue | null | undefined } | null {
+  const rows = tileMap.length;
+  const cols = rows > 0 ? tileMap[0].length : 0;
+  for (const [nr, nc] of [
+    [r + 1, c],
+    [r, c + 1],
+    [r - 1, c],
+    [r, c - 1],
+  ]) {
+    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+    const neighborTile = tileMap[nr][nc];
+    if (neighborTile === TileType.VOID || neighborTile === TileType.WALL) continue;
+    return { tile: neighborTile, color: tileColors?.[nr * layoutCols + nc] };
+  }
+  return null;
+}
+
 function polyCoords(points: readonly Point[]): number[] {
   return points.flatMap((p) => [p.x, p.y]);
 }
@@ -317,11 +345,13 @@ class FloorScene {
     const isOpen = (c: number, r: number) =>
       r < 0 || c < 0 || r >= rows || c >= cols || tileMap[r][c] === TileType.VOID;
 
-    // Slab edges where the office floor ends, so the room reads as a block.
+    // Slab edges where the office floor ends, so the room reads as a block,
+    // outlined in ink along the bottom like Habbo's floor edge.
     const slab = new Graphics();
     slab.roundPixels = true;
     const leftSlab = hexToNumber(FLOOR_SLAB_LEFT_COLOR);
     const rightSlab = hexToNumber(FLOOR_SLAB_RIGHT_COLOR);
+    const slabInk = hexToNumber(ROOM_INK_COLOR);
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (tileMap[r][c] === TileType.VOID) continue;
@@ -341,6 +371,10 @@ class FloorScene {
               left.y + state.slabPx,
             ])
             .fill(leftSlab);
+          slab
+            .moveTo(left.x, left.y + state.slabPx)
+            .lineTo(bottom.x, bottom.y + state.slabPx)
+            .stroke({ width: 1, color: slabInk });
         }
         if (isOpen(c + 1, r)) {
           slab
@@ -355,24 +389,45 @@ class FloorScene {
               bottom.y + state.slabPx,
             ])
             .fill(rightSlab);
+          slab
+            .moveTo(bottom.x, bottom.y + state.slabPx)
+            .lineTo(right.x, right.y + state.slabPx)
+            .stroke({ width: 1, color: slabInk });
         }
       }
     }
     this.floorContainer.addChild(slab);
 
+    const drawFloorTile = (
+      c: number,
+      r: number,
+      tile: TileTypeVal,
+      color: ColorValue | null | undefined,
+    ): void => {
+      const sprite = new Sprite(
+        getTexture(
+          projectToDiamond(getColorizedFloorSprite(tile, color ?? { h: 0, s: 0, b: 0, c: 0 })),
+        ),
+      );
+      sprite.roundPixels = true;
+      const top = tileCorner(c, r);
+      sprite.position.set(top.x - ISO_TILE_W / 2, top.y);
+      this.floorContainer.addChild(sprite);
+    };
+
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const tile = tileMap[r][c];
-        // Walls are boxes drawn with the entities.
-        if (tile === TileType.VOID || tile === TileType.WALL) continue;
-        const color = state.tileColors?.[r * layoutCols + c] ?? { h: 0, s: 0, b: 0, c: 0 };
-        const sprite = new Sprite(
-          getTexture(projectToDiamond(getColorizedFloorSprite(tile, color))),
-        );
-        sprite.roundPixels = true;
-        const top = tileCorner(c, r);
-        sprite.position.set(top.x - ISO_TILE_W / 2, top.y);
-        this.floorContainer.addChild(sprite);
+        if (tile === TileType.VOID) continue;
+        if (tile === TileType.WALL) {
+          // A thin back wall or glass partition no longer fills its whole
+          // tile: without a floor of its own, the strip in front of it would
+          // show the void behind the wall sprite instead of room floor.
+          const under = nearestFloorNeighbor(tileMap, layoutCols, state.tileColors, r, c);
+          if (under) drawFloorTile(c, r, under.tile, under.color);
+          continue;
+        }
+        drawFloorTile(c, r, tile, state.tileColors?.[r * layoutCols + c]);
       }
     }
   }
@@ -915,7 +970,7 @@ export class OfficeSceneRenderer {
     if (key === this.backdropKey) return;
     this.backdropKey = key;
 
-    const image = paintNightSkyline(
+    const image = paintDaylightSkyline(
       Math.ceil(canvasWidth / pixelSize),
       Math.ceil(canvasHeight / pixelSize),
     );

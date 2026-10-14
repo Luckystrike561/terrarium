@@ -1,18 +1,18 @@
 /**
  * Generate the 16×16 grayscale floor patterns (`floor_0.png`..`floor_8.png`).
  *
- * Each pattern is one material: a grid of slabs, planks or bricks, lit like
- * the furniture (seam toward the key light one band brighter, an inset edge
- * one band darker so each piece reads as slightly raised) and flat in
- * between, like Habbo's floor tiles. Only wood carries grain. The webview
+ * Each pattern is one material: a grid of slabs, planks or bricks, flat
+ * colour with a 1 px darker seam along each cell's top and left edge, like
+ * Habbo's floor grid, so every tile reads as a diamond. Only wood carries
+ * grain; every other material is flat between its seams. The webview
  * projects the square onto a 32×16 diamond and colourizes it per tile
  * (`colorizeSprite`, Photoshop Colorize mode), so the pattern only carries
  * luminance: alternating tones stay readable after any hue/saturation/
  * brightness/contrast the room applies.
  *
- * Only the top and left edge of each cell carries the bright seam: tiled
- * edge to edge, the next cell's own seam covers the shared boundary, so the
- * pattern repeats with no doubled or missing line.
+ * Only the top and left edge of each cell carries the seam: tiled edge to
+ * edge, the next cell's own seam covers the shared boundary, so the pattern
+ * repeats with no doubled or missing line.
  */
 
 import type { RGBA } from './lib/image.js';
@@ -21,7 +21,6 @@ import { hash3 } from './lib/scene.js';
 
 const SIZE = 16;
 const BASE_GRAY = 162;
-const BEVEL_DARK = -18;
 const GRAIN_BAND = 9;
 
 function gray(v: number): RGBA {
@@ -33,7 +32,7 @@ interface SlabSpec {
   /** Cell size in pixels. A 16×16 cell is one slab per tile. */
   cellW: number;
   cellH: number;
-  /** Brightness shift of the top/left seam line, relative to the base. */
+  /** Darkness of the top/left seam line, relative to the base (negative). */
   seamDelta: number;
   /** Shift every other row-band of cells sideways by this many px, for a
    *  running-bond brick course. 0 keeps cells aligned in a plain grid. */
@@ -68,8 +67,6 @@ function renderSlabPattern(spec: SlabSpec): PixelImage {
 
       if (localY === 0 || localX === 0) {
         v += spec.seamDelta;
-      } else if (localY === spec.cellH - 1 || localX === spec.cellW - 1) {
-        v += BEVEL_DARK;
       }
 
       if (spec.grainSeed !== undefined) {
@@ -88,23 +85,23 @@ function renderSlabPattern(spec: SlabSpec): PixelImage {
  *  this pattern index. */
 const PATTERNS: SlabSpec[] = [
   // floor_0: plain polished slab, one cell per tile, faint seam.
-  { cellW: 16, cellH: 16, seamDelta: 14 },
-  // floor_1: large pale tile, bright seam.
-  { cellW: 16, cellH: 16, seamDelta: 30 },
+  { cellW: 16, cellH: 16, seamDelta: -12 },
+  // floor_1: large pale tile, crisp seam.
+  { cellW: 16, cellH: 16, seamDelta: -22 },
   // floor_2: large tile, dark grout.
-  { cellW: 16, cellH: 16, seamDelta: -26 },
+  { cellW: 16, cellH: 16, seamDelta: -40 },
   // floor_3: small square tile, dark grout.
-  { cellW: 8, cellH: 8, seamDelta: -24 },
+  { cellW: 8, cellH: 8, seamDelta: -34 },
   // floor_4: wood planks, warm grain.
-  { cellW: 16, cellH: 4, seamDelta: 20, grainSeed: 12 },
-  // floor_5: running-bond brick, bright mortar.
-  { cellW: 8, cellH: 4, seamDelta: 28, runningBondPx: 4 },
+  { cellW: 16, cellH: 4, seamDelta: -18, grainSeed: 12 },
+  // floor_5: running-bond brick, dark mortar.
+  { cellW: 8, cellH: 4, seamDelta: -30, runningBondPx: 4 },
   // floor_6: aligned brick/plank, dark mortar.
-  { cellW: 8, cellH: 4, seamDelta: -24 },
+  { cellW: 8, cellH: 4, seamDelta: -26 },
   // floor_7: fine checkerboard.
-  { cellW: 4, cellH: 4, seamDelta: 0, checker: { low: 68, high: 234 } },
+  { cellW: 4, cellH: 4, seamDelta: -16, checker: { low: 68, high: 234 } },
   // floor_8: coarse checkerboard.
-  { cellW: 8, cellH: 8, seamDelta: 0, checker: { low: 68, high: 234 } },
+  { cellW: 8, cellH: 8, seamDelta: -16, checker: { low: 68, high: 234 } },
 ];
 
 export function renderFloorTiles(): PixelImage[] {

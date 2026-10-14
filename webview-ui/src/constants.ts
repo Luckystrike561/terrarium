@@ -48,14 +48,17 @@ export const CHARACTER_SITTING_OFFSET_PX = 0;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
-/** How much lower a seated frame draws the head than a standing one. */
-export const BUBBLE_SITTING_OFFSET_PX = 11;
-/** The crown of a standing character, above its feet. */
-export const BUBBLE_VERTICAL_OFFSET_PX = 44;
+/** How much lower a seated frame draws the head than a standing one: Habbo's
+ *  short legs carry the waist 8 px above the sole standing, a chair seat is
+ *  6, so sitting drops it 2. */
+export const BUBBLE_SITTING_OFFSET_PX = 2;
+/** The crown of a standing character, above its feet: Habbo's figure
+ *  halved, about 40 px crown to sole. */
+export const BUBBLE_VERTICAL_OFFSET_PX = 40;
 /** Persistent state badge (working/done/waiting/idle/permission): vertical
  *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
  *  so it sits at head height rather than floating above it like a bubble. */
-export const STATUS_BADGE_VERTICAL_OFFSET_PX = 40;
+export const STATUS_BADGE_VERTICAL_OFFSET_PX = 36;
 /** Horizontal offset to the right of center, clear of the center-anchored
  *  speech bubble so the two never overlap regardless of bubble state. */
 export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 13;
@@ -68,9 +71,9 @@ export const SEAT_BUSY_COLOR = 'rgba(220, 50, 50, 0.35)';
 export const CANVAS_ERROR_TILE_COLOR = '#FF00FF';
 export const WALL_COLOR = '#d9c4a0';
 /** Exposed floor edge thickness and colours (left = +row face, right = +col). */
-export const FLOOR_SLAB_PX = 5;
-export const FLOOR_SLAB_LEFT_COLOR = '#4a3f5c';
-export const FLOOR_SLAB_RIGHT_COLOR = '#362d45';
+export const FLOOR_SLAB_PX = 8;
+export const FLOOR_SLAB_LEFT_COLOR = '#b8a788';
+export const FLOOR_SLAB_RIGHT_COLOR = '#988970';
 /** A building of several floors (one per machine): each floor stands on a slab this thick, the
  *  floor above starts this far over the top of the walls below, and two pillars along the side
  *  corners join each floor to the one under it. */
@@ -81,39 +84,43 @@ export const BUILDING_PILLAR_WIDTH_PX = 4;
 export const FLOOR_NAME_FONT_SIZE_PX = 20;
 export const FLOOR_NAME_MIN_FONT_SIZE_PX = 20;
 export const FLOOR_NAME_COLOR = '#f4ecd8';
-/** Interior glass partitions: height (sprite px), frame (ink), pane and sheen. */
+/** Ink used by the room shell: the back wall's cap line, the floor slab's bottom edge and the
+ *  glass partition frame. */
+export const ROOM_INK_COLOR = '#111111';
+/** Interior glass partitions: height (sprite px), ink frame, light cyan pane and white sheen. */
 export const WALL_GLASS_HEIGHT_PX = 30;
-export const GLASS_FRAME_COLOR = '#1a1426';
-export const GLASS_PANE_COLOR = '#bfe3f04d';
+export const GLASS_FRAME_COLOR = ROOM_INK_COLOR;
+export const GLASS_PANE_COLOR = '#bfe3f066';
 export const GLASS_SHEEN_COLOR = '#ffffff8c';
 
-// ── Backdrop (night city skyline behind the office) ─────────
-/** Night sky gradient, from the top of the canvas down to its bottom edge. */
-export const BACKDROP_SKY_COLORS = ['#090a1a', '#10112c', '#19173d', '#251e4f', '#36275e'] as const;
-export const BACKDROP_STAR_COLORS = ['#6f74a8', '#e6e9ff'] as const;
-/** Stars: at most one per square cell of this size, placed with this chance. */
-export const BACKDROP_STAR_CELL_PX = 12;
-export const BACKDROP_STAR_CHANCE = 0.6;
-/** Stars fade out below this fraction of the canvas height (the city glow). */
-export const BACKDROP_STAR_CUTOFF = 0.7;
-export const BACKDROP_FAR_BUILDING_COLOR = '#1b1838';
-export const BACKDROP_NEAR_BUILDING_COLOR = '#0e0d21';
-export const BACKDROP_WINDOW_LIT_COLOR = '#f0c06a';
-export const BACKDROP_WINDOW_DIM_COLOR = '#25234a';
+// ── Backdrop (daylight hotel skyline behind the office) ─────
+/** Daylight sky, hard bands from the top of the canvas to the horizon. */
+export const BACKDROP_SKY_COLORS = ['#4aa6e0', '#7cc4ec', '#a8daf3', '#d2eef9'] as const;
+export const BACKDROP_CLOUD_COLOR = '#ffffff';
+export const BACKDROP_CLOUD_SHADOW_COLOR = '#cfe9f7';
+/** Clouds: placed on a grid of cells this size, this often, within the top share of the canvas. */
+export const BACKDROP_CLOUD_CELL_PX = 40;
+export const BACKDROP_CLOUD_CHANCE = 0.35;
+export const BACKDROP_CLOUD_BAND = 0.55;
+/** Cloud puff widths and heights in backdrop pixels: [min, max). */
+export const BACKDROP_CLOUD_WIDTH_PX = [14, 26] as const;
+export const BACKDROP_CLOUD_HEIGHT_PX = [6, 10] as const;
+export const BACKDROP_FAR_BUILDING_COLOR = '#9fc6dc';
+export const BACKDROP_NEAR_BUILDING_COLOR = '#7aaac6';
+export const BACKDROP_WINDOW_COLOR = '#e3f4fb';
 /** Building widths and heights in backdrop pixels: [min, max). */
 export const BACKDROP_FAR_BUILDING_WIDTH_PX = [5, 13] as const;
 export const BACKDROP_FAR_BUILDING_HEIGHT_PX = [22, 56] as const;
 export const BACKDROP_NEAR_BUILDING_WIDTH_PX = [8, 18] as const;
 export const BACKDROP_NEAR_BUILDING_HEIGHT_PX = [10, 36] as const;
-/** Share of far buildings carrying a rooftop antenna, and its height. */
-export const BACKDROP_ANTENNA_CHANCE = 0.25;
-export const BACKDROP_ANTENNA_HEIGHT_PX = 4;
-/** Near-building window grid: inset from the walls, cell size, lit share. */
+/** Share of far towers carrying a rooftop detail (vent or tank), and its height. */
+export const BACKDROP_ROOFTOP_DETAIL_CHANCE = 0.25;
+export const BACKDROP_ROOFTOP_DETAIL_HEIGHT_PX = 4;
+/** Near-tower window grid: inset from the walls, cell size. */
 export const BACKDROP_WINDOW_INSET_PX = 2;
 export const BACKDROP_WINDOW_STEP_X_PX = 3;
 export const BACKDROP_WINDOW_STEP_Y_PX = 4;
 export const BACKDROP_WINDOW_HEIGHT_PX = 2;
-export const BACKDROP_WINDOW_LIT_CHANCE = 0.3;
 
 // ── Camera ───────────────────────────────────────────────────
 export const CAMERA_FOLLOW_LERP = 0.1;
@@ -182,10 +189,10 @@ export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
 export const CHARACTER_HIT_HALF_WIDTH = 10;
 /** From the feet to the crown of a standing character. */
-export const CHARACTER_HIT_HEIGHT = 44;
+export const CHARACTER_HIT_HEIGHT = 40;
 /** A seated frame draws the head BUBBLE_SITTING_OFFSET_PX lower. */
 export const CHARACTER_SEATED_HIT_HEIGHT = CHARACTER_HIT_HEIGHT - BUBBLE_SITTING_OFFSET_PX;
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 52;
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 48;
 
 // ── Greeter + Intro bubble ──────────────────────────────────
 /** Reserved character id for the Intro's greeter. Far outside both real agent
@@ -212,7 +219,7 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_PX = 62;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 58;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
 export const INTRO_BUBBLE_OFFSET_X_PX = 10;
@@ -234,7 +241,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_PX = 42;
+export const INTRO_TAIL_TARGET_RISE_PX = 38;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the
@@ -260,7 +267,7 @@ export const CONTEXT_GAUGE_COLOR_OK = '#44cc44';
 export const CONTEXT_GAUGE_COLOR_WARN = '#ffcc00';
 export const CONTEXT_GAUGE_COLOR_DANGER = '#ff8800';
 export const CONTEXT_GAUGE_COLOR_CRITICAL = '#ff2222';
-export const CONTEXT_GAUGE_BG = '#222';
+export const CONTEXT_GAUGE_BG = '#b9c1cb';
 
 // ── Quota Coffee Beans ──────────────────────────────────────
 /** One bean is this share of a quota: 10 beans fill a jar. */

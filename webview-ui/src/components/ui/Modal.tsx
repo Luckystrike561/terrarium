@@ -26,17 +26,16 @@ export function Modal({
     <>
       <div className="fixed inset-0 bg-black/50" style={{ zIndex }} onClick={onClose} />
       <div
-        className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 paper-sheet shadow-pixel p-4 min-w-xs ${className}`}
+        className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hud-window shadow-pixel min-w-xs ${className}`}
         style={{ zIndex: zIndex + 1 }}
       >
-        <div aria-hidden className="paper-pin" />
-        <div className="flex items-center justify-between py-4 px-10 border-b border-border mb-4">
-          <span className="text-accent-bright text-2xl">{title}</span>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+        <div className="hud-titlebar flex items-center justify-between py-4 px-10">
+          <span className="text-2xl">{title}</span>
+          <Button variant="titlebar" size="icon" onClick={onClose}>
             x
           </Button>
         </div>
-        {children}
+        <div className="p-4">{children}</div>
       </div>
     </>
   );

@@ -1,6 +1,7 @@
 /**
- * Isometric office workers in Habbo Hotel's proportions: a tall, slim body
- * under a big head with a small face, every part outlined in ink.
+ * Isometric office workers in Habbo Hotel's proportions: about 40 px
+ * crown to sole, a big 3/4-turned head over a block body on short legs,
+ * every part outlined in ink.
  *
  * Sheet format (decoded by `decodeCharacterPng`): one row of
  * CHAR_FRAME_W x CHAR_FRAME_H frames per facing, in `CHARACTER_FRAMES`
@@ -12,9 +13,8 @@
  *
  * A frame is composed from parts the way a Habbo figure is: the posed body
  * (legs, torso with the outfit's cut, arms and whatever the hands hold),
- * then the face, the hair and any accessory as templates whose letters
- * index the worker's palette. Every worker shares the same poses and
- * differs in build, hair, outfit cut and accessory.
+ * then the head (skull, face, hair and one accessory). Every worker shares
+ * the same poses and differs in build, hair, outfit cut and accessory.
  */
 
 import type { CharacterFrame } from '../../core/src/assets/constants.js';
@@ -24,30 +24,19 @@ import {
   CHAR_FRAMES_PER_ROW,
   CHARACTER_FRAMES,
 } from '../../core/src/assets/constants.js';
+import { LetterCanvas } from './characters/canvas.js';
 import type { Facing } from './characters/body.js';
 import {
   BODY_CENTER_X,
   BUILD_LEG_DELTA,
   drawBody,
   isSeated,
-  LetterCanvas,
   SEAT_DROP,
   SHOULDER_Y,
   SOLE_Y,
 } from './characters/body.js';
-import { accessoryStamp } from './characters/outfits.js';
-import {
-  FACE_BACK,
-  FACE_FRONT,
-  FACE_FRONT_BLINK,
-  HAIR,
-  HEAD_CHIN_ROW,
-  HEAD_TEMPLATE_WIDTH,
-  OUTLINE,
-  PAPER,
-  SHADOW,
-  SIGN_MARK,
-} from './characters/templates.js';
+import { drawHead } from './characters/head.js';
+import { OUTLINE, PAPER, SHADOW, SIGN_MARK } from './characters/templates.js';
 import type { Worker } from './characters/workers.js';
 import { CTO, WORKERS } from './characters/workers.js';
 import type { RGBA } from './lib/image.js';
@@ -67,13 +56,7 @@ const BOB: Partial<Record<CharacterFrame, number>> = {
   holdFormSeated2: -1,
 };
 
-const HEAD_X = BODY_CENTER_X - HEAD_TEMPLATE_WIDTH / 2;
 const SHADOW_ROW = ['..xxxxxxxxxxxx..'];
-
-function faceFor(facing: Facing, frame: CharacterFrame): readonly string[] {
-  if (facing === 'back') return FACE_BACK;
-  return frame === 'rest2' ? FACE_FRONT_BLINK : FACE_FRONT;
-}
 
 function paletteOf(worker: Worker): Record<string, RGBA> {
   const pal: Record<string, RGBA> = {
@@ -110,11 +93,9 @@ function drawFrame(
     upperShift,
   );
 
-  const headY = SHOULDER_Y + upperShift - 1 - HEAD_CHIN_ROW;
-  canvas.stamp(faceFor(facing, frame), HEAD_X, headY);
-  canvas.stamp(HAIR[worker.hair][facing], HEAD_X, headY);
-  const accessory = accessoryStamp(worker.accessory, facing);
-  if (accessory) canvas.stamp(accessory.rows, HEAD_X + accessory.dx, headY + accessory.dy);
+  const chinY = SHOULDER_Y + upperShift - 1;
+  const blink = facing === 'front' && frame === 'rest2';
+  drawHead(canvas, chinY, facing, { hair: worker.hair, accessory: worker.accessory }, blink);
   drawRaised();
 
   return canvas.toImage(pal);

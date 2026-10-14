@@ -13,18 +13,20 @@
   --color-bg: #1e1e2e;
   --color-bg-dark: #181828;
   --color-bg-thumb: #2a2a3a;
-  --color-border: #4a4a6a;
-  --color-accent: #6030ff;
-  --color-accent-bright: #746fff;
+  --color-border: #b9c1cb;
+  --color-accent: #2f80c0;
+  --color-accent-bright: #4aa0da;
 
   /* Text */
   --color-text: rgba(255, 255, 255, 0.9);
   --color-text-muted: rgba(255, 255, 255, 0.5);
 
-  /* Buttons */
-  --color-btn-bg: rgb(53, 52, 69);
-  --color-btn-hover: rgb(78, 75, 104);
-  --color-active-bg: rgb(44, 43, 109);
+  /* Buttons: Habbo's light grey, ink-bordered, green when confirming */
+  --color-btn-bg: #d7dce3;
+  --color-btn-hover: #c3cad3;
+  --color-active-bg: #aab3c0;
+  --color-confirm: #5cbf4a;
+  --color-confirm-hover: #4aa83a;
 
   /* Semantic */
   --color-reset-text: #ecc;
@@ -39,20 +41,13 @@
   --color-status-idle: #8891a8;
   --color-status-error: var(--color-danger);
 
-  /* Office furnishings (HUD plank, connections clipboard) and paper HUD */
-  --color-wood: #8a5a32;
-  --color-wood-light: #a5703f;
-  --color-wood-dark: #4f3018;
-  --color-brass: #e0b95a;
-  --color-metal: #a7adb9;
-  --color-metal-dark: #5a5f6b;
-  --color-paper: #f1e6c8;
-  --color-paper-dark: #e2d2a8;
-  --color-paper-line: #d6c49b;
-  --color-ink: #2b2433;
+  /* Habbo HUD chrome: window body, title bar, outline ink */
+  --color-hud-bg: #ffffff;
+  --color-hud-titlebar: #2f80c0;
+  --color-ink: #111111;
 
   /* Shadow */
-  --shadow-pixel: 2px 2px 0px #0a0a14;
+  --shadow-pixel: 2px 2px 0px #111111;
 
   /* Non-utility values */
   --vignette: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
@@ -89,6 +84,8 @@
   --color-btn-bg: var(--color-btn-bg);
   --color-btn-hover: var(--color-btn-hover);
   --color-active-bg: var(--color-active-bg);
+  --color-confirm: var(--color-confirm);
+  --color-confirm-hover: var(--color-confirm-hover);
   --color-accent-bright: var(--color-accent-bright);
   --color-reset-text: var(--color-reset-text);
   --color-danger: var(--color-danger);
@@ -99,15 +96,8 @@
   --color-status-success: var(--color-status-success);
   --color-status-idle: var(--color-status-idle);
   --color-status-error: var(--color-status-error);
-  --color-wood: var(--color-wood);
-  --color-wood-light: var(--color-wood-light);
-  --color-wood-dark: var(--color-wood-dark);
-  --color-brass: var(--color-brass);
-  --color-metal: var(--color-metal);
-  --color-metal-dark: var(--color-metal-dark);
-  --color-paper: var(--color-paper);
-  --color-paper-dark: var(--color-paper-dark);
-  --color-paper-line: var(--color-paper-line);
+  --color-hud-bg: var(--color-hud-bg);
+  --color-hud-titlebar: var(--color-hud-titlebar);
   --color-ink: var(--color-ink);
 
   /* Shadow */
@@ -127,49 +117,25 @@
 }
 
 @layer components {
-  /* Small paper tag: tooltips, toasts and the in-world activity label. Ink
-     border (rather than paper-sheet's wood-dark) reads crisper at this size. */
-  .paper-tag {
+  /* Habbo name tag: tooltips, toasts, in-world labels and the Intro bubble. */
+  .hud-tag {
     --color-text: var(--color-ink);
-    --color-text-muted: rgba(43, 36, 51, 0.55);
-    --color-btn-bg: var(--color-paper-dark);
-    --color-btn-hover: var(--color-paper-line);
-    --color-border: var(--color-ink);
-    --color-bg: var(--color-paper);
-    @apply bg-paper text-text border-2 border-ink rounded-none shadow-pixel;
+    --color-text-muted: rgba(17, 17, 17, 0.55);
+    --color-bg: var(--color-hud-bg);
+    @apply bg-hud-bg text-text border-2 border-ink rounded shadow-pixel;
   }
 
-  /* Square paper-tack pinning a memo. */
-  .paper-pin {
-    @apply absolute -top-7 left-1/2 -translate-x-1/2 w-12 h-12 bg-brass border-2 border-wood-dark rounded-none shadow-pixel;
-  }
-
-  /* Wooden plank mounted on the office wall: hard-edged grain bands, no blur. */
-  .wood-plank {
-    @apply border-2 border-wood-dark rounded-none shadow-pixel;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--color-wood) 0 10px,
-      var(--color-wood-light) 10px 12px,
-      var(--color-wood) 12px 22px,
-      var(--color-wood-dark) 22px 24px
-    );
-  }
-
-  .metal-clip {
-    @apply bg-metal border-2 border-metal-dark rounded-none shadow-pixel;
-  }
-
-  /* Memo paper. Re-points the palette variables so the shared ghost Button
-     renders as ink on paper unchanged. */
-  .paper-sheet {
+  /* Habbo window body: modals and notices. The title bar is its own strip
+     (.hud-titlebar) so it can span the window's full, rounded top edge. */
+  .hud-window {
     --color-text: var(--color-ink);
-    --color-text-muted: rgba(43, 36, 51, 0.55);
-    --color-btn-bg: var(--color-paper-dark);
-    --color-btn-hover: var(--color-paper-line);
-    --color-border: var(--color-wood-dark);
-    --color-bg: var(--color-paper-dark);
-    @apply bg-paper text-text border-2 border-wood-dark rounded-none;
+    --color-text-muted: rgba(17, 17, 17, 0.55);
+    --color-bg: var(--color-hud-bg);
+    @apply bg-hud-bg text-text border-2 border-ink rounded overflow-hidden;
+  }
+
+  .hud-titlebar {
+    @apply bg-hud-titlebar text-white border-b-2 border-ink;
   }
 
   /* Pulsing dot animation (ConnectionIndicator, ToolOverlay) */
@@ -184,7 +150,7 @@
     height: 6px;
   }
   .pixel-scrollbar::-webkit-scrollbar-track {
-    background: var(--color-bg-dark);
+    background: var(--color-hud-bg);
   }
   .pixel-scrollbar::-webkit-scrollbar-thumb {
     background: var(--color-border);
@@ -196,7 +162,7 @@
   /* Firefox fallback */
   .pixel-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) var(--color-bg-dark);
+    scrollbar-color: var(--color-border) var(--color-hud-bg);
   }
 }
 

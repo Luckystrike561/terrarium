@@ -16,7 +16,7 @@ export const ISO_TILE_W = TILE_SIZE * 2;
 export const ISO_TILE_H = TILE_SIZE;
 /** Height of a solid back wall. Interior walls are glass partitions
  *  (WALL_GLASS_HEIGHT_PX in constants.ts). */
-export const WALL_HEIGHT_PX = 40;
+export const WALL_HEIGHT_PX = 56;
 
 export interface Point {
   x: number;

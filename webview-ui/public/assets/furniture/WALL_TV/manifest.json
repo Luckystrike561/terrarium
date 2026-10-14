@@ -19,7 +19,7 @@
           "id": "WALL_TV_FRONT_OFF",
           "file": "WALL_TV_FRONT_OFF.png",
           "width": 48,
-          "height": 70,
+          "height": 86,
           "footprintW": 2,
           "footprintH": 1,
           "state": "off"
@@ -34,7 +34,7 @@
               "id": "WALL_TV_FRONT_ON_1",
               "file": "WALL_TV_FRONT_ON_1.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 2,
               "footprintH": 1,
               "frame": 0
@@ -44,7 +44,7 @@
               "id": "WALL_TV_FRONT_ON_2",
               "file": "WALL_TV_FRONT_ON_2.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 2,
               "footprintH": 1,
               "frame": 1
@@ -54,7 +54,7 @@
               "id": "WALL_TV_FRONT_ON_3",
               "file": "WALL_TV_FRONT_ON_3.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 2,
               "footprintH": 1,
               "frame": 2
@@ -73,7 +73,7 @@
           "id": "WALL_TV_RIGHT_OFF",
           "file": "WALL_TV_RIGHT_OFF.png",
           "width": 48,
-          "height": 70,
+          "height": 86,
           "footprintW": 1,
           "footprintH": 2,
           "state": "off"
@@ -88,7 +88,7 @@
               "id": "WALL_TV_RIGHT_ON_1",
               "file": "WALL_TV_RIGHT_ON_1.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 1,
               "footprintH": 2,
               "frame": 0
@@ -98,7 +98,7 @@
               "id": "WALL_TV_RIGHT_ON_2",
               "file": "WALL_TV_RIGHT_ON_2.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 1,
               "footprintH": 2,
               "frame": 1
@@ -108,7 +108,7 @@
               "id": "WALL_TV_RIGHT_ON_3",
               "file": "WALL_TV_RIGHT_ON_3.png",
               "width": 48,
-              "height": 70,
+              "height": 86,
               "footprintW": 1,
               "footprintH": 2,
               "frame": 2

@@ -9,13 +9,13 @@ import { IsoScene, solid } from '../lib/scene.js';
 const HEIGHT_ABOVE = WALL_HEIGHT + 6;
 const D = TILE;
 
-const TEAL = hex('#4fb8a6');
-const CORAL = hex('#ef8166');
-const MUSTARD = hex('#e3a23c');
-const SAGE = hex('#8ea87e');
+const TEAL = PAL.upholsteryTeal;
+const CORAL = PAL.plasticRed;
+const MUSTARD = PAL.plasticYellow;
+const SAGE = PAL.plasticGreen;
 const NOTE_PINK = hex('#f2789f');
 const NOTE_LIME = hex('#c3d94c');
-const SCREEN_BG = hex('#141c2b');
+const SCREEN_BG = PAL.screenOff;
 
 type WallOrient = 'front' | 'right';
 type Face = 'left' | 'right';
@@ -35,20 +35,34 @@ interface WallFrame {
   visibleFace: Face;
 }
 
+/** Every wall item below was placed for the old 40 px wall; lift its
+ *  geometry by however much `WALL_HEIGHT` grew so it keeps the same gap
+ *  from the wall cap instead of floating low on the now-taller wall. Flat
+ *  decals (`flatPaint`) un-shift the traced `z` before handing it to their
+ *  content function, so those keep comparing against their own unshifted
+ *  local coordinates. */
+const WALL_LIFT = WALL_HEIGHT - 40;
+
 function wallFrame(scene: IsoScene, orient: WallOrient): WallFrame {
   const visibleFace: Face = orient === 'front' ? 'left' : 'right';
   return {
     box(u0, u1, d0, d1, z0, z1, paint) {
-      if (orient === 'front') scene.box([u0, D - d1, z0], [u1, D - d0, z1], paint);
-      else scene.box([D - d1, u0, z0], [D - d0, u1, z1], paint);
+      const Z0 = z0 + WALL_LIFT;
+      const Z1 = z1 + WALL_LIFT;
+      if (orient === 'front') scene.box([u0, D - d1, Z0], [u1, D - d0, Z1], paint);
+      else scene.box([D - d1, u0, Z0], [D - d0, u1, Z1], paint);
     },
     cylinder(cu, cd, r, z0, z1, paint) {
-      if (orient === 'front') scene.cylinder(cu, D - cd, r, z0, z1, paint);
-      else scene.cylinder(D - cd, cu, r, z0, z1, paint);
+      const Z0 = z0 + WALL_LIFT;
+      const Z1 = z1 + WALL_LIFT;
+      if (orient === 'front') scene.cylinder(cu, D - cd, r, Z0, Z1, paint);
+      else scene.cylinder(D - cd, cu, r, Z0, Z1, paint);
     },
     sphere(cu, cd, cz, r, paint, zMin, squashZ) {
-      if (orient === 'front') scene.sphere(cu, D - cd, cz, r, paint, zMin, squashZ);
-      else scene.sphere(D - cd, cu, cz, r, paint, zMin, squashZ);
+      const CZ = cz + WALL_LIFT;
+      const ZMin = zMin === undefined ? undefined : zMin + WALL_LIFT;
+      if (orient === 'front') scene.sphere(cu, D - cd, CZ, r, paint, ZMin, squashZ);
+      else scene.sphere(D - cd, cu, CZ, r, paint, ZMin, squashZ);
     },
     visibleFace,
   };
@@ -64,7 +78,7 @@ function sceneFor(orient: WallOrient, itemWidth: number): { scene: IsoScene; wf:
 /** Restrict a flat decal to the visible mounting face only, so the item
  *  reads as a thin plane glued to the wall rather than a boxy slab. */
 function flatPaint(face: Face, content: (a: number, z: number) => RGBA | null): Paint {
-  return (hit: SurfaceHit) => (hit.face === face ? content(hit.a, hit.z) : null);
+  return (hit: SurfaceHit) => (hit.face === face ? content(hit.a, hit.z - WALL_LIFT) : null);
 }
 
 function hash(x: number, y: number): number {
@@ -168,7 +182,9 @@ function buildClock(orient: WallOrient): FurnitureVariant {
       [cu - (r - 1.3), cz],
     ];
     for (const [tx, tz] of ticks) if (Math.hypot(a - tx, z - tz) < 0.55) return PAL.black;
-    return PAL.white;
+    const gloss = a - cu - (z - cz) * 0.6;
+    if (gloss > -r * 0.7 && gloss < -r * 0.3) return PAL.white;
+    return mix(PAL.white, PAL.metal, 0.35);
   });
   wf.box(cu - r - 0.6, cu + r + 0.6, 0, 1.3, cz - r - 0.6, cz + r + 0.6, content);
   return {

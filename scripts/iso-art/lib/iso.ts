@@ -18,7 +18,7 @@
  */
 
 export const TILE = 16;
-export const WALL_HEIGHT = 40;
+export const WALL_HEIGHT = 56;
 export const DESK_SURFACE_Z = 12;
 export const CHAIR_SEAT_Z = 6;
 

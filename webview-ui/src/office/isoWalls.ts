@@ -1,6 +1,7 @@
 /**
  * Wall tiles as isometric sprites. Walls on the far edges of the office (their
- * -row or -col neighbour is VOID or off the grid) are full-height solid boxes.
+ * -row or -col neighbour is VOID or off the grid) are thin, tall wallpapered
+ * boxes standing on the inner edge of their tile, like Habbo's room shell.
  * Every other wall is a glass partition: a thin framed pane along the wall's
  * run, so the room behind stays visible, the usual cutaway for an isometric
  * interior.
@@ -10,24 +11,24 @@ import {
   GLASS_FRAME_COLOR,
   GLASS_PANE_COLOR,
   GLASS_SHEEN_COLOR,
+  ROOM_INK_COLOR,
   WALL_GLASS_HEIGHT_PX,
 } from '../constants.js';
 import { ISO_TILE_H, ISO_TILE_W, WALL_HEIGHT_PX } from './iso.js';
 import type { SpriteData, TileType as TileTypeVal } from './types.js';
 import { TileType } from './types.js';
 
-const CAP_SHADE = 1.18;
-const RIM_SHADE = 1.34;
-/** Rim light band width at the top face's front edges, in world units. */
-const RIM_WIDTH = 1;
-const LEFT_FACE_SHADE = 0.95;
-const RIGHT_FACE_SHADE = 0.78;
-/** A one-pixel lip under the cap separates it from the flat face. */
-const CAP_LIP_SHADE = 0.7;
-const CAP_LIP_PX = 1;
-const BASEBOARD_SHADE = 0.55;
-const BASEBOARD_PX = 3;
+const CAP_SHADE = 1.15;
+/** Width of the ink line along the cap's outer (front) edge, in world units. */
+const CAP_INK_WIDTH_UNITS = 1;
+const LEFT_FACE_SHADE = 0.92;
+const RIGHT_FACE_SHADE = 0.74;
+const SKIRTING_SHADE = 0.6;
+const SKIRTING_PX = 3;
 const TILE = ISO_TILE_W / 2;
+/** A back wall is this many world units thick, standing on the inner edge of
+ *  its tile so wall-mounted items keep hanging on the same outer face. */
+const WALL_THICKNESS = 4;
 /** Glass pane half-thickness and frame sizes, in world units. */
 const PANE_HALF = 1;
 const FRAME_BASE = 3;
@@ -50,14 +51,20 @@ function isWall(tileMap: TileTypeVal[][], col: number, row: number): boolean {
   return tileMap[row]?.[col] === TileType.WALL;
 }
 
+/** Whether the tile just beyond (col, row) is off the grid or VOID: the room
+ *  has no wall there to butt up against, so a back wall faces that way. */
+function openBeyond(tileMap: TileTypeVal[][], col: number, row: number): boolean {
+  return (
+    row < 0 ||
+    col < 0 ||
+    row >= tileMap.length ||
+    col >= tileMap[0].length ||
+    tileMap[row][col] === TileType.VOID
+  );
+}
+
 export function isBackWall(tileMap: TileTypeVal[][], col: number, row: number): boolean {
-  const open = (c: number, r: number) =>
-    r < 0 ||
-    c < 0 ||
-    r >= tileMap.length ||
-    c >= tileMap[0].length ||
-    tileMap[r][c] === TileType.VOID;
-  return open(col, row - 1) || open(col - 1, row);
+  return openBeyond(tileMap, col, row - 1) || openBeyond(tileMap, col - 1, row);
 }
 
 interface Box {
@@ -93,7 +100,7 @@ function traceSprite(boxes: readonly Box[], height: number): SpriteData {
         const tEnter = Math.max(b.x0 - gx0, b.y0 - gy0, b.z0);
         if (tEnter > tExit || tExit <= best) continue;
         best = tExit;
-        if (tExit === b.z1) color = b.paint('top', Math.min(b.x1 - gx0, b.y1 - gy0) - tExit, tExit);
+        if (tExit === b.z1) color = b.paint('top', Math.min(tx, ty) - tExit, tExit);
         else if (tx <= ty) color = b.paint('right', gy0 + tExit - b.y0, tExit);
         else color = b.paint('left', gx0 + tExit - b.x0, tExit);
       }
@@ -104,34 +111,42 @@ function traceSprite(boxes: readonly Box[], height: number): SpriteData {
   return sprite;
 }
 
-function solidWall(baseHex: string): SpriteData {
+/** A thin wallpapered box standing on the inner edge of the tile: a `topOpen`
+ *  wall runs along the row (thin in the row direction), a `leftOpen` wall
+ *  runs along the column, and a corner tile is the post where they meet. The ink line sits
+ *  on the visible face's own top band, not the cap: the cap has real world
+ *  depth, so a ray-traced thin box's far corner projects past its tile's
+ *  edge into the next tile's sprite, and two independently-rendered tiles'
+ *  overlapping cap ink never lines up pixel-for-pixel. A flat, undecorated
+ *  cap plus a face whose ink only depends on height tiles seamlessly: every
+ *  tile agrees on the same height-only rule regardless of which one a given
+ *  screen pixel's ray happens to resolve to. */
+function solidWall(baseHex: string, topOpen: boolean, leftOpen: boolean): SpriteData {
   const cap = shadeHex(baseHex, CAP_SHADE);
-  const rim = shadeHex(baseHex, RIM_SHADE);
   const left = shadeHex(baseHex, LEFT_FACE_SHADE);
   const right = shadeHex(baseHex, RIGHT_FACE_SHADE);
-  const leftLip = shadeHex(left, CAP_LIP_SHADE);
-  const rightLip = shadeHex(right, CAP_LIP_SHADE);
-  const leftBase = shadeHex(baseHex, BASEBOARD_SHADE);
-  const rightBase = shadeHex(baseHex, BASEBOARD_SHADE * RIGHT_FACE_SHADE);
-  return traceSprite(
-    [
-      {
-        x0: 0,
-        y0: 0,
-        z0: 0,
-        x1: TILE,
-        y1: TILE,
-        z1: WALL_HEIGHT_PX,
-        paint: (face, along, z) => {
-          if (face === 'top') return along < RIM_WIDTH ? rim : cap;
-          if (z < BASEBOARD_PX) return face === 'right' ? rightBase : leftBase;
-          if (z >= WALL_HEIGHT_PX - CAP_LIP_PX) return face === 'right' ? rightLip : leftLip;
-          return face === 'right' ? right : left;
-        },
-      },
-    ],
-    WALL_HEIGHT_PX,
-  );
+  const skirting = shadeHex(baseHex, SKIRTING_SHADE);
+  const face = (f: 'left' | 'right', z: number): string => {
+    if (z > WALL_HEIGHT_PX - CAP_INK_WIDTH_UNITS) return ROOM_INK_COLOR;
+    if (z < SKIRTING_PX) return skirting;
+    return f === 'right' ? right : left;
+  };
+  const paint: Box['paint'] = (f, _along, z) => (f === 'top' ? cap : face(f, z));
+  // Both walls stand on the tile's inner edges, so where they meet only the
+  // square post on the inner corner faces the room. Anything outside it
+  // would poke out past the other wall's back.
+  const boxes: Box[] = [
+    {
+      x0: leftOpen ? TILE - WALL_THICKNESS : 0,
+      y0: topOpen ? TILE - WALL_THICKNESS : 0,
+      z0: 0,
+      x1: TILE,
+      y1: TILE,
+      z1: WALL_HEIGHT_PX,
+      paint,
+    },
+  ];
+  return traceSprite(boxes, WALL_HEIGHT_PX);
 }
 
 function glassPaint(length: number): Box['paint'] {
@@ -189,10 +204,12 @@ export function getWallSprite(
   row: number,
   baseHex: string,
 ): { sprite: SpriteData; height: number } {
-  if (isBackWall(tileMap, col, row)) {
-    const key = `solid:${baseHex}`;
+  const topOpen = openBeyond(tileMap, col, row - 1);
+  const leftOpen = openBeyond(tileMap, col - 1, row);
+  if (topOpen || leftOpen) {
+    const key = `solid:${topOpen ? 1 : 0}${leftOpen ? 1 : 0}:${baseHex}`;
     let sprite = cache.get(key);
-    if (!sprite) cache.set(key, (sprite = solidWall(baseHex)));
+    if (!sprite) cache.set(key, (sprite = solidWall(baseHex, topOpen, leftOpen)));
     return { sprite, height: WALL_HEIGHT_PX };
   }
   const alongCols = isWall(tileMap, col - 1, row) || isWall(tileMap, col + 1, row);

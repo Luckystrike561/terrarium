@@ -15,7 +15,7 @@ Game state lives in the imperative `Building` class (`office/engine/building.ts`
 
 ### Backdrop
 
-The stage's first child, behind `worldLayer`, is a screen-space sprite of a night city skyline (`office/backdrop.ts`, colours `BACKDROP_*` in `constants.ts`) covering the whole canvas. The fit bands, VOID tiles and any pan show sky instead of the container's `#1e1e2e`.
+The stage's first child, behind `worldLayer`, is a screen-space sprite of Habbo's daylight hotel view, a banded sky with pixel clouds over a daytime city (`office/backdrop.ts`, colours `BACKDROP_*` in `constants.ts`), covering the whole canvas. The fit bands, VOID tiles and any pan show sky instead of the container's `#1e1e2e`.
 
 One backdrop pixel is `round(zoom)` device pixels (integral, so nearest sampling stays even), and it is repainted only when the canvas size or that pixel size changes, never per frame. It is anchored bottom-left, so a resize extends it. It takes no part in hit-testing (all hit-tests are DOM handlers in `OfficeCanvas`), so clicking it is clicking empty space. A future day/night cycle can `tint` it.
 
@@ -32,7 +32,7 @@ Only a canvas too small for `ZOOM_MIN` (1x) scrolls (wheel, trackpad, Shift+whee
 The office is a building with one floor per machine (see [CLAUDE.md](../../CLAUDE.md#office-ui) for where machines come from). `Building.floors` runs bottom to top. The first is always this machine's and holds the greeter. Each floor is a whole `OfficeState` (seats, lounge, CTO office, CTO queue, pets), so everything below stays per floor and an agent only ever finds a seat or a queue spot on its own.
 
 - **Stacking.** Floor N is drawn and hit-tested `elevation` iso px higher (`worldToIso(x, y, elevation)`). `Building.restack` puts each floor's slab `BUILDING_FLOOR_GAP_PX` above the top of the back walls of the floor below, so no two floors overlap on screen: no floor hides a character of another, and the draw order between floors is just floor order.
-- **Building look.** With more than one floor every floor stands on a `BUILDING_SLAB_PX` slab (a lone office keeps the thin `FLOOR_SLAB_PX` edge), two pillars join each floor to the floor below at the side corners of the area both floors cover (their layouts can differ: `layout.json` furnishes only the first), and the floor's name (`floorsLoaded`) is written on the front of its slab.
+- **Building look.** With more than one floor every floor stands on a `BUILDING_SLAB_PX` slab (a lone office stands on the `FLOOR_SLAB_PX` slab, Habbo's thick floor edge, outlined in ink), two pillars join each floor to the floor below at the side corners of the area both floors cover (their layouts can differ: `layout.json` furnishes only the first), and the floor's name (`floorsLoaded`) is written on the front of its slab.
 - **Input.** `Building.getCharacterAt` tries the top floor first, shifting the point by each floor's elevation. Seat reassignment and right-click walking resolve the tile on the selected agent's floor only (`Building.tileAt`), so a seat on another floor is never offered. `ToolOverlay` raises each label by its floor's elevation.
 - **Sub-agents** spawn on their parent's floor. Their ids come from one counter shared by every floor, so an id names one character in the whole building.
 
@@ -44,13 +44,13 @@ Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen
 
 ## UI styling
 
-Pixel art aesthetic: sharp corners (`borderRadius: 0`), `2px solid` borders, hard offset shadows (`2px 2px 0px #0a0a14`, no blur). CSS variables live in `index.css` `:root` (`--color-paper`, `--color-ink`, the `--color-status-*` state colours, ...). The pixel font is FS Pixel Sans (`webview-ui/public/fonts/FSPixelSansUnicode-Regular.ttf`), loaded via `@font-face` in `index.css` and applied globally.
+Habbo client look: 1 or 2 px ink borders, small rounded corners, hard offset shadows (`2px 2px 0px #111111`, no blur). CSS variables live in `index.css` `:root` (`--color-hud-bg`, `--color-hud-titlebar`, `--color-ink`, the `--color-status-*` state colours, ...). The pixel font is FS Pixel Sans (`webview-ui/public/fonts/FSPixelSansUnicode-Regular.ttf`), loaded via `@font-face` in `index.css` and applied globally.
 
-The HUD is furnished like the office, not drawn as flat dark panels. `components/BottomToolbar.tsx` is a wooden plank, and `components/ConnectionsMenu.tsx` sits on `components/ui/Clipboard.tsx`.
+The HUD is Habbo's client chrome. `components/BottomToolbar.tsx` is a window strip, and `components/ConnectionsMenu.tsx` sits in a window (`components/ui/Clipboard.tsx`).
 
-- Modals and notices (`components/ui/Modal.tsx`, `ChangelogModal.tsx`, `MigrationNotice.tsx`) are `.paper-sheet` memos pinned with a square `.paper-pin` tack. `.paper-sheet` re-points the palette variables (`--color-text`, `--color-btn-bg`, ...) so the shared ghost `Button` renders as ink on paper without a second set of controls.
-- Tooltips, toasts and in-world labels (`Tooltip.tsx`, `VersionIndicator.tsx`, `ConnectionIndicator.tsx`, `ToolOverlay.tsx`'s activity label, the greeter's `IntroBubble.tsx`) are smaller ink-bordered `.paper-tag` tags.
-- Status badges and speech bubbles (`office/sprites/status-*.json`, `office/sprites/bubble-*.json`) share the same ink outline (`#1a1426`) and the HUD's `--color-status-*` state colours.
+- Modals and notices (`components/ui/Modal.tsx`, `ChangelogModal.tsx`, `MigrationNotice.tsx`) are `.hud-window` windows: a white body under a blue `.hud-titlebar` with the title and a close button.
+- Tooltips, toasts and in-world labels (`Tooltip.tsx`, `VersionIndicator.tsx`, `ConnectionIndicator.tsx`, `ToolOverlay.tsx`'s activity label, the greeter's `IntroBubble.tsx`) are white ink-bordered `.hud-tag` name tags.
+- Status badges and speech bubbles (`office/sprites/status-*.json`, `office/sprites/bubble-*.json`) share the same ink outline (`#111111`) and the HUD's `--color-status-*` state colours.
 
 Custom ESLint rules (`eslint-rules/terrarium-rules.mjs`) enforce `no-inline-colors` (hex, rgb, rgba, hsl and hsla literals only in `constants.ts`), `pixel-shadow` (`var(--pixel-shadow)` or `2px 2px 0px`) and `pixel-font` (must reference FS Pixel Sans). All are `error` level.
 
@@ -118,6 +118,6 @@ There is no in-app layout editor. The office is authored in code (`scripts/iso-a
 
 **Floor**: 9 grayscale 16×16 patterns (`assets/floors/floor_N.png`), colorized per tile (Photoshop Colorize) from `tileColors`.
 
-**Walls** (`office/isoWalls.ts`): a wall tile whose -row or -col neighbour is VOID or off-grid is a back wall, a solid `WALL_HEIGHT_PX` (40) box in the tile's wall colour, with a lighter cap and a rim pixel on its front edges, a quiet hashed plaster texture on the faces and a baseboard. Every other wall renders as a **glass partition**: a thin framed pane `WALL_GLASS_HEIGHT_PX` tall along the wall's run (cols, rows, or both at a junction), so interior rooms stay visible. Wall-mounted items belong on back walls.
+**Walls** (`office/isoWalls.ts`): a wall tile whose -row or -col neighbour is VOID or off-grid is a back wall, a thin wallpapered `WALL_HEIGHT_PX` (56) box standing on the tile's inner edge, so wall items hang on the tile boundary and the corner tile is the post where two back walls meet. It has flat faces in the tile's wall colour, a lighter cap with an ink line under it and a skirting board. The floor is drawn under every wall tile, borrowing the nearest open tile's material. Every other wall renders as a **glass partition**: a thin ink-framed pane `WALL_GLASS_HEIGHT_PX` tall along the wall's run (cols, rows, or both at a junction), so interior rooms stay visible. Wall-mounted items belong on back walls.
 
 **Auto-state**: `officeState.rebuildFurnitureInstances()` swaps electronics to their ON sprites when an active agent faces a desk with that item nearby (3 tiles deep in the facing direction, 1 tile to each side). It works at render time without modifying the layout.

@@ -15,159 +15,32 @@
  */
 
 import type { CharacterFrame } from '../../../core/src/assets/constants.js';
-import type { RGBA } from '../lib/image.js';
-import { PixelImage } from '../lib/image.js';
+import { LetterCanvas, Mask, roundShade } from './canvas.js';
+import type { Joint } from './canvas.js';
 import type { Build, OutfitCut } from './outfits.js';
 
 export type Facing = 'front' | 'back';
-
-/** Letter for empty pixels, as in the head and hair templates. */
-const EMPTY = '.';
-const INK = 'o';
-
-export class LetterCanvas {
-  private readonly cells: string[];
-
-  constructor(
-    readonly width: number,
-    readonly height: number,
-  ) {
-    this.cells = new Array<string>(width * height).fill(EMPTY);
-  }
-
-  get(x: number, y: number): string {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return EMPTY;
-    return this.cells[y * this.width + x];
-  }
-
-  set(x: number, y: number, letter: string): void {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
-    this.cells[y * this.width + x] = letter;
-  }
-
-  /** Fill every mask pixel with the letter `paint` picks for it. */
-  fill(mask: Mask, paint: (x: number, y: number) => string): void {
-    mask.forEach((x, y) => this.set(x, y, paint(x, y)));
-  }
-
-  /** Ink every pixel outside the mask that touches it edge to edge. */
-  ring(mask: Mask): void {
-    mask.forEach((x, y) => {
-      for (const [nx, ny] of [
-        [x - 1, y],
-        [x + 1, y],
-        [x, y - 1],
-        [x, y + 1],
-      ] as const) {
-        if (!mask.has(nx, ny)) this.set(nx, ny, INK);
-      }
-    });
-  }
-
-  /** Fill, then outline: one opaque, inked part. */
-  part(mask: Mask, paint: (x: number, y: number) => string): void {
-    this.fill(mask, paint);
-    this.ring(mask);
-  }
-
-  /** Draw a letter template; `.` and space stay untouched. */
-  stamp(rows: readonly string[], dx: number, dy: number): void {
-    rows.forEach((row, y) => {
-      [...row].forEach((letter, x) => {
-        if (letter !== '.' && letter !== ' ') this.set(dx + x, dy + y, letter);
-      });
-    });
-  }
-
-  toImage(palette: Record<string, RGBA>): PixelImage {
-    const img = new PixelImage(this.width, this.height);
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) {
-        const letter = this.get(x, y);
-        if (letter === EMPTY) continue;
-        const color = palette[letter];
-        if (!color) throw new Error(`character palette has no colour for '${letter}'`);
-        img.set(x, y, color);
-      }
-    }
-    return img;
-  }
-}
-
-/** A set of frame pixels. */
-class Mask {
-  private readonly pixels = new Set<number>();
-
-  constructor(
-    private readonly width: number,
-    private readonly height: number,
-  ) {}
-
-  has(x: number, y: number): boolean {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
-    return this.pixels.has(y * this.width + x);
-  }
-
-  add(x: number, y: number): this {
-    if (x >= 0 && y >= 0 && x < this.width && y < this.height) this.pixels.add(y * this.width + x);
-    return this;
-  }
-
-  /** Pixels x0..x1 (inclusive) of row y. */
-  span(y: number, x0: number, x1: number): this {
-    for (let x = x0; x <= x1; x++) this.add(x, y);
-    return this;
-  }
-
-  /** Pixels whose centre lies within `radius` of the segment a→b. */
-  segment(a: Joint, b: Joint, radius: number): this {
-    const [ax, ay] = a;
-    const [bx, by] = b;
-    const minX = Math.floor(Math.min(ax, bx) - radius);
-    const maxX = Math.ceil(Math.max(ax, bx) + radius);
-    const minY = Math.floor(Math.min(ay, by) - radius);
-    const maxY = Math.ceil(Math.max(ay, by) + radius);
-    const dx = bx - ax;
-    const dy = by - ay;
-    const lengthSq = dx * dx + dy * dy || 1;
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const px = x + 0.5;
-        const py = y + 0.5;
-        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSq));
-        const ex = px - (ax + t * dx);
-        const ey = py - (ay + t * dy);
-        if (ex * ex + ey * ey <= radius * radius + 1e-9) this.add(x, y);
-      }
-    }
-    return this;
-  }
-
-  forEach(visit: (x: number, y: number) => void): void {
-    for (const i of [...this.pixels].sort((p, q) => p - q)) {
-      visit(i % this.width, Math.floor(i / this.width));
-    }
-  }
-}
-
-/** A pixel-centre position in the frame. */
-type Joint = readonly [number, number];
 
 // ── Skeleton ────────────────────────────────────────────────────
 
 /** Horizontal centre of the figure: the seam between pixels 15 and 16. */
 export const BODY_CENTER_X = 16;
-/** Top row of the shoulders. The chin of the head template sits on the row above. */
-export const SHOULDER_Y = 26;
-/** Bottom row of the torso: the belt line. */
-const WAIST_Y = 39;
-/** Bottom row of the shoes, with the ground shadow on the row below. */
+/** Top row of the shoulders. A block body: the torso is a straight-sided
+ *  box this many rows deep, not a taper. The chin sits on the row above. */
+export const SHOULDER_Y = 32;
+/** Bottom row of the torso: the belt line. Shoulder to waist is 15 px,
+ *  Habbo's torso halved. */
+const WAIST_Y = 46;
+/** Bottom row of the shoes, with the ground shadow on the row below. Waist
+ *  to sole is 8 px: short Habbo legs on 2 px flat shoes, halved. */
 export const SOLE_Y = 54;
-const SHOE_ROWS = 3;
-/** A raised arm and a held-up form reach up to this row, above every hairstyle. */
+const SHOE_ROWS = 2;
+/** A raised arm and a held-up form reach up to this row, clear of every
+ *  hairstyle's tallest crown. */
 const REACH_TOP_Y = 2;
-/** Seated figures sit this many rows lower, so the belt rests on a chair seat 6 px high. */
-export const SEAT_DROP = 11;
+/** Seated figures sit this many rows lower: standing legs carry the waist
+ *  8 px above the sole, a chair seat is 6, so sitting drops it 2. */
+export const SEAT_DROP = 2;
 const LIMB_RADIUS = 1.5;
 const HAND_RADIUS = 1.5;
 const LEG_WIDTH = 5;
@@ -197,17 +70,20 @@ interface Torso {
   readonly rightShoulder: Joint;
 }
 
+/** A block body under a block head: the torso is a straight-sided box, not
+ *  a taper, with a 1 px shoulder cap at the top and the shirt hem stepped
+ *  down the iso slope on its shaded (right) edge over the last 3 rows. */
 function torsoShape(build: Build, top: number): Torso {
   const shoulders = BUILD_SHOULDERS[build];
   const height = WAIST_Y - SHOULDER_Y + 1;
+  const left = BODY_CENTER_X - Math.floor(shoulders / 2);
+  const right = left + shoulders - 1;
   const rows: [number, number][] = [];
   for (let i = 0; i < height; i++) {
-    const width =
-      i === 0 ? shoulders - 4 : Math.round(shoulders - (2 * (i - 1)) / Math.max(1, height - 2));
-    const left = BODY_CENTER_X - Math.floor(width / 2);
-    rows.push([left, left + width - 1]);
+    const capped = i === 0 ? left + 1 : left;
+    const hemStep = Math.max(0, i - (height - 3));
+    rows.push([capped, right - hemStep]);
   }
-  const [left, right] = rows[1];
   return {
     rows,
     top,
@@ -241,47 +117,47 @@ interface BodyPose {
   readonly nudge?: Joint;
 }
 
-const HANG_LEFT: Arm = { elbow: [-1, 5], hand: [-1, 10] };
-const HANG_RIGHT: Arm = { elbow: [1, 5], hand: [1, 10] };
-const LAP_LEFT: Arm = { elbow: [-1, 6], hand: [4, 10] };
-const LAP_RIGHT: Arm = { elbow: [1, 6], hand: [-4, 10] };
-const RAISE_LEFT: Arm = { elbow: [-4, -6], hand: [-6, -19], raised: true };
-const RAISE_LEFT_WAVE: Arm = { elbow: [-3, -6], hand: [-4, -19], raised: true };
-const FORM_RIGHT: Arm = { elbow: [4, -4], hand: [5, -11], raised: true };
+const HANG_LEFT: Arm = { elbow: [-1, 4], hand: [-1, 8] };
+const HANG_RIGHT: Arm = { elbow: [1, 4], hand: [1, 8] };
+const LAP_LEFT: Arm = { elbow: [-1, 5], hand: [3, 7] };
+const LAP_RIGHT: Arm = { elbow: [1, 5], hand: [-3, 7] };
+const RAISE_LEFT: Arm = { elbow: [-4, -5], hand: [-6, -17], raised: true };
+const RAISE_LEFT_WAVE: Arm = { elbow: [-3, -5], hand: [-4, -17], raised: true };
+const FORM_RIGHT: Arm = { elbow: [4, -3], hand: [5, -10], raised: true };
 
 /** Front-view arm and leg positions per frame. */
 const FRONT_POSES: Record<CharacterFrame, BodyPose> = {
   walk1: {
     legs: 'walkA',
-    left: { elbow: [-1, 5], hand: [-2, 10] },
-    right: { elbow: [1, 5], hand: [2, 9] },
+    left: { elbow: [-1, 4], hand: [-2, 8] },
+    right: { elbow: [1, 4], hand: [2, 7] },
   },
   walk2: { legs: 'stand', left: HANG_LEFT, right: HANG_RIGHT },
   walk3: {
     legs: 'walkB',
-    left: { elbow: [-1, 5], hand: [0, 9] },
-    right: { elbow: [1, 5], hand: [0, 10] },
+    left: { elbow: [-1, 4], hand: [0, 7] },
+    right: { elbow: [1, 4], hand: [0, 8] },
   },
   type1: {
     legs: 'sit',
-    left: { elbow: [-1, 6], hand: [-4, 8] },
-    right: { elbow: [1, 6], hand: [-5, 9] },
+    left: { elbow: [-1, 5], hand: [-4, 7] },
+    right: { elbow: [1, 5], hand: [-5, 8] },
   },
   type2: {
     legs: 'sit',
-    left: { elbow: [-1, 6], hand: [-4, 9] },
-    right: { elbow: [1, 6], hand: [-5, 8] },
+    left: { elbow: [-1, 5], hand: [-4, 8] },
+    right: { elbow: [1, 5], hand: [-5, 7] },
   },
   read1: {
     legs: 'sit',
-    left: { elbow: [-1, 6], hand: [-3, 9] },
-    right: { elbow: [1, 6], hand: [-6, 9] },
+    left: { elbow: [-1, 5], hand: [-3, 8] },
+    right: { elbow: [1, 5], hand: [-6, 8] },
     prop: 'sheet',
   },
   read2: {
     legs: 'sit',
-    left: { elbow: [-1, 6], hand: [-3, 10] },
-    right: { elbow: [1, 6], hand: [-6, 10] },
+    left: { elbow: [-1, 5], hand: [-3, 9] },
+    right: { elbow: [1, 5], hand: [-6, 9] },
     prop: 'sheet',
     nudge: [0, 1],
   },
@@ -299,10 +175,10 @@ const FRONT_POSES: Record<CharacterFrame, BodyPose> = {
   holdFormSeated2: { legs: 'sit', left: LAP_LEFT, right: FORM_RIGHT, prop: 'form' },
 };
 
-const WORK_BACK_LEFT_1: Arm = { elbow: [-3, 5], hand: [1, 7], behind: true };
-const WORK_BACK_RIGHT_1: Arm = { elbow: [3, 4], hand: [-1, 6], behind: true };
-const WORK_BACK_LEFT_2: Arm = { elbow: [-3, 4], hand: [1, 6], behind: true };
-const WORK_BACK_RIGHT_2: Arm = { elbow: [3, 5], hand: [-1, 7], behind: true };
+const WORK_BACK_LEFT_1: Arm = { elbow: [-3, 4], hand: [1, 6], behind: true };
+const WORK_BACK_RIGHT_1: Arm = { elbow: [3, 3], hand: [-1, 5], behind: true };
+const WORK_BACK_LEFT_2: Arm = { elbow: [-3, 3], hand: [1, 5], behind: true };
+const WORK_BACK_RIGHT_2: Arm = { elbow: [3, 4], hand: [-1, 6], behind: true };
 
 /** From behind, working hands are hidden in front of the body and the
  *  elbows stick out at the sides. Hands in the lap and a reader's sheet
@@ -331,15 +207,6 @@ export function isSeated(frame: CharacterFrame): boolean {
 
 // ── Drawing ─────────────────────────────────────────────────────
 
-/** Lit left edge, shaded right edge, base in between: a limb or a shoe. */
-function roundShade(mask: Mask, light: string, base: string, dark: string) {
-  return (x: number, y: number): string => {
-    if (!mask.has(x + 1, y)) return dark;
-    if (!mask.has(x - 1, y)) return light;
-    return base;
-  };
-}
-
 function legMask(
   canvas: LetterCanvas,
   hipY: number,
@@ -366,18 +233,19 @@ function drawStandingLegs(canvas: LetterCanvas, pose: LegPose, hipY: number, tor
   const [waistLeft, waistRight] = torso.rows[torso.rows.length - 1];
   const leftX = waistLeft + 1;
   const rightX = waistRight - LEG_WIDTH;
+  const lift = Math.min(2, Math.max(1, Math.floor((SOLE_Y - hipY) / 4)));
   const stride: Record<Exclude<LegPose, 'sit'>, [Joint, Joint]> = {
     stand: [
       [leftX, SOLE_Y],
       [rightX, SOLE_Y],
     ],
     walkA: [
-      [leftX - 3, SOLE_Y],
-      [rightX + 2, SOLE_Y - 2],
+      [leftX - 2, SOLE_Y],
+      [rightX + 1, SOLE_Y - lift],
     ],
     walkB: [
-      [leftX + 2, SOLE_Y - 2],
-      [rightX - 2, SOLE_Y],
+      [leftX + 1, SOLE_Y - lift],
+      [rightX - 1, SOLE_Y],
     ],
   };
   const [leftAnkle, rightAnkle] = stride[pose as Exclude<LegPose, 'sit'>];
@@ -404,19 +272,20 @@ function drawSeatedLegs(canvas: LetterCanvas, facing: Facing, hipY: number, tors
     canvas.part(thighs, (x, y) => (thighs.has(x + 2, y) ? 'p' : 'P'));
     return;
   }
-  // Thighs run toward the viewer (screen lower left), the shins hang down.
-  thighs
-    .span(hipY, waistLeft, waistRight)
-    .span(hipY + 1, waistLeft - 2, waistRight - 1)
-    .span(hipY + 2, waistLeft - 4, waistRight - 5);
-  const shins = new Mask(canvas.width, canvas.height);
-  for (let y = hipY + 3; y < canvas.height; y++) shins.span(y, waistLeft - 4, waistLeft);
-  canvas.part(shins, roundShade(shins, 'p', 'p', 'P'));
+  // Thighs are a chunky block at the hip's full width, coming toward the
+  // viewer (shifting down-left) for 2 rows; the shins hang from their
+  // leading edge, centred under the body, down to the visible shoes.
+  // Habbo's short legs leave only a few rows once the hip sits at
+  // chair-seat height.
+  thighs.span(hipY, waistLeft, waistRight).span(hipY + 1, waistLeft - 2, waistRight - 2);
   canvas.part(thighs, (x, y) => (thighs.has(x + 2, y) ? 'p' : 'P'));
+  const front = Math.round((waistLeft + waistRight) / 2) - 2;
+  const shins = new Mask(canvas.width, canvas.height);
+  const shoeTop = SOLE_Y - SHOE_ROWS + 1;
+  for (let y = hipY + 2; y < shoeTop; y++) shins.span(y, front - 3, front + 2);
+  canvas.part(shins, roundShade(shins, 'p', 'p', 'P'));
   const shoes = new Mask(canvas.width, canvas.height);
-  shoes
-    .span(canvas.height - 2, waistLeft - 5, waistLeft)
-    .span(canvas.height - 1, waistLeft - 6, waistLeft);
+  shoes.span(shoeTop, front - 4, front + 3).span(SOLE_Y, front - 5, front + 3);
   canvas.part(shoes, roundShade(shoes, 'f', 'f', 'F'));
 }
 

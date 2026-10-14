@@ -6,7 +6,7 @@
  */
 
 import type { Accessory, Build, OutfitCut } from './outfits.js';
-import { HAIR } from './templates.js';
+import { HAIR } from './head.js';
 
 export interface Worker {
   readonly hair: keyof typeof HAIR;

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { paintNightSkyline } from '../src/office/backdrop.js';
+import { paintDaylightSkyline } from '../src/office/backdrop.js';
 
 const ALPHA_OFFSET = 3;
 const BYTES_PER_PIXEL = 4;
@@ -22,7 +22,7 @@ test('every pixel is opaque at wide, tall, square and degenerate sizes', () => {
     [1, 1],
     [0, 0],
   ]) {
-    const image = paintNightSkyline(width, height);
+    const image = paintDaylightSkyline(width, height);
     assert.equal(image.pixels.length, image.width * image.height * BYTES_PER_PIXEL);
     for (let i = ALPHA_OFFSET; i < image.pixels.length; i += BYTES_PER_PIXEL) {
       assert.equal(image.pixels[i], 255, `transparent pixel at ${width}x${height}, byte ${i}`);
@@ -34,8 +34,8 @@ test('widening the canvas keeps the existing columns unchanged', () => {
   const height = 300;
   const narrowWidth = 400;
   const wideWidth = 700;
-  const narrow = paintNightSkyline(narrowWidth, height);
-  const wide = paintNightSkyline(wideWidth, height);
+  const narrow = paintDaylightSkyline(narrowWidth, height);
+  const wide = paintDaylightSkyline(wideWidth, height);
   const narrowRowBytes = narrowWidth * BYTES_PER_PIXEL;
   const wideRowBytes = wideWidth * BYTES_PER_PIXEL;
   for (let y = 0; y < height; y++) {

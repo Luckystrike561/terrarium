@@ -56,7 +56,7 @@ function ConnectionRow({ connection }: { connection: Connection }) {
               value={labelDraft}
               onChange={(e) => setLabelDraft(e.target.value)}
               maxLength={CONNECTION_LABEL_MAX_CHARS}
-              className="w-full text-sm py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
+              className="w-full text-sm py-2 px-4 bg-hud-bg border-2 border-border rounded text-text"
             />
           ) : (
             <span className="text-sm block overflow-hidden text-ellipsis whitespace-nowrap">
@@ -69,7 +69,7 @@ function ConnectionRow({ connection }: { connection: Connection }) {
         </div>
         <span
           data-testid="connection-state"
-          className={`shrink-0 text-2xs py-1 px-6 border-2 rounded-none ${STATE_COLOR_CLASS[connection.state]}`}
+          className={`shrink-0 text-2xs py-1 px-6 border-2 rounded ${STATE_COLOR_CLASS[connection.state]}`}
         >
           {STATE_LABELS[connection.state]}
         </span>
@@ -207,7 +207,7 @@ export function ConnectionsMenu({
           value={kind}
           onChange={(e) => setKind(e.target.value as ConnectionKind)}
           disabled={isPending}
-          className="text-xs py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
+          className="text-xs py-2 px-4 bg-hud-bg border-2 border-border rounded text-text"
         >
           <option value="ssh">SSH</option>
           <option value="local">Local session</option>
@@ -220,7 +220,7 @@ export function ConnectionsMenu({
           maxLength={CONNECTION_LABEL_MAX_CHARS}
           onChange={(e) => setLabel(e.target.value)}
           disabled={isPending}
-          className="text-xs py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
+          className="text-xs py-2 px-4 bg-hud-bg border-2 border-border rounded text-text"
         />
         {kind === 'ssh' && (
           <input
@@ -230,7 +230,7 @@ export function ConnectionsMenu({
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             disabled={isPending}
-            className="text-xs py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
+            className="text-xs py-2 px-4 bg-hud-bg border-2 border-border rounded text-text"
           />
         )}
         <input
@@ -240,7 +240,7 @@ export function ConnectionsMenu({
           value={session}
           onChange={(e) => setSession(e.target.value)}
           disabled={isPending}
-          className="text-xs py-2 px-4 bg-bg border-2 border-border rounded-none text-text"
+          className="text-xs py-2 px-4 bg-hud-bg border-2 border-border rounded text-text"
         />
         {error && (
           <p data-testid="connection-add-error" className="text-2xs text-status-error">

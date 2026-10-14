@@ -246,7 +246,7 @@ export function IntroBubble({
             top: y,
             width: size,
             height: size,
-            background: 'var(--color-paper)',
+            background: 'var(--color-hud-bg)',
             border: '2px solid var(--color-ink)',
           }}
         />
@@ -255,7 +255,7 @@ export function IntroBubble({
         ref={bubbleRef}
         role="dialog"
         aria-label={titles[step]}
-        className="paper-tag relative py-10 px-14 leading-[1.4]"
+        className="hud-tag relative py-10 px-14 leading-[1.4]"
         style={{ maxWidth }}
       >
         {/* Same close control as the changelog modal (ui/Modal.tsx):
@@ -276,7 +276,7 @@ export function IntroBubble({
             <div
               key={i}
               aria-hidden
-              className={`w-6 h-6 ${i === step ? 'bg-accent' : 'bg-btn-bg'}`}
+              className={`w-6 h-6 rounded-full ${i === step ? 'bg-accent' : 'bg-btn-bg'}`}
             />
           ))}
         </div>
@@ -296,7 +296,7 @@ export function IntroBubble({
               The office watches your Claude Code sessions and brings them to life in here. New to
               Claude Code? Download it first:
             </p>
-            <div className="text-sm bg-btn-bg border-2 border-border py-4 px-8 mb-8 select-all">
+            <div className="text-sm bg-btn-bg border-2 border-border rounded py-4 px-8 mb-8 select-all">
               {CLAUDE_CODE_INSTALL_COMMAND}
             </div>
             <p className="text-sm m-0 mb-8">
