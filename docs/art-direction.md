@@ -13,9 +13,9 @@ The target look for everything drawn in the office: the background, the room she
 
 ## Pixel grid and projection
 
-- 2:1 isometric. A floor tile is a 32×16 diamond, Habbo's small zoom (a Habbo 2×1 sofa at size 32 is within 2 px of Terrarium's). One world unit of height is one sprite pixel: desk tops at 12, chair seats at 6, back walls 56 tall, glass partitions 30.
+- 2:1 isometric, drawn at **Habbo's normal zoom**: a floor tile is a 64×32 diamond in art pixels. The world keeps its 32×16 grid units, and every sprite is authored at `ART_SCALE` (2) art pixels per world unit and drawn at half size, so the layout, the footprints and the simulation are unchanged while the art gets Habbo's full detail. Heights in world units: desk tops at 12, chair seats at 6, back walls 56 tall, glass partitions 30 (twice that in art pixels).
 - Nearest-neighbour sampling only. No anti-aliasing, no blur, no sub-pixel placement, no smooth gradients. Shading comes in hard bands, and the only blend between two bands is an ordered dither.
-- One sprite pixel is one art pixel. Never scale a sprite inside its sheet.
+- Every outline and detail is one art pixel, half a world unit, like Habbo's 1 px line at its normal zoom. Never scale a sprite inside its sheet.
 
 ## Background
 
@@ -82,11 +82,11 @@ Base colours are the fully lit tone. Side tones come from the light. Habbo's col
 
 ## Characters
 
-A frame is 32×56, half of Habbo's 64×110 figure frame. The feet touch the bottom centre of the frame, on a translucent iso ellipse.
+A frame is 64×112 art pixels, Habbo's 64×110 figure frame rounded to an even height. The feet touch the bottom centre of the frame, on a translucent iso ellipse.
 
-**Proportions**, measured on Habbo figures and halved: about 40 px from crown to sole. A big head about 17 px tall including the hair, a torso about 15 px, short legs about 8 px on 2 px shoes. The head and the torso are the same width, about 14 px: a Habbo figure is a block body under a block head, not a tapering one.
+**Proportions**, measured on Habbo figures at their normal size: about 80 art px from crown to sole. A big head about 32 px tall including the hair and about 26 px wide, a torso about 30 px including the slanted hem, short legs about 16 px on 4 px shoes. The head and the torso are about the same width: a Habbo figure is a block body under a block head, not a tapering one.
 
-**Construction.** The torso is a small iso box, a lit front face and a narrow shaded side face, and the shirt hem runs down at the iso slope. Arms are 3 px wide, hang straight at the sides with small skin hands. The legs are two columns, the far one behind, the shoes flat iso blocks. The head is turned 3/4 toward where the figure faces: both eyes on that half of the face, white with a dark pupil toward the facing side, the nose a 1 px bump past the contour, a small mouth, the ear on the far side, the jaw narrowing toward the facing side. Hair is a big shape with a 1 px dither in its darker tone.
+**Construction.** The torso is a small iso box, a lit front face and a narrow shaded side face, with sleeves that end in cuffs, and the shirt hem runs down at the iso slope. Arms are about 6 px wide and hang at the sides with skin hands. The legs are two columns, the far one behind, the shoes flat pale iso blocks. The head is turned 3/4 toward where the figure faces: both eyes on that half of the face, each a white with a dark pupil glancing toward the facing side under a hair-coloured brow, a short nose line, a small mouth, the ear on the far side, the jaw narrowing to a chin on the facing side. Skin and cloth shade in hard bands, and hair is a big clumped shape with dark strands and a highlight.
 
 **Parts.** A figure is composed from parts, the way Habbo composes one from `hd`, `ch`, `lg` and `sh`: legs and shoes, a torso with its outfit cut, two arms posed by the frame, a head, hair, and one accessory, all drawn by `scripts/iso-art/characters.ts` and `scripts/iso-art/characters/`.
 
@@ -156,5 +156,5 @@ Habbo Hotel on [habboassets.com](https://www.habboassets.com/), looked at for st
 2. No Habbo asset, and nothing traced, sampled or fetched from habboassets.com or habbo.com.
 3. Daylit from the upper left, shadows toward `#2c3446`, colours from the palette above.
 4. Outlined in ink as the section above says for its kind, fabric dithered, plastic glossy.
-5. Characters: every frame of `CHARACTER_FRAMES` in all three rows, feet at the bottom centre.
+5. Characters: every frame of `CHARACTER_FRAMES` in all three rows, 64×112, feet at the bottom centre.
 6. Furniture: the footprint anchor contract above, and a bump of the default layout `REVISION` when the layout changes.
