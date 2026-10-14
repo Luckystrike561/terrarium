@@ -1,64 +1,74 @@
 # Art direction
 
-The target look for everything drawn in the office: characters, furniture, floors, walls, status badges, speech bubbles and the HUD. New art follows this note. Art that cannot follow it changes the note in the same pull request.
+The target look for everything drawn in the office: the background, the room shell (floors, walls, partitions), furniture, characters, status badges, speech bubbles and the HUD. New art follows this note. Art that cannot follow it changes the note in the same pull request.
 
 ![The default office](media/art-direction/office.png)
 
 ## Decisions
 
-- **Everything stays generated from code.** Characters, furniture and floors are written by `scripts/iso-art/` (`npx tsx scripts/iso-art/generate.ts`), walls are drawn procedurally at runtime (`webview-ui/src/office/isoWalls.ts`). No hand-drawn sheets and no third-party asset packs: the generator keeps every asset reviewable as a diff, reproducible, and free of licence questions.
-- **The target is Habbo Hotel's look, and no Habbo asset is copied.** Habbo's rooms are the reference for the figure proportions, the furniture outline and the fabric texture. [habboassets.com](https://www.habboassets.com/) is the reference library because it renders every item at Terrarium's own tile size. It is a community mirror, unaffiliated with Sulake, and the art belongs to Sulake: no Habbo pixel is traced, sampled, downloaded into the repository, shipped in the npm tarball or the Docker image, or fetched at runtime. The references below are looked at, never used as input to a generator.
-- **One style: Habbo-style 2:1 iso pixel art at night.** A late-shift office floating in the dark, lit warm inside against a deep indigo city outside. Habbo's room view floats each room over a dark void too, so the night setting and the indigo skyline stay. Characters are readable first, detailed second: a viewer across the room must tell who is working, who is waiting and who needs approval without reading a badge.
+- **Everything stays generated from code.** Characters, furniture and floors are written by `scripts/iso-art/` (`npx tsx scripts/iso-art/generate.ts`), the walls, the floor slab and the background are drawn procedurally at runtime (`webview-ui/src/office/isoWalls.ts`, `backdrop.ts`). No hand-drawn sheets and no third-party asset packs: the generator keeps every asset reviewable as a diff, reproducible, and free of licence questions.
+- **The office is a Habbo Hotel room, and no Habbo asset is copied.** Habbo Hotel is the reference for everything on screen: the daylight hotel view behind the room, the thick floor slab and its tile grid, the tall thin wallpapered walls, the glossy chunky furniture, the big-headed figures and the white rounded windows of the client. [habboassets.com](https://www.habboassets.com/) is the reference library because it renders every item at Terrarium's own tile size. It is a community mirror, unaffiliated with Sulake, and the art belongs to Sulake: no Habbo pixel is traced, sampled, downloaded into the repository, shipped in the npm tarball or the Docker image, or fetched at runtime. The references below are looked at, never used as input to a generator.
+- **Daylight.** Habbo's hotel view is a sunny sky over a city, so the night office and its indigo skyline are gone. The room is evenly lit, colours are bright and saturated, and every object is held together by a black line.
+- **Readable first.** A viewer across the room must tell who is working, who is waiting and who needs approval without reading a badge.
 
 ## Pixel grid and projection
 
-- 2:1 isometric. A floor tile is a 32×16 diamond, the size of Habbo's small zoom (a Habbo 2×1 sofa at size 32 is within 2 px of Terrarium's). One world unit of height is one sprite pixel: desk tops at 12, chair seats at 6, back walls 40 tall, glass partitions 30.
+- 2:1 isometric. A floor tile is a 32×16 diamond, Habbo's small zoom (a Habbo 2×1 sofa at size 32 is within 2 px of Terrarium's). One world unit of height is one sprite pixel: desk tops at 12, chair seats at 6, back walls 56 tall, glass partitions 30.
 - Nearest-neighbour sampling only. No anti-aliasing, no blur, no sub-pixel placement, no smooth gradients. Shading comes in hard bands, and the only blend between two bands is an ordered dither.
 - One sprite pixel is one art pixel. Never scale a sprite inside its sheet.
 
+## Background
+
+Habbo's hotel view by day, drawn by `backdrop.ts`:
+
+- **Sky** in hard horizontal bands, `#4aa6e0` at the top through `#7cc4ec` and `#a8daf3` to `#d2eef9` at the horizon.
+- **Clouds**: flat white `#ffffff` puffs with a `#cfe9f7` underside, stepped like pixel art, never round gradients.
+- **City** along the bottom: two rows of daytime towers, far `#9fc6dc` and near `#7aaac6`, with pale `#e3f4fb` windows in a grid, and a few rooftop details. No stars, no lit windows.
+
 ## Light
 
-One key light from the screen's upper left.
+One key light from the screen's upper left, softer than a night interior because the room is daylit.
 
 | Surface                                       | Brightness |
 | --------------------------------------------- | ---------- |
 | Top faces                                     | 100%       |
-| Left faces (facing +row, screen lower left)   | 70%        |
-| Right faces (facing +col, screen lower right) | 45%        |
+| Left faces (facing +row, screen lower left)   | 80%        |
+| Right faces (facing +col, screen lower right) | 60%        |
 
-- **Shadows shift toward cool violet `#1f1830`**, never toward black. Brightness is quantized into six bands (`lit()` in `scripts/iso-art/lib/scene.ts`).
-- **Rim light**: one lighter pixel row on the top front edges of boxes, the way Habbo picks out the edge of a table top or a wooden frame.
-- **Characters** follow the same light: the figure's screen-right side is the shaded side, the left side carries the light tone.
-- **Contact shadows**: characters stand on a translucent `#00000040` ground shadow, furniture casts its traced shadow on the floor.
+- **Shadows shift toward a cool grey-blue `#2c3446`**, never toward black. Brightness is quantized into bands (`lit()` in `scripts/iso-art/lib/scene.ts`).
+- **Gloss**: Habbo plastic, lacquer and screens carry a white highlight streak or a lighter rim on their top front edges.
+- **Contact shadows**: characters stand on a translucent `#00000033` iso ellipse, furniture casts its traced shadow on the floor.
 
 ## Outline
 
-- **Ink is `#1a1426`.** It is the outline of characters, furniture, badges and bubbles. It stands in for Habbo's near-black line and keeps the violet shadow family.
-- **Characters** get a full 1 px outline, including the inner line between parts that overlap (an arm over the torso, a hand over a sheet, the torso over the hips), so poses read at 1×.
-- **Furniture** gets a full 1 px outline, like Habbo furniture: every silhouette pixel is ink, not a darkened colour. Where one part passes in front of another (a cushion in front of a backrest, a monitor in front of a wall) the edge is a dark line, the colour mixed 65% toward ink. Edges between two faces of the same box are drawn by the light bands, not by a line.
-- **Floors and walls** have no outline. Tiles read through the light: seams and bevels, not lines.
+- **Ink is `#111111`**, Habbo's near-black line. It outlines characters, furniture, badges, bubbles, windows and the floor slab.
+- **Characters** get a full 1 px outline, including the inner line between parts that overlap (an arm over the torso, the shirt hem over the trousers, a hand over a sheet).
+- **Furniture** gets a full 1 px outline: every silhouette pixel is ink. Where one part passes in front of another the edge is a dark line, the colour mixed 65% toward ink. Edges between two faces of the same box are drawn by the light bands.
+- **Floors** draw their tile grid instead of an outline. **Walls** get an ink line along the top edges of the cap.
 
-## Texture
+## Room shell
 
-- **Fabric is dithered.** Upholstery and cushions carry Habbo's woven look: a 1 px checker of the face's lit tone and a tone mixed 18% toward ink, laid on the face's own coordinates so it follows the iso grid. Mesh keeps its own coarser weave. The bundled carpets are not generated and keep their own pattern.
-- **Hard materials are flat.** Wood, metal, plastic, leather, glass and paper take the light bands and nothing else, except the materials that have a grain of their own: flecks in wood, speckles in a stone planter, the clumps of a plant.
-- **No value noise on floors, walls or fabric**: noise reads as grime at 1×, a dither reads as cloth.
+- **Floor tiles** read as Habbo's grid: every tile is flat colour with a 1 px darker seam along its two upper edges, so the room shows its diamonds. `floor_0`–`floor_8` keep their index-to-material mapping (`floor_0` plain, `floor_1` large pale tile, `floor_2` large tile with dark grout, `floor_3` small tile, `floor_4` wood planks, `floor_5` running-bond brick, `floor_6` aligned brick, `floor_7` fine checkerboard, `floor_8` coarse checkerboard), each flat between its seams, only wood carrying grain. They are generated by `scripts/iso-art/floors.ts`.
+- **Floor slab**: the room stands on an 8 px thick slab, like Habbo's floor edge: the left face a little darker than the floor, the right face darker still, outlined in ink along the bottom.
+- **Back walls** are thin and tall like Habbo's: 56 px high and 4 world units thick, standing on the inner edge of their tile so wall items keep hanging on the same face. Flat wallpaper faces (left face 92%, right face 74% of the wall colour), a narrow cap at 115% with the ink line on its outer top edges, and a 3 px skirting board at 60%.
+- **Glass partitions** stand 30 px high, an ink frame, a light cyan pane at 40% opacity and a white diagonal sheen.
 
 ## Palette
 
-Base colours are the fully lit (top face) tone. Side tones are derived from them by the light, never picked by hand. Keep bases mid to light so the shaded faces don't collapse into the shadow colour.
+Base colours are the fully lit tone. Side tones come from the light. Habbo's colours are bright: keep bases light to mid and saturated.
 
-| Role                | Colours                                           |
-| ------------------- | ------------------------------------------------- |
-| Ink (outlines)      | `#1a1426`                                         |
-| Text ink on paper   | `#2b2433`                                         |
-| Shadow tint         | `#1f1830`                                         |
-| Wood (desks, plank) | `#c98b52` `#a8673a` `#7a4528`                     |
-| Upholstery          | sage `#a8b89a`, grey `#8b8796`, leather `#9a5a3c` |
-| Metal               | `#dfe3ea` `#b7bcc8` `#6d7383`                     |
-| Paper               | `#f6f1e2` `#f1e6c8` `#e2d2a8`                     |
-| Plants              | `#8fd36a` `#5fae4e` `#3e7d3a`                     |
-| Night outside       | `#090a1a` → `#36275e`, lit windows `#f0c06a`      |
+| Role                | Colours                                                                           |
+| ------------------- | --------------------------------------------------------------------------------- |
+| Ink (outlines)      | `#111111`                                                                         |
+| Text ink on paper   | `#222222`                                                                         |
+| Shadow tint         | `#2c3446`                                                                         |
+| Wood                | `#e0a463` `#c4824a` `#8e5530`                                                     |
+| Plastic and lacquer | white `#f4f4f4`, red `#e04b3f`, blue `#3f8ee0`, yellow `#f2c23a`, green `#5cbf4a` |
+| Upholstery          | teal `#4bb3b0`, orange `#ef8a3c`, cream `#efe3c4`                                 |
+| Metal               | `#e8ecf0` `#b9c1cb` `#6f7884`                                                     |
+| Paper               | `#ffffff` `#f4efe1`                                                               |
+| Plants              | `#7ed957` `#4caf3c` `#2f7d2c`                                                     |
+| Sky and city        | see Background                                                                    |
 
 **State colours** are shared by status badges, bubbles and the HUD, and nothing else uses them:
 
@@ -72,11 +82,13 @@ Base colours are the fully lit (top face) tone. Side tones are derived from them
 
 ## Characters
 
-A frame is 32×56, half of Habbo's 64×110 figure frame rounded to whole rows. The feet touch the bottom centre of the frame, on a one-row ground shadow. Seated frames sit 11 px lower, so the hips rest on a chair seat at height 6.
+A frame is 32×56, half of Habbo's 64×110 figure frame. The feet touch the bottom centre of the frame, on a translucent iso ellipse.
 
-**Proportions.** Habbo's: a tall, slim body under a big head with a small face. A standing figure is about 44 px from crown to sole, about 2.75 heads: head and hair about 16 px, torso 14, legs 16 including the shoes. The shoulders are 14 px wide, no wider than the head, and the arms hang 3 px thick beside the torso. The face keeps two-pixel eyes (white plus pupil) and a one-pixel mouth inside the big head. Builds vary the shoulders by up to 2 px either way and the legs by 2 px, never the head.
+**Proportions**, measured on Habbo figures and halved: about 40 px from crown to sole. A big head about 17 px tall including the hair, a torso about 15 px, short legs about 8 px on 2 px shoes. The head and the torso are the same width, about 14 px: a Habbo figure is a block body under a block head, not a tapering one.
 
-**Parts.** A figure is composed from parts, the way Habbo composes one from `hd`, `ch`, `lg` and `sh`: legs and shoes, a torso with its outfit cut, two arms posed by the frame, a head, hair, and one accessory. The arms and legs are drawn from joint positions per pose (`scripts/iso-art/characters/body.ts`), the head, hair and accessories are pixel templates, and every part is outlined in ink where it overlaps another.
+**Construction.** The torso is a small iso box, a lit front face and a narrow shaded side face, and the shirt hem runs down at the iso slope. Arms are 3 px wide, hang straight at the sides with small skin hands. The legs are two columns, the far one behind, the shoes flat iso blocks. The head is turned 3/4 toward where the figure faces: both eyes on that half of the face, white with a dark pupil toward the facing side, the nose a 1 px bump past the contour, a small mouth, the ear on the far side, the jaw narrowing toward the facing side. Hair is a big shape with a 1 px dither in its darker tone.
+
+**Parts.** A figure is composed from parts, the way Habbo composes one from `hd`, `ch`, `lg` and `sh`: legs and shoes, a torso with its outfit cut, two arms posed by the frame, a head, hair, and one accessory, all drawn by `scripts/iso-art/characters.ts` and `scripts/iso-art/characters/`.
 
 **Views.** Row 0 faces DOWN (3/4 front, screen lower left), row 1 faces UP (3/4 back, screen upper right), row 2 faces RIGHT and is row 0 mirrored. LEFT is row 1 mirrored at runtime. Habbo draws eight directions, but Terrarium moves on the tile grid, so four facings are enough.
 
@@ -94,39 +106,33 @@ A frame is 32×56, half of Habbo's 64×110 figure frame rounded to whole rows. T
 | `holdForm1` `holdForm2`               | standing, holding up a form with an amber mark                      | needs approval, at the CTO's door                |
 | `holdFormSeated1` `holdFormSeated2`   | seated, holding up a form with an amber mark                        | needs approval, on a CTO visitor chair           |
 
-Only working agents type or read. An agent that sits without working rests, and an agent that needs the human shows it with its body: a raised hand asks a question, a held-up form asks for a signature. The raised hand and the form reach above the head on opposite sides, so the two read apart from the front and the back.
+Seated frames put the hips on a chair seat at height 6 and bend the legs forward. Only working agents type or read. An agent that sits without working rests, and an agent that needs the human shows it with its body: a raised hand asks a question, a held-up form asks for a signature, on opposite sides so the two read apart from the front and the back.
 
 **Variety.** Twelve distinct workers ship (`char_0.png` to `char_11.png`), so a twelve-agent office has no two alike. Each one differs from every other in at least two of: build, hair, outfit cut, accessory, and its dominant outfit colour is distinct at 1×. Hue-shifted copies only appear from the thirteenth agent on. The CTO has a sheet of its own (`cto.png`) that no agent uses.
 
 ## Furniture
 
-- Modelled as primitives (boxes, cylinders, spheres) and ray traced by `IsoScene` (`scripts/iso-art/lib/scene.ts`), which applies the light, the shadow tint, the outline, the fabric dither and the rim light above. Colours come from `PAL` (`scripts/iso-art/lib/palette.ts`).
-- An item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges. Ids and footprints are unchanged by this direction, so the default layout keeps its `REVISION`.
+- Modelled as primitives (boxes, cylinders, spheres) and ray traced by `IsoScene` (`scripts/iso-art/lib/scene.ts`), which applies the light, the shadow tint, the ink outline, the fabric dither and the gloss. Colours come from `PAL` (`scripts/iso-art/lib/palette.ts`).
+- The shapes are Habbo's: chunky, rounded where Habbo rounds (plastic shells, cushions, lamp shades), glossy plastic and lacquer, saturated colour, and a 1 px checker dither on upholstery.
+- An item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges.
 - Electronics have an off and an on state. Screens glow `#7fe0c8` or `#5aa6e8` when on.
 
-## Floors
+## The office
 
-- Floors are 16×16 grayscale patterns, colourized per tile, then projected onto the 32×16 diamond. They are generated by `scripts/iso-art/floors.ts`.
-- A pattern draws a material, not a grid. Each cell carries a bright seam along its top and left edge (the shared boundary with the next cell when tiled) and a darker inset line along its bottom and right edge, so slabs, planks, bricks and tiles read as slightly raised pieces. `floor_0`–`floor_8` keep a fixed index-to-material mapping that the default layout and any saved layout rely on: `floor_0` plain polished slab, `floor_1` large pale tile (bright seam), `floor_2` large tile (dark grout), `floor_3` small square tile (dark grout), `floor_4` wood planks with grain, `floor_5` running-bond brick (bright mortar), `floor_6` aligned brick (dark mortar), `floor_7` fine checkerboard, `floor_8` coarse checkerboard.
-- Faces are flat between the seams, like Habbo's floor tiles: no noise. Only the wood planks carry grain.
-
-## Walls
-
-- **Back walls** are 40 px boxes lit from the same direction as furniture but softer, because a wall face is the largest surface in the room and full furniture contrast would swamp it: the cap at 118% of the wall colour with a brighter rim pixel on its front edges, the left face at 95%, the right face at 78%, a baseboard at 55%. Faces are flat paint, like Habbo's wallpaper, with a one-pixel lip under the cap at 70% that separates the cap from the face. They stay lower than Habbo's walls on purpose: they are the cut-away back of an office seen from above, and a standing figure may clear them.
-- **Glass partitions** stand 30 px high: an ink-dark frame, a pale blue pane at 30% opacity and a diagonal white sheen, so the rooms behind stay visible.
+The default office (`scripts/iso-art/layout.ts`) is one Habbo room plan with themed areas, each with its own floor and colours: an open work area, the CTO's office, a lounge, a break corner with the coffee machine, a meeting room. Rooms are separated by glass partitions, the back walls carry wallpaper and wall items, plants and rugs break up the floor.
 
 ## Badges and bubbles
 
-- Small sprites (9×9 for badges, 11×13 for bubbles), `webview-ui/src/office/sprites/status-*.json` and `bubble-*.json`, drawn in the ink outline `#1a1426`. They float at the new head height: a badge beside the head, a bubble above the crown.
+- Small sprites (9×9 for badges, 11×13 for bubbles), `webview-ui/src/office/sprites/status-*.json` and `bubble-*.json`, drawn in ink `#111111`. They float at the head: a badge beside it, a bubble above the crown.
 - A **badge** is a filled state-colour plate with a white (`#ffffff`) glyph: ▶ working, ! needs approval, ? waiting for input, ✓ done, Z idle.
-- A **bubble** is paper (`#f6f1e2`) with an ink outline and a tail pointing at the head, carrying the state colour in its glyph, the way Habbo's chat bubbles are a pale plate with a dark line. The pet-petted heart bubble follows the same paper-and-ink shape with its own pink (`#e64566`) glyph: it is a reaction, not a state indicator, so it sits outside the state-colour table.
+- A **bubble** is a white Habbo chat bubble with an ink outline and a tail pointing at the head, carrying the state colour in its glyph. The pet-petted heart bubble follows the same shape with its own pink (`#e64566`) glyph: it is a reaction, not a state indicator, so it sits outside the state-colour table.
 
 ## HUD
 
-- **The HUD is furnished like the office.** It is made of the same materials as the room: modals and notices are paper memos pinned with a square tack (`ui/Modal.tsx`, `ChangelogModal.tsx`, `MigrationNotice.tsx`: `.paper-sheet` plus a `.paper-pin`), and tooltips, toasts and in-world labels are paper tags (`Tooltip.tsx`, `VersionIndicator.tsx`, `ConnectionIndicator.tsx`, `ToolOverlay.tsx`'s activity label, the greeter's `IntroBubble.tsx`: `.paper-tag`, ink-bordered). There is no flat dark panel that belongs to no object in the room.
-- **Font**: FS Pixel Sans, at the theme's pixel sizes.
-- **Shape**: square corners, 2 px borders in wood-dark or ink, hard 2 px offset shadows (`2px 2px 0px`) with no blur, and no gradients except hard-edged bands such as wood grain. Habbo's UI windows share the hard line and the flat fill, so the HUD needs no change for this direction.
-- **Colours**: wood, paper, ink and the state colours above. `npm run lint` enforces it: colour literals only in `constants.ts` and the CSS variables, pixel shadows, and the pixel font.
+- **The HUD is Habbo's client.** Modals and notices are Habbo windows: a white body, an ink border, a coloured title bar with white title text and a close button, rounded 4 px corners. Tooltips, toasts and in-world labels are small white rounded tags with an ink border, like Habbo's name tags. Buttons are Habbo's: light grey with an ink border, green for a confirming action.
+- **Font**: FS Pixel Sans, at the theme's pixel sizes. Habbo's own font is not used.
+- **Shape**: 1 px or 2 px ink borders, small rounded corners, hard offset shadows (`2px 2px 0px`) with no blur, and no gradients.
+- **Colours**: white, light grey, ink, the title bar blue `#2f80c0` and the state colours above. `npm run lint` enforces it: colour literals only in `constants.ts` and the CSS variables, pixel shadows, and the pixel font.
 
 ## References
 
@@ -136,18 +142,19 @@ Terrarium's own renders:
 - [The office before this direction](media/art-direction/office-before.png), same scene and size, for comparison.
 - [The twelve workers and the CTO](media/art-direction/characters.png), every frame of every sheet at 3×, one sheet per band (front, back and side rows).
 
-Habbo Hotel on [habboassets.com](https://www.habboassets.com/), looked at for style, never copied. Each page shows the item in all four directions at size 32, Terrarium's tile:
+Habbo Hotel on [habboassets.com](https://www.habboassets.com/), looked at for style, never copied:
 
-- Figures: the [imager](https://www.habboassets.com/imager), for proportions (a 64×110 frame at the 64 px tile) and the inner outline between parts.
-- Outline and fabric: the [Silo sofa](https://www.habboassets.com/furniture/sofa_silo), [armchair](https://www.habboassets.com/furniture/sofachair_silo) and [chair](https://www.habboassets.com/furniture/chair_silo): full dark line, dithered cushions, a lit edge on the wooden frame.
-- Hard surfaces: the [Silo table](https://www.habboassets.com/furniture/table_silo_med) and the [Plasto chair](https://www.habboassets.com/furniture/chair_plasto): flat bands, a rim on the top's front edges.
+- Figures: the [imager](https://www.habboassets.com/imager), for proportions (a 64×110 frame at the 64 px tile), the 3/4 head and the block body.
+- Rooms: the [web promos](https://www.habboassets.com/images/webpromo), for the floor grid, the slab, the walls and how a furnished room reads.
+- Outline and fabric: the [Silo sofa](https://www.habboassets.com/furniture/sofa_silo), [armchair](https://www.habboassets.com/furniture/sofachair_silo) and [chair](https://www.habboassets.com/furniture/chair_silo).
+- Gloss and hard surfaces: the [Silo table](https://www.habboassets.com/furniture/table_silo_med) and the [Plasto chair](https://www.habboassets.com/furniture/chair_plasto).
 - Plants: the [pineapple plant](https://www.habboassets.com/furniture/plant_pineapple).
 
 ## Checklist for new art
 
 1. Generated by `scripts/iso-art/` or drawn procedurally. Regenerating reproduces the committed assets with no diff.
 2. No Habbo asset, and nothing traced, sampled or fetched from habboassets.com or habbo.com.
-3. Lit from the upper left, shadows toward `#1f1830`, colours from the palette above.
-4. Outlined in ink as the section above says for its kind, fabric dithered, hard materials flat.
-5. Characters: every frame of `CHARACTER_FRAMES` in all three rows, feet at the bottom centre, seated frames 11 px lower.
-6. Furniture: the footprint anchor contract above, and a bump of the default layout `REVISION` if an id or a footprint changes.
+3. Daylit from the upper left, shadows toward `#2c3446`, colours from the palette above.
+4. Outlined in ink as the section above says for its kind, fabric dithered, plastic glossy.
+5. Characters: every frame of `CHARACTER_FRAMES` in all three rows, feet at the bottom centre.
+6. Furniture: the footprint anchor contract above, and a bump of the default layout `REVISION` when the layout changes.
