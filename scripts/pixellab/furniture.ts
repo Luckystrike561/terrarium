@@ -60,13 +60,10 @@ const TURNAROUND_MAX_SIZE = 168;
 const TURNAROUND_GENERATIONS_ESTIMATE = 20;
 /** Height of a desk or table top above the floor, in art px, measured on the
  *  PixelLab desk and table renders. */
-const DESK_SURFACE_LIFT_ART_PX = 18;
-/** Desks, tables, chairs and computers render oversized next to the
- *  characters, the sofas and the fridge. */
-const DESK_AND_CHAIR_SHRINK = 0.7;
+const DESK_SURFACE_LIFT_ART_PX = 26;
 /** Height of the kitchen counter top above the floor, in art px, measured
- *  where the coffee machine stands on the PixelLab counter render. */
-const COUNTER_SURFACE_LIFT_ART_PX = 60;
+ *  where the coffee machine stands on the resized PixelLab counter render. */
+const COUNTER_SURFACE_LIFT_ART_PX = 34;
 /** Where a hung item's centre sits on the wall, and the highest its top may
  *  reach, in art px above the floor. The wall is 112 art px tall. */
 const WALL_HANG_CENTRE_ART_PX = 70;
@@ -173,9 +170,10 @@ interface ItemPrompt {
   /** The turnaround's north-east view of a long item came back along the
    *  other floor axis from its south-west view. */
   mirrorBack?: boolean;
-  /** Fraction of its generated size the item is resized to, so it keeps
-   *  scale with the characters. */
-  shrink?: number;
+  /** Fraction of its generated size the item is resized to, matching the
+   *  proportions of the room, the characters and the rest of the furniture
+   *  (measured against the earlier procedural set, which had them right). */
+  resize?: number;
   /** Transparent rows added under the render. The renderer anchors every
    *  item at the floor, so an item made to stand on a desk or counter carries
    *  that surface's height in its own sprite. */
@@ -200,13 +198,14 @@ const PROMPTS: Record<string, ItemPrompt> = {
   DESK: {
     front: 'a simple modern office desk with a light wood top and white metal legs',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
   },
-  SMALL_TABLE: { front: 'a small round side table with a light wood top and thin white legs' },
+  SMALL_TABLE: {
+    front: 'a small round side table with a light wood top and thin white legs',
+    resize: 0.77,
+  },
   MEETING_TABLE: {
     front: 'a long modern conference table with a light wood top and white legs',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
   },
   COFFEE_TABLE: {
     front:
@@ -217,7 +216,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
+    resize: 0.88,
     mirrorBack: true,
   },
   PC: {
@@ -225,7 +224,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
       'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic',
     back: 'a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front',
     stillOn: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
+    resize: 0.64,
     surfaceLift: DESK_SURFACE_LIFT_ART_PX,
     states: {
       front: {
@@ -249,27 +248,32 @@ const PROMPTS: Record<string, ItemPrompt> = {
   CUSHIONED_CHAIR: {
     front: 'a modern upholstered office swivel chair with cream fabric cushions and a white frame',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
+    resize: 0.79,
   },
   WOODEN_CHAIR: {
     front: 'a simple wooden dining chair with a light wood frame and a pale cushion seat',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
+    resize: 0.76,
   },
   SOFA: {
     front: 'a cozy two-seat sofa with soft pastel sage green cushions and light wood legs',
     turnaround: true,
+    resize: 1.27,
   },
   CUSHIONED_BENCH: {
     front:
       'a cozy upholstered bench with a thick pastel blush pink seat cushion clearly separate from a tall pastel blush pink backrest cushion, white wooden frame and legs',
   },
-  WOODEN_BENCH: { front: 'a simple light wood bench with a smooth plank seat', mirrorFront: true },
+  WOODEN_BENCH: {
+    front: 'a simple light wood bench with a smooth plank seat',
+    mirrorFront: true,
+    resize: 0.75,
+  },
   EXEC_CHAIR: {
     front:
       'an elegant high-back executive office chair with cream leather upholstery and brushed gold trim',
     turnaround: true,
-    shrink: DESK_AND_CHAIR_SHRINK,
+    resize: 0.76,
   },
   STOOL: { front: 'a simple round bar stool with a pale wood seat and thin white metal legs' },
   PLANT: { front: 'a leafy potted houseplant in a simple white ceramic pot' },
@@ -279,17 +283,20 @@ const PROMPTS: Record<string, ItemPrompt> = {
   POT: {
     front:
       'a small potted succulent plant with neat rounded pale-green leaves in a pastel pink ceramic pot',
+    resize: 1.13,
   },
-  BIN: { front: 'a small round office waste bin in white and light grey plastic' },
+  BIN: { front: 'a small round office waste bin in white and light grey plastic', resize: 1.2 },
   COFFEE: {
     front:
       'a small brown ceramic coffee mug filled with dark coffee, white steam curling above it, a simple loop handle on the side',
     surfaceLift: DESK_SURFACE_LIFT_ART_PX,
+    resize: 0.77,
   },
   COFFEE_MACHINE: {
     front: 'a modern countertop coffee machine in white and light wood',
     surfaceLift: COUNTER_SURFACE_LIFT_ART_PX,
     stillOn: true,
+    resize: 0.6,
     states: {
       front: {
         off: 'a modern countertop coffee machine in white and light wood, idle with no steam',
@@ -303,6 +310,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
   },
   KITCHEN_COUNTER: {
     front: 'a modern kitchen counter cabinet with a white countertop and light wood cabinet doors',
+    resize: 0.56,
   },
   FRIDGE: { front: 'a modern compact refrigerator in white and light grey with rounded corners' },
   WATER_COOLER: {
@@ -311,6 +319,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
   FLOOR_LAMP: {
     front:
       'a modern floor lamp with a round pale cream fabric drum lamp shade sitting flat atop a slim dark wood pole stand and a small round dark wood base',
+    resize: 0.8,
   },
   RUG_PLANT: { front: 'a long low planter box full of leafy green plants, white planter sides' },
   BOOKSHELF: {
@@ -690,9 +699,9 @@ function trimAndPad(raw: PixelImage, targetWidth: number, upscale = true): Pixel
   return out;
 }
 
-/** PixelLab's pixel-art resize of one packed view down to `fraction` of its
- *  size, cached under `<key>_shrunk.png`. */
-async function shrinkView(
+/** PixelLab's pixel-art resize of one packed view to `fraction` of its size,
+ *  cached under `<key>_x<fraction>.png`. */
+async function resizeView(
   record: Record_,
   itemId: string,
   key: string,
@@ -700,7 +709,8 @@ async function shrinkView(
   img: PixelImage,
   fraction: number,
 ): Promise<PixelImage> {
-  const cachePath = path.join(framesDir, itemId, `${key}_shrunk.png`);
+  const resizedKey = `${key}_x${fraction}`;
+  const cachePath = path.join(framesDir, itemId, `${resizedKey}.png`);
   if (fs.existsSync(cachePath)) return PixelImage.readPng(cachePath);
 
   const box = opaqueBox(img);
@@ -708,7 +718,7 @@ async function shrinkView(
   for (let y = 0; y < box.h; y++) {
     for (let x = 0; x < box.w; x++) crop.set(x, y, img.get(box.x + x, box.y + y));
   }
-  const cropPath = path.join(framesDir, itemId, `${key}_unshrunk.png`);
+  const cropPath = path.join(framesDir, itemId, `${key}_unresized.png`);
   crop.writePng(cropPath);
   const target = { width: Math.round(box.w * fraction), height: Math.round(box.h * fraction) };
   const res = await withRetry429(() =>
@@ -726,7 +736,7 @@ async function shrinkView(
   fs.writeFileSync(cachePath, Buffer.from(res.image.base64, 'base64'));
   record.spentGenerations += res.usage?.generations ?? 1;
   record.items[itemId] ??= {};
-  record.items[itemId][`${key}_shrunk`] = {
+  record.items[itemId][resizedKey] = {
     description,
     seed: 0,
     objectId: '',
@@ -866,19 +876,19 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   }
   if (prompt.mirrorFront) generated.set('front||', generated.get('front||')!.mirrored());
   if (prompt.mirrorBack) generated.set('back||', generated.get('back||')!.mirrored());
-  if (prompt.shrink) {
+  if (prompt.resize) {
     for (const [key, img] of generated) {
       const frame = key.split('|')[2];
       if (prompt.stillOn && frame !== '' && frame !== '0') continue;
-      const shrunk = await shrinkView(
+      const resized = await resizeView(
         record,
         itemId,
         key.replaceAll('|', '_'),
         prompt.front,
         img,
-        prompt.shrink,
+        prompt.resize,
       );
-      generated.set(key, trimAndPad(shrunk, width, false));
+      generated.set(key, trimAndPad(resized, width, false));
     }
   }
   if (prompt.surfaceLift) {

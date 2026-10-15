@@ -14,7 +14,7 @@
       "id": "MEETING_TABLE_FRONT",
       "file": "MEETING_TABLE_FRONT.png",
       "width": 160,
-      "height": 62,
+      "height": 90,
       "footprintW": 3,
       "footprintH": 2,
       "orientation": "front"
@@ -24,7 +24,7 @@
       "id": "MEETING_TABLE_RIGHT",
       "file": "MEETING_TABLE_RIGHT.png",
       "width": 160,
-      "height": 62,
+      "height": 90,
       "footprintW": 2,
       "footprintH": 3,
       "orientation": "right"

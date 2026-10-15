@@ -70,6 +70,7 @@ Movement stays on the top-down grid. In iso, grid DOWN and RIGHT face the viewer
 - An agent in the CTO queue shows why it waits from `ctoQueueSlot.reason`: a raised hand for input, a held-up form for approval, seated on a visitor chair or standing at the door.
 - Every pose but walking is a frame loop stepped by `advancePoseFrame` at its own `*_FRAME_DURATION_SEC` (2 frames, `POSE_FRAME_COUNTS`), except typing and reading, which hold their first frame (`STILL_POSES`) until they are redrawn.
 - Seated frames share one hip height, and every seat sinks its sitter by its own amount (`SEAT_SINK_PX`, by furniture group) and pulls it toward the middle of a sofa or bench (`SEAT_PULL_TO_CENTER`), through `OfficeState.sittingOffset`. Sprite, hit box, bubble, badge and label all follow it.
+- Characters are drawn `CHARACTER_SCALE` (1.25) times their art's native size, so a standing character stands as tall against the desks, chairs and walls as the procedural set's did. Hit boxes, bubble, badge and label offsets are measured on the native art and scaled by it.
 
 Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`).
 

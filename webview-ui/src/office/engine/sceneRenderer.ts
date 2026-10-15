@@ -50,6 +50,7 @@ import {
   BUILDING_PILLAR_WIDTH_PX,
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
+  CHARACTER_SCALE,
   FLOOR_NAME_COLOR,
   FLOOR_NAME_FONT_SIZE_PX,
   FLOOR_NAME_MIN_FONT_SIZE_PX,
@@ -116,6 +117,7 @@ TextureStyle.defaultOptions.scaleMode = 'nearest';
  *  matches the simulation grid. Pets, carpets, badges and bubbles stay at
  *  scale 1 and are not covered by this constant. */
 const ART_SPRITE_SCALE = 1 / ART_SCALE;
+const CHARACTER_SPRITE_SCALE = ART_SPRITE_SCALE * CHARACTER_SCALE;
 
 /** Half-extent (tiles) of a character's or pet's sort box around its feet. */
 const ACTOR_SORT_HALF = 0.01;
@@ -698,8 +700,8 @@ class FloorScene {
       const texture = getTexture(spriteData);
       const offset = state.sittingOffset(ch);
       const anchor = worldToIso(ch.x, ch.y);
-      const localX = Math.round(anchor.x + offset.x - (texture.width * ART_SPRITE_SCALE) / 2);
-      const localY = Math.round(anchor.y + offset.y - texture.height * ART_SPRITE_SCALE);
+      const localX = Math.round(anchor.x + offset.x - (texture.width * CHARACTER_SPRITE_SCALE) / 2);
+      const localY = Math.round(anchor.y + offset.y - texture.height * CHARACTER_SPRITE_SCALE);
       const box = actorBox(ch.x, ch.y);
 
       if (ch.matrixEffect) {
@@ -708,7 +710,7 @@ class FloorScene {
         gfx.clear();
         gfx.alpha = 1;
         gfx.visible = true;
-        drawMatrixEffect(gfx, ch, spriteData, localX, localY, ART_SPRITE_SCALE);
+        drawMatrixEffect(gfx, ch, spriteData, localX, localY, CHARACTER_SPRITE_SCALE);
         drawables.push({ box, nodes: [gfx] });
         continue;
       }
@@ -717,7 +719,7 @@ class FloorScene {
       const body = getOrCreateSprite(this.characterPool, ch.id, this.entityContainer);
       body.texture = texture;
       body.position.set(localX, localY);
-      body.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
+      body.scale.set(CHARACTER_SPRITE_SCALE, CHARACTER_SPRITE_SCALE);
       body.alpha = 1;
       body.visible = true;
       const nodes: Container[] = [body];
@@ -729,8 +731,8 @@ class FloorScene {
         const outlineData = getOutlineSprite(spriteData);
         const outline = getOrCreateSprite(this.outlinePool, ch.id, this.entityContainer);
         outline.texture = getTexture(outlineData);
-        outline.position.set(localX - ART_SPRITE_SCALE, localY - ART_SPRITE_SCALE);
-        outline.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
+        outline.position.set(localX - CHARACTER_SPRITE_SCALE, localY - CHARACTER_SPRITE_SCALE);
+        outline.scale.set(CHARACTER_SPRITE_SCALE, CHARACTER_SPRITE_SCALE);
         outline.alpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA;
         outline.visible = true;
         nodes.unshift(outline);

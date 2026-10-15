@@ -1,5 +1,5 @@
 {
-  "spentGenerations": 328,
+  "spentGenerations": 351,
   "items": {
     "DESK": {
       "front": {
@@ -38,6 +38,13 @@
         "objectId": "95019833-d61f-482b-adfd-7d49347de398",
         "width": 64,
         "height": 170
+      },
+      "___x0.77": {
+        "description": "a small round side table with a light wood top and thin white legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 32,
+        "height": 40
       }
     },
     "COFFEE_TABLE": {
@@ -140,6 +147,34 @@
         "objectId": "",
         "width": 32,
         "height": 48
+      },
+      "front_off__x0.64": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 38,
+        "height": 50
+      },
+      "front_on_0_x0.64": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 35,
+        "height": 49
+      },
+      "back_off__x0.64": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 29,
+        "height": 44
+      },
+      "back_on_0_x0.64": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 29,
+        "height": 44
       }
     },
     "CUSHIONED_CHAIR": {
@@ -170,6 +205,20 @@
         "objectId": "",
         "width": 35,
         "height": 41
+      },
+      "front___x0.79": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 40,
+        "height": 58
+      },
+      "back___x0.79": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 40,
+        "height": 46
       }
     },
     "WOODEN_CHAIR": {
@@ -200,6 +249,20 @@
         "objectId": "",
         "width": 33,
         "height": 47
+      },
+      "front___x0.76": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 33,
+        "height": 56
+      },
+      "back___x0.76": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 36,
+        "height": 51
       }
     },
     "SOFA": {
@@ -216,6 +279,20 @@
         "objectId": "7f6879a8-4c03-45b2-ba99-349c4589ab94",
         "width": 97,
         "height": 97
+      },
+      "front___x1.27": {
+        "description": "a cozy two-seat sofa with soft pastel sage green cushions and light wood legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 89,
+        "height": 76
+      },
+      "back___x1.27": {
+        "description": "a cozy two-seat sofa with soft pastel sage green cushions and light wood legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 89,
+        "height": 76
       }
     },
     "CUSHIONED_BENCH": {
@@ -234,6 +311,13 @@
         "objectId": "386697f7-9d10-4ef2-8a8a-6f2244e4e26a",
         "width": 96,
         "height": 174
+      },
+      "front___x0.75": {
+        "description": "a simple light wood bench with a smooth plank seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 54,
+        "height": 48
       }
     },
     "EXEC_CHAIR": {
@@ -264,6 +348,20 @@
         "objectId": "",
         "width": 33,
         "height": 53
+      },
+      "front___x0.76": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 37,
+        "height": 68
+      },
+      "back___x0.76": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 36,
+        "height": 57
       }
     },
     "PLANT": {
@@ -309,6 +407,13 @@
         "objectId": "7165aca2-3766-46f8-88c0-e0a7435633f7",
         "width": 32,
         "height": 168
+      },
+      "___x1.13": {
+        "description": "a small potted succulent plant with neat rounded pale-green leaves in a pastel pink ceramic pot",
+        "seed": 0,
+        "objectId": "",
+        "width": 20,
+        "height": 34
       }
     },
     "BIN": {
@@ -318,6 +423,13 @@
         "objectId": "276824e6-b6da-45db-8e56-5c38c678cb8d",
         "width": 32,
         "height": 144
+      },
+      "___x1.2": {
+        "description": "a small round office waste bin in white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 24,
+        "height": 43
       }
     },
     "COFFEE": {
@@ -327,6 +439,13 @@
         "objectId": "7fee94ab-4573-4594-97fe-51cd649b0ca9",
         "width": 32,
         "height": 136
+      },
+      "___x0.77": {
+        "description": "a small brown ceramic coffee mug filled with dark coffee, white steam curling above it, a simple loop handle on the side",
+        "seed": 0,
+        "objectId": "",
+        "width": 16,
+        "height": 26
       }
     },
     "COFFEE_MACHINE": {
@@ -357,6 +476,20 @@
         "objectId": "75752e05-13bd-4052-a73d-4a0c0ff82487",
         "width": 64,
         "height": 178
+      },
+      "_off__x0.6": {
+        "description": "a modern countertop coffee machine in white and light wood",
+        "seed": 0,
+        "objectId": "",
+        "width": 25,
+        "height": 34
+      },
+      "_on_0_x0.6": {
+        "description": "a modern countertop coffee machine in white and light wood",
+        "seed": 0,
+        "objectId": "",
+        "width": 25,
+        "height": 34
       }
     },
     "KITCHEN_COUNTER": {
@@ -366,6 +499,13 @@
         "objectId": "334237a5-6244-42cf-b06f-289ecfdb0d34",
         "width": 96,
         "height": 190
+      },
+      "front___x0.56": {
+        "description": "a modern kitchen counter cabinet with a white countertop and light wood cabinet doors",
+        "seed": 0,
+        "objectId": "",
+        "width": 52,
+        "height": 71
       }
     },
     "FRIDGE": {
@@ -402,6 +542,13 @@
         "objectId": "c70f13e0-af6f-4143-9118-f789ff50ae44",
         "width": 44,
         "height": 196
+      },
+      "___x0.8": {
+        "description": "a modern floor lamp with a round pale cream fabric drum lamp shade sitting flat atop a slim dark wood pole stand and a small round dark wood base",
+        "seed": 0,
+        "objectId": "",
+        "width": 24,
+        "height": 78
       }
     },
     "CLOCK": {
@@ -495,6 +642,20 @@
         "objectId": "",
         "width": 90,
         "height": 81
+      },
+      "front___x0.88": {
+        "description": "an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents",
+        "seed": 0,
+        "objectId": "",
+        "width": 113,
+        "height": 99
+      },
+      "back___x0.88": {
+        "description": "an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents",
+        "seed": 0,
+        "objectId": "",
+        "width": 113,
+        "height": 101
       }
     },
     "STOOL": {
