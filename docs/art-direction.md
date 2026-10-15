@@ -1,6 +1,6 @@
 # Art direction
 
-The target look for everything drawn in the office: the background, the room shell (floors, walls, partitions), furniture, characters, status badges, speech bubbles and the HUD. New art follows this note. Art that cannot follow it changes the note in the same pull request.
+The target look for everything drawn in the office: the background, the room shell (floors, walls, partitions), furniture, characters, the pet bubble and the HUD. New art follows this note. Art that cannot follow it changes the note in the same pull request.
 
 ![The default office](media/art-direction/office.png)
 
@@ -41,7 +41,7 @@ One key light from the screen's upper left.
 
 ## Outline
 
-- **Ink is `#111111`.** It outlines characters, furniture, badges, bubbles, windows and the floor slab.
+- **Ink is `#111111`.** It outlines characters, furniture, the pet bubble, windows and the floor slab.
 - **Characters** get a full 1 px black outline: PixelLab is generated with `outline: single color black outline`, so the silhouette and the lines between overlapping parts (an arm over the torso, a hand over a held sheet) come out of the model, not hand-drawn.
 - **Furniture** gets a full 1 px outline: PixelLab is generated with `outline: single color outline`, so the silhouette and the lines between overlapping parts come out of the model, not hand-drawn.
 - **Floors** carry each material's own grid (grout, plank seams, brick coursing, checker squares) baked into the PixelLab art instead of a drawn outline. **Walls** get an ink line along the top edges of the cap.
@@ -70,7 +70,7 @@ Base colours are the fully lit tone. Side tones come from the light. Keep bases 
 | Plants              | `#7ed957` `#4caf3c` `#2f7d2c`                                                     |
 | Sky and city        | see Background                                                                    |
 
-**State colours** are shared by status badges, bubbles and the HUD, and nothing else uses them:
+**State colours** are used by the HUD, and nothing else uses them:
 
 | State             | Colour           |
 | ----------------- | ---------------- |
@@ -121,11 +121,10 @@ Seated frames put the hips at one shared height (`SEAT_RAISE_ART_PX`, 12 art pix
 
 The default office (`scripts/iso-art/layout.ts`) is one room plan with four themed areas, each with its own floor and colours: an open work area, the CTO's office, a lounge and break corner with the coffee machine, a meeting room. Rooms are separated by glass partitions, the back walls carry wallpaper and wall items, plants and rugs break up the floor.
 
-## Badges and bubbles
+## Pet bubble
 
-- Small sprites (9×9 for badges, 11×13 for bubbles), `webview-ui/src/office/sprites/status-*.json` and `bubble-*.json`, drawn in ink `#111111`. They float at the head: a badge beside it, a bubble above the crown.
-- A **badge** is a filled state-colour plate with a white (`#ffffff`) glyph: ▶ working, ! needs approval, ? waiting for input, ✓ done, Z idle.
-- A **bubble** is a white chat bubble with an ink outline and a tail pointing at the head, carrying the state colour in its glyph. The pet-petted heart bubble follows the same shape with its own pink (`#e64566`) glyph: it is a reaction, not a state indicator, so it sits outside the state-colour table.
+- One small sprite (11×13), `webview-ui/src/office/sprites/bubble-pet.json`, drawn in ink `#111111`. It floats above the pet's crown when a pet is petted.
+- A white chat bubble with an ink outline and a tail pointing at the head, carrying a pink (`#e64566`) heart glyph: a reaction, not a state indicator.
 
 ## HUD
 

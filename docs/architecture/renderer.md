@@ -8,7 +8,7 @@ Game state lives in the imperative `Building` class (`office/engine/building.ts`
 
 - **Projection.** The simulation (pathfinding, seats, layout) stays on the top-down tile grid. Only drawing and hit-testing go through `office/iso.ts`: `isoX = x - y`, `isoY = (x + y)/2 - z`, and a tile is a 32×16 diamond.
 - **Pixels.** Zoom is device pixels per sprite pixel, with `antialias: false`, `roundPixels: true` and nearest-neighbor texture sampling. There is no `ctx.scale(dpr)`: the Application's `resolution` stays 1 and the canvas backing store is sized in device pixels directly.
-- **World layer.** World-space sprites (tiles, furniture, characters, pets, bubbles, badges) live in one `worldLayer` container, positioned and scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and built in local, unscaled iso pixel coordinates. Each floor is one child container of it, raised by the floor's elevation. Area labels and floor names render in device-pixel space directly, since their minimum font size is deliberately constant in device pixels.
+- **World layer.** World-space sprites (tiles, furniture, characters, pets, the pet bubble) live in one `worldLayer` container, positioned and scaled once per frame (`position = (offsetX, offsetY)`, `scale = zoom`) and built in local, unscaled iso pixel coordinates. Each floor is one child container of it, raised by the floor's elevation. Area labels and floor names render in device-pixel space directly, since their minimum font size is deliberately constant in device pixels.
 - **Textures.** `office/sprites/textureCache.ts` turns `SpriteData` into one `PIXI.Texture` per sprite, regardless of zoom.
 - **CSP.** `pixi.js/unsafe-eval` is imported before any renderer is created, so a CSP without `unsafe-eval` never blocks Pixi's uniform-buffer sync path.
 - **Game loop.** `office/engine/gameLoop.ts` is a rAF loop with a delta-time cap of 0.1 s, decoupled from the render target.
@@ -50,7 +50,7 @@ The HUD is the office's own app chrome. `components/BottomToolbar.tsx` is a wind
 
 - Modals and notices (`components/ui/Modal.tsx`, `ChangelogModal.tsx`, `MigrationNotice.tsx`) are `.hud-window` windows: a white body under a blue `.hud-titlebar` with the title and a close button.
 - Tooltips, toasts and in-world labels (`Tooltip.tsx`, `VersionIndicator.tsx`, `ConnectionIndicator.tsx`, `ToolOverlay.tsx`'s activity label, the greeter's `IntroBubble.tsx`) are white ink-bordered `.hud-tag` name tags.
-- Status badges and speech bubbles (`office/sprites/status-*.json`, `office/sprites/bubble-*.json`) share the same ink outline (`#111111`) and the HUD's `--color-status-*` state colours.
+- The pet bubble (`office/sprites/bubble-pet.json`) shares the ink outline (`#111111`) with the rest of the office art.
 
 Custom ESLint rules (`eslint-rules/terrarium-rules.mjs`) enforce `no-inline-colors` (hex, rgb, rgba, hsl and hsla literals only in `constants.ts`), `pixel-shadow` (`var(--pixel-shadow)` or `2px 2px 0px`) and `pixel-font` (must reference FS Pixel Sans). All are `error` level.
 
@@ -69,8 +69,8 @@ Movement stays on the top-down grid. In iso, grid DOWN and RIGHT face the viewer
 - A seated agent without work rests (lounge sofa, a rest at its desk, the CTO's couch), and a standing idle agent breathes.
 - An agent in the CTO queue shows why it waits from `ctoQueueSlot.reason`: a raised hand for input, a held-up form for approval, seated on a visitor chair or standing at the door.
 - Every pose but walking is a frame loop stepped by `advancePoseFrame` at its own `*_FRAME_DURATION_SEC` (2 frames, `POSE_FRAME_COUNTS`), except typing and reading, which hold their first frame (`STILL_POSES`) until they are redrawn.
-- Seated frames share one hip height, and every seat sinks its sitter by its own amount (`SEAT_SINK_PX`, by furniture group) and pulls it toward the middle of a sofa or bench (`SEAT_PULL_TO_CENTER`), through `OfficeState.sittingOffset`. Sprite, hit box, bubble, badge and label all follow it.
-- Characters are drawn `CHARACTER_SCALE` (1.25) times their art's native size, so a standing character stands as tall against the desks, chairs and walls as the procedural set's did. Hit boxes, bubble, badge and label offsets are measured on the native art and scaled by it.
+- Seated frames share one hip height, and every seat sinks its sitter by its own amount (`SEAT_SINK_PX`, by furniture group) and pulls it toward the middle of a sofa or bench (`SEAT_PULL_TO_CENTER`), through `OfficeState.sittingOffset`. Sprite, hit box and label all follow it.
+- Characters are drawn `CHARACTER_SCALE` (1.25) times their art's native size, so a standing character stands as tall against the desks, chairs and walls as the procedural set's did. Hit boxes and label offsets are measured on the native art and scaled by it.
 
 Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`).
 
@@ -82,11 +82,9 @@ Chair tiles are blocked for all characters except their own assigned seat (per-c
 
 A Matrix-style digital rain animation (0.3 s, `office/engine/matrixEffect.ts`). 16 vertical columns sweep top to bottom with staggered timing. Spawn: green rain reveals the character's pixels. Despawn: the pixels are consumed by green rain trails. The `matrixEffect` field on `Character` is `'spawn'`, `'despawn'` or `null`, and the normal FSM is paused during the effect. Restored agents (`existingAgents`) use `skipSpawnEffect: true` and appear instantly.
 
-### Badges, bubbles and sound
+### Sound
 
-- Permission bubble ("..." amber dots) stays until clicked or cleared. Waiting bubble (green checkmark) auto-fades after 2 s.
-- Every non-sub-agent character carries a persistent **status badge** above its head (`statusBadgeSprite` in `office/engine/sceneRenderer.ts`, sprites `office/sprites/status-*.json`), derived each frame from existing fields: working (blue ▶), needs approval (amber !), waiting for input (purple ?), done (green check), idle (gray Z).
-- An ascending two-note chime (E5 → E6, Web Audio API, `notificationSound.ts`) plays when the waiting bubble appears (`agentStatus: 'waiting'`). `unlockAudio()` on canvas mousedown resumes the context, since browsers start it suspended. It is always on.
+An ascending two-note chime (E5 → E6, Web Audio API, `notificationSound.ts`) plays when an agent finishes a turn and goes idle (`agentStatus: 'waiting'`). `unlockAudio()` on canvas mousedown resumes the context, since browsers start it suspended. It is always on.
 
 Sub-agent characters are covered in [claude-teams.md](claude-teams.md#sub-agents-in-the-office).
 
@@ -94,14 +92,14 @@ Sub-agent characters are covered in [claude-teams.md](claude-teams.md#sub-agents
 
 The room holding the first `EXEC_CHAIR` is the CTO's office (`office/engine/ctoOffice.ts`, `computeOfficeTiles`: reachable from that chair without crossing a doorway).
 
-A fixed **CTO** character lives there. It is not an agent: `OfficeState.cto`, `CTO_ID`, drawn from its own sheet `cto.png` via `getCtoSprites`, so no agent ever looks like it. It runs a loop (`updateCto`): typing at the executive desk for `CTO_DESK_SEC` (monitor on), then walking to the office couch (its first lounge seat) for `CTO_COUCH_SEC` to rest, and back. Like the greeter it lives outside `characters`, so it gets no badge, no hit-test and no persistence. Every seat in the office is claimed for it and its tiles leave the wander set, so agents are never given a desk, a rest seat or a wander target in there.
+A fixed **CTO** character lives there. It is not an agent: `OfficeState.cto`, `CTO_ID`, drawn from its own sheet `cto.png` via `getCtoSprites`, so no agent ever looks like it. It runs a loop (`updateCto`): typing at the executive desk for `CTO_DESK_SEC` (monitor on), then walking to the office couch (its first lounge seat) for `CTO_COUCH_SEC` to rest, and back. Like the greeter it lives outside `characters`, so it gets no hit-test and no persistence. Every seat in the office is claimed for it and its tiles leave the wander set, so agents are never given a desk, a rest seat or a wander target in there.
 
 **An agent that needs the human joins the CTO queue** until that clears:
 
 - a permission request (herdr's `blocked`, Claude's `PermissionRequest`) until `clearPermissionBubble` (next tool start or turn end).
 - waiting for input (`turnEnd` with `awaitingInput`) until it goes active again.
 
-Queue order is arrival order (`OfficeState.ctoQueue`). The first agents take the office's other seats, the **visitor chairs** in front of the CTO's desk. The rest stand outside the door (the 1 to 2 tile wall gap nearest the CTO chair, `computeDoorQueue`, nearest first, up to `CTO_QUEUE_MAX_SLOTS`), facing it. While anyone waits at the door, the queue **rotates** every `CTO_VISIT_SEC`: the head goes to the back, so the longest-seated visitor gives its chair to the next agent at the door. An agent waiting for input keeps its `?` badge for the whole wait.
+Queue order is arrival order (`OfficeState.ctoQueue`). The first agents take the office's other seats, the **visitor chairs** in front of the CTO's desk. The rest stand outside the door (the 1 to 2 tile wall gap nearest the CTO chair, `computeDoorQueue`, nearest first, up to `CTO_QUEUE_MAX_SLOTS`), facing it. While anyone waits at the door, the queue **rotates** every `CTO_VISIT_SEC`: the head goes to the back, so the longest-seated visitor gives its chair to the next agent at the door.
 
 The FSM override is `ctoQueueSlot` (`seated` for visitor chairs, `reason` for the waiting pose) in `characters.ts`. Losing it drops the agent into IDLE, which walks an active agent back to its desk.
 

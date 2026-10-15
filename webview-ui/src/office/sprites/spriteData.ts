@@ -10,51 +10,14 @@ import type { ColorValue } from '../../components/ui/types.js';
 import { adjustSprite } from '../colorize.js';
 import type { Direction, SpriteData } from '../types.js';
 import { Direction as Dir } from '../types.js';
-import bubblePermissionData from './bubble-permission.json';
 import bubblePetData from './bubble-pet.json';
-import bubbleWaitingData from './bubble-waiting.json';
-import statusDoneData from './status-done.json';
-import statusIdleData from './status-idle.json';
-import statusPermissionData from './status-permission.json';
-import statusWaitingInputData from './status-waiting-input.json';
-import statusWorkingData from './status-working.json';
 
-// ── Speech Bubble Sprites ───────────────────────────────────────
-
-interface BubbleSpriteJson {
-  palette: Record<string, string>;
-  pixels: string[][];
-}
-
-function resolveBubbleSprite(data: BubbleSpriteJson): SpriteData {
-  return data.pixels.map((row) => row.map((key) => data.palette[key] ?? key));
-}
-
-/** Permission bubble: white square with "..." in amber, and a tail pointer (11x13) */
-export const BUBBLE_PERMISSION_SPRITE: SpriteData = resolveBubbleSprite(bubblePermissionData);
-
-/** Waiting bubble: white square with green checkmark, and a tail pointer (11x13) */
-export const BUBBLE_WAITING_SPRITE: SpriteData = resolveBubbleSprite(bubbleWaitingData);
+const bubblePetSprite = bubblePetData as { palette: Record<string, string>; pixels: string[][] };
 
 /** Heart bubble: pet petting feedback (11x13) */
-export const BUBBLE_HEART_SPRITE: SpriteData = resolveBubbleSprite(bubblePetData);
-
-// ── Persistent Agent Status Badges ─────────────────────────────
-
-/** Status badge: actively working (blue, play-triangle glyph) (9x9) */
-export const STATUS_WORKING_SPRITE: SpriteData = resolveBubbleSprite(statusWorkingData);
-
-/** Status badge: turn finished (green, checkmark glyph) (9x9) */
-export const STATUS_DONE_SPRITE: SpriteData = resolveBubbleSprite(statusDoneData);
-
-/** Status badge: idle, waiting on the user (purple, question-mark glyph) (9x9) */
-export const STATUS_WAITING_INPUT_SPRITE: SpriteData = resolveBubbleSprite(statusWaitingInputData);
-
-/** Status badge: idle/resting, no turn in flight (gray-blue, Z glyph) (9x9) */
-export const STATUS_IDLE_SPRITE: SpriteData = resolveBubbleSprite(statusIdleData);
-
-/** Status badge: blocked on a permission request (amber, exclamation glyph) (9x9) */
-export const STATUS_PERMISSION_SPRITE: SpriteData = resolveBubbleSprite(statusPermissionData);
+export const BUBBLE_HEART_SPRITE: SpriteData = bubblePetSprite.pixels.map((row) =>
+  row.map((key) => bubblePetSprite.palette[key] ?? key),
+);
 
 // ════════════════════════════════════════════════════════════════
 // Loaded character sprites (from PNG assets)

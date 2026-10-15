@@ -33,7 +33,7 @@
   --color-danger: #d14249;
   --color-warning: #ff8d14;
 
-  /* Agent-state colours, shared by status badges, speech bubbles and the HUD */
+  /* Agent-state colours, used by the HUD (ToolOverlay activity dot) */
   --color-status-permission: #cca700;
   --color-status-active: #3794ff;
   --color-status-waiting: #7c5cff;

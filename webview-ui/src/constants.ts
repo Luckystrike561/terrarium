@@ -68,22 +68,6 @@ export const SEAT_PULL_TO_CENTER = 0.5;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
-/** How much higher a seated frame draws the head than a standing one, added
- *  to both the bubble and badge vertical offsets. PixelLab's seated poses
- *  crouch rather than drop the hips (measured via scripts/pixellab/pack.ts),
- *  so a chair-raised seated crown ends up taller than standing, not shorter:
- *  negative here means "subtract less" i.e. raise the bubble/badge further. */
-export const BUBBLE_SITTING_OFFSET_PX = -7 * CHARACTER_SCALE;
-/** The crown of a standing character, above its feet (measured from the
- *  packed character sheets). */
-export const BUBBLE_VERTICAL_OFFSET_PX = 32 * CHARACTER_SCALE;
-/** Persistent state badge (working/done/waiting/idle/permission): vertical
- *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
- *  so it sits at head height rather than floating above it like a bubble. */
-export const STATUS_BADGE_VERTICAL_OFFSET_PX = 28 * CHARACTER_SCALE;
-/** Horizontal offset to the right of center, clear of the center-anchored
- *  speech bubble so the two never overlap regardless of bubble state. */
-export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 13 * CHARACTER_SCALE;
 export const FALLBACK_FLOOR_COLOR = '#808080';
 
 // ── Rendering - Overlay Colors (canvas, not CSS) ─────────────
@@ -213,9 +197,9 @@ export const CHARACTER_HIT_HALF_WIDTH = 11 * CHARACTER_SCALE;
 /** From the feet to the crown of a standing character (measured from the
  *  packed character sheets). */
 export const CHARACTER_HIT_HEIGHT = 32 * CHARACTER_SCALE;
-/** A seated frame draws the head BUBBLE_SITTING_OFFSET_PX higher, not lower:
- *  see its comment. Kept as its own measured constant rather than derived,
- *  since "seated minus an offset" no longer describes the real geometry. */
+/** A seated frame draws the head a measured amount higher, not lower.
+ *  Kept as its own measured constant rather than derived, since "seated
+ *  minus an offset" no longer describes the real geometry. */
 export const CHARACTER_SEATED_HIT_HEIGHT = 39 * CHARACTER_SCALE;
 export const TOOL_OVERLAY_VERTICAL_OFFSET = 47 * CHARACTER_SCALE;
 

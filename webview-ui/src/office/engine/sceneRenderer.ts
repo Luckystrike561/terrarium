@@ -4,7 +4,7 @@
  * - One `worldLayer` container is positioned/scaled once per frame
  *   (`position = (offsetX, offsetY)` device px, `scale = zoom`). Every
  *   world-space child (tiles, carpets, walls, furniture, characters, pets,
- *   bubbles, badges) is built in LOCAL, unscaled iso pixel coordinates (see
+ *   the pet bubble) is built in LOCAL, unscaled iso pixel coordinates (see
  *   iso.ts: a tile is a 32×16 diamond). The simulation stays on the top-down
  *   grid; positions are projected here.
  * - Each floor of the building is one FloorScene: a child container of
@@ -45,8 +45,6 @@ import {
   AREA_LABEL_SHADOW_COLOR,
   AREA_OVERLAY_ALPHA,
   BUBBLE_FADE_DURATION_SEC,
-  BUBBLE_SITTING_OFFSET_PX,
-  BUBBLE_VERTICAL_OFFSET_PX,
   BUILDING_PILLAR_WIDTH_PX,
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
@@ -62,8 +60,6 @@ import {
   SEAT_BUSY_COLOR,
   SEAT_OWN_COLOR,
   SELECTED_OUTLINE_ALPHA,
-  STATUS_BADGE_HORIZONTAL_OFFSET_PX,
-  STATUS_BADGE_VERTICAL_OFFSET_PX,
 } from '../../constants.js';
 import { paintDaylightSkyline } from '../backdrop.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
@@ -77,18 +73,7 @@ import {
   hasCarpetSprites,
 } from '../sprites/carpetTiles.js';
 import { getPetSprites } from '../sprites/petSpriteData.js';
-import {
-  BUBBLE_HEART_SPRITE,
-  BUBBLE_PERMISSION_SPRITE,
-  BUBBLE_WAITING_SPRITE,
-  getCharacterSprites,
-  getCtoSprites,
-  STATUS_DONE_SPRITE,
-  STATUS_IDLE_SPRITE,
-  STATUS_PERMISSION_SPRITE,
-  STATUS_WAITING_INPUT_SPRITE,
-  STATUS_WORKING_SPRITE,
-} from '../sprites/spriteData.js';
+import { BUBBLE_HEART_SPRITE, getCharacterSprites, getCtoSprites } from '../sprites/spriteData.js';
 import { getOutlineSprite, getTexture } from '../sprites/textureCache.js';
 import type {
   AreaDefinition,
@@ -98,10 +83,9 @@ import type {
   OfficeLayout,
   Pet,
   Seat,
-  SpriteData,
   TileType as TileTypeVal,
 } from '../types.js';
-import { CharacterState, TILE_SIZE, TileType } from '../types.js';
+import { TILE_SIZE, TileType } from '../types.js';
 import { wallColorToHex } from '../wallTiles.js';
 import { getCharacterSprite } from './characters.js';
 import type { SortBox } from './isoSort.js';
@@ -114,7 +98,7 @@ TextureStyle.defaultOptions.scaleMode = 'nearest';
 
 /** Floor, wall, furniture and character sprites are authored at ART_SCALE art
  *  pixels per world unit and drawn at this scale so their world footprint
- *  matches the simulation grid. Pets, carpets, badges and bubbles stay at
+ *  matches the simulation grid. Pets, carpets and the pet bubble stay at
  *  scale 1 and are not covered by this constant. */
 const ART_SPRITE_SCALE = 1 / ART_SCALE;
 const CHARACTER_SPRITE_SCALE = ART_SPRITE_SCALE * CHARACTER_SCALE;
@@ -255,17 +239,6 @@ function actorBox(x: number, y: number): SortBox {
   };
 }
 
-// ── Status badge sprite selection ──────────────────────────────
-
-function statusBadgeSprite(ch: Character): SpriteData {
-  if (ch.bubbleType === 'permission') return STATUS_PERMISSION_SPRITE;
-  if (ch.isActive) return STATUS_WORKING_SPRITE;
-  if (ch.bubbleType === 'waiting') {
-    return ch.waitingAwaitingInput ? STATUS_WAITING_INPUT_SPRITE : STATUS_DONE_SPRITE;
-  }
-  return STATUS_IDLE_SPRITE;
-}
-
 // ── One floor ─────────────────────────────────────────────────────
 
 /** Everything drawn for one floor, in one container raised by the floor's elevation. Area labels live in the
@@ -277,8 +250,6 @@ class FloorScene {
   private areaOverlayGfx = new Graphics();
   private seatIndicatorGfx = new Graphics();
   private entityContainer = new Container({ isRenderGroup: true });
-  private bubbleContainer = new Container();
-  private badgeContainer = new Container();
   private petBubbleContainer = new Container();
   private areaLabelContainer = new Container();
 
@@ -291,8 +262,6 @@ class FloorScene {
   private outlinePool = new Map<number, Sprite>();
   private matrixPool = new Map<number, Graphics>();
   private petPool = new Map<string, Sprite>();
-  private bubblePool = new Map<number, Sprite>();
-  private badgePool = new Map<number, Sprite>();
   private petBubblePool = new Map<string, Sprite>();
   private areaLabelPool = new Map<
     string,
@@ -306,8 +275,6 @@ class FloorScene {
       this.areaOverlayGfx,
       this.seatIndicatorGfx,
       this.entityContainer,
-      this.bubbleContainer,
-      this.badgeContainer,
       this.petBubbleContainer,
     );
     this.entityContainer.sortableChildren = true;
@@ -334,7 +301,7 @@ class FloorScene {
 
     this.updateSeatIndicator(state);
     this.updateEntities(state);
-    this.updateBubblesAndBadges(state);
+    this.updatePetBubbles(state);
   }
 
   destroy(): void {
@@ -771,55 +738,10 @@ class FloorScene {
     pruneStale(this.petPool, this.entityContainer, livePets);
   }
 
-  // ── Bubbles + status badges (per-frame) ─────────────────────────
+  // ── Pet bubble (per-frame) ───────────────────────────────────────
 
-  private updateBubblesAndBadges(state: FloorRenderState): void {
-    const liveBubbles = new Set<number>();
-    const liveBadges = new Set<number>();
+  private updatePetBubbles(state: FloorRenderState): void {
     const livePetBubbles = new Set<string>();
-
-    for (const ch of state.characters) {
-      if (ch.bubbleType && !(ch.bubbleType === 'waiting' && ch.waitingAwaitingInput)) {
-        liveBubbles.add(ch.id);
-        const spriteData =
-          ch.bubbleType === 'permission' ? BUBBLE_PERMISSION_SPRITE : BUBBLE_WAITING_SPRITE;
-        let alpha = 1.0;
-        if (ch.bubbleType === 'waiting' && ch.bubbleTimer < BUBBLE_FADE_DURATION_SEC) {
-          alpha = ch.bubbleTimer / BUBBLE_FADE_DURATION_SEC;
-        }
-        const texture = getTexture(spriteData);
-        const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
-        const offset = state.sittingOffset(ch);
-        const anchor = worldToIso(ch.x, ch.y);
-        const sprite = getOrCreateSprite(this.bubblePool, ch.id, this.bubbleContainer);
-        sprite.texture = texture;
-        sprite.position.set(
-          Math.round(anchor.x + offset.x - texture.width / 2),
-          Math.round(
-            anchor.y + offset.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX - texture.height - 1,
-          ),
-        );
-        sprite.alpha = alpha;
-        sprite.visible = true;
-      }
-
-      if (!ch.isSubagent && !ch.isGreeter && !ch.isCto) {
-        liveBadges.add(ch.id);
-        const texture = getTexture(statusBadgeSprite(ch));
-        const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
-        const offset = state.sittingOffset(ch);
-        const anchor = worldToIso(ch.x, ch.y);
-        const sprite = getOrCreateSprite(this.badgePool, ch.id, this.badgeContainer);
-        sprite.texture = texture;
-        sprite.position.set(
-          Math.round(anchor.x + offset.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2),
-          Math.round(
-            anchor.y + offset.y + sittingOff - STATUS_BADGE_VERTICAL_OFFSET_PX - texture.height / 2,
-          ),
-        );
-        sprite.visible = true;
-      }
-    }
 
     for (const pet of state.pets ?? []) {
       if (!pet.bubbleType) continue;
@@ -840,8 +762,6 @@ class FloorScene {
       sprite.visible = true;
     }
 
-    pruneStale(this.bubblePool, this.bubbleContainer, liveBubbles);
-    pruneStale(this.badgePool, this.badgeContainer, liveBadges);
     pruneStale(this.petBubblePool, this.petBubbleContainer, livePetBubbles);
   }
 }
