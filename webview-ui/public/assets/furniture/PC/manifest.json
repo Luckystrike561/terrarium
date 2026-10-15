@@ -19,7 +19,7 @@
           "id": "PC_FRONT_OFF",
           "file": "PC_FRONT_OFF.png",
           "width": 64,
-          "height": 104,
+          "height": 73,
           "footprintW": 1,
           "footprintH": 1,
           "state": "off"
@@ -34,7 +34,7 @@
               "id": "PC_FRONT_ON_1",
               "file": "PC_FRONT_ON_1.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 0
@@ -44,7 +44,7 @@
               "id": "PC_FRONT_ON_2",
               "file": "PC_FRONT_ON_2.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 1
@@ -54,7 +54,7 @@
               "id": "PC_FRONT_ON_3",
               "file": "PC_FRONT_ON_3.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2
@@ -73,7 +73,7 @@
           "id": "PC_RIGHT_OFF",
           "file": "PC_RIGHT_OFF.png",
           "width": 64,
-          "height": 104,
+          "height": 73,
           "footprintW": 1,
           "footprintH": 1,
           "state": "off"
@@ -88,7 +88,7 @@
               "id": "PC_RIGHT_ON_1",
               "file": "PC_RIGHT_ON_1.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 0
@@ -98,7 +98,7 @@
               "id": "PC_RIGHT_ON_2",
               "file": "PC_RIGHT_ON_2.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 1
@@ -108,7 +108,7 @@
               "id": "PC_RIGHT_ON_3",
               "file": "PC_RIGHT_ON_3.png",
               "width": 64,
-              "height": 103,
+              "height": 72,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2
@@ -127,7 +127,7 @@
           "id": "PC_BACK_OFF",
           "file": "PC_BACK_OFF.png",
           "width": 64,
-          "height": 94,
+          "height": 66,
           "footprintW": 1,
           "footprintH": 1,
           "state": "off"
@@ -142,7 +142,7 @@
               "id": "PC_BACK_ON_1",
               "file": "PC_BACK_ON_1.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 0
@@ -152,7 +152,7 @@
               "id": "PC_BACK_ON_2",
               "file": "PC_BACK_ON_2.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 1
@@ -162,7 +162,7 @@
               "id": "PC_BACK_ON_3",
               "file": "PC_BACK_ON_3.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2
@@ -181,7 +181,7 @@
           "id": "PC_LEFT_OFF",
           "file": "PC_LEFT_OFF.png",
           "width": 64,
-          "height": 94,
+          "height": 66,
           "footprintW": 1,
           "footprintH": 1,
           "state": "off"
@@ -196,7 +196,7 @@
               "id": "PC_LEFT_ON_1",
               "file": "PC_LEFT_ON_1.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 0
@@ -206,7 +206,7 @@
               "id": "PC_LEFT_ON_2",
               "file": "PC_LEFT_ON_2.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 1
@@ -216,7 +216,7 @@
               "id": "PC_LEFT_ON_3",
               "file": "PC_LEFT_ON_3.png",
               "width": 64,
-              "height": 94,
+              "height": 66,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2

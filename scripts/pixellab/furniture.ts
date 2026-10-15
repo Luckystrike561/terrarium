@@ -60,7 +60,10 @@ const TURNAROUND_MAX_SIZE = 168;
 const TURNAROUND_GENERATIONS_ESTIMATE = 20;
 /** Height of a desk or table top above the floor, in art px, measured on the
  *  PixelLab desk and table renders. */
-const DESK_SURFACE_LIFT_ART_PX = 26;
+const DESK_SURFACE_LIFT_ART_PX = 18;
+/** Desks, tables, chairs and computers render oversized next to the
+ *  characters, the sofas and the fridge. */
+const DESK_AND_CHAIR_SHRINK = 0.7;
 /** Height of the kitchen counter top above the floor, in art px, measured
  *  where the coffee machine stands on the PixelLab counter render. */
 const COUNTER_SURFACE_LIFT_ART_PX = 60;
@@ -170,6 +173,9 @@ interface ItemPrompt {
   /** The turnaround's north-east view of a long item came back along the
    *  other floor axis from its south-west view. */
   mirrorBack?: boolean;
+  /** Fraction of its generated size the item is resized to, so it keeps
+   *  scale with the characters. */
+  shrink?: number;
   /** Transparent rows added under the render. The renderer anchors every
    *  item at the floor, so an item made to stand on a desk or counter carries
    *  that surface's height in its own sprite. */
@@ -194,11 +200,13 @@ const PROMPTS: Record<string, ItemPrompt> = {
   DESK: {
     front: 'a simple modern office desk with a light wood top and white metal legs',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
   },
   SMALL_TABLE: { front: 'a small round side table with a light wood top and thin white legs' },
   MEETING_TABLE: {
     front: 'a long modern conference table with a light wood top and white legs',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
   },
   COFFEE_TABLE: {
     front:
@@ -209,6 +217,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
     mirrorBack: true,
   },
   PC: {
@@ -216,6 +225,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
       'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic',
     back: 'a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front',
     stillOn: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
     surfaceLift: DESK_SURFACE_LIFT_ART_PX,
     states: {
       front: {
@@ -239,10 +249,12 @@ const PROMPTS: Record<string, ItemPrompt> = {
   CUSHIONED_CHAIR: {
     front: 'a modern upholstered office swivel chair with cream fabric cushions and a white frame',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
   },
   WOODEN_CHAIR: {
     front: 'a simple wooden dining chair with a light wood frame and a pale cushion seat',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
   },
   SOFA: {
     front: 'a cozy two-seat sofa with soft pastel sage green cushions and light wood legs',
@@ -257,6 +269,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'an elegant high-back executive office chair with cream leather upholstery and brushed gold trim',
     turnaround: true,
+    shrink: DESK_AND_CHAIR_SHRINK,
   },
   STOOL: { front: 'a simple round bar stool with a pale wood seat and thin white metal legs' },
   PLANT: { front: 'a leafy potted houseplant in a simple white ceramic pot' },
@@ -637,20 +650,14 @@ function hangLift(height: number): number {
   return Math.max(0, Math.min(centred, WALL_HANG_TOP_ART_PX - height));
 }
 
-/** Trim to the opaque bounding box, then upscale that box by the largest
- *  integer factor that still fits `targetWidth` (nearest-neighbour block
- *  replication, never a smooth scale) so content the model placed small
- *  within its canvas still reads at full pixel density, and center it in a
- *  canvas exactly `targetWidth` wide (the anchor contract's required
- *  width). Height is whatever the scaled content needs. */
-function trimAndPad(raw: PixelImage, targetWidth: number): PixelImage {
-  let minX = raw.width;
+function opaqueBox(img: PixelImage): { x: number; y: number; w: number; h: number } {
+  let minX = img.width;
   let maxX = -1;
-  let minY = raw.height;
+  let minY = img.height;
   let maxY = -1;
-  for (let y = 0; y < raw.height; y++) {
-    for (let x = 0; x < raw.width; x++) {
-      const c = raw.get(x, y);
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      const c = img.get(x, y);
       if (c && c[3] >= 16) {
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
@@ -660,18 +667,74 @@ function trimAndPad(raw: PixelImage, targetWidth: number): PixelImage {
     }
   }
   if (maxX < 0) throw new Error('generated image is fully transparent');
-  const cropW = maxX - minX + 1;
-  const cropH = maxY - minY + 1;
-  const scale = Math.max(1, Math.floor(targetWidth / cropW));
-  const padLeft = Math.floor((targetWidth - cropW * scale) / 2);
-  const out = new PixelImage(targetWidth, cropH * scale);
-  for (let y = 0; y < cropH; y++) {
-    for (let x = 0; x < cropW; x++) {
-      const c = raw.get(minX + x, minY + y);
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+/** Trim to the opaque bounding box, then upscale that box by the largest
+ *  integer factor that still fits `targetWidth` (nearest-neighbour block
+ *  replication, never a smooth scale) so content the model placed small
+ *  within its canvas still reads at full pixel density, and center it in a
+ *  canvas exactly `targetWidth` wide (the anchor contract's required
+ *  width). Height is whatever the scaled content needs. */
+function trimAndPad(raw: PixelImage, targetWidth: number, upscale = true): PixelImage {
+  const box = opaqueBox(raw);
+  const scale = upscale ? Math.max(1, Math.floor(targetWidth / box.w)) : 1;
+  const padLeft = Math.floor((targetWidth - box.w * scale) / 2);
+  const out = new PixelImage(targetWidth, box.h * scale);
+  for (let y = 0; y < box.h; y++) {
+    for (let x = 0; x < box.w; x++) {
+      const c = raw.get(box.x + x, box.y + y);
       if (c) out.fillRect(padLeft + x * scale, y * scale, scale, scale, c);
     }
   }
   return out;
+}
+
+/** PixelLab's pixel-art resize of one packed view down to `fraction` of its
+ *  size, cached under `<key>_shrunk.png`. */
+async function shrinkView(
+  record: Record_,
+  itemId: string,
+  key: string,
+  description: string,
+  img: PixelImage,
+  fraction: number,
+): Promise<PixelImage> {
+  const cachePath = path.join(framesDir, itemId, `${key}_shrunk.png`);
+  if (fs.existsSync(cachePath)) return PixelImage.readPng(cachePath);
+
+  const box = opaqueBox(img);
+  const crop = new PixelImage(box.w, box.h);
+  for (let y = 0; y < box.h; y++) {
+    for (let x = 0; x < box.w; x++) crop.set(x, y, img.get(box.x + x, box.y + y));
+  }
+  const cropPath = path.join(framesDir, itemId, `${key}_unshrunk.png`);
+  crop.writePng(cropPath);
+  const target = { width: Math.round(box.w * fraction), height: Math.round(box.h * fraction) };
+  const res = await withRetry429(() =>
+    apiPost<{ image: { base64: string }; usage?: { generations?: number | null } | null }>(
+      '/resize',
+      {
+        description,
+        reference_image: { type: 'base64', base64: fs.readFileSync(cropPath).toString('base64') },
+        reference_image_size: { width: box.w, height: box.h },
+        target_size: target,
+        no_background: true,
+      },
+    ),
+  );
+  fs.writeFileSync(cachePath, Buffer.from(res.image.base64, 'base64'));
+  record.spentGenerations += res.usage?.generations ?? 1;
+  record.items[itemId] ??= {};
+  record.items[itemId][`${key}_shrunk`] = {
+    description,
+    seed: 0,
+    objectId: '',
+    width: target.width,
+    height: target.height,
+  };
+  await save(record);
+  return PixelImage.readPng(cachePath);
 }
 
 function stateFrameCombos(
@@ -803,6 +866,21 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   }
   if (prompt.mirrorFront) generated.set('front||', generated.get('front||')!.mirrored());
   if (prompt.mirrorBack) generated.set('back||', generated.get('back||')!.mirrored());
+  if (prompt.shrink) {
+    for (const [key, img] of generated) {
+      const frame = key.split('|')[2];
+      if (prompt.stillOn && frame !== '' && frame !== '0') continue;
+      const shrunk = await shrinkView(
+        record,
+        itemId,
+        key.replaceAll('|', '_'),
+        prompt.front,
+        img,
+        prompt.shrink,
+      );
+      generated.set(key, trimAndPad(shrunk, width, false));
+    }
+  }
   if (prompt.surfaceLift) {
     for (const [key, img] of generated) generated.set(key, liftOff(img, prompt.surfaceLift));
   }

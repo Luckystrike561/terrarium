@@ -1,5 +1,5 @@
 {
-  "spentGenerations": 312,
+  "spentGenerations": 328,
   "items": {
     "DESK": {
       "front": {
@@ -15,6 +15,20 @@
         "objectId": "115a923a-4dfd-4011-ac88-0bf38d50cb2b",
         "width": 97,
         "height": 97
+      },
+      "front___shrunk": {
+        "description": "a simple modern office desk with a light wood top and white metal legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 50,
+        "height": 46
+      },
+      "back___shrunk": {
+        "description": "a simple modern office desk with a light wood top and white metal legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 50,
+        "height": 47
       }
     },
     "SMALL_TABLE": {
@@ -98,6 +112,34 @@
         "objectId": "31a8121a-6a81-4080-a572-4e494e1dc2f1",
         "width": 64,
         "height": 202
+      },
+      "front_off__shrunk": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 42,
+        "height": 55
+      },
+      "front_on_0_shrunk": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 39,
+        "height": 54
+      },
+      "back_off__shrunk": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 32,
+        "height": 48
+      },
+      "back_on_0_shrunk": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic",
+        "seed": 0,
+        "objectId": "",
+        "width": 32,
+        "height": 48
       }
     },
     "CUSHIONED_CHAIR": {
@@ -114,6 +156,20 @@
         "objectId": "4636c596-80cd-4671-aceb-c8c5838d5ae3",
         "width": 85,
         "height": 85
+      },
+      "front___shrunk": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 36,
+        "height": 51
+      },
+      "back___shrunk": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 35,
+        "height": 41
       }
     },
     "WOODEN_CHAIR": {
@@ -130,6 +186,20 @@
         "objectId": "e37c17e0-e7e7-48a2-88a5-b89ecb5af669",
         "width": 85,
         "height": 85
+      },
+      "front___shrunk": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 31,
+        "height": 52
+      },
+      "back___shrunk": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 33,
+        "height": 47
       }
     },
     "SOFA": {
@@ -180,6 +250,20 @@
         "objectId": "1d8e73c0-8d02-444e-893b-66e9af0faf09",
         "width": 97,
         "height": 97
+      },
+      "front___shrunk": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 34,
+        "height": 63
+      },
+      "back___shrunk": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 33,
+        "height": 53
       }
     },
     "PLANT": {
@@ -397,6 +481,20 @@
         "objectId": "1525a380-aa0c-4e94-9389-81dfb5ab5c99",
         "width": 170,
         "height": 170
+      },
+      "front___shrunk": {
+        "description": "an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents",
+        "seed": 0,
+        "objectId": "",
+        "width": 90,
+        "height": 79
+      },
+      "back___shrunk": {
+        "description": "an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents",
+        "seed": 0,
+        "objectId": "",
+        "width": 90,
+        "height": 81
       }
     },
     "STOOL": {
@@ -422,6 +520,20 @@
         "objectId": "d3b50a0b-f225-48ea-9fcc-da97ff7c1883",
         "width": 170,
         "height": 170
+      },
+      "front___shrunk": {
+        "description": "a long modern conference table with a light wood top and white legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 92,
+        "height": 63
+      },
+      "back___shrunk": {
+        "description": "a long modern conference table with a light wood top and white legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 92,
+        "height": 64
       }
     },
     "BOOKSHELF": {
