@@ -167,6 +167,9 @@ interface ItemPrompt {
   /** The cached front render lies along the wrong floor axis. Used where the
    *  8-direction object misreads a symmetric item and returns no diagonals. */
   mirrorFront?: boolean;
+  /** The turnaround's north-east view of a long item came back along the
+   *  other floor axis from its south-west view. */
+  mirrorBack?: boolean;
   /** Transparent rows added under the render. The renderer anchors every
    *  item at the floor, so an item made to stand on a desk or counter carries
    *  that surface's height in its own sprite. */
@@ -206,6 +209,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents',
     turnaround: true,
+    mirrorBack: true,
   },
   PC: {
     front:
@@ -797,6 +801,7 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
     generated.set('back||', trimAndPad(views.back, width));
   }
   if (prompt.mirrorFront) generated.set('front||', generated.get('front||')!.mirrored());
+  if (prompt.mirrorBack) generated.set('back||', generated.get('back||')!.mirrored());
   if (prompt.surfaceLift) {
     for (const [key, img] of generated) generated.set(key, liftOff(img, prompt.surfaceLift));
   }
