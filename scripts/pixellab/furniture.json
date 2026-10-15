@@ -1,5 +1,5 @@
 {
-  "spentGenerations": 90,
+  "spentGenerations": 312,
   "items": {
     "DESK": {
       "front": {
@@ -9,12 +9,12 @@
         "width": 96,
         "height": 186
       },
-      "back": {
-        "description": "a simple modern office desk seen from behind, light wood top and white metal legs, back panel facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 137576,
-        "objectId": "216e376a-a7b0-4a2b-bc18-4e1dadbd8d73",
-        "width": 96,
-        "height": 186
+      "turnaround": {
+        "description": "a simple modern office desk with a light wood top and white metal legs",
+        "seed": 0,
+        "objectId": "115a923a-4dfd-4011-ac88-0bf38d50cb2b",
+        "width": 97,
+        "height": 97
       }
     },
     "SMALL_TABLE": {
@@ -33,6 +33,13 @@
         "objectId": "1ae79621-4b59-46f5-82ca-ea3f0b2f2703",
         "width": 96,
         "height": 172
+      },
+      "turnaround": {
+        "description": "a low modern rectangular coffee table with a light wood top and white wooden legs",
+        "seed": 0,
+        "objectId": "875b8804-7d74-49c1-b563-b9e51651700f",
+        "width": 97,
+        "height": 97
       }
     },
     "PC": {
@@ -101,12 +108,12 @@
         "width": 64,
         "height": 190
       },
-      "back": {
-        "description": "a modern upholstered office swivel chair seen from behind, cream fabric cushions and a white frame, backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 470171,
-        "objectId": "e0fb6925-7385-4a24-b465-c24405b69d60",
-        "width": 64,
-        "height": 190
+      "turnaround": {
+        "description": "a modern upholstered office swivel armchair, cream fabric cushions, black five-star base with wheels",
+        "seed": 0,
+        "objectId": "4636c596-80cd-4671-aceb-c8c5838d5ae3",
+        "width": 85,
+        "height": 85
       }
     },
     "WOODEN_CHAIR": {
@@ -117,12 +124,12 @@
         "width": 64,
         "height": 182
       },
-      "back": {
-        "description": "a simple wooden dining chair seen from behind, light wood frame, backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 231205,
-        "objectId": "31af4718-76b5-4880-8097-f880f5c9f4d6",
-        "width": 64,
-        "height": 182
+      "turnaround": {
+        "description": "a simple wooden dining chair, light wood frame, cream seat cushion",
+        "seed": 0,
+        "objectId": "e37c17e0-e7e7-48a2-88a5-b89ecb5af669",
+        "width": 85,
+        "height": 85
       }
     },
     "SOFA": {
@@ -133,12 +140,12 @@
         "width": 96,
         "height": 194
       },
-      "back": {
-        "description": "a cozy two-seat sofa seen from behind, soft pastel sage green back cushions, light wood legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 421098,
-        "objectId": "f6445509-afaf-4b6c-ba45-7fa8baf48219",
-        "width": 96,
-        "height": 194
+      "turnaround": {
+        "description": "a cozy two-seat sofa with mint green cushions and a warm wood frame",
+        "seed": 0,
+        "objectId": "7f6879a8-4c03-45b2-ba99-349c4589ab94",
+        "width": 97,
+        "height": 97
       }
     },
     "CUSHIONED_BENCH": {
@@ -167,12 +174,12 @@
         "width": 64,
         "height": 198
       },
-      "back": {
-        "description": "an elegant high-back executive office chair seen from behind, cream leather upholstery and brushed gold trim, tall backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 102154,
-        "objectId": "07c0eae5-a7e5-470c-a045-ad21b807058b",
-        "width": 64,
-        "height": 198
+      "turnaround": {
+        "description": "an elegant high-back executive office swivel chair, cream leather upholstery and gold trim, five-star base",
+        "seed": 0,
+        "objectId": "1d8e73c0-8d02-444e-893b-66e9af0faf09",
+        "width": 97,
+        "height": 97
       }
     },
     "PLANT": {
@@ -384,12 +391,12 @@
         "width": 160,
         "height": 224
       },
-      "back": {
-        "description": "an elegant executive desk seen from behind, white lacquered top, light wood drawer fronts, back panel facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 839738,
-        "objectId": "c83b0119-a829-40ba-bdf4-d8efacaf8b83",
-        "width": 160,
-        "height": 224
+      "turnaround": {
+        "description": "an executive desk with a white top and light wood drawer pedestals with brass handles",
+        "seed": 0,
+        "objectId": "1525a380-aa0c-4e94-9389-81dfb5ab5c99",
+        "width": 170,
+        "height": 170
       }
     },
     "STOOL": {
@@ -408,6 +415,13 @@
         "objectId": "22d565c2-cdee-4328-a827-a12e3bbf8bdf",
         "width": 160,
         "height": 216
+      },
+      "turnaround": {
+        "description": "a long modern conference table with a light wood top and white legs",
+        "seed": 0,
+        "objectId": "d3b50a0b-f225-48ea-9fcc-da97ff7c1883",
+        "width": 170,
+        "height": 170
       }
     },
     "BOOKSHELF": {

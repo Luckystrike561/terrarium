@@ -34,7 +34,7 @@
       "id": "EXEC_CHAIR_BACK",
       "file": "EXEC_CHAIR_BACK.png",
       "width": 64,
-      "height": 76,
+      "height": 75,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "back"
@@ -44,7 +44,7 @@
       "id": "EXEC_CHAIR_LEFT",
       "file": "EXEC_CHAIR_LEFT.png",
       "width": 64,
-      "height": 76,
+      "height": 75,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "left"

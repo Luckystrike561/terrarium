@@ -1,7 +1,8 @@
+import { ART_SCALE } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
 import { getColorizedSprite } from '../colorize.js';
 import { SortLayer } from '../engine/isoSort.js';
-import { footprintSpriteOrigin } from '../iso.js';
+import { footprintSpriteOrigin, ISO_TILE_W } from '../iso.js';
 import type {
   FurnitureInstance,
   OfficeLayout,
@@ -30,6 +31,33 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
  *  other chairs draw under them. */
 const CHAIR_BEHIND_LAYER = SortLayer.FLOOR;
 const CHAIR_IN_FRONT_LAYER = SortLayer.ATTACHED;
+
+/** A wall item is drawn flat on the face of its wall, but its sprite is wider
+ *  than that face and spills over the next wall tile along. Sorting it as a
+ *  zero-depth box on the face, stretched over the tiles it spills onto, puts
+ *  it after every wall tile it covers and still before anything standing in
+ *  front of the wall. */
+function wallFaceBox(
+  footprint: { minCol: number; minRow: number; maxCol: number; maxRow: number },
+  orientation: string | undefined,
+  spriteArtW: number,
+): { minCol: number; minRow: number; maxCol: number; maxRow: number } {
+  const spill = Math.max(1, Math.ceil(spriteArtW / ART_SCALE / ISO_TILE_W));
+  if (orientation === 'right') {
+    return {
+      minCol: footprint.maxCol,
+      maxCol: footprint.maxCol,
+      minRow: footprint.minRow,
+      maxRow: footprint.maxRow + spill,
+    };
+  }
+  return {
+    minCol: footprint.minCol,
+    maxCol: footprint.maxCol + spill,
+    minRow: footprint.maxRow,
+    maxRow: footprint.maxRow,
+  };
+}
 
 /** Convert placed furniture into renderable FurnitureInstance[] */
 export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): FurnitureInstance[] {
@@ -66,15 +94,20 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       sprite[0]?.length ?? 0,
       sprite.length,
     );
+    const footprint = {
+      minCol: item.col,
+      minRow: item.row,
+      maxCol: item.col + entry.footprintW,
+      maxRow: item.row + entry.footprintH,
+    };
     instances.push({
       sprite,
       x: origin.x,
       y: origin.y,
       sort: {
-        minCol: item.col,
-        minRow: item.row,
-        maxCol: item.col + entry.footprintW,
-        maxRow: item.row + entry.footprintH,
+        ...(entry.canPlaceOnWalls
+          ? wallFaceBox(footprint, entry.orientation, sprite[0]?.length ?? 0)
+          : footprint),
         layer,
       },
       uid: item.uid,

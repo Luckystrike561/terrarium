@@ -34,7 +34,7 @@
       "id": "CUSHIONED_CHAIR_BACK",
       "file": "CUSHIONED_CHAIR_BACK.png",
       "width": 64,
-      "height": 79,
+      "height": 58,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "back"
@@ -44,7 +44,7 @@
       "id": "CUSHIONED_CHAIR_LEFT",
       "file": "CUSHIONED_CHAIR_LEFT.png",
       "width": 64,
-      "height": 79,
+      "height": 58,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "left"

@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-const REVISION = 6;
+const REVISION = 7;
 const COLS = 22;
 const ROWS = 16;
 
@@ -154,13 +154,12 @@ put('PC_BACK_OFF', 16, 3);
 put('COFFEE', 17, 3);
 put('WOODEN_CHAIR_BACK', 15, 5);
 put('WOODEN_CHAIR_BACK', 17, 5);
-put('COFFEE_TABLE_RIGHT', 18, 2);
-put('SOFA_RIGHT', 19, 2);
-put('CTO_SIGN_FRONT', 13, 0);
-put('WALL_SHELF_FRONT', 17, 0);
-put('SMALL_PAINTING_FRONT', 19, 0);
-put('SMALL_PAINTING_2_FRONT', 21, 0);
-put('FLOOR_LAMP', 14, 1);
+put('SOFA_RIGHT', 18, 2);
+put('COFFEE_TABLE_RIGHT', 19, 2);
+put('WALL_SHELF_FRONT', 16, 0);
+put('CTO_SIGN_FRONT', 18, 0);
+put('SMALL_PAINTING_FRONT', 20, 0);
+put('FLOOR_LAMP', 14, 7);
 put('LARGE_PLANT', 21, 1);
 put('PLANT', 21, 7);
 
@@ -182,7 +181,7 @@ put('FLOOR_LAMP', 20, 14);
 // electronics so they stay rest seats.
 put('SOFA_FRONT', 2, 10);
 put('COFFEE_TABLE_FRONT', 2, 11);
-put('SOFA_BACK', 2, 13);
+put('SOFA_BACK', 2, 12);
 put('WOODEN_BENCH_FRONT', 5, 14);
 put('LARGE_PLANT', 1, 10);
 put('FLOOR_LAMP', 7, 10);
@@ -195,7 +194,7 @@ put('WALL_SHELF_RIGHT', 0, 14);
 put('KITCHEN_COUNTER_FRONT', 8, 10);
 put('KITCHEN_COUNTER_FRONT', 10, 10);
 put('COFFEE_MACHINE_ON_1', 8, 10);
-put('COFFEE', 10, 10);
+put('COFFEE', 17, 12);
 put('FRIDGE_FRONT', 12, 10);
 put('SMALL_TABLE', 9, 13);
 put('WOODEN_CHAIR_RIGHT', 8, 13);

@@ -110,11 +110,12 @@ Seated frames put the hips at the chair's seat height (`SEAT_RAISE_ART_PX`, 12 a
 
 ## Furniture
 
-**Generated, not drawn.** Each of the 38 furniture ids is a [PixelLab](https://pixellab.ai) map-object render, not a primitive ray traced by code: a `front` view (and, for desks, chairs and the sofa, a `back` view) generated from a text description, mirrored into `right`/`left`. `scripts/pixellab/furniture.json` records every prompt, seed and PixelLab object id; `scripts/pixellab/furniture.ts` generates, crops and packs the art.
+**Generated, not drawn.** Each of the 38 furniture ids is a [PixelLab](https://pixellab.ai) map-object render, not a primitive ray traced by code: a `front` view generated from a text description, mirrored into `right`. Seats, desks and long tables are turned into one PixelLab 8-direction object from that front render, whose `south-west` view is `front` and `north-east` view is `back` (mirrored into `left`), so every view of an item is one design and faces the way the layout places it. `scripts/pixellab/furniture.json` records every prompt, seed and PixelLab object id. `scripts/pixellab/furniture.ts` generates, crops and packs the art.
 
 - **Style**: cozy modern office pixel art, light wood tones, white and soft pastel colours, clean minimalist shapes, soft daylight, the same outline and shading settings for every item so the set reads as one room.
 - An item with footprint fw×fh is `(fw+fh)*16` px wide and its floor diamond touches the image's left, right and bottom edges, trimmed and centred from the generated render (never smooth-scaled; an integer upscale only if PixelLab placed the object small within its canvas).
 - Electronics have an off and an on state, chained from the off render via `init_image` so the lit frame stays visually close to the dark one.
+- Items that stand on a desk or the counter carry the surface height under them, and wall items hang with their centre at eye level, in their own sprite.
 
 ## The office
 
@@ -148,4 +149,4 @@ Terrarium's own renders:
 3. Daylit from the upper left, shadows toward `#2c3446`, colours from the palette above.
 4. Outlined in ink as the section above says for its kind, fabric dithered, plastic glossy.
 5. Characters: every frame of `CHARACTER_FRAMES` in all three rows, 96×96, feet at the shared baseline, no prop in any seated animation (the growth guard catches a regression).
-6. Furniture: the footprint anchor contract above.
+6. Furniture: the footprint anchor contract above. `front` faces screen lower-left, and its long side runs along cols (screen upper-left to lower-right) for a footprint wider than it is deep.
