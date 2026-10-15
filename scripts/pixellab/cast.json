@@ -1,0 +1,1262 @@
+{
+  "view": "high top-down",
+  "promptSuffix": ", chunky cute proportions, oversized round head on a small simple body, cheerful friendly expression, cozy modern office worker, clean flat colors, charming pixel art style",
+  "seatedStateEditDescription": "sitting on an office chair, viewed from the side: both legs are symmetric mirror images of each other, both feet are flat on the floor side by side at the same height, both knees bent at the same right angle, neither leg crosses the other, neither foot is tucked under the body, no leg rests on top of the other knee, back straight, sitting upright, facing forward, do not draw the chair, draw only the seated body",
+  "directions": [
+    "south-west",
+    "north-east"
+  ],
+  "frameCount": 8,
+  "standingAnimations": [
+    {
+      "name": "walk",
+      "action": "walking forward through the office, one full relaxed stride cycle"
+    },
+    {
+      "name": "idle",
+      "action": "standing still, breathing gently"
+    },
+    {
+      "name": "wave",
+      "action": "raising one hand above the head and waving"
+    },
+    {
+      "name": "holdForm",
+      "action": "holding a sheet of paper up high with one hand to show it, on the opposite side from the waving hand"
+    }
+  ],
+  "seatedAnimations": [
+    {
+      "name": "type",
+      "action": "sitting still in the chair, only both hands moving quickly at chest height as if typing on an invisible keyboard, nothing else changes, no new objects appear, no desk, no keyboard, no monitor, no furniture, no props, body and head stay fixed in the same seated pose the whole time"
+    },
+    {
+      "name": "read",
+      "action": "reading a sheet of paper held in both hands"
+    },
+    {
+      "name": "rest",
+      "action": "leaning back relaxed with eyes closed"
+    },
+    {
+      "name": "waveSeated",
+      "action": "raising one hand above the head and waving while seated"
+    },
+    {
+      "name": "holdFormSeated",
+      "action": "holding a sheet of paper up high with one hand to show it, on the opposite side from the waving hand, while seated"
+    }
+  ],
+  "characters": [
+    {
+      "id": "worker0",
+      "description": "young man with messy brown hair and a teal hoodie over a white t-shirt, blue jeans, white sneakers",
+      "dominantColor": "#2f8f82",
+      "seed": 1000,
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "a72fa7e6-22d0-498a-a546-f74753b707d8",
+          "jobIds": [
+            "60886071-4056-4637-a1ea-8fe79c3b5be1",
+            "bc3a5080-5cc5-4561-a5dd-6314003ca187"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "1e9c2a06-000f-468b-af8b-2a8ed492ccaf",
+          "jobIds": [
+            "38bd9230-133b-496c-9931-70d03f1e42aa",
+            "48033812-e9b2-4982-bfe1-3fd5fe129629"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 2,
+          "groupId": "5eecd3a4-5256-49e5-be03-839619e8594e",
+          "jobIds": [
+            "70040816-348a-43dd-966a-6a01643530c5",
+            "e26acf64-28d3-43ee-9071-f7b074f9807b"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "4d771f55-2283-4d0f-8bc8-39913561a619",
+          "jobIds": [
+            "ec4ae398-cb8e-4d35-b749-2757a743b04b",
+            "e8094122-4aa7-4150-af48-8d67a3180537"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "0a822bfa-fd53-46ee-b7aa-9efcd87fd5ea",
+          "jobIds": [
+            "b0fdc27f-0339-4cff-8065-6b62a03027a3",
+            "2c5f3050-4bd0-44d7-9d0d-db1ae06f9ffd"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6ab7ab8c-0d24-4dd9-8488-292988a30bee",
+          "jobIds": [
+            "9fc333c9-5f64-4344-86bc-fab31967f3ea",
+            "cc4be7b8-4847-47ab-ab1f-626443ef3c89"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "53485b61-1b70-49ac-af69-88b10d553599",
+          "jobIds": [
+            "f7ec4212-8e2d-4943-a6ab-1def691470ae",
+            "57c02dab-9f23-4e29-984c-8ddc2268b790"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "8da08f56-1d52-4c4c-be33-298b103bda3a",
+          "jobIds": [
+            "db7eb563-b574-4b8f-98a9-3de99d8ead5b",
+            "11b5bf34-bb64-496d-ae80-9613664e47f8"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "78fb4e8b-e97b-4298-8167-8d4be7ad123b",
+          "jobIds": [
+            "d4763a67-746d-479a-974d-853b08ed9501",
+            "38151fe6-3540-4604-98be-9df2718ca871"
+          ]
+        }
+      },
+      "standingCharacterId": "49650ff5-44e4-4e75-a222-166db889e981",
+      "standingJobId": "a7f76709-cd42-4b39-ac15-128195031a9b",
+      "seatedCharacterId": "acf5440f-597d-40cc-91b1-62ce362599ab",
+      "seatedJobId": "0c706cc4-3dc8-43d7-b520-588e8109be1d"
+    },
+    {
+      "id": "worker1",
+      "description": "young woman with a blonde bob haircut, a cream blouse and a red pleated skirt, flats",
+      "dominantColor": "#c0392b",
+      "seed": 1001,
+      "standingCharacterId": "3f2ecf93-3c60-4d32-929d-f52adadde904",
+      "standingJobId": "be961abe-aa73-4919-9b11-d50898cd2826",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "81d9d42f-bcef-47d8-ac00-55764ca7708e",
+          "jobIds": [
+            "4c03d083-c854-464e-bf0e-9d8956cd3e9f",
+            "ccc23794-02f4-451a-8261-49d6ebc37ba6"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "60fcf6be-2ec3-4cf9-802f-96c9905fee3b",
+          "jobIds": [
+            "61a3a1c8-07f4-43d9-b238-9e041b35c115",
+            "9f282ad9-0ffc-4e0f-b47c-25364cdb9920"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "e21733c6-c1d3-4701-9078-4692555a25cc",
+          "jobIds": [
+            "b617fddc-79cd-4fc9-9ec0-6d958629edce",
+            "cffa90c6-9de9-4b30-8144-b1e8ace9d6f8"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "7ef22b10-9bbd-4999-8700-dcacbdcfe8e6",
+          "jobIds": [
+            "35992938-490c-4824-b517-75d4a54bbb1a",
+            "80218e0a-65dc-4993-89a3-539f11b92bb3"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "293a3c7b-d678-4a55-90c6-a56f048f4de4",
+          "jobIds": [
+            "650de81d-f90a-4b17-b43f-fbeab39f9026",
+            "792e6378-52c2-414e-b28c-d106515b2ba3"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "7da04221-1ffc-440f-9c50-83853a4f1774",
+          "jobIds": [
+            "f42d20cd-9d0a-4d6e-8787-8ebe420fe33b",
+            "e0d37a7f-b51c-4124-8f67-0f91a31ac143"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "3b67be49-efb6-41bd-b8de-a3db85209aea",
+          "jobIds": [
+            "0179b3ca-25a2-480f-ad46-f768aac41b72",
+            "21c066ed-8362-4825-b78d-1cfddb7330e7"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "7863ef08-7ae2-4b8a-9c19-635e7a0de1e3",
+          "jobIds": [
+            "c84addaa-06cb-4f89-a12e-f5cc809a8ec9",
+            "4b9af1a4-21f9-4131-ae69-82f26ac57f0b"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "883f950f-bbeb-4fac-9bb3-444d2e44126c",
+          "jobIds": [
+            "fe38f965-5c90-416f-88cf-eedaa92931c0",
+            "6f525de3-65ab-4dae-9372-7977d9088f0b"
+          ]
+        }
+      },
+      "seatedCharacterId": "d77b1004-a120-44c1-80cc-185a2983090b",
+      "seatedJobId": "923d2305-0edf-45a8-85c5-a109e59e2d25"
+    },
+    {
+      "id": "worker2",
+      "description": "young man with curly black hair and a short beard, wearing a green crew-neck t-shirt, dark jeans",
+      "dominantColor": "#3f9142",
+      "seed": 1002,
+      "standingCharacterId": "4a2d75c3-204d-469e-b537-61adb3f41412",
+      "standingJobId": "ab4ae01c-f9fd-49e5-8393-037e00a0d435",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3d168be6-f0b3-4d9c-a41e-796f10d5e382",
+          "jobIds": [
+            "ff28eb06-60b7-40ee-9f49-a91959003a41",
+            "dfd9cfbc-62c5-4488-9502-11007bd9233f"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 2,
+          "groupId": "07c955cb-d1d3-418d-9d0b-e4045227ac31",
+          "jobIds": [
+            "72a2cb3d-5b77-4966-b2e9-41be193de624",
+            "7278c9eb-bfd1-4018-8c4b-4d55f5f012c9"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "88cdb5ea-86a9-4143-aff5-ec70e883248f",
+          "jobIds": [
+            "7ad6d529-c973-4a23-b9cd-021945060aa7",
+            "d7b23c93-8640-47b6-aed1-65ec644bb28f"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "30ee4f94-e683-4108-9b68-58083b882a73",
+          "jobIds": [
+            "00feeb75-e169-4045-acc3-8ea3e928e714",
+            "b558532e-584e-4282-8736-15102a28f82c"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "77d6641a-9700-498e-adab-3312b0be2222",
+          "jobIds": [
+            "f431dc81-140a-459b-a69f-24ec25ef59b6",
+            "331b8962-37bc-4d06-ae0b-9986c949b928"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "9823aa8c-dd87-4be6-ae5c-46397a43a8fa",
+          "jobIds": [
+            "7972f400-3146-4818-8aa2-691ee76db8a3",
+            "e7b8ac3c-86e5-4ef7-9f80-2fc8a972e561"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "d055e88b-eba4-4c3b-aa12-da505a144a34",
+          "jobIds": [
+            "7be430a0-88b7-4e12-a039-be5e2bdf8d66",
+            "47a5c2de-7500-472d-a373-a2eb07770039"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "6be10e84-2420-4e99-b20b-7d95e724bf15",
+          "jobIds": [
+            "9431a132-6d87-4d0a-9e67-ff950ab31fca",
+            "528e72d8-df93-4cb9-bd36-aeafaa7a0d4e"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 4,
+          "groupId": "8b79bb50-6030-4ead-aa9f-4246d8b7613e",
+          "jobIds": [
+            "fba6a242-b285-4bc0-b104-1bc5a6ccf9db",
+            "7c528639-451b-461b-b8df-911e08ec24b2"
+          ]
+        }
+      },
+      "seatedCharacterId": "b4eb9422-c1f2-4260-8826-ed5d4bd8f27f",
+      "seatedJobId": "54e9bb34-547c-4bc7-b62c-ac3a29561296"
+    },
+    {
+      "id": "worker3",
+      "description": "young woman with her hair in a bun, round glasses, a pink knit sweater, grey trousers",
+      "dominantColor": "#d6689f",
+      "seed": 1003,
+      "standingCharacterId": "0448f601-c75d-4ba5-8aae-67d69594b753",
+      "standingJobId": "b45d0554-9c8a-4dfb-9c72-b3a2f8cf7e63",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "af7fe408-ef34-4478-a532-3d1f85c40c9c",
+          "jobIds": [
+            "5e2f9d95-f560-4454-b65b-b4de56997af1",
+            "f9036dbf-d998-4937-96a7-f36ef239aa04"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6f3b07c5-1351-48df-84e0-73cbcf6db9a0",
+          "jobIds": [
+            "f6308a5d-07f1-494f-9ce8-6d4ebc374253",
+            "183122a7-f750-4b92-8b73-b1ee3b32509b"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 2,
+          "groupId": "e15e0732-e3e7-4ffc-897b-6082d67b40dd",
+          "jobIds": [
+            "98534bc7-a913-40e4-801d-5f4a2dac800b",
+            "cb44cff3-7049-4153-8f4b-7aaee41d0c0e"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "72619490-84d6-4082-98b7-1e1a25d49fbc",
+          "jobIds": [
+            "2ef60953-7ad7-4784-8131-d3a5e089ea15",
+            "117b378d-ba9c-4b84-95b3-601ca41349e8"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ed152b86-d87d-485b-b1cb-45bdb5f1903e",
+          "jobIds": [
+            "bf278b48-13f6-4fae-a166-3b7e8fd74d80",
+            "30dfa8ab-da75-481d-868e-25da0d149ee7"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6828a63e-ea40-4fe1-bca2-e350933c670a",
+          "jobIds": [
+            "f2435dff-fee9-43ad-85eb-12c568d3a0cf",
+            "905b0d73-aed8-4b28-b986-d2695ced69e0"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "dc4cda15-523e-4105-81a1-acb644431af3",
+          "jobIds": [
+            "d62dd4ac-9d50-404e-b883-778484ad9b6c",
+            "ec1e3a11-c74e-4921-8a82-58ac5e838b54"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "4db8f025-ebf4-4cf2-aee5-4c47870406f2",
+          "jobIds": [
+            "f240a352-3011-4f5c-8532-4b0b2c797227",
+            "36ecd9d1-4858-432d-9603-a40c0d84f980"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "58b01566-edf0-4237-89b7-568ddb105e37",
+          "jobIds": [
+            "f26a9a73-385e-42e9-85a2-22137084c5bf",
+            "0fca0109-e346-475b-a3ca-e420bb3b4fd5"
+          ]
+        }
+      },
+      "seatedCharacterId": "ecf9ef65-9d39-4e99-9caf-4bf320b18553",
+      "seatedJobId": "63b64532-8020-41fa-9018-7b5083f6dcff"
+    },
+    {
+      "id": "worker4",
+      "description": "young woman with her hair in a bun, wearing round glasses and a pink sweater, grey trousers",
+      "dominantColor": "#e8a0b4",
+      "seed": 1004,
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "de3020f2-bc02-4e62-b37a-336728b527ba",
+          "jobIds": [
+            "480a9749-0e39-42be-9f33-f97a4198a85f",
+            "2cf6900c-64ca-4bba-a2ac-771af8448b9f"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "5820fad4-1889-498a-a881-5540a1dbb03f",
+          "jobIds": [
+            "9adbddec-aa3c-4747-ae2e-a0c9d20119c9",
+            "1b9cfbea-c409-49b8-8cf4-0f4b1bef1bc0"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "610fa1af-3662-4e19-94b0-7b9f3d5e4949",
+          "jobIds": [
+            "718251c3-a95d-41b7-b2e7-d064da9a0f13",
+            "6d362fdf-ca13-4dca-972f-3ad632bd564d"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "e51a8827-3dc6-459a-9994-cebc9aad30d9",
+          "jobIds": [
+            "19a5a950-ff2d-4bb9-a1ef-4b608f4a97b5",
+            "17955264-a797-4e96-b6c4-eba6f46fbbff"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "4f3b8976-dd11-4353-b5f9-ddfbce466888",
+          "jobIds": [
+            "b739a5ad-65db-459a-9c70-c9ae8f5bd5d7",
+            "b2841e08-b96d-435b-8d5f-d0808e46cb8b"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "aa139208-c166-4edb-9e7f-e32beb91d488",
+          "jobIds": [
+            "359628d0-c9fe-4ac3-89ac-12b1f0a116e5",
+            "3f42ab03-a6aa-4310-a5fb-6456efa676c2"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6cd65d60-bff4-4c38-85f4-0d2c3d8f0a09",
+          "jobIds": [
+            "d7dc72dd-44c5-43a6-8b33-798a740d2c4b",
+            "0ec7f4f0-047f-4886-830f-28fdc1d755b3"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "1831bc51-117d-4070-a52b-db4a59dfa312",
+          "jobIds": [
+            "9c512540-e55d-488b-b2a9-ca3f7016f017",
+            "689f4a7a-86ce-49f2-8d9b-9571161ddddc"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "145ff2f0-2a9c-4b29-be1b-82a982d71d1c",
+          "jobIds": [
+            "b89eab3b-d023-4cec-9a5f-b591f7689240",
+            "49d2995d-8746-434a-a094-663d8dfd6027"
+          ]
+        }
+      },
+      "standingCharacterId": "ddc812a7-3405-4bd3-8408-4d89192db6cb",
+      "standingJobId": "89e2f1ba-3cb3-44be-9f8d-3e2b89377284",
+      "seatedCharacterId": "2418555a-7d59-44cc-9d5e-b88474e5cdf6",
+      "seatedJobId": "7756dd63-fe87-4612-af0a-8e56f0c2debe"
+    },
+    {
+      "id": "worker5",
+      "description": "young woman with a high ponytail, a yellow button-up shirt, an id lanyard around her neck, black pants",
+      "dominantColor": "#d9b936",
+      "seed": 1005,
+      "standingCharacterId": "f67d2035-2988-4d38-99b1-22cddb1d2c97",
+      "standingJobId": "51e8be0d-ba67-43cd-bb18-1a62504f80a8",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "c394bda2-a5aa-4b71-a2ce-ba10eec2e83d",
+          "jobIds": [
+            "fd449d65-d36b-4db7-801c-355982cd47af",
+            "eccc0be7-bb2f-4bfe-a930-7384d6208b73"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a320aee7-a0a3-4e20-b43c-2bbacc2856a1",
+          "jobIds": [
+            "02fbf099-c66b-49f3-a70b-c1b53ab94a11",
+            "73015712-ae55-4117-8871-20275a8fec78"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "8e6c9d37-5579-4c2f-ba9c-8a6381fc70dd",
+          "jobIds": [
+            "a49d042e-d068-456e-99ff-8f592d631cb7",
+            "ecfb8ec0-3b89-4aac-8be2-2d9baf1ea316"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "2ad2405e-c777-45e4-a1a1-b466eea56d4b",
+          "jobIds": [
+            "11eac28d-9efb-44ee-a906-cd6df51f3036",
+            "4bd41a60-6e79-4632-acea-c5026c4a0111"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "07a8cd3a-feed-486c-a5da-f37abb0c0288",
+          "jobIds": [
+            "364272e5-c936-46b9-91f7-e63b39886ea1",
+            "61110de2-a762-4fe0-ac36-e3226f487944"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "7442e0c1-14e8-47df-b72f-74eceab31462",
+          "jobIds": [
+            "d5a7d685-0bdc-43b9-9559-99eeb90442be",
+            "7be726c0-0b9a-4908-94d7-998a6896e7ba"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "8a0b7ac0-9888-4a5f-9b0a-de0ba4c35224",
+          "jobIds": [
+            "4523d40f-ed8f-4ae6-b3ff-dd93287b2181",
+            "39b9c42b-2806-45a1-82eb-e1953da70438"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a407de91-7b76-42ca-965c-e642fa20b0cc",
+          "jobIds": [
+            "7db7c444-df94-42ad-8c46-de35e3782e61",
+            "67e43652-41d3-47e4-b571-40fc0af79fcf"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d82cce04-99d8-463a-a0ea-eb3ce11f78bd",
+          "jobIds": [
+            "6ea6eaca-806c-4a95-91ef-1b79af5cdc45",
+            "359f2a14-bbad-44ed-aebf-aa86b4081806"
+          ]
+        }
+      },
+      "seatedCharacterId": "497fe521-2405-46de-9f69-eabedbf8b625",
+      "seatedJobId": "cf30a472-b2ac-4276-9835-e9878a75d642"
+    },
+    {
+      "id": "worker6",
+      "description": "young woman with long straight blonde hair, a purple hoodie, black leggings",
+      "dominantColor": "#7952b3",
+      "seed": 1006,
+      "standingCharacterId": "b1d24875-ee7d-440d-b61c-ae31e081876f",
+      "standingJobId": "3acc8434-f8f8-4051-933a-ef1dce98bd18",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "c4fb7c59-2a37-4e4c-9530-9dc0349eb803",
+          "jobIds": [
+            "832e86a2-27c9-458b-8d08-1f4080292cb4",
+            "74637e9d-ecc1-400d-98db-5e884182c647"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d8f3d604-5689-4d37-9253-580a4440471a",
+          "jobIds": [
+            "7fba9b58-4554-42b5-87bc-63c24e6e8e84",
+            "ea6dc84c-20e2-474a-8c3a-347ad25bd717"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "09298b9d-4383-412a-8024-d354f8b4490e",
+          "jobIds": [
+            "15c32ceb-f24b-4f0e-a58e-db6510a39b60",
+            "30ab7e81-fcf1-47ae-9996-13c4fb15b837"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3244a8ef-f282-4200-a988-8f7f19af0f3f",
+          "jobIds": [
+            "d74fd7f4-02c2-4ac1-aa89-9be38d72ceb3",
+            "060350bb-5cc7-40e4-a173-0db7108f9e14"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "5795ff30-6682-4d87-af6a-44e78c99c913",
+          "jobIds": [
+            "bf88a249-c204-47f8-ae14-0d1a97ec5734",
+            "ec64088c-59a8-480a-8733-0d8f01041363"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a5da89c2-52cf-4f5b-b24c-973044c01dc4",
+          "jobIds": [
+            "b00baef4-5278-4789-becb-36e8e01873d4",
+            "c0f9eee7-47ba-4dd4-b46d-6b5e7bb0eb98"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "0bf72e2d-cf41-4e24-af6f-b4a261a978a8",
+          "jobIds": [
+            "650c412e-f1a4-41e5-9c50-d01011e0cf70",
+            "0eecfa28-7fad-4706-a8b1-a2e7d124798e"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "cad5d499-316c-46ad-827a-06a95885e352",
+          "jobIds": [
+            "14951bd3-d815-4499-a7f1-92fa04701bf0",
+            "1e56e65b-e40c-4252-9c7e-114377363eff"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ed6820cd-316d-4778-a2fa-8e4eae0c714e",
+          "jobIds": [
+            "953fe21c-12e8-456e-9acf-384b89152933",
+            "8599d177-a8fa-41d4-ab4e-1b7bc2fd44c2"
+          ]
+        }
+      },
+      "seatedCharacterId": "beba151f-3598-4661-b02e-a20a185751b1",
+      "seatedJobId": "e49f326c-a117-4e2e-82ba-ea535ee6db7e"
+    },
+    {
+      "id": "worker7",
+      "description": "young man with a colorful mohawk, a cyan zip-up vest over a white shirt, cargo pants",
+      "dominantColor": "#35b4c4",
+      "seed": 1007,
+      "standingCharacterId": "0cb28cb5-292c-4fe1-8395-3ba9019015eb",
+      "standingJobId": "e4299f01-a391-4464-a1ff-48772c4d4bfa",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ad97d221-13b8-4626-93b0-5e73c0552f9d",
+          "jobIds": [
+            "794e3c78-4b78-438a-a363-3ac4d8090699",
+            "28150f30-6104-4d5c-a39a-6ba5358e3d2f"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "8a899a60-9940-415e-9863-7bbb6b9e8182",
+          "jobIds": [
+            "b38dc638-43a6-495b-91e2-5eee446c47ce",
+            "c1b7357e-666c-49e5-9f3a-68b1d5796410"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a38c919a-7fc9-4d0f-9657-e930fbbd6e6f",
+          "jobIds": [
+            "8433c5d3-ea53-47cc-94ad-fc99501975e2",
+            "7a8a9551-dabe-4091-98d3-dd3b7ee82010"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d69a5e08-7eee-40ff-8587-bc05824b20d9",
+          "jobIds": [
+            "5a58c826-7a62-4817-8c3a-2aa39bc5003d",
+            "40522b75-026a-4cc9-a434-e3ab15eb86d5"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "8f21d4a8-6289-4af5-ba22-90956f7b81a5",
+          "jobIds": [
+            "ce8d4bd3-8f62-4a1b-b4a4-f95ff430d008",
+            "80399e0f-32a7-42d8-9bd5-17862680b862"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "dab9c24f-32f2-42c2-9e34-a47f32d0d339",
+          "jobIds": [
+            "01e0f25f-2ce9-4b57-a576-ceaf99870558",
+            "4e37bfa3-2e3e-4f8a-9391-f5ff767e5249"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "e6151cc3-8b2e-4e24-bca5-1ee3e73a6d09",
+          "jobIds": [
+            "d76ae4ce-e672-4086-b2a4-46315667b14e",
+            "ae38708e-5cd0-42a5-9d89-bdf71903b2d7"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ca1e71a3-3ed3-4740-8241-42b8a1352362",
+          "jobIds": [
+            "254f0b1d-362c-4b6f-a395-740cb5994748",
+            "6b8f3db7-991a-42f1-936d-ca205a25e4de"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "558b1c88-430d-4164-b212-1562c6ae2e11",
+          "jobIds": [
+            "cf6adbad-7829-4e99-96fa-2d69c95155a3",
+            "021d45f5-3479-48a4-8574-79c8dd963ae0"
+          ]
+        }
+      },
+      "seatedCharacterId": "b961de5d-4153-48a9-af08-d7e999879daf",
+      "seatedJobId": "4472014c-a1c3-4d8d-b052-25bc01b45d60"
+    },
+    {
+      "id": "worker8",
+      "description": "bald young man wearing large over-ear headphones, an olive green turtleneck sweater, brown pants",
+      "dominantColor": "#7a8450",
+      "seed": 1008,
+      "standingCharacterId": "6f129813-0dd3-49ff-b3a9-568fdba698de",
+      "standingJobId": "9ea4aacc-db48-4fac-87cf-7d1eb78eda22",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d4326a68-0696-457a-9a7b-ea2e99efe44f",
+          "jobIds": [
+            "24a94a52-2132-49db-a0bc-daf81306d518",
+            "b08d3d5c-a839-4a1c-889e-cf2cb6921145"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "78b7f201-08e8-4e6b-9598-08687365c27d",
+          "jobIds": [
+            "804b7884-fb16-4ee5-89a9-8f92f0a80395",
+            "93c04080-13f0-40b0-acf2-904e570c44e0"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "06308d50-b2d3-4c90-a033-9ffcc4884ece",
+          "jobIds": [
+            "350a6e9a-6eb4-4551-899e-c0b798b5a987",
+            "2a690b7d-152d-4d50-990b-1239db780c56"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "881f2c6f-09ce-4fa2-989c-c3c7019a2e52",
+          "jobIds": [
+            "853e4d55-c128-49ab-add9-679a19879928",
+            "7d9c0926-653d-4654-a3fb-f9c64a13dcdf"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a6fcd5e6-7633-46c3-acb6-91d88f8dc2fd",
+          "jobIds": [
+            "9fcf0dff-a0b5-46db-a4f7-44ca5154ce43",
+            "4a0194e8-f23c-4be0-bcb5-1663be885866"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "78204080-7cba-4e63-adfc-fd3cc79cda6f",
+          "jobIds": [
+            "b81f743d-5734-4dcf-aec6-fb93a5ac155d",
+            "cf24150c-4c1a-4513-b692-c67f782367da"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6ec6b5a4-ee53-4de5-9905-a4b211295edc",
+          "jobIds": [
+            "ae40254c-e719-49c5-adc7-18ff162aa042",
+            "06d4738f-9707-46c4-846f-45caa29bc310"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "ee855ed3-b1b3-46ac-b8c0-d98ae6dd2887",
+          "jobIds": [
+            "36a91927-7a62-4bfb-a145-173078247e36",
+            "449ebb18-9aff-4dde-b126-40805a9092b8"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "411e1c2a-3213-45d3-8c69-336e0c964f44",
+          "jobIds": [
+            "29012257-b569-4854-af78-5c75802e84cd",
+            "0343a161-c028-4a7e-96c5-50f801b586b8"
+          ]
+        }
+      },
+      "seatedCharacterId": "49424286-38a8-4410-8192-bc3c5593bdc1",
+      "seatedJobId": "7a7975bd-6a32-46d9-b928-25d966aeb83c"
+    },
+    {
+      "id": "worker9",
+      "description": "middle-aged man with his hair in a side part and a short beard, a navy suit jacket over a white shirt, grey trousers",
+      "dominantColor": "#2c3e6b",
+      "seed": 1009,
+      "standingCharacterId": "3f909cae-6a7b-4c37-91b3-a6b70c343a68",
+      "standingJobId": "2500b9d0-3c50-479a-b5e9-3acd4fd02a16",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "513f6a49-060c-4616-a5fd-e9bf68aaf2f2",
+          "jobIds": [
+            "b491b6c1-803c-4e29-b123-e523fcc7d889",
+            "62a36718-de3d-4d27-9a42-f24a3cba3553"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "aca345e4-bf03-407f-903d-cd274014119e",
+          "jobIds": [
+            "8047812a-8cf5-4e42-9bab-4d646fe7afc5",
+            "358fed14-73f3-431e-b1f6-2194a28b9b94"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "248bde5d-ef47-44d5-aac2-35dd95e44d25",
+          "jobIds": [
+            "50297424-0d2a-4635-b8d6-b8a5d3e47b26",
+            "1f5de064-6247-4364-83cf-6cfb1f03fa80"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "07025cc0-b1d3-4373-844e-47cdf795246c",
+          "jobIds": [
+            "171037f2-cbb6-4dde-99f5-b0114e036451",
+            "592c4524-ccfb-453e-a86e-3c56f184c4b1"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "5755b928-a2e3-4a27-bd28-0b10f2e5a229",
+          "jobIds": [
+            "8fac95d5-e295-412b-9dd0-73643847f0c0",
+            "3e1330fc-6705-4cc0-8bc1-286e74626118"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "fa45c98d-41dd-4884-964f-75971f9f1d68",
+          "jobIds": [
+            "65a82585-0062-426a-898e-9dfdc4626fea",
+            "d640f752-bbe5-4299-bd12-aa6fd67e425c"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "2a433a14-9e15-4d92-b66d-37d719646755",
+          "jobIds": [
+            "140b1f86-c35d-43f4-8399-ef3229877075",
+            "671413d1-c91e-4aff-9901-7e7b8b573dbe"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ba9785d8-3558-455e-8283-1fec645009cb",
+          "jobIds": [
+            "1da321b5-d7af-42d8-9aae-4284e9d0b96d",
+            "e1868157-2be4-4313-93ea-e3d47e22cfb3"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d234615d-8d3f-4de4-86bc-0d4c6161bc56",
+          "jobIds": [
+            "d5ba2398-4ad6-4d74-8e2d-c58bd61bb185",
+            "2555376b-ec2c-4be0-8cfb-22eb87ad6467"
+          ]
+        }
+      },
+      "seatedCharacterId": "ebb50ce8-535b-45d6-a77a-38035728bd66",
+      "seatedJobId": "8408d008-220a-458f-8ecd-74f4112ea848"
+    },
+    {
+      "id": "worker10",
+      "description": "young man wearing a red beanie and a teal hoodie, dark jeans, white sneakers",
+      "dominantColor": "#8b1a2b",
+      "seed": 1010,
+      "standingCharacterId": "dd8b2bc5-526f-471a-adb7-81b315e92908",
+      "standingJobId": "f81905bb-70a4-4642-946e-7947d50fd743",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "86f1fb1c-83f1-4565-8a83-176568d5cde5",
+          "jobIds": [
+            "f152b4c1-1a09-4f6b-b56d-531a73637022",
+            "1c8bcdfa-7e11-489f-9e90-7e7c3022e68e"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "2214e3b0-017f-4f34-bc5d-9f9867e43c21",
+          "jobIds": [
+            "9b85e8b0-8510-461b-9984-e9205d0e14ff",
+            "7869d076-90fd-481b-b089-8f4b8ddb74be"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "0ac98ccb-f2a5-4352-a177-25727042a6cb",
+          "jobIds": [
+            "0b9e3f53-f4cd-454e-8e0a-f0c5bbb637aa",
+            "604c3378-fec0-4978-bacb-95524fbdd016"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "54f9cfed-9c85-45c0-9ada-85d76a506b97",
+          "jobIds": [
+            "89e74744-029b-42c8-a6e8-e251bb3cadd5",
+            "ba46079b-ce33-44f4-b813-ba33c39d8355"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "0ea3b0da-f74d-465c-a526-89eed46ce118",
+          "jobIds": [
+            "f92c6a9f-4978-4c4f-a0b1-8197a711bda3",
+            "ef0ca79e-4b0a-4020-816a-c27aac7feb36"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "7994c4e4-0a85-4995-949c-585af55157ec",
+          "jobIds": [
+            "cb071c44-f9dc-42b3-8b4a-43379c299936",
+            "e30483f7-5052-4f5d-8788-ec52ba3c9621"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 2,
+          "groupId": "78618fe4-dd5b-44fb-af3e-c95cfcad693c",
+          "jobIds": [
+            "21730875-7a56-4744-ab54-079a460e8340",
+            "354280e1-9c0b-47ee-bbb2-11ca8ba607b7"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 1,
+          "groupId": "2ae38a05-cfc7-4325-84ff-9dfea55100c7",
+          "jobIds": [
+            "0741e21d-5d91-4073-a25e-44a34f1b8d56",
+            "1c6ddf97-7b2c-457f-85dc-0a36658671bf"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "ac1be64f-0c3d-4e22-9a02-a834462f2aef",
+          "jobIds": [
+            "c2e5fe68-5bf0-4fc8-99ad-fe099fe76454",
+            "bbf2a46d-db47-452d-91f5-bf85b5749756"
+          ]
+        }
+      },
+      "seatedCharacterId": "dc422cfe-d716-47b2-915a-cc5cf56c9ec4",
+      "seatedJobId": "96746e88-5ac4-406b-8137-dd7b122e675d"
+    },
+    {
+      "id": "worker11",
+      "description": "young man with a buzz cut, large over-ear headphones, a blue hoodie, grey joggers",
+      "dominantColor": "#2f6fb3",
+      "seed": 1011,
+      "standingCharacterId": "9fde5463-3c04-4c7b-8a45-c0da9e97ae79",
+      "standingJobId": "988236f4-4878-4e88-9786-b1d2014ed649",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "e3896bd0-f4b7-471e-ad52-f89cb41980e5",
+          "jobIds": [
+            "454c4fca-c9dd-4143-90d0-87b84cdd8068",
+            "c2d4b9ea-5583-4714-887a-44b33d90e911"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "6884573a-fba4-4d7b-ab02-49aedb32868c",
+          "jobIds": [
+            "3aaca6b3-a5ee-411d-b345-cbab3203fb48",
+            "f2952655-dc55-4451-ad7c-16dee5f2b063"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "960f4c0d-fda0-438e-b44d-a1da75999b2c",
+          "jobIds": [
+            "086aa69f-ca4d-4707-b87c-3a9e395acab2",
+            "9288d7f0-1862-4fd5-8d3b-c020d9dc53b3"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "02660571-e586-4caa-8575-5d7331959ac1",
+          "jobIds": [
+            "038da146-fe58-41f0-b44a-ee92bfc2290d",
+            "2d8211a4-a470-440d-8884-b0fedf7f21cc"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3fcf2f95-00f2-4142-bf75-32d4d134d0bb",
+          "jobIds": [
+            "38ba4215-f033-46c4-a37b-7fbb3b5b0a27",
+            "21bfca44-616f-43dc-a787-21d7b3ee8d3c"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "b13f992d-ab99-46a9-8bc6-fd19d086553f",
+          "jobIds": [
+            "8f00b4cc-dd86-4499-b9d4-820a88f39e25",
+            "881cd398-ee7e-40d5-b06f-6a3b02c84243"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "a02caf6c-97bc-4830-8788-4d9411e7a87c",
+          "jobIds": [
+            "1bd4b97e-b0a4-41bb-a056-b04e2557172e",
+            "9e2f9d6c-cefd-41d7-a1ff-97b7d10a2b31"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 2,
+          "groupId": "78a6541f-26a9-4188-b27e-f8a0ca477cc5",
+          "jobIds": [
+            "4ae1d857-c1bb-4fd0-a263-fa53f526a39e",
+            "7e798bc8-835e-4941-b401-e8e12a0c2e39"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "e0f912f1-223b-456b-8b44-315f19fd3124",
+          "jobIds": [
+            "4b668465-0606-479d-b4ba-359bd66a62e2",
+            "d82a1024-557d-4ad6-bd1b-d07f35b23915"
+          ]
+        }
+      },
+      "seatedCharacterId": "609249f4-5bb7-4fd8-95dd-7fc045971523",
+      "seatedJobId": "b1bfaa39-241a-41aa-acc0-44372d63202b"
+    },
+    {
+      "id": "cto",
+      "description": "older man with short grey hair, rectangular glasses, a black suit jacket, white shirt, red necktie, black trousers",
+      "dominantColor": "#1c1c22",
+      "seed": 1012,
+      "standingCharacterId": "9947e390-bf0a-4f00-8540-a0fc279ce6bc",
+      "standingJobId": "7e8738fd-947c-4f1f-a21f-5c4345881f2c",
+      "animations": {
+        "walk": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "7dffcc84-14d1-410f-9f41-2af4dd63ef00",
+          "jobIds": [
+            "99385bf3-c4db-4209-8658-fc9fdc2a40a2",
+            "f103cb3c-6861-431e-97f4-372d555a9088"
+          ]
+        },
+        "idle": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "fb5ecfe7-03ed-4a1b-8041-7fc3d8ef3012",
+          "jobIds": [
+            "b44bf982-0c4e-48b5-9596-f8c67279f417",
+            "9f850e5d-48b9-479e-a22b-aaa22ccf4bee"
+          ]
+        },
+        "wave": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3ac84a31-d422-431f-8869-ca42c0a1ebb8",
+          "jobIds": [
+            "b906f7cb-8467-46e5-9bc3-7bfd9272d9c6",
+            "9e116286-6b95-4aa1-b9f2-f7cd7b6dd93d"
+          ]
+        },
+        "holdForm": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "f61444e4-bb95-450b-9b3c-8311c0317f0d",
+          "jobIds": [
+            "3a2b291d-0994-43f8-ac71-4ddce570cffd",
+            "cc198537-1839-42f2-8f76-556df71c5ea0"
+          ]
+        },
+        "type": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "b837cc5b-9562-4d2a-8a00-1284e8a08dc2",
+          "jobIds": [
+            "12520655-5f72-49af-b3a4-8c04ffdd3538",
+            "d002ef24-e201-4f50-bdf1-7c20f2922fdc"
+          ]
+        },
+        "read": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3cee9999-4b06-4518-9d73-3b6137950174",
+          "jobIds": [
+            "1dbe602b-6ec6-41f0-bd74-383eb7b8390c",
+            "68f6e4ef-b9d0-4f5c-a0c9-159eadca2094"
+          ]
+        },
+        "rest": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "d8ac0d45-18ff-4080-a4cd-bb826828934a",
+          "jobIds": [
+            "b1643773-161c-441c-ab47-bc67713b10a7",
+            "663340f6-4200-4ce3-9f1f-9e3405d26a96"
+          ]
+        },
+        "waveSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "b3bf4cda-5d50-49e0-9811-3224124c7052",
+          "jobIds": [
+            "5b14fc4a-0c9a-43be-9085-9b1e309773f3",
+            "bec7465c-f8ed-4d25-9c1d-dbab47866915"
+          ]
+        },
+        "holdFormSeated": {
+          "status": "done",
+          "retries": 0,
+          "groupId": "3ab67fc2-1654-450e-90a4-47c61715e0a9",
+          "jobIds": [
+            "05aa9253-0ded-4cf9-866e-d13c08818c65",
+            "4679d68a-e16c-40ed-94c7-ff6ca00c4bc6"
+          ]
+        }
+      },
+      "seatedCharacterId": "470381be-5aa2-4131-9bdf-eaedfade3cec",
+      "seatedJobId": "ba94d9aa-b1fa-430a-af1b-c288b9247595"
+    }
+  ],
+  "spentGenerations": 871
+}

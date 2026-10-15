@@ -4,31 +4,30 @@
  *
  * In Vite dev, it prefers pre-decoded JSON endpoints from middleware.
  * In plain browser builds, it falls back to decoding PNGs at runtime.
+ * Character sheets are sent as base64 PNG bytes either way, matching the
+ * real `characterSpritesLoaded` message, and decoded by the webview itself.
  *
  * Only imported in Vite dev mode; tree-shaken from the production build.
  */
 
 import { rgbaToHex } from '../../core/src/assets/colorUtils.ts';
 import {
-  CHAR_FRAME_H,
-  CHAR_FRAME_W,
-  CHAR_FRAMES_PER_ROW,
-  CHARACTER_DIRECTIONS,
   FLOOR_TILE_SIZE,
   WALL_BITMASK_COUNT,
   WALL_GRID_COLS,
   WALL_PIECE_HEIGHT,
   WALL_PIECE_WIDTH,
 } from '../../core/src/assets/constants.ts';
-import type {
-  AssetIndex,
-  CatalogEntry,
-  CharacterDirectionSprites,
-  CharacterSheets,
-} from '../../core/src/assets/types.ts';
+import type { AssetIndex, CatalogEntry } from '../../core/src/assets/types.ts';
+import type { CharacterSpriteSet } from '../../core/src/messages.ts';
+
+interface MockCharacterSprites {
+  characters: CharacterSpriteSet[];
+  cto: CharacterSpriteSet;
+}
 
 interface MockPayload {
-  characters: CharacterSheets;
+  characters: MockCharacterSprites;
   floorSprites: string[][][];
   wallSets: string[][][][];
   carpetSets: string[][][][];
@@ -113,30 +112,30 @@ function getIndexedAssetPath(kind: 'characters' | 'floors' | 'walls', relPath: s
   return relPath.startsWith(`${kind}/`) ? relPath : `${kind}/${relPath}`;
 }
 
-async function decodeCharacterSheet(
-  base: string,
-  relPath: string,
-): Promise<CharacterDirectionSprites> {
-  const png = await decodePng(`${base}assets/${getIndexedAssetPath('characters', relPath)}`);
-  const byDir: CharacterDirectionSprites = { down: [], up: [], right: [] };
-  for (let dirIdx = 0; dirIdx < CHARACTER_DIRECTIONS.length; dirIdx++) {
-    const dir = CHARACTER_DIRECTIONS[dirIdx];
-    const rowOffsetY = dirIdx * CHAR_FRAME_H;
-    const frames: string[][][] = [];
-    for (let frame = 0; frame < CHAR_FRAMES_PER_ROW; frame++) {
-      frames.push(readSprite(png, CHAR_FRAME_W, CHAR_FRAME_H, frame * CHAR_FRAME_W, rowOffsetY));
-    }
-    byDir[dir] = frames;
+async function fetchPngBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch PNG: ${url} (${res.status.toString()})`);
   }
-  return byDir;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
-async function decodeCharactersFromPng(base: string, index: AssetIndex): Promise<CharacterSheets> {
-  const characters: CharacterDirectionSprites[] = [];
-  for (const relPath of index.characters) {
-    characters.push(await decodeCharacterSheet(base, relPath));
-  }
-  return { characters, cto: await decodeCharacterSheet(base, index.cto) };
+async function fetchCharacterSprites(
+  base: string,
+  index: AssetIndex,
+): Promise<MockCharacterSprites> {
+  const characters = await Promise.all(
+    index.characters.map(async (relPath) => ({
+      png: await fetchPngBase64(`${base}assets/${getIndexedAssetPath('characters', relPath)}`),
+    })),
+  );
+  const cto = {
+    png: await fetchPngBase64(`${base}assets/${getIndexedAssetPath('characters', index.cto)}`),
+  };
+  return { characters, cto };
 }
 
 async function decodeFloorsFromPng(base: string, index: AssetIndex): Promise<string[][][]> {
@@ -193,16 +192,15 @@ export async function initBrowserMock(): Promise<void> {
   ]);
 
   const shouldTryDecoded = import.meta.env.DEV;
-  const [decodedCharacters, decodedFloors, decodedWalls, decodedFurniture] = shouldTryDecoded
+  const [decodedFloors, decodedWalls, decodedFurniture] = shouldTryDecoded
     ? await Promise.all([
-        fetchJsonOptional<CharacterSheets>(`${base}assets/decoded/characters.json`),
         fetchJsonOptional<string[][][]>(`${base}assets/decoded/floors.json`),
         fetchJsonOptional<string[][][][]>(`${base}assets/decoded/walls.json`),
         fetchJsonOptional<Record<string, string[][]>>(`${base}assets/decoded/furniture.json`),
       ])
-    : [null, null, null, null];
+    : [null, null, null];
 
-  const hasDecoded = !!(decodedCharacters && decodedFloors && decodedWalls && decodedFurniture);
+  const hasDecoded = !!(decodedFloors && decodedWalls && decodedFurniture);
 
   if (!hasDecoded) {
     if (shouldTryDecoded) {
@@ -212,14 +210,12 @@ export async function initBrowserMock(): Promise<void> {
     }
   }
 
-  const [characters, floorSprites, wallSets, furnitureSprites] = hasDecoded
-    ? [decodedCharacters!, decodedFloors!, decodedWalls!, decodedFurniture!]
-    : await Promise.all([
-        decodeCharactersFromPng(base, assetIndex),
-        decodeFloorsFromPng(base, assetIndex),
-        decodeWallsFromPng(base, assetIndex),
-        decodeFurnitureFromPng(base, catalog),
-      ]);
+  const [characters, floorSprites, wallSets, furnitureSprites] = await Promise.all([
+    fetchCharacterSprites(base, assetIndex),
+    hasDecoded ? decodedFloors! : decodeFloorsFromPng(base, assetIndex),
+    hasDecoded ? decodedWalls! : decodeWallsFromPng(base, assetIndex),
+    hasDecoded ? decodedFurniture! : decodeFurnitureFromPng(base, catalog),
+  ]);
 
   const layout = assetIndex.defaultLayout
     ? await fetch(`${base}assets/${assetIndex.defaultLayout}`).then((r) => r.json())
@@ -243,7 +239,7 @@ export async function initBrowserMock(): Promise<void> {
   };
 
   console.log(
-    `[BrowserMock] Ready (${hasDecoded ? 'decoded-json' : 'browser-png-decode'}) — ${characters.characters.length} chars, ${floorSprites.length} floors, ${wallSets.length} wall sets, ${carpetSets.length} carpets, ${catalog.length} furniture items`,
+    `[BrowserMock] Ready (${hasDecoded ? 'decoded-json' : 'browser-png-decode'}) — ${characters.characters.length.toString()} chars, ${floorSprites.length.toString()} floors, ${wallSets.length.toString()} wall sets, ${carpetSets.length.toString()} carpets, ${catalog.length.toString()} furniture items`,
   );
 }
 

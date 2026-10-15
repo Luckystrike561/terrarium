@@ -5,6 +5,7 @@ import {
   CHAR_FRAME_W,
   CHARACTER_FRAMES,
 } from '../../../../core/src/assets/constants.ts';
+import type { CharacterDirectionSprites } from '../../../../core/src/assets/types.ts';
 import type { ColorValue } from '../../components/ui/types.js';
 import { adjustSprite } from '../colorize.js';
 import type { Direction, SpriteData } from '../types.js';
@@ -59,11 +60,7 @@ export const STATUS_PERMISSION_SPRITE: SpriteData = resolveBubbleSprite(statusPe
 // Loaded character sprites (from PNG assets)
 // ════════════════════════════════════════════════════════════════
 
-interface CharacterSheet {
-  down: SpriteData[];
-  up: SpriteData[];
-  right: SpriteData[];
-}
+type CharacterSheet = CharacterDirectionSprites;
 
 let loadedCharacters: CharacterSheet[] | null = null;
 let loadedCto: CharacterSheet | null = null;
@@ -89,27 +86,34 @@ function flipSpriteHorizontal(sprite: SpriteData): SpriteData {
 // Sprite resolution + caching
 // ════════════════════════════════════════════════════════════════
 
-type FramePair = readonly [SpriteData, SpriteData];
 type WalkCycle = readonly [SpriteData, SpriteData, SpriteData, SpriteData];
 
-/** Two-frame poses and the sheet frames they alternate between. */
+/** Pose loops and the sheet frames they cycle through, in order. Typing and
+ *  reading run a calmer 4-frame loop with subtle hand motion; the rest are
+ *  still a 2-frame loop. */
 const POSE_FRAMES = {
-  typing: ['type1', 'type2'],
-  reading: ['read1', 'read2'],
+  typing: ['type1', 'type2', 'type3', 'type4'],
+  reading: ['read1', 'read2', 'read3', 'read4'],
   idle: ['idle1', 'idle2'],
   rest: ['rest1', 'rest2'],
   raiseHand: ['raiseHand1', 'raiseHand2'],
   raiseHandSeated: ['raiseHandSeated1', 'raiseHandSeated2'],
   holdForm: ['holdForm1', 'holdForm2'],
   holdFormSeated: ['holdFormSeated1', 'holdFormSeated2'],
-} as const satisfies Record<string, readonly [CharacterFrame, CharacterFrame]>;
+} as const satisfies Record<string, readonly CharacterFrame[]>;
 
 export type LoopingPose = keyof typeof POSE_FRAMES;
 export type CharacterPose = 'walk' | LoopingPose;
 
+/** How many frames each pose's loop cycles through, for modulo-indexing
+ *  `Character.frame` safely even right after a pose switch. */
+export const POSE_FRAME_COUNTS: Record<LoopingPose, number> = Object.fromEntries(
+  (Object.keys(POSE_FRAMES) as LoopingPose[]).map((pose) => [pose, POSE_FRAMES[pose].length]),
+) as Record<LoopingPose, number>;
+
 export type CharacterSprites = { walk: Record<Direction, WalkCycle> } & Record<
   LoopingPose,
-  Record<Direction, FramePair>
+  Record<Direction, readonly SpriteData[]>
 >;
 
 const spriteCache = new Map<string, CharacterSprites>();
@@ -134,13 +138,10 @@ function sheetFrame(sheet: CharacterSheet, dir: Direction, frame: CharacterFrame
 }
 
 function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
-  const pairs = {} as Record<LoopingPose, Record<Direction, FramePair>>;
+  const pairs = {} as Record<LoopingPose, Record<Direction, readonly SpriteData[]>>;
   for (const pose of Object.keys(POSE_FRAMES) as LoopingPose[]) {
-    const [first, second] = POSE_FRAMES[pose];
-    pairs[pose] = byDirection((dir) => [
-      sheetFrame(sheet, dir, first),
-      sheetFrame(sheet, dir, second),
-    ]);
+    const frames = POSE_FRAMES[pose];
+    pairs[pose] = byDirection((dir) => frames.map((frame) => sheetFrame(sheet, dir, frame)));
   }
   return {
     walk: byDirection((dir) => {

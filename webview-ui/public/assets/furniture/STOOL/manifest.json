@@ -7,8 +7,8 @@
   "backgroundTiles": 0,
   "type": "asset",
   "file": "STOOL.png",
-  "width": 32,
-  "height": 34,
+  "width": 64,
+  "height": 90,
   "footprintW": 1,
   "footprintH": 1
 }

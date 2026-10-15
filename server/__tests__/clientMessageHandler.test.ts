@@ -427,17 +427,8 @@ describe('clientMessageHandler: saveAgentSeats palette sync', () => {
     // of hardcoding CHAR_COUNT. With 8 sprites, palette 7 is valid.
     const cache: AssetCache = {
       characters: {
-        characters: [
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-          { down: [[[]]], up: [[[]]], right: [[[]]] },
-        ],
-        cto: { down: [[[]]], up: [[[]]], right: [[[]]] },
+        characters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+        cto: 'cto',
       },
       pets: null,
       floorTiles: null,

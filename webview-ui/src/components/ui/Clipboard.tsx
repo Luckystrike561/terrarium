@@ -9,7 +9,7 @@ interface ClipboardProps {
   children: ReactNode;
 }
 
-/** Panel styled as a Habbo window, anchored above the toolbar at the
+/** Panel styled as a HUD window, anchored above the toolbar at the
  *  bottom-left rather than centered over the office. */
 export function Clipboard({ isOpen, onClose, title, children }: ClipboardProps) {
   if (!isOpen) return null;

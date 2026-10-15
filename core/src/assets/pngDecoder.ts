@@ -6,6 +6,7 @@
 
 import { PNG } from 'pngjs';
 
+import { characterPixelsToFrames } from './characterPixels.js';
 import { rgbaToHex } from './colorUtils.js';
 import {
   CARPET_GRID_COLS,
@@ -174,38 +175,11 @@ export function decodeCharacterPng(pngBuffer: Buffer): CharacterDirectionSprites
       `character sheet is ${png.width}×${png.height}, expected ${expectedWidth}×${expectedHeight} (${CHAR_FRAMES_PER_ROW} frames of ${CHAR_FRAME_W}×${CHAR_FRAME_H} in ${CHARACTER_DIRECTIONS.length} direction rows)`,
     );
   }
-  const charData: CharacterDirectionSprites = { down: [], up: [], right: [] };
-
-  for (let dirIdx = 0; dirIdx < CHARACTER_DIRECTIONS.length; dirIdx++) {
-    const dir = CHARACTER_DIRECTIONS[dirIdx];
-    const rowOffsetY = dirIdx * CHAR_FRAME_H;
-    const frames: string[][][] = [];
-
-    for (let f = 0; f < CHAR_FRAMES_PER_ROW; f++) {
-      const sprite: string[][] = [];
-      const frameOffsetX = f * CHAR_FRAME_W;
-      for (let y = 0; y < CHAR_FRAME_H; y++) {
-        const row: string[] = [];
-        for (let x = 0; x < CHAR_FRAME_W; x++) {
-          const idx = ((rowOffsetY + y) * png.width + (frameOffsetX + x)) * 4;
-          const r = png.data[idx];
-          const g = png.data[idx + 1];
-          const b = png.data[idx + 2];
-          const a = png.data[idx + 3];
-          row.push(rgbaToHex(r, g, b, a));
-        }
-        sprite.push(row);
-      }
-      frames.push(sprite);
-    }
-    charData[dir] = frames;
-  }
-
-  return charData;
+  return characterPixelsToFrames(png.data, png.width);
 }
 
 /**
- * Decode a single floor tile PNG (16×16 grayscale pattern).
+ * Decode a single floor tile PNG (32×32 full-color material).
  */
 export function decodeFloorPng(pngBuffer: Buffer): string[][] {
   return pngToSpriteData(pngBuffer, FLOOR_TILE_SIZE, FLOOR_TILE_SIZE);

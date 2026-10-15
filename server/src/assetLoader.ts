@@ -30,13 +30,7 @@ import {
   parseWallPng,
   pngToSpriteData,
 } from '../../core/src/assets/pngDecoder.js';
-import type {
-  CharacterDirectionSprites,
-  CharacterSheets,
-  PetManifest,
-  PetSpriteFrames,
-} from '../../core/src/assets/types.js';
-export type { CharacterDirectionSprites } from '../../core/src/assets/types.js';
+import type { PetManifest, PetSpriteFrames } from '../../core/src/assets/types.js';
 export type { PetManifest, PetSpriteFrames } from '../../core/src/assets/types.js';
 
 import { LAYOUT_REVISION_KEY } from './constants.js';
@@ -365,13 +359,14 @@ export async function loadCarpetTiles(assetsRoot: string): Promise<LoadedCarpetT
 }
 
 interface LoadedFloorTiles {
-  sprites: string[][][]; // N sprites (one per floor_N.png), each 16x16 SpriteData
+  sprites: string[][][]; // N sprites (one per floor_N.png), each FLOOR_TILE_SIZE×FLOOR_TILE_SIZE SpriteData
 }
 
 /**
  * Load floor tile patterns from assets/floors/ folder.
- * Each file is named floor_N.png (e.g. floor_0.png, floor_1.png, ...).
- * Files are loaded in numeric order; each PNG is a 16×16 grayscale tile.
+ * Each file is named floor_N.png (e.g. floor_0.png, floor_1.png, ...), a
+ * full-color 32×32 PixelLab material (see scripts/pixellab/floors.ts).
+ * Files are loaded in numeric order.
  */
 export async function loadFloorTiles(assetsRoot: string): Promise<LoadedFloorTiles | null> {
   try {
@@ -420,27 +415,38 @@ export async function loadFloorTiles(assetsRoot: string): Promise<LoadedFloorTil
 
 // ── Character sprite loading ────────────────────────────────
 
-export type LoadedCharacterSprites = CharacterSheets;
+export interface CharacterSpritePngs {
+  /** Base64-encoded PNG file bytes, one per agent palette, char_0.png.. order. */
+  characters: string[];
+  /** Base64-encoded PNG file bytes for the CTO's own sheet. */
+  cto: string;
+}
+
+export type LoadedCharacterSprites = CharacterSpritePngs;
 
 /**
  * Load the bundled character sheets from assets/characters/: char_0.png to
- * char_<CHAR_COUNT - 1>.png for agents, plus the CTO's sheet.
+ * char_<CHAR_COUNT - 1>.png for agents, plus the CTO's sheet. Decodes each
+ * sheet only to validate its dimensions (`decodeCharacterPng` throws on a
+ * mismatch); the webview decodes the base64 bytes itself.
  */
 export async function loadCharacterSprites(
   assetsRoot: string,
 ): Promise<LoadedCharacterSprites | null> {
   try {
     const charDir = path.join(assetsRoot, 'assets', 'characters');
-    const readSheet = (fileName: string): CharacterDirectionSprites | null => {
+    const readSheet = (fileName: string): string | null => {
       const filePath = path.join(charDir, fileName);
       if (!fs.existsSync(filePath)) {
         console.log(`[AssetLoader] No character sprite found at: ${filePath}`);
         return null;
       }
-      return decodeCharacterPng(fs.readFileSync(filePath));
+      const buffer = fs.readFileSync(filePath);
+      decodeCharacterPng(buffer);
+      return buffer.toString('base64');
     };
 
-    const characters: CharacterDirectionSprites[] = [];
+    const characters: string[] = [];
     for (let ci = 0; ci < CHAR_COUNT; ci++) {
       const sheet = readSheet(`char_${ci}.png`);
       if (!sheet) return null;

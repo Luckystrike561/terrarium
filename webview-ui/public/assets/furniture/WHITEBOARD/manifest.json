@@ -13,8 +13,8 @@
       "type": "asset",
       "id": "WHITEBOARD_FRONT",
       "file": "WHITEBOARD_FRONT.png",
-      "width": 48,
-      "height": 86,
+      "width": 96,
+      "height": 159,
       "footprintW": 2,
       "footprintH": 1,
       "orientation": "front"
@@ -23,8 +23,8 @@
       "type": "asset",
       "id": "WHITEBOARD_RIGHT",
       "file": "WHITEBOARD_RIGHT.png",
-      "width": 48,
-      "height": 86,
+      "width": 96,
+      "height": 159,
       "footprintW": 1,
       "footprintH": 2,
       "orientation": "right"

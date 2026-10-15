@@ -9,9 +9,11 @@ export const DEFAULT_ROWS = 11;
 // ── Character Animation ─────────────────────────────────────
 export const WALK_SPEED_PX_PER_SEC = 48;
 export const WALK_FRAME_DURATION_SEC = 0.15;
-export const TYPE_FRAME_DURATION_SEC = 0.3;
-/** Two-frame pose loops: how long each frame shows. Slow for breathing, quick
- *  for a waving hand. */
+/** Typing/reading run a calmer 4-frame loop (CHARACTER_FRAMES type1-4 /
+ *  read1-4): this is the duration of each of those 4 frames. */
+export const TYPE_FRAME_DURATION_SEC = 0.2;
+/** How long each frame shows in every other (2-frame) pose loop. Slow for
+ *  breathing, quick for a waving hand. */
 export const IDLE_FRAME_DURATION_SEC = 1.0;
 export const REST_FRAME_DURATION_SEC = 1.4;
 export const RAISE_HAND_FRAME_DURATION_SEC = 0.4;
@@ -22,6 +24,10 @@ export const WANDER_MOVES_BEFORE_REST_MIN = 3;
 export const WANDER_MOVES_BEFORE_REST_MAX = 6;
 export const SEAT_REST_MIN_SEC = 120.0;
 export const SEAT_REST_MAX_SEC = 240.0;
+/** After a turn ends, a seated agent lingers at its desk in the rest pose
+ *  this long before heading to the lounge — work resuming within the window
+ *  resumes typing in place instead of a stand-up-and-walk-away/back churn. */
+export const SEAT_LINGER_SEC = 90.0;
 
 // ── Matrix Effect ────────────────────────────────────────────
 export const MATRIX_EFFECT_DURATION_SEC = 0.3;
@@ -48,17 +54,19 @@ export const CHARACTER_SITTING_OFFSET_PX = 0;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
-/** How much lower a seated frame draws the head than a standing one: Habbo's
- *  short legs carry the waist 8 px above the sole standing, a chair seat is
- *  6, so sitting drops it 2. */
-export const BUBBLE_SITTING_OFFSET_PX = 2;
-/** The crown of a standing character, above its feet: Habbo's figure
- *  halved, about 40 px crown to sole. */
-export const BUBBLE_VERTICAL_OFFSET_PX = 40;
+/** How much higher a seated frame draws the head than a standing one, added
+ *  to both the bubble and badge vertical offsets. PixelLab's seated poses
+ *  crouch rather than drop the hips (measured via scripts/pixellab/pack.ts),
+ *  so a chair-raised seated crown ends up taller than standing, not shorter:
+ *  negative here means "subtract less" i.e. raise the bubble/badge further. */
+export const BUBBLE_SITTING_OFFSET_PX = -7;
+/** The crown of a standing character, above its feet (measured from the
+ *  packed character sheets). */
+export const BUBBLE_VERTICAL_OFFSET_PX = 32;
 /** Persistent state badge (working/done/waiting/idle/permission): vertical
  *  distance above the anchor point, slightly less than BUBBLE_VERTICAL_OFFSET_PX
  *  so it sits at head height rather than floating above it like a bubble. */
-export const STATUS_BADGE_VERTICAL_OFFSET_PX = 36;
+export const STATUS_BADGE_VERTICAL_OFFSET_PX = 28;
 /** Horizontal offset to the right of center, clear of the center-anchored
  *  speech bubble so the two never overlap regardless of bubble state. */
 export const STATUS_BADGE_HORIZONTAL_OFFSET_PX = 13;
@@ -187,12 +195,15 @@ export const INACTIVE_SEAT_TIMER_MIN_SEC = 3.0;
 export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
 export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
-export const CHARACTER_HIT_HALF_WIDTH = 10;
-/** From the feet to the crown of a standing character. */
-export const CHARACTER_HIT_HEIGHT = 40;
-/** A seated frame draws the head BUBBLE_SITTING_OFFSET_PX lower. */
-export const CHARACTER_SEATED_HIT_HEIGHT = CHARACTER_HIT_HEIGHT - BUBBLE_SITTING_OFFSET_PX;
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 48;
+export const CHARACTER_HIT_HALF_WIDTH = 11;
+/** From the feet to the crown of a standing character (measured from the
+ *  packed character sheets). */
+export const CHARACTER_HIT_HEIGHT = 32;
+/** A seated frame draws the head BUBBLE_SITTING_OFFSET_PX higher, not lower:
+ *  see its comment. Kept as its own measured constant rather than derived,
+ *  since "seated minus an offset" no longer describes the real geometry. */
+export const CHARACTER_SEATED_HIT_HEIGHT = 39;
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 47;
 
 // ── Greeter + Intro bubble ──────────────────────────────────
 /** Reserved character id for the Intro's greeter. Far outside both real agent
@@ -219,7 +230,7 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_PX = 58;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 50;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
 export const INTRO_BUBBLE_OFFSET_X_PX = 10;
@@ -241,7 +252,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_PX = 38;
+export const INTRO_TAIL_TARGET_RISE_PX = 30;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the

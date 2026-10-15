@@ -13,8 +13,8 @@
       "type": "asset",
       "id": "SOFA_FRONT",
       "file": "SOFA_FRONT.png",
-      "width": 48,
-      "height": 42,
+      "width": 96,
+      "height": 52,
       "footprintW": 2,
       "footprintH": 1,
       "orientation": "front"
@@ -23,8 +23,8 @@
       "type": "asset",
       "id": "SOFA_RIGHT",
       "file": "SOFA_RIGHT.png",
-      "width": 48,
-      "height": 42,
+      "width": 96,
+      "height": 52,
       "footprintW": 1,
       "footprintH": 2,
       "orientation": "right"
@@ -33,8 +33,8 @@
       "type": "asset",
       "id": "SOFA_BACK",
       "file": "SOFA_BACK.png",
-      "width": 48,
-      "height": 42,
+      "width": 96,
+      "height": 62,
       "footprintW": 2,
       "footprintH": 1,
       "orientation": "back"
@@ -43,8 +43,8 @@
       "type": "asset",
       "id": "SOFA_LEFT",
       "file": "SOFA_LEFT.png",
-      "width": 48,
-      "height": 42,
+      "width": 96,
+      "height": 62,
       "footprintW": 1,
       "footprintH": 2,
       "orientation": "left"

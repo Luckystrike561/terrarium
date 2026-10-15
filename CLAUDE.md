@@ -152,7 +152,8 @@ scripts/
   verify-npm-package.mjs             Packs, installs and smoke-tests the tarball
   publish-npm-package.mjs            Publishes a verified tarball
   record-demo.mjs                    Records docs/media/demo.gif
-  iso-art/                           Generators for furniture, characters, floors and the default layout
+  iso-art/                           layout.ts (the default office plan) and lib/ shared by pixellab/furniture.ts
+  pixellab/                          PixelLab generators: generate.ts (characters), furniture.ts, floors.ts, pack.ts, api.ts, env.ts; cast.json/furniture.json/floors.json record every prompt, seed and PixelLab id
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font

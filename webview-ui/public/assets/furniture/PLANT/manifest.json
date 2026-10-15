@@ -7,8 +7,8 @@
   "backgroundTiles": 0,
   "type": "asset",
   "file": "PLANT.png",
-  "width": 32,
-  "height": 44,
+  "width": 36,
+  "height": 60,
   "footprintW": 1,
   "footprintH": 1
 }

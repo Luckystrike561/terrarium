@@ -17,8 +17,8 @@ import { setFloorSprites } from '../office/floorTiles.js';
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js';
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js';
 import { setCarpetSprites } from '../office/sprites/carpetTiles.js';
+import { setCharacterTemplatesFromPng } from '../office/sprites/decodeCharacterSheet.js';
 import { setPetTemplates } from '../office/sprites/petSpriteData.js';
-import { setCharacterTemplates } from '../office/sprites/spriteData.js';
 import { destroyAllTextures } from '../office/sprites/textureCache.js';
 import {
   extractToolName,
@@ -569,7 +569,11 @@ export function useExtensionMessages(getBuilding: () => Building): ExtensionMess
         const characters = msg.characters as CharacterSpriteSet[];
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`);
         destroyAllTextures();
-        setCharacterTemplates(characters, msg.cto as CharacterSpriteSet);
+        void setCharacterTemplatesFromPng(characters, msg.cto as CharacterSpriteSet).catch(
+          (err: unknown) => {
+            console.error('[Webview] Failed to decode character sprites:', err);
+          },
+        );
       } else if (msg.type === 'petSpritesLoaded') {
         const pets = msg.pets;
         if (!Array.isArray(pets)) {

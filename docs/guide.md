@@ -135,7 +135,7 @@ The office is a building with one floor per machine, stacked bottom to top and a
 
 There is no in-app layout editor. If `~/.terrarium/layout.json` exists, the server loads it instead of the default for the first floor (other floors keep the default), including carpets, pets and named areas. Map workspace folders to areas under `standalone.areaMappings` in `~/.terrarium/config.json` (`{ "folder-name": ["Area label"] }`). Click a character, then a free seat on its floor, to move it.
 
-The bundled art is generated: `npx tsx scripts/iso-art/generate.ts` rewrites the sprites and `npx tsx scripts/iso-art/layout.ts` the default layout.
+The bundled art is generated: `npx tsx scripts/pixellab/furniture.ts`, `scripts/pixellab/generate.ts` and `scripts/pixellab/floors.ts` regenerate the furniture, characters and floor materials, and `npx tsx scripts/iso-art/layout.ts` rewrites the default layout.
 
 ## Upgrading from pixel-agents
 

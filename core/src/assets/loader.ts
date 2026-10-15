@@ -8,15 +8,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { CTO_CHARACTER_FILE } from './constants.js';
-import {
-  decodeCharacterPng,
-  decodeFloorPng,
-  parseCarpetPng,
-  parseWallPng,
-  pngToSpriteData,
-} from './pngDecoder.js';
-import type { CatalogEntry, CharacterSheets } from './types.js';
+import { decodeFloorPng, parseCarpetPng, parseWallPng, pngToSpriteData } from './pngDecoder.js';
+import type { CatalogEntry } from './types.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,16 +26,6 @@ function listSortedPngs(dir: string, pattern: RegExp): { index: number; filename
 }
 
 // ── Decoders ─────────────────────────────────────────────────────────────────
-
-export function decodeAllCharacters(assetsDir: string): CharacterSheets {
-  const charDir = path.join(assetsDir, 'characters');
-  return {
-    characters: listSortedPngs(charDir, /^char_(\d+)\.png$/i).map(({ filename }) =>
-      decodeCharacterPng(fs.readFileSync(path.join(charDir, filename))),
-    ),
-    cto: decodeCharacterPng(fs.readFileSync(path.join(charDir, CTO_CHARACTER_FILE))),
-  };
-}
 
 export function decodeAllFloors(assetsDir: string): string[][][] {
   const floorsDir = path.join(assetsDir, 'floors');

@@ -1,0 +1,68 @@
+{
+  "spentGenerations": 90,
+  "materials": {
+    "0": {
+      "description": "plain polished pale warm-gray stone floor slab, smooth surface, no grout lines, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939586,
+      "tileId": "db506f0f-ad6e-43aa-b9ac-73fc0e2cd8c0",
+      "backgroundJobId": "8df4bc25-e67d-45d1-bd0c-160b7001c87a",
+      "chosen": 0
+    },
+    "1": {
+      "description": "large pale cream stone floor tiles, thin light seams between a few big tiles, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939587,
+      "tileId": "62f4830b-9e1a-428c-80f1-d46fa6667488",
+      "backgroundJobId": "996d3070-e366-435c-aa32-248b68114a26",
+      "chosen": 0
+    },
+    "2": {
+      "description": "large pale gray floor tiles with visible dark gray grout lines between them, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939588,
+      "tileId": "a20d8a79-4280-4035-9e5c-3c23dd23370b",
+      "backgroundJobId": "e79eb313-0723-4c27-bce7-d91034b78e2d",
+      "chosen": 1
+    },
+    "3": {
+      "description": "small square cream ceramic floor tiles in a tight grid with thin gray grout lines, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939589,
+      "tileId": "df3e4dab-53e7-4225-ad36-e3310d3b212c",
+      "backgroundJobId": "45223dc6-a7ce-429f-86c1-4e53967d295f",
+      "chosen": 0
+    },
+    "4": {
+      "description": "light honey wood plank flooring, horizontal wood planks with visible grain and subtle seams, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939590,
+      "tileId": "a56ef3aa-0b69-4885-b3b6-be5ffdf08e6f",
+      "backgroundJobId": "638afcd0-d69d-4a5c-9616-80e37f67b630",
+      "chosen": 1
+    },
+    "5": {
+      "description": "warm terracotta brick floor pavers in a running-bond brick pattern, light mortar lines, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939591,
+      "tileId": "ac6c9433-7b2a-43bf-9f0e-5010367eec0e",
+      "backgroundJobId": "0e9a4302-65a1-432a-8e86-c68de9d7da76",
+      "chosen": 0
+    },
+    "6": {
+      "description": "warm terracotta brick floor pavers in a straight aligned grid pattern, light mortar lines, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939592,
+      "tileId": "31c0da38-0cda-463b-8695-7a4f11b13d3d",
+      "backgroundJobId": "f14b9988-6534-444e-b931-b9b5897e7ebb",
+      "chosen": 6
+    },
+    "7": {
+      "description": "fine cream and white checkerboard floor tile pattern, many small alternating squares, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939593,
+      "tileId": "1a60f395-ea72-4c56-9d12-c5ba80de698a",
+      "backgroundJobId": "d5c320bb-9da7-47f8-9476-5f061cbd42e5",
+      "chosen": 0
+    },
+    "8": {
+      "description": "coarse cream and white checkerboard floor tile pattern, few large alternating squares, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, flat seamless repeating floor material, no harsh black outlines, subtle shading only",
+      "seed": 939594,
+      "tileId": "72a81381-d2b5-43d3-a71a-3f56f1a9f0e0",
+      "backgroundJobId": "d7ac5852-650e-461c-a383-379075fab395",
+      "chosen": 0
+    }
+  }
+}

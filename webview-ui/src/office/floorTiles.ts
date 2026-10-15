@@ -1,20 +1,25 @@
 /**
  * Floor tile pattern storage and caching.
  *
- * Stores grayscale floor patterns loaded from individual PNGs in assets/floors/.
- * Uses shared colorize module for HSL tinting (Photoshop-style Colorize).
- * Caches colorized SpriteData by (pattern, h, s, b, c) key.
+ * Stores full-color floor material PNGs loaded from assets/floors/ (PixelLab
+ * art: see scripts/pixellab/floors.ts). A neutral ColorValue (h=s=b=c=0)
+ * returns the material unchanged; any other value shifts it with the shared
+ * colorize module's Adjust mode (HSL shift), so a room can still tint a
+ * material without flattening its real texture to Photoshop Colorize's
+ * single fixed hue. Caches the adjusted SpriteData by (pattern, h, s, b, c).
  */
 
+import { FLOOR_TILE_SIZE } from '../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../components/ui/types.js';
-import { CANVAS_ERROR_TILE_COLOR, FALLBACK_FLOOR_COLOR, TILE_SIZE } from '../constants.js';
+import { CANVAS_ERROR_TILE_COLOR, FALLBACK_FLOOR_COLOR } from '../constants.js';
 import { clearColorizeCache, getColorizedSprite } from './colorize.js';
 import type { SpriteData } from './types.js';
 
-/** Default solid gray 16×16 tile used when floor tile PNGs are not loaded */
+/** Default solid gray tile (FLOOR_TILE_SIZE × FLOOR_TILE_SIZE art px) used when
+ *  floor tile PNGs are not loaded */
 const DEFAULT_FLOOR_SPRITE: SpriteData = Array.from(
-  { length: TILE_SIZE },
-  () => Array(TILE_SIZE).fill(FALLBACK_FLOOR_COLOR) as string[],
+  { length: FLOOR_TILE_SIZE },
+  () => Array(FLOOR_TILE_SIZE).fill(FALLBACK_FLOOR_COLOR) as string[],
 );
 
 /** Module-level storage for floor tile sprites (set once on load) */
@@ -29,7 +34,7 @@ export function setFloorSprites(sprites: SpriteData[]): void {
   clearColorizeCache();
 }
 
-/** Get the raw (grayscale) floor sprite for a pattern index (1-7 -> array index 0-6).
+/** Get the raw floor material sprite for a pattern index (1-9 -> array index 0-8).
  *  Falls back to the default solid gray tile when floors.png is not loaded. */
 function getFloorSprite(patternIndex: number): SpriteData | null {
   const idx = patternIndex - 1;
@@ -46,22 +51,22 @@ function getFloorSprite(patternIndex: number): SpriteData | null {
 // }
 
 /**
- * Get a colorized version of a floor sprite.
- * Uses Photoshop-style Colorize: grayscale -> HSL with given hue/saturation,
- * then brightness/contrast adjustment.
+ * Get a tinted version of a floor material sprite.
+ * A neutral ColorValue returns the material's own color untouched; any other
+ * value shifts it with the shared colorize module's Adjust mode (hue/
+ * saturation shift, brightness/contrast), never Photoshop Colorize, which
+ * would discard the material's own color relationships.
  */
 export function getColorizedFloorSprite(patternIndex: number, color: ColorValue): SpriteData {
-  const key = `floor-${patternIndex}-${color.h}-${color.s}-${color.b}-${color.c}`;
-
   const base = getFloorSprite(patternIndex);
   if (!base) {
-    // Return a 16x16 magenta error tile
-    const err: SpriteData = Array.from({ length: 16 }, () =>
-      Array(16).fill(CANVAS_ERROR_TILE_COLOR),
+    const err: SpriteData = Array.from({ length: FLOOR_TILE_SIZE }, () =>
+      Array(FLOOR_TILE_SIZE).fill(CANVAS_ERROR_TILE_COLOR),
     );
     return err;
   }
+  if (color.h === 0 && color.s === 0 && color.b === 0 && color.c === 0) return base;
 
-  // Floor tiles are always colorized (grayscale patterns need Photoshop-style Colorize)
-  return getColorizedSprite(key, base, { ...color, colorize: true });
+  const key = `floor-${patternIndex}-${color.h}-${color.s}-${color.b}-${color.c}`;
+  return getColorizedSprite(key, base, { ...color, colorize: false });
 }

@@ -7,7 +7,7 @@
  * older default-layout-*.json files. Bump REVISION whenever the layout
  * changes. The server serves this default only when no layout.json exists.
  *
- * A Habbo-style room plan: four rooms around one open-plan work floor, each
+ * A room plan: four rooms around one open-plan work floor, each
  * with its own bright floor material and colour, connected by glass
  * partitions with short doorway gaps. Rooms: open-plan work area (top left),
  * CTO office (top right), lounge and break corner (bottom left), meeting
@@ -19,22 +19,22 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-const REVISION = 4;
+const REVISION = 6;
 const COLS = 22;
 const ROWS = 16;
 
 const WALL = 0;
-/** floor_1: large pale tile, bright seam. The work floor's own colour, and
- *  the default fill so every doorway gap between rooms reads as this tile
- *  rather than a seam of the wrong material. */
+/** floor_1: large pale tile, cream, thin grout cross. The work floor's own
+ *  material, and the default fill so every doorway gap between rooms reads
+ *  as this tile rather than a seam of the wrong material. */
 const PALE_TILE = 2;
-/** floor_2: large tile, dark grout. */
+/** floor_2: large tile, dark grout, cooler pale grey. */
 const GROUT_TILE = 3;
-/** floor_3: small square tile, dark grout. */
+/** floor_3: small square tile, cream, tight grid. */
 const SMALL_TILE = 4;
-/** floor_4: wood planks. */
+/** floor_4: wood planks, light honey/golden. */
 const PLANKS = 5;
-/** floor_8: coarse checkerboard. */
+/** floor_8: coarse checkerboard, cream/white, big squares. */
 const CHECKER_COARSE = 9;
 
 interface Color {
@@ -44,18 +44,24 @@ interface Color {
   c: number;
 }
 
-/** Light blue-grey wallpaper, Habbo's default room wall. */
+/** Light blue-grey wallpaper, the office's default room wall. Walls are drawn as
+ *  procedural boxes (isoWalls.ts), not floor sprites, so this stays an
+ *  absolute colour untouched by the floor tiles' Colorize-to-Adjust switch. */
 const WALL_COLOR: Color = { h: 220, s: 30, b: 46, c: 0 };
-/** Pale sky-blue tile, the open work floor. */
-const SKY_TILE: Color = { h: 206, s: 34, b: 18, c: -10 };
-/** Honey wood planks, the CTO's prestige floor. */
-const HONEY_WOOD: Color = { h: 32, s: 55, b: 4, c: -15 };
-/** Rich harbour blue, the meeting room's grouted tile. */
-const HARBOUR_BLUE: Color = { h: 211, s: 55, b: -2, c: -10 };
-/** Soft teal, the lounge's small tile. */
-const LAGOON_TILE: Color = { h: 175, s: 36, b: 14, c: -15 };
-/** Soft butter yellow against white, the break corner's checkerboard. */
-const SUNSHINE_CHECKER: Color = { h: 46, s: 26, b: 55, c: -40 };
+/** Floor tiles are full-colour PixelLab art now: a neutral colour shows the
+ *  material's own colour untouched, and these are small Adjust-mode deltas
+ *  (hue/sat shift, brightness/contrast) for a deliberate per-room variant,
+ *  not the old Colorize absolute targets. */
+/** A touch cooler on the pale cream tile, the open work floor. */
+const SKY_TILE: Color = { h: -8, s: 4, b: 0, c: 0 };
+/** Neutral: the wood planks' own honey colour is the CTO's prestige floor. */
+const HONEY_WOOD: Color = { h: 0, s: 0, b: 0, c: 0 };
+/** A small cool nudge on the pale grouted tile, the meeting room's harbour feel. */
+const HARBOUR_BLUE: Color = { h: -8, s: 6, b: -3, c: 0 };
+/** A soft warm nudge on the cream small tile, the lounge's cosy floor. */
+const LAGOON_TILE: Color = { h: 8, s: 5, b: 2, c: 0 };
+/** A soft butter-yellow nudge on the cream/white checkerboard, the break corner. */
+const SUNSHINE_CHECKER: Color = { h: 10, s: 6, b: 3, c: 0 };
 
 const tiles: number[] = new Array(COLS * ROWS).fill(PALE_TILE);
 const tileColors: (Color | null)[] = new Array(COLS * ROWS).fill(SKY_TILE);
@@ -150,9 +156,9 @@ put('WOODEN_CHAIR_BACK', 15, 5);
 put('WOODEN_CHAIR_BACK', 17, 5);
 put('COFFEE_TABLE_RIGHT', 18, 2);
 put('SOFA_RIGHT', 19, 2);
-put('CTO_SIGN_FRONT', 15, 0);
-put('WALL_SHELF_FRONT', 19, 0);
-put('SMALL_PAINTING_FRONT', 20, 0);
+put('CTO_SIGN_FRONT', 13, 0);
+put('WALL_SHELF_FRONT', 17, 0);
+put('SMALL_PAINTING_FRONT', 19, 0);
 put('SMALL_PAINTING_2_FRONT', 21, 0);
 put('FLOOR_LAMP', 14, 1);
 put('LARGE_PLANT', 21, 1);
@@ -164,6 +170,8 @@ for (const c of [16, 17, 18]) {
   put('WOODEN_CHAIR_FRONT', c, 10);
   put('WOODEN_CHAIR_BACK', c, 13);
 }
+put('WOODEN_CHAIR_RIGHT', 15, 12);
+put('WOODEN_CHAIR_LEFT', 19, 11);
 put('WATER_COOLER', 14, 15);
 put('CACTUS', 15, 11);
 put('PLANT_2', 21, 10);
@@ -175,7 +183,7 @@ put('FLOOR_LAMP', 20, 14);
 put('SOFA_FRONT', 2, 10);
 put('COFFEE_TABLE_FRONT', 2, 11);
 put('SOFA_BACK', 2, 13);
-put('CUSHIONED_BENCH_FRONT', 5, 14);
+put('WOODEN_BENCH_FRONT', 5, 14);
 put('LARGE_PLANT', 1, 10);
 put('FLOOR_LAMP', 7, 10);
 put('PLANT', 1, 15);
@@ -190,8 +198,8 @@ put('COFFEE_MACHINE_ON_1', 8, 10);
 put('COFFEE', 10, 10);
 put('FRIDGE_FRONT', 12, 10);
 put('SMALL_TABLE', 9, 13);
-put('STOOL', 8, 13);
-put('STOOL', 10, 13);
+put('WOODEN_CHAIR_RIGHT', 8, 13);
+put('WOODEN_CHAIR_LEFT', 10, 13);
 put('WATER_COOLER', 12, 14);
 put('PLANT_2', 12, 15);
 put('BIN', 8, 15);

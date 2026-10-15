@@ -1,12 +1,13 @@
 /**
  * Wall tiles as isometric sprites. Walls on the far edges of the office (their
  * -row or -col neighbour is VOID or off the grid) are thin, tall wallpapered
- * boxes standing on the inner edge of their tile, like Habbo's room shell.
+ * boxes standing on the inner edge of their tile, the room's shell.
  * Every other wall is a glass partition: a thin framed pane along the wall's
  * run, so the room behind stays visible, the usual cutaway for an isometric
  * interior.
  */
 
+import { ART_SCALE } from '../../../core/src/assets/constants.ts';
 import {
   GLASS_FRAME_COLOR,
   GLASS_PANE_COLOR,
@@ -19,8 +20,10 @@ import type { SpriteData, TileType as TileTypeVal } from './types.js';
 import { TileType } from './types.js';
 
 const CAP_SHADE = 1.15;
-/** Width of the ink line along the cap's outer (front) edge, in world units. */
-const CAP_INK_WIDTH_UNITS = 1;
+/** Width of the ink line along the cap's outer (front) edge, in world units:
+ *  half a unit so it traces as a single ART_SCALE art pixel, not two. */
+const CAP_INK_WIDTH_UNITS = 1 / ART_SCALE;
+
 const LEFT_FACE_SHADE = 0.92;
 const RIGHT_FACE_SHADE = 0.74;
 const SKIRTING_SHADE = 0.6;
@@ -79,16 +82,18 @@ interface Box {
 }
 
 /** Trace each pixel along the view ray (1, 1, 1) against tile-local boxes
- *  (gx, gy ∈ [0, 16]) and keep the hit nearest the viewer. */
+ *  (gx, gy ∈ [0, 16]) and keep the hit nearest the viewer. Sampled at
+ *  ART_SCALE art pixels per world unit, so the output is twice the resolution
+ *  of the world grid it's drawn at. */
 function traceSprite(boxes: readonly Box[], height: number): SpriteData {
-  const w = ISO_TILE_W;
-  const h = ISO_TILE_H + height;
+  const w = ISO_TILE_W * ART_SCALE;
+  const h = (ISO_TILE_H + height) * ART_SCALE;
   const sprite: SpriteData = [];
   for (let y = 0; y < h; y++) {
     const row: string[] = [];
     for (let x = 0; x < w; x++) {
-      const u = x + 0.5 - TILE;
-      const v = y + 0.5 - height;
+      const u = (x + 0.5) / ART_SCALE - TILE;
+      const v = (y + 0.5) / ART_SCALE - height;
       const gx0 = v + u / 2;
       const gy0 = v - u / 2;
       let best = -Infinity;

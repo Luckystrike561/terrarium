@@ -2,8 +2,8 @@
  * Shared sprite colorization module.
  *
  * Two modes:
- * - Colorize (Photoshop-style): grayscale → fixed HSL. For floor tiles and opt-in furniture.
- * - Adjust (default for furniture): shift original pixel HSL values.
+ * - Colorize (Photoshop-style): grayscale → fixed HSL. Opt-in (carpets' flat fill).
+ * - Adjust (default for furniture and floor tiles): shift original pixel HSL values.
  */
 
 import type { ColorValue } from '../components/ui/types.js';

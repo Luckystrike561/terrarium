@@ -21,7 +21,7 @@
   --color-text: rgba(255, 255, 255, 0.9);
   --color-text-muted: rgba(255, 255, 255, 0.5);
 
-  /* Buttons: Habbo's light grey, ink-bordered, green when confirming */
+  /* Buttons: light grey, ink-bordered, green when confirming */
   --color-btn-bg: #d7dce3;
   --color-btn-hover: #c3cad3;
   --color-active-bg: #aab3c0;
@@ -41,7 +41,7 @@
   --color-status-idle: #8891a8;
   --color-status-error: var(--color-danger);
 
-  /* Habbo HUD chrome: window body, title bar, outline ink */
+  /* HUD chrome: window body, title bar, outline ink */
   --color-hud-bg: #ffffff;
   --color-hud-titlebar: #2f80c0;
   --color-ink: #111111;
@@ -117,7 +117,7 @@
 }
 
 @layer components {
-  /* Habbo name tag: tooltips, toasts, in-world labels and the Intro bubble. */
+  /* Name tag: tooltips, toasts, in-world labels and the Intro bubble. */
   .hud-tag {
     --color-text: var(--color-ink);
     --color-text-muted: rgba(17, 17, 17, 0.55);
@@ -125,7 +125,7 @@
     @apply bg-hud-bg text-text border-2 border-ink rounded shadow-pixel;
   }
 
-  /* Habbo window body: modals and notices. The title bar is its own strip
+  /* Window body: modals and notices. The title bar is its own strip
      (.hud-titlebar) so it can span the window's full, rounded top edge. */
   .hud-window {
     --color-text: var(--color-ink);

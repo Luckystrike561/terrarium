@@ -51,3 +51,8 @@ agent-orchestrator.yaml
 .ao/
 .serena/
 tasks/
+
+# PixelLab raw generated frames (regenerate with scripts/pixellab/generate.ts)
+/scripts/pixellab/frames/
+/scripts/pixellab/furniture-frames/
+/scripts/pixellab/floor-frames/

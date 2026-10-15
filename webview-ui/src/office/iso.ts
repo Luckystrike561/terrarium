@@ -9,6 +9,7 @@
  * The generated art (scripts/iso-art) is built on the same numbers.
  */
 
+import { ART_SCALE } from '../../../core/src/assets/constants.ts';
 import type { SpriteData } from './types.js';
 import { TILE_SIZE } from './types.js';
 
@@ -38,9 +39,11 @@ export function tileCorner(col: number, row: number): Point {
 }
 
 /** Top-left of a sprite drawn under the furniture anchor contract: an image
- *  `(fw + fh) * 16` wide whose footprint diamond touches its left, right and
- *  bottom edges. Sprites of any other width (legacy flat art) are centered on
- *  the footprint instead, standing on its front corner. */
+ *  `(fw + fh) * 16 * ART_SCALE` art px wide whose footprint diamond touches
+ *  its left, right and bottom edges. `spriteW`/`spriteH` are the sprite's art
+ *  pixel dimensions; the returned origin is in world units, for a sprite
+ *  drawn at `1 / ART_SCALE` scale. Sprites of any other width (legacy flat
+ *  art) are centered on the footprint instead, standing on its front corner. */
 export function footprintSpriteOrigin(
   col: number,
   row: number,
@@ -49,13 +52,15 @@ export function footprintSpriteOrigin(
   spriteW: number,
   spriteH: number,
 ): Point {
+  const worldW = spriteW / ART_SCALE;
+  const worldH = spriteH / ART_SCALE;
   const top = tileCorner(col, row);
   const bottomY = top.y + (footprintW + footprintH) * (ISO_TILE_H / 2);
-  if (spriteW === (footprintW + footprintH) * TILE_SIZE) {
-    return { x: top.x - footprintH * TILE_SIZE, y: bottomY - spriteH };
+  if (worldW === (footprintW + footprintH) * TILE_SIZE) {
+    return { x: top.x - footprintH * TILE_SIZE, y: bottomY - worldH };
   }
   const centerX = top.x + ((footprintW - footprintH) * TILE_SIZE) / 2;
-  return { x: Math.round(centerX - spriteW / 2), y: bottomY - spriteH };
+  return { x: Math.round(centerX - worldW / 2), y: bottomY - worldH };
 }
 
 const diamondCache = new WeakMap<SpriteData, SpriteData>();

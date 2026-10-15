@@ -323,13 +323,13 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
   // 1. Provider capabilities (must arrive before any agent messages)
   send({ ...providerCapabilitiesMessage(modules) });
 
-  // 2. Assets (from server cache, loaded at startup via pngjs)
+  // 2. Assets (from server cache, loaded at startup)
   if (cache) {
     if (cache.characters) {
       send({
         type: 'characterSpritesLoaded',
-        characters: cache.characters.characters,
-        cto: cache.characters.cto,
+        characters: cache.characters.characters.map((png) => ({ png })),
+        cto: { png: cache.characters.cto },
       });
     }
     if (cache.pets) {

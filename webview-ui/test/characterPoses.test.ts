@@ -14,7 +14,7 @@ import { beforeAll, test } from 'vitest';
 
 import { CHAR_COUNT, CTO_CHARACTER_FILE } from '../../core/src/assets/constants.js';
 import { decodeCharacterPng } from '../../core/src/assets/pngDecoder.js';
-import { IDLE_FRAME_DURATION_SEC } from '../src/constants.js';
+import { IDLE_FRAME_DURATION_SEC, TYPE_FRAME_DURATION_SEC } from '../src/constants.js';
 import {
   advancePoseFrame,
   createCharacter,
@@ -71,6 +71,22 @@ test('a standing idle agent breathes instead of holding a walk frame', () => {
   ch.frameTimer = IDLE_FRAME_DURATION_SEC;
   advancePoseFrame(ch);
   assert.equal(ch.frame, 1, 'the loop steps after one idle frame duration');
+});
+
+test('typing runs a calmer 4-frame loop, not a 2-frame jitter', () => {
+  const ch = character({ state: CharacterState.TYPE, isActive: true });
+  const seenFrames = new Set<number>();
+  for (let i = 0; i < 4; i++) {
+    seenFrames.add(ch.frame);
+    ch.frameTimer = TYPE_FRAME_DURATION_SEC;
+    advancePoseFrame(ch);
+  }
+  assert.deepEqual(
+    [...seenFrames].sort(),
+    [0, 1, 2, 3],
+    'the loop visits all four frames before repeating',
+  );
+  assert.equal(ch.frame, 0, 'the loop wraps back to the first frame');
 });
 
 test('a seated agent with no work rests instead of typing', () => {

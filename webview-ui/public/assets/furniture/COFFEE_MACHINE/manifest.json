@@ -12,8 +12,8 @@
       "type": "asset",
       "id": "COFFEE_MACHINE_OFF",
       "file": "COFFEE_MACHINE_OFF.png",
-      "width": 32,
-      "height": 34,
+      "width": 64,
+      "height": 57,
       "footprintW": 1,
       "footprintH": 1,
       "state": "off"
@@ -27,8 +27,8 @@
           "type": "asset",
           "id": "COFFEE_MACHINE_ON_1",
           "file": "COFFEE_MACHINE_ON_1.png",
-          "width": 32,
-          "height": 34,
+          "width": 64,
+          "height": 57,
           "footprintW": 1,
           "footprintH": 1,
           "frame": 0
@@ -37,8 +37,8 @@
           "type": "asset",
           "id": "COFFEE_MACHINE_ON_2",
           "file": "COFFEE_MACHINE_ON_2.png",
-          "width": 32,
-          "height": 34,
+          "width": 64,
+          "height": 57,
           "footprintW": 1,
           "footprintH": 1,
           "frame": 1
@@ -47,8 +47,8 @@
           "type": "asset",
           "id": "COFFEE_MACHINE_ON_3",
           "file": "COFFEE_MACHINE_ON_3.png",
-          "width": 32,
-          "height": 34,
+          "width": 64,
+          "height": 54,
           "footprintW": 1,
           "footprintH": 1,
           "frame": 2

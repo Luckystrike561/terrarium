@@ -487,7 +487,7 @@ components:
                 type: string
 
     CharacterSpritesLoaded:
-      description: Pre-colored character sprite sets (one per agent palette) and the CTO's own set, sent once at startup.
+      description: Pre-colored character sheets (one PNG per agent palette) and the CTO's own sheet, base64-encoded, sent once at startup.
       type: object
       additionalProperties: false
       required: [type, characters, cto]
@@ -1049,36 +1049,16 @@ components:
 
     CharacterSpriteSet:
       description: |
-        One character's sprites as 3D hex-string arrays (frames × rows × pixels), frames in sheet order.
-        Three direction sets: down, up, right (left is rendered as the mirrored up set).
+        One character sheet: the full PNG file, base64-encoded. Decoded in the browser into
+        direction-keyed frame arrays (down, up, right; left is rendered as the mirrored up set),
+        CHAR_FRAME_W×CHAR_FRAME_H frames in CHARACTER_FRAMES order, 3 direction rows tall.
       type: object
       additionalProperties: false
-      required: [down, up, right]
+      required: [png]
       properties:
-        down:
-          type: array
-          items:
-            type: array
-            items:
-              type: array
-              items:
-                type: string
-        up:
-          type: array
-          items:
-            type: array
-            items:
-              type: array
-              items:
-                type: string
-        right:
-          type: array
-          items:
-            type: array
-            items:
-              type: array
-              items:
-                type: string
+        png:
+          type: string
+          description: Base64-encoded PNG file bytes.
 
     FurnitureAssetMessage:
       description: One entry in the furniture catalog (sent in `furnitureAssetsLoaded`).

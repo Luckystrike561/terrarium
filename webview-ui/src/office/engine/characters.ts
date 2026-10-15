@@ -16,6 +16,7 @@ import {
 } from '../../constants.js';
 import { findPath } from '../layout/tileMap.js';
 import type { CharacterPose, CharacterSprites, LoopingPose } from '../sprites/spriteData.js';
+import { POSE_FRAME_COUNTS } from '../sprites/spriteData.js';
 import { isReadingToolName } from '../toolUtils.js';
 import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../types.js';
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
@@ -319,12 +320,18 @@ export function updateCharacter(
         // Already settled in the lounge — stay seated until work resumes.
         break;
       }
-      // Stand up and head to the lounge (after seatTimer expires)
-      if (ch.seatTimer > 0) {
+      // Negative seatTimer: lingering at the desk in the rest pose since the turn
+      // ended (SEAT_LINGER_SEC sentinel from setAgentActive(false)), counting up
+      // toward 0 — work resuming meanwhile is caught by the isActive branch above,
+      // so it resumes typing in place with no walk. Positive: an ordinary desk rest
+      // from the wander FSM below, counting down. Either way, stay put until it hits 0.
+      if (ch.seatTimer < 0) {
+        ch.seatTimer = Math.min(0, ch.seatTimer + dt);
+        if (ch.seatTimer < 0) break;
+      } else if (ch.seatTimer > 0) {
         ch.seatTimer -= dt;
         break;
       }
-      ch.seatTimer = 0; // clear sentinel
       if (!headToRestSeat(ch, seats, tileMap, blockedTiles, restSeatUids, restSeatClaims)) {
         // No rest seat free or reachable — fall back to the plain wander FSM.
         ch.state = CharacterState.IDLE;
@@ -446,11 +453,10 @@ export function updateCharacter(
             if (seat && ch.tileCol === seat.seatCol && ch.tileRow === seat.seatRow) {
               ch.state = CharacterState.TYPE;
               ch.dir = seat.facingDir;
-              // seatTimer < 0 is a sentinel from setAgentActive(false) meaning
-              // "turn just ended" — skip the long rest so idle transition is immediate
-              if (ch.seatTimer < 0) {
-                ch.seatTimer = 0;
-              } else {
+              // A negative seatTimer is the turn-end linger sentinel set by
+              // setAgentActive(false) before this walk started — leave it running so the
+              // TYPE case keeps counting it up, rather than starting a fresh long desk rest.
+              if (ch.seatTimer >= 0) {
                 ch.seatTimer = randomRange(SEAT_REST_MIN_SEC, SEAT_REST_MAX_SEC);
               }
               ch.wanderCount = 0;
@@ -513,22 +519,23 @@ export function getCharacterPose(ch: Character): CharacterPose {
   return isReadingTool(ch.currentTool) ? 'reading' : 'typing';
 }
 
-/** Step the two-frame loop of the current pose. The caller adds `dt` to
- *  `ch.frameTimer` first. */
+/** Step the current pose's frame loop, whose length varies by pose (a calm
+ *  4-frame cycle for typing/reading, 2 frames for the rest). The caller adds
+ *  `dt` to `ch.frameTimer` first. */
 export function advancePoseFrame(ch: Character): void {
   const pose = getCharacterPose(ch);
   if (pose === 'walk') return;
   const durationSec = POSE_FRAME_DURATION_SEC[pose];
   if (ch.frameTimer >= durationSec) {
     ch.frameTimer -= durationSec;
-    ch.frame = (ch.frame + 1) % 2;
+    ch.frame = (ch.frame + 1) % POSE_FRAME_COUNTS[pose];
   }
 }
 
 export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
   const pose = getCharacterPose(ch);
   if (pose === 'walk') return sprites.walk[ch.dir][ch.frame % 4];
-  return sprites[pose][ch.dir][ch.frame % 2];
+  return sprites[pose][ch.dir][ch.frame % POSE_FRAME_COUNTS[pose]];
 }
 
 function randomRange(min: number, max: number): number {

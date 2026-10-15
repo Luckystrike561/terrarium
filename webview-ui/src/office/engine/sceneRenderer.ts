@@ -34,6 +34,7 @@ import 'pixi.js/unsafe-eval';
 import type { Renderer } from 'pixi.js';
 import { Application, Container, Graphics, Sprite, Text, Texture, TextureStyle } from 'pixi.js';
 
+import { ART_SCALE } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
 import {
   AREA_LABEL_ALPHA,
@@ -110,6 +111,12 @@ import { getPetSpriteData } from './petEntity.js';
 import { hexToNumber, rgbaToPixiColor } from './pixiColor.js';
 
 TextureStyle.defaultOptions.scaleMode = 'nearest';
+
+/** Floor, wall, furniture and character sprites are authored at ART_SCALE art
+ *  pixels per world unit and drawn at this scale so their world footprint
+ *  matches the simulation grid. Pets, carpets, badges and bubbles stay at
+ *  scale 1 and are not covered by this constant. */
+const ART_SPRITE_SCALE = 1 / ART_SCALE;
 
 /** Half-extent (tiles) of a character's or pet's sort box around its feet. */
 const ACTOR_SORT_HALF = 0.01;
@@ -346,7 +353,7 @@ class FloorScene {
       r < 0 || c < 0 || r >= rows || c >= cols || tileMap[r][c] === TileType.VOID;
 
     // Slab edges where the office floor ends, so the room reads as a block,
-    // outlined in ink along the bottom like Habbo's floor edge.
+    // outlined in ink along the bottom.
     const slab = new Graphics();
     slab.roundPixels = true;
     const leftSlab = hexToNumber(FLOOR_SLAB_LEFT_COLOR);
@@ -410,6 +417,7 @@ class FloorScene {
         ),
       );
       sprite.roundPixels = true;
+      sprite.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
       const top = tileCorner(c, r);
       sprite.position.set(top.x - ISO_TILE_W / 2, top.y);
       this.floorContainer.addChild(sprite);
@@ -658,7 +666,7 @@ class FloorScene {
         sprite.texture = getTexture(wallSprite);
         const top = tileCorner(c, r);
         sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
-        sprite.scale.set(1, 1);
+        sprite.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
         sprite.visible = true;
         drawables.push({
           box: { minCol: c, minRow: r, maxCol: c + 1, maxRow: r + 1, layer: SortLayer.FLOOR },
@@ -674,10 +682,10 @@ class FloorScene {
       sprite.texture = texture;
       sprite.visible = true;
       if (f.mirrored) {
-        sprite.scale.set(-1, 1);
-        sprite.position.set(f.x + texture.width, f.y);
+        sprite.scale.set(-ART_SPRITE_SCALE, ART_SPRITE_SCALE);
+        sprite.position.set(f.x + texture.width * ART_SPRITE_SCALE, f.y);
       } else {
-        sprite.scale.set(1, 1);
+        sprite.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
         sprite.position.set(f.x, f.y);
       }
       drawables.push({ box: f.sort, nodes: [sprite] });
@@ -689,8 +697,8 @@ class FloorScene {
       const texture = getTexture(spriteData);
       const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
       const anchor = worldToIso(ch.x, ch.y);
-      const localX = Math.round(anchor.x - texture.width / 2);
-      const localY = Math.round(anchor.y + sittingOffset - texture.height);
+      const localX = Math.round(anchor.x - (texture.width * ART_SPRITE_SCALE) / 2);
+      const localY = Math.round(anchor.y + sittingOffset - texture.height * ART_SPRITE_SCALE);
       const box = actorBox(ch.x, ch.y);
 
       if (ch.matrixEffect) {
@@ -699,7 +707,7 @@ class FloorScene {
         gfx.clear();
         gfx.alpha = 1;
         gfx.visible = true;
-        drawMatrixEffect(gfx, ch, spriteData, localX, localY, 1);
+        drawMatrixEffect(gfx, ch, spriteData, localX, localY, ART_SPRITE_SCALE);
         drawables.push({ box, nodes: [gfx] });
         continue;
       }
@@ -708,7 +716,7 @@ class FloorScene {
       const body = getOrCreateSprite(this.characterPool, ch.id, this.entityContainer);
       body.texture = texture;
       body.position.set(localX, localY);
-      body.scale.set(1, 1);
+      body.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
       body.alpha = 1;
       body.visible = true;
       const nodes: Container[] = [body];
@@ -720,8 +728,8 @@ class FloorScene {
         const outlineData = getOutlineSprite(spriteData);
         const outline = getOrCreateSprite(this.outlinePool, ch.id, this.entityContainer);
         outline.texture = getTexture(outlineData);
-        outline.position.set(localX - 1, localY - 1);
-        outline.scale.set(1, 1);
+        outline.position.set(localX - ART_SPRITE_SCALE, localY - ART_SPRITE_SCALE);
+        outline.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
         outline.alpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA;
         outline.visible = true;
         nodes.unshift(outline);

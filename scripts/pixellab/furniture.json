@@ -1,0 +1,480 @@
+{
+  "spentGenerations": 90,
+  "items": {
+    "DESK": {
+      "front": {
+        "description": "a simple modern office desk with a light wood top and white metal legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 509832,
+        "objectId": "a110812b-c065-40a4-9d7b-3069a45c2e49",
+        "width": 96,
+        "height": 186
+      },
+      "back": {
+        "description": "a simple modern office desk seen from behind, light wood top and white metal legs, back panel facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 137576,
+        "objectId": "216e376a-a7b0-4a2b-bc18-4e1dadbd8d73",
+        "width": 96,
+        "height": 186
+      }
+    },
+    "SMALL_TABLE": {
+      "base": {
+        "description": "a small round side table with a light wood top and thin white legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 480885,
+        "objectId": "95019833-d61f-482b-adfd-7d49347de398",
+        "width": 64,
+        "height": 170
+      }
+    },
+    "COFFEE_TABLE": {
+      "front": {
+        "description": "a low modern rectangular coffee table with a solid glossy light wood tabletop and four sturdy white wooden legs, opaque wood grain clearly visible on the tabletop, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 444010,
+        "objectId": "1ae79621-4b59-46f5-82ca-ea3f0b2f2703",
+        "width": 96,
+        "height": 172
+      }
+    },
+    "PC": {
+      "front_off": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen turned off showing a dark blank display, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 234450,
+        "objectId": "b310740c-8a70-449a-bbea-74941507b3fe",
+        "width": 64,
+        "height": 202
+      },
+      "front_on_1": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen glowing softly with a pale blue light and a few lines of text, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 27662,
+        "objectId": "830e71c3-fece-4a29-8ba4-2f29ecf2d89d",
+        "width": 64,
+        "height": 202
+      },
+      "front_on_2": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen glowing with a pale blue light, blinking text cursor, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 27663,
+        "objectId": "d57e44b1-2883-4cfe-bb82-1b0f03f014ac",
+        "width": 64,
+        "height": 202
+      },
+      "front_on_3": {
+        "description": "a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen glowing with a pale blue light, a subtle soft flicker, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 27664,
+        "objectId": "60673e10-8251-4a12-8538-0e553fdfb26d",
+        "width": 64,
+        "height": 202
+      },
+      "back_off": {
+        "description": "a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front, screen off, no glow, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 407550,
+        "objectId": "d0a82410-26e5-4196-a1a5-e895208ced17",
+        "width": 64,
+        "height": 202
+      },
+      "back_on_1": {
+        "description": "a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front, a soft pale blue glow spilling from the screen edges, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 197538,
+        "objectId": "5561fa3c-7382-412a-ab88-709f8f905381",
+        "width": 64,
+        "height": 202
+      },
+      "back_on_2": {
+        "description": "a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front, a soft pale blue glow spilling from the screen edges, slightly brighter, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 197539,
+        "objectId": "7291168f-8973-46fe-939c-d7351ff7d03f",
+        "width": 64,
+        "height": 202
+      },
+      "back_on_3": {
+        "description": "a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front, a soft pale blue glow flickering gently from the screen edges, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 197540,
+        "objectId": "31a8121a-6a81-4080-a572-4e494e1dc2f1",
+        "width": 64,
+        "height": 202
+      }
+    },
+    "CUSHIONED_CHAIR": {
+      "front": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 212725,
+        "objectId": "718fa1c2-0b14-49db-b13d-d76b2a9b76d5",
+        "width": 64,
+        "height": 190
+      },
+      "back": {
+        "description": "a modern upholstered office swivel chair seen from behind, cream fabric cushions and a white frame, backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 470171,
+        "objectId": "e0fb6925-7385-4a24-b465-c24405b69d60",
+        "width": 64,
+        "height": 190
+      }
+    },
+    "WOODEN_CHAIR": {
+      "front": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 641259,
+        "objectId": "d7375375-6b52-4a3c-96f5-438e05a29297",
+        "width": 64,
+        "height": 182
+      },
+      "back": {
+        "description": "a simple wooden dining chair seen from behind, light wood frame, backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 231205,
+        "objectId": "31af4718-76b5-4880-8097-f880f5c9f4d6",
+        "width": 64,
+        "height": 182
+      }
+    },
+    "SOFA": {
+      "front": {
+        "description": "a cozy two-seat sofa with soft pastel sage green cushions and light wood legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 299014,
+        "objectId": "aab541bd-00a7-4260-86e9-5fba126abeec",
+        "width": 96,
+        "height": 194
+      },
+      "back": {
+        "description": "a cozy two-seat sofa seen from behind, soft pastel sage green back cushions, light wood legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 421098,
+        "objectId": "f6445509-afaf-4b6c-ba45-7fa8baf48219",
+        "width": 96,
+        "height": 194
+      }
+    },
+    "CUSHIONED_BENCH": {
+      "front": {
+        "description": "a cozy upholstered bench with a thick pastel blush pink seat cushion clearly separate from a tall pastel blush pink backrest cushion, white wooden frame and legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 603424,
+        "objectId": "9b889b9b-c2d8-43c2-9acd-535a5c7889c3",
+        "width": 96,
+        "height": 188
+      }
+    },
+    "WOODEN_BENCH": {
+      "front": {
+        "description": "a simple light wood bench with a smooth plank seat, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 31958,
+        "objectId": "386697f7-9d10-4ef2-8a8a-6f2244e4e26a",
+        "width": 96,
+        "height": 174
+      }
+    },
+    "EXEC_CHAIR": {
+      "front": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 444454,
+        "objectId": "e9b93307-43bd-438e-a2bf-78d285b26c2f",
+        "width": 64,
+        "height": 198
+      },
+      "back": {
+        "description": "an elegant high-back executive office chair seen from behind, cream leather upholstery and brushed gold trim, tall backrest facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 102154,
+        "objectId": "07c0eae5-a7e5-470c-a045-ad21b807058b",
+        "width": 64,
+        "height": 198
+      }
+    },
+    "PLANT": {
+      "base": {
+        "description": "a leafy potted houseplant in a simple white ceramic pot, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 997536,
+        "objectId": "0f7ecab1-2a22-428e-8c04-f934d56c97e0",
+        "width": 36,
+        "height": 160
+      }
+    },
+    "PLANT_2": {
+      "base": {
+        "description": "a bushy potted houseplant with broad green leaves in a pale terracotta pot, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 51853,
+        "objectId": "c2df1d15-c144-4761-9463-290fc3a64a1b",
+        "width": 40,
+        "height": 176
+      }
+    },
+    "LARGE_PLANT": {
+      "base": {
+        "description": "a tall leafy potted floor plant in a large white ceramic planter, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 932676,
+        "objectId": "80ae19a1-9f9e-4bdb-addc-eb7c907a48c6",
+        "width": 64,
+        "height": 230
+      }
+    },
+    "CACTUS": {
+      "base": {
+        "description": "a small potted cactus in a simple white ceramic pot, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 884350,
+        "objectId": "f1f68e9d-dc11-40ea-9fdd-8feabdfad2e5",
+        "width": 32,
+        "height": 148
+      }
+    },
+    "POT": {
+      "base": {
+        "description": "a small potted succulent plant with neat rounded pale-green leaves in a pastel pink ceramic pot, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 649398,
+        "objectId": "7165aca2-3766-46f8-88c0-e0a7435633f7",
+        "width": 32,
+        "height": 168
+      }
+    },
+    "BIN": {
+      "base": {
+        "description": "a small round office waste bin in white and light grey plastic, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 278788,
+        "objectId": "276824e6-b6da-45db-8e56-5c38c678cb8d",
+        "width": 32,
+        "height": 144
+      }
+    },
+    "COFFEE": {
+      "base": {
+        "description": "a small brown ceramic coffee mug filled with dark coffee, white steam curling above it, a simple loop handle on the side, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 760447,
+        "objectId": "7fee94ab-4573-4594-97fe-51cd649b0ca9",
+        "width": 32,
+        "height": 136
+      }
+    },
+    "COFFEE_MACHINE": {
+      "off": {
+        "description": "a modern countertop coffee machine in white and light wood, idle with no steam, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 926121,
+        "objectId": "ea337fbb-1af7-4eac-a665-b0eac6797601",
+        "width": 64,
+        "height": 178
+      },
+      "on_1": {
+        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a small puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 749975,
+        "objectId": "8a08844d-57f5-47e7-824c-40f240c3f8a2",
+        "width": 64,
+        "height": 178
+      },
+      "on_2": {
+        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a larger puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 749976,
+        "objectId": "afbc516e-46fa-4734-81b7-9fcdd780309b",
+        "width": 64,
+        "height": 178
+      },
+      "on_3": {
+        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a wisp of steam drifting to the side, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 749977,
+        "objectId": "75752e05-13bd-4052-a73d-4a0c0ff82487",
+        "width": 64,
+        "height": 178
+      }
+    },
+    "KITCHEN_COUNTER": {
+      "front": {
+        "description": "a modern kitchen counter cabinet with a white countertop and light wood cabinet doors, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 750352,
+        "objectId": "334237a5-6244-42cf-b06f-289ecfdb0d34",
+        "width": 96,
+        "height": 190
+      }
+    },
+    "FRIDGE": {
+      "front": {
+        "description": "a modern compact refrigerator in white and light grey with rounded corners, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 186804,
+        "objectId": "4fdaaefb-5760-4442-9bab-9f6844c79612",
+        "width": 64,
+        "height": 218
+      }
+    },
+    "WATER_COOLER": {
+      "base": {
+        "description": "a modern water cooler dispenser with a pale blue tinted water bottle on a white base, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 761997,
+        "objectId": "0d74f738-48f7-4353-a5f4-4b98762546bf",
+        "width": 32,
+        "height": 160
+      }
+    },
+    "RUG_PLANT": {
+      "front": {
+        "description": "a long low planter box full of leafy green plants, white planter sides, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 79135,
+        "objectId": "b933ae9f-8027-4d4c-935b-7fd0bc7462c0",
+        "width": 96,
+        "height": 210
+      }
+    },
+    "FLOOR_LAMP": {
+      "base": {
+        "description": "a modern floor lamp with a round pale cream fabric drum lamp shade sitting flat atop a slim dark wood pole stand and a small round dark wood base, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 379424,
+        "objectId": "c70f13e0-af6f-4143-9118-f789ff50ae44",
+        "width": 44,
+        "height": 196
+      }
+    },
+    "CLOCK": {
+      "front": {
+        "description": "a round wall clock with a warm cream-beige face, thick black clock hands pointing to ten past ten, bold black tick marks around the rim, and a dark wood case, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 875293,
+        "objectId": "ce7f4a13-7f67-43c8-8a15-c831a8b86a91",
+        "width": 64,
+        "height": 156
+      }
+    },
+    "SMALL_PAINTING": {
+      "front": {
+        "description": "a small framed abstract painting in soft pastel colors with a light wood frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 962059,
+        "objectId": "ee26b812-969d-4ac2-9a27-55dbb06cf0a2",
+        "width": 64,
+        "height": 266
+      }
+    },
+    "SMALL_PAINTING_2": {
+      "front": {
+        "description": "a small framed landscape painting in soft pastel colors with a white frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 397374,
+        "objectId": "7445a1e7-e1e1-4f4e-9225-6593d75ad751",
+        "width": 64,
+        "height": 266
+      }
+    },
+    "WALL_SHELF": {
+      "front": {
+        "description": "a simple light wood floating wall shelf with a small potted plant and a book, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 227972,
+        "objectId": "0f0af1c4-c2fa-4e2c-bdf7-0b03ccd46649",
+        "width": 64,
+        "height": 266
+      }
+    },
+    "CTO_SIGN": {
+      "front": {
+        "description": "a small modern office name-plate sign, a solid white plaque with the bold dark letters \"CTO\" printed on it, mounted in a light wood frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 754829,
+        "objectId": "890e955e-0b93-41f3-b9cf-65382236e449",
+        "width": 64,
+        "height": 144
+      }
+    },
+    "HANGING_PLANT": {
+      "front": {
+        "description": "a small trailing houseplant in a hanging white ceramic planter, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 84811,
+        "objectId": "4048d20b-ef39-4bea-a80e-4056702b9137",
+        "width": 64,
+        "height": 266
+      }
+    },
+    "LARGE_PAINTING": {
+      "front": {
+        "description": "a large framed abstract painting in soft pastel colors with a light wood frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 322135,
+        "objectId": "f9e6ab67-904c-4f1f-879e-0d6fec836b2d",
+        "width": 96,
+        "height": 280
+      }
+    },
+    "EXEC_DESK": {
+      "front": {
+        "description": "an elegant executive desk with a white lacquered top, light wood drawer fronts and brass handle accents, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 832822,
+        "objectId": "43710ab4-2178-4cde-8ed7-187c8528e6fa",
+        "width": 160,
+        "height": 224
+      },
+      "back": {
+        "description": "an elegant executive desk seen from behind, white lacquered top, light wood drawer fronts, back panel facing the viewer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, seen from behind with its back facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 839738,
+        "objectId": "c83b0119-a829-40ba-bdf4-d8efacaf8b83",
+        "width": 160,
+        "height": 224
+      }
+    },
+    "STOOL": {
+      "base": {
+        "description": "a simple round bar stool with a pale wood seat and thin white metal legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 701888,
+        "objectId": "34fc14b0-4f44-4ba1-8cac-3b2342e331e9",
+        "width": 64,
+        "height": 136
+      }
+    },
+    "MEETING_TABLE": {
+      "front": {
+        "description": "a long modern conference table with a light wood top and white legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 524793,
+        "objectId": "22d565c2-cdee-4328-a827-a12e3bbf8bdf",
+        "width": 160,
+        "height": 216
+      }
+    },
+    "BOOKSHELF": {
+      "front": {
+        "description": "a modern light wood bookshelf with a few books and a small potted plant on its shelves, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 40944,
+        "objectId": "5c4085c3-6b72-4de9-800a-e0b946f43dd5",
+        "width": 96,
+        "height": 280
+      }
+    },
+    "DOUBLE_BOOKSHELF": {
+      "front": {
+        "description": "a tall modern light wood bookcase filled with books and a small potted plant on top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 992130,
+        "objectId": "a79551c9-95a0-44a2-af0c-47f6dc490bad",
+        "width": 96,
+        "height": 280
+      }
+    },
+    "WHITEBOARD": {
+      "front": {
+        "description": "a modern whiteboard in a light wood frame with a few colorful sticky notes, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 35276,
+        "objectId": "50bc0424-ca2e-47c6-bc75-3e00f5908c7f",
+        "width": 96,
+        "height": 280
+      }
+    },
+    "KANBAN_BOARD": {
+      "front": {
+        "description": "a modern kanban task board mounted on the wall, divided into three columns by thin wood dividers, each column holding several colorful opaque sticky notes in pink, yellow and blue, solid white board surface, light wood frame, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 404397,
+        "objectId": "67d6e7b2-86d8-41d4-804f-b8bcf5b77a6c",
+        "width": 128,
+        "height": 216
+      }
+    },
+    "WALL_TV": {
+      "front_off": {
+        "description": "a modern flat wall-mounted screen with a thin white bezel, turned off with a dark blank display, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 660150,
+        "objectId": "26d00997-ec1b-4e20-9c6b-31ecca0bb68d",
+        "width": 96,
+        "height": 280
+      },
+      "front_on_1": {
+        "description": "a modern flat wall-mounted screen with a thin white bezel, turned on and glowing with a soft pale blue display, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 322474,
+        "objectId": "7d6a12ee-1427-410a-b297-ce90005f54c5",
+        "width": 96,
+        "height": 280
+      },
+      "front_on_2": {
+        "description": "a modern flat wall-mounted screen with a thin white bezel, turned on, glowing pale blue display, a faint shimmer, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 322475,
+        "objectId": "b8c2cb9c-1588-4212-93f0-4b255710a690",
+        "width": 96,
+        "height": 280
+      },
+      "front_on_3": {
+        "description": "a modern flat wall-mounted screen with a thin white bezel, turned on, glowing pale blue display, brightness pulsing gently, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, flat wall-mounted object, hanging flat against a wall and viewed frontally, transparent background",
+        "seed": 322476,
+        "objectId": "9ec6288c-a07e-4288-bef5-3453f9a880f4",
+        "width": 96,
+        "height": 280
+      }
+    }
+  }
+}

@@ -227,9 +227,7 @@ export interface CharacterSpritesLoaded {
 }
 
 export interface CharacterSpriteSet {
-  down: string[][][];
-  up: string[][][];
-  right: string[][][];
+  png: string;
 }
 
 export interface PetSpritesLoaded {

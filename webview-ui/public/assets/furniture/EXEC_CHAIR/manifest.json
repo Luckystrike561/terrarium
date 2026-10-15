@@ -13,8 +13,8 @@
       "type": "asset",
       "id": "EXEC_CHAIR_FRONT",
       "file": "EXEC_CHAIR_FRONT.png",
-      "width": 32,
-      "height": 44,
+      "width": 64,
+      "height": 90,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "front"
@@ -23,8 +23,8 @@
       "type": "asset",
       "id": "EXEC_CHAIR_RIGHT",
       "file": "EXEC_CHAIR_RIGHT.png",
-      "width": 32,
-      "height": 44,
+      "width": 64,
+      "height": 90,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "right"
@@ -33,8 +33,8 @@
       "type": "asset",
       "id": "EXEC_CHAIR_BACK",
       "file": "EXEC_CHAIR_BACK.png",
-      "width": 32,
-      "height": 44,
+      "width": 64,
+      "height": 76,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "back"
@@ -43,8 +43,8 @@
       "type": "asset",
       "id": "EXEC_CHAIR_LEFT",
       "file": "EXEC_CHAIR_LEFT.png",
-      "width": 32,
-      "height": 44,
+      "width": 64,
+      "height": 76,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "left"

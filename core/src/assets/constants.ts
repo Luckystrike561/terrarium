@@ -10,10 +10,10 @@ export const WALL_PIECE_WIDTH = 16;
 export const WALL_PIECE_HEIGHT = 32;
 export const WALL_GRID_COLS = 4;
 export const WALL_BITMASK_COUNT = 16;
-export const FLOOR_TILE_SIZE = 16;
+export const FLOOR_TILE_SIZE = 32;
 export const CHARACTER_DIRECTIONS = ['down', 'up', 'right'] as const;
-export const CHAR_FRAME_W = 32;
-export const CHAR_FRAME_H = 56;
+export const CHAR_FRAME_W = 96;
+export const CHAR_FRAME_H = 96;
 /** Frame order of every character sheet row. The generator, the decoder and
  *  the webview all index frames by it. */
 export const CHARACTER_FRAMES = [
@@ -22,8 +22,12 @@ export const CHARACTER_FRAMES = [
   'walk3',
   'type1',
   'type2',
+  'type3',
+  'type4',
   'read1',
   'read2',
+  'read3',
+  'read4',
   'idle1',
   'idle2',
   'rest1',
@@ -39,6 +43,10 @@ export const CHARACTER_FRAMES = [
 ] as const;
 export type CharacterFrame = (typeof CHARACTER_FRAMES)[number];
 export const CHAR_FRAMES_PER_ROW = CHARACTER_FRAMES.length;
+/** Art pixels per world unit for generated office art (characters, furniture,
+ *  floors). The world grid (TILE_SIZE, footprints, heights) is unchanged;
+ *  every generated sprite is authored at this scale and drawn at half size. */
+export const ART_SCALE = 2;
 /** Bundled agent sheets, char_0.png to char_11.png. */
 export const CHAR_COUNT = 12;
 /** The CTO's own sheet, beside the agent sheets. No agent is drawn with it. */

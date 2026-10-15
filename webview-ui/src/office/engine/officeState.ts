@@ -20,6 +20,7 @@ import {
   MAX_PET_ID_LENGTH,
   PET_HIT_HALF_WIDTH,
   PET_HIT_HEIGHT,
+  SEAT_LINGER_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
 import { worldToIso } from '../iso.js';
@@ -1138,9 +1139,10 @@ export class OfficeState {
     if (ch) {
       ch.isActive = active;
       if (!active) {
-        // Sentinel -1: signals turn just ended, skip next seat rest timer.
-        // Prevents the WALK handler from setting a 2-4 min rest on arrival.
-        ch.seatTimer = -1;
+        // Negative sentinel: a turn just ended. Counts up toward 0 in the TYPE
+        // case, lingering seated at the desk in the rest pose instead of an
+        // instant walk to the lounge — see SEAT_LINGER_SEC.
+        ch.seatTimer = -SEAT_LINGER_SEC;
         ch.path = [];
         ch.moveProgress = 0;
       } else {
