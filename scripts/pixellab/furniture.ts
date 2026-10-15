@@ -164,8 +164,8 @@ interface ItemPrompt {
   front: string;
   back?: string;
   turnaround?: boolean;
-  /** The cached front render lies along the wrong floor axis. Used where the
-   *  8-direction object misreads a symmetric item and returns no diagonals. */
+  /** The front view (the cached render, or the turnaround's south-west view)
+   *  came back along the other floor axis from its footprint. */
   mirrorFront?: boolean;
   /** The turnaround's north-east view of a long item came back along the
    *  other floor axis from its south-west view. */
@@ -198,6 +198,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
   DESK: {
     front: 'a simple modern office desk with a light wood top and white metal legs',
     turnaround: true,
+    mirrorFront: true,
   },
   SMALL_TABLE: {
     front: 'a small round side table with a light wood top and thin white legs',
