@@ -441,7 +441,10 @@ components:
         bundled default exists. `wasReset` is true when the bundled default
         replaced an outdated user layout. `layout` furnishes the first floor;
         every other floor uses `floorLayout`, the bundled default, sent only
-        when it differs from `layout`.
+        when it differs from `layout`. `isDefault` is true when `layout` is the
+        bundled default (no `~/.terrarium/layout.json`): the webview then
+        composes its own layout per floor from the live agent count instead of
+        using `layout`/`floorLayout` verbatim (see SettingsLoaded.ctoOffice).
       type: object
       additionalProperties: false
       required: [type, layout]
@@ -463,6 +466,8 @@ components:
           description: |
             The bundled default layout, for every floor above the first. Absent
             when `layout` already is the bundled default.
+        isDefault:
+          type: boolean
 
     FurnitureAssetsLoaded:
       description: Furniture catalog and sprite data, sent once after webviewReady.
@@ -631,7 +636,11 @@ components:
                   type: string
 
     SettingsLoaded:
-      description: All persisted user-level settings, sent once on connect.
+      description: |
+        All persisted user-level settings, sent once on connect. `ctoOffice`
+        is the `standalone.ctoOffice` config.json flag (default true): whether
+        a composed office (see LayoutLoaded.isDefault) centres the CTO module
+        or rings team modules around the first one instead.
       type: object
       additionalProperties: false
       required:
@@ -650,6 +659,8 @@ components:
         hooksEnabled:
           type: boolean
         hooksInfoShown:
+          type: boolean
+        ctoOffice:
           type: boolean
 
     HooksStatus:

@@ -205,8 +205,11 @@ export class OfficeState {
     }
     this.placeCto();
 
-    // First pass: try to keep characters at their existing seats
+    // First pass: try to keep characters at their existing seats. A despawning character
+    // (removeAgent already freed its seat and leaves it in `characters` for its ~300ms exit
+    // animation) is skipped entirely so that seat stays free instead of being re-claimed here.
     for (const ch of this.characters.values()) {
+      if (ch.matrixEffect === 'despawn') continue;
       if (ch.seatId && this.seats.has(ch.seatId)) {
         const seat = this.seats.get(ch.seatId)!;
         if (!seat.assigned) {
@@ -227,6 +230,7 @@ export class OfficeState {
 
     // Second pass: assign remaining characters to free seats
     for (const ch of this.characters.values()) {
+      if (ch.matrixEffect === 'despawn') continue;
       if (ch.seatId) continue;
       const seatId = this.findFreeSeat(ch.folderName);
       if (seatId) {
@@ -303,7 +307,7 @@ export class OfficeState {
       this.cto = null;
       return;
     }
-    const office = computeOfficeTiles(this.tileMap, seat);
+    const office = computeOfficeTiles(this.tileMap, seat, this.layout.ctoOfficeArea);
     for (const [uid, s] of this.seats) {
       if (!office.has(`${s.seatCol},${s.seatRow}`)) continue;
       s.assigned = true;
@@ -403,7 +407,13 @@ export class OfficeState {
     }
     if (ctoSeat) {
       slots.push(
-        ...computeDoorQueue(this.tileMap, this.blockedTiles, ctoSeat, CTO_QUEUE_MAX_SLOTS),
+        ...computeDoorQueue(
+          this.tileMap,
+          this.blockedTiles,
+          ctoSeat,
+          CTO_QUEUE_MAX_SLOTS,
+          this.layout.ctoOfficeArea,
+        ),
       );
     }
     const assigned = new Map<number, Character['ctoQueueSlot']>();

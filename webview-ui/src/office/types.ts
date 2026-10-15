@@ -139,6 +139,21 @@ export interface AreaDefinition {
   color: string;
 }
 
+/** The CTO module's own tile rectangle (inclusive) and a queue anchor just
+ *  outside it, facing the office, exported by `core/src/officeModules.ts`'s
+ *  composer. `ctoOffice.ts` uses it instead of a wall-doorway search when
+ *  present, since a composed office no longer walls a CTO-to-team or
+ *  team-to-team join. */
+export interface CtoOfficeArea {
+  c0: number;
+  r0: number;
+  c1: number;
+  r1: number;
+  queueCol: number;
+  queueRow: number;
+  queueFacing: Direction;
+}
+
 export interface OfficeLayout {
   version: 1;
   cols: number;
@@ -157,6 +172,10 @@ export interface OfficeLayout {
   areas?: AreaDefinition[];
   /** Per-tile Area label, parallel to tiles array. null = no area assignment. */
   areaTiles?: Array<string | null>;
+  /** The CTO office's bounds for a composed layout; absent for a
+   *  hand-authored or seeded one, which falls back to the wall-doorway
+   *  search. */
+  ctoOfficeArea?: CtoOfficeArea;
 }
 
 export interface Character {

@@ -197,13 +197,18 @@ export function useExtensionMessages(getBuilding: () => Building): ExtensionMess
       }
 
       if (msg.type === 'layoutLoaded') {
-        const rawLayout = msg.layout as OfficeLayout | null;
-        const layout = rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null;
-        const rawFloorLayout = msg.floorLayout as OfficeLayout | undefined;
-        const floorLayout =
-          rawFloorLayout?.version === 1 ? migrateLayoutColors(rawFloorLayout) : layout;
-        if (layout) {
-          building.setLayouts(layout, floorLayout ?? layout);
+        if (msg.isDefault) {
+          building.enableModularOffice();
+        } else {
+          const rawLayout = msg.layout as OfficeLayout | null;
+          const layout =
+            rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null;
+          const rawFloorLayout = msg.floorLayout as OfficeLayout | undefined;
+          const floorLayout =
+            rawFloorLayout?.version === 1 ? migrateLayoutColors(rawFloorLayout) : layout;
+          if (layout) {
+            building.setLayouts(layout, floorLayout ?? layout);
+          }
         }
         // Add buffered agents now that layout (and seats) are correct
         for (const p of pendingAgents) {
@@ -617,6 +622,9 @@ export function useExtensionMessages(getBuilding: () => Building): ExtensionMess
         }
         if (typeof msg.extensionVersion === 'string') {
           setExtensionVersion(msg.extensionVersion as string);
+        }
+        if (typeof msg.ctoOffice === 'boolean') {
+          building.setCtoOfficeEnabled(msg.ctoOffice as boolean);
         }
       } else if (msg.type === 'hooksStatus') {
         if (

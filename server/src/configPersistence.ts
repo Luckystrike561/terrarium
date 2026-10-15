@@ -13,6 +13,10 @@ export interface AdapterSettings {
   lastSeenVersion: string;
   hooksInfoShown: boolean;
   areaMappings: Record<string, string[]>;
+  /** Centre a composed office (see readLayoutFromFile/clientMessageHandler's
+   *  `isDefault`) on the CTO module, default true. No settings UI; edited by
+   *  hand in config.json. */
+  ctoOffice: boolean;
 }
 
 /** All keys in AdapterSettings. Used by adapters to map `terrarium.foo` → `foo`.
@@ -60,6 +64,7 @@ const DEFAULT_ADAPTER_SETTINGS: AdapterSettings = {
   lastSeenVersion: '',
   hooksInfoShown: false,
   areaMappings: {},
+  ctoOffice: true,
 };
 
 function getConfigFilePath(): string {
@@ -145,6 +150,8 @@ function parseAdapterSettings(raw: unknown): AdapterSettings {
         ? obj.hooksInfoShown
         : DEFAULT_ADAPTER_SETTINGS.hooksInfoShown,
     areaMappings: parseAreaMappings(obj.areaMappings),
+    ctoOffice:
+      typeof obj.ctoOffice === 'boolean' ? obj.ctoOffice : DEFAULT_ADAPTER_SETTINGS.ctoOffice,
   };
 }
 

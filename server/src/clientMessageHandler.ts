@@ -372,6 +372,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     extensionVersion: process.env.TERRARIUM_VERSION ?? '',
     hooksEnabled,
     hooksInfoShown: adapter?.getSetting(KEY_HOOKS_INFO_SHOWN, false) ?? false,
+    ctoOffice: cfg.standalone.ctoOffice,
   });
 
   // 4a. Actual install state, distinct from the hooksEnabled preference —
@@ -478,6 +479,7 @@ function handleWebviewReady(send: WsSend, ctx: ClientMessageContext): void {
     type: 'layoutLoaded',
     layout: savedLayout ?? defaultLayout,
     floorLayout: savedLayout && defaultLayout ? defaultLayout : undefined,
+    isDefault: savedLayout === null,
   });
 
   // 7. Agent state, AFTER layoutLoaded -- the characters they target only

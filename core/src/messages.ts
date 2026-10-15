@@ -189,6 +189,7 @@ export interface LayoutLoaded {
   layout: Record<string, any> | null;
   wasReset?: boolean;
   floorLayout?: Record<string, any>;
+  isDefault?: boolean;
 }
 
 export interface FurnitureAssetsLoaded {
@@ -265,6 +266,7 @@ export interface SettingsLoaded {
   extensionVersion: string;
   hooksEnabled: boolean;
   hooksInfoShown: boolean;
+  ctoOffice?: boolean;
 }
 
 export interface HooksStatus {

@@ -65,7 +65,7 @@ import { paintDaylightSkyline } from '../backdrop.js';
 import { getColorizedFloorSprite, WALL_COLOR } from '../floorTiles.js';
 import type { Point } from '../iso.js';
 import { ISO_TILE_H, ISO_TILE_W, projectToDiamond, tileCorner, worldToIso } from '../iso.js';
-import { getWallSprite } from '../isoWalls.js';
+import { getDoorFrameSprite, getWallSprite } from '../isoWalls.js';
 import { contentBounds, gridRect, mapOffset } from '../projection.js';
 import {
   getCarpetJunctionSprite,
@@ -258,6 +258,7 @@ class FloorScene {
 
   private furniturePool = new Map<string, Sprite>();
   private wallPool = new Map<string, Sprite>();
+  private doorFramePool = new Map<string, Sprite>();
   private characterPool = new Map<number, Sprite>();
   private outlinePool = new Map<number, Sprite>();
   private matrixPool = new Map<number, Graphics>();
@@ -612,6 +613,7 @@ class FloorScene {
   private updateEntities(state: FloorRenderState): void {
     const liveFurniture = new Set<string>();
     const liveWalls = new Set<string>();
+    const liveDoorFrames = new Set<string>();
     const liveBodies = new Set<number>();
     const liveOutlines = new Set<number>();
     const liveMatrix = new Set<number>();
@@ -622,20 +624,36 @@ class FloorScene {
     const layoutCols = state.layoutCols ?? tileMap[0]?.length ?? 0;
     for (let r = 0; r < tileMap.length; r++) {
       for (let c = 0; c < tileMap[r].length; c++) {
-        if (tileMap[r][c] !== TileType.WALL) continue;
+        if (tileMap[r][c] === TileType.WALL) {
+          const key = `${r}:${c}`;
+          liveWalls.add(key);
+          const color = state.tileColors?.[r * layoutCols + c];
+          const { sprite: wallSprite, height } = getWallSprite(
+            tileMap,
+            c,
+            r,
+            color ? wallColorToHex(color) : WALL_COLOR,
+          );
+          const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
+          sprite.texture = getTexture(wallSprite);
+          const top = tileCorner(c, r);
+          sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
+          sprite.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
+          sprite.visible = true;
+          drawables.push({
+            box: { minCol: c, minRow: r, maxCol: c + 1, maxRow: r + 1, layer: SortLayer.FLOOR },
+            nodes: [sprite],
+          });
+          continue;
+        }
+        const doorFrame = getDoorFrameSprite(tileMap, c, r);
+        if (!doorFrame) continue;
         const key = `${r}:${c}`;
-        liveWalls.add(key);
-        const color = state.tileColors?.[r * layoutCols + c];
-        const { sprite: wallSprite, height } = getWallSprite(
-          tileMap,
-          c,
-          r,
-          color ? wallColorToHex(color) : WALL_COLOR,
-        );
-        const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
-        sprite.texture = getTexture(wallSprite);
+        liveDoorFrames.add(key);
+        const sprite = getOrCreateSprite(this.doorFramePool, key, this.entityContainer);
+        sprite.texture = getTexture(doorFrame.sprite);
         const top = tileCorner(c, r);
-        sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
+        sprite.position.set(top.x - ISO_TILE_W / 2, top.y - doorFrame.height);
         sprite.scale.set(ART_SPRITE_SCALE, ART_SPRITE_SCALE);
         sprite.visible = true;
         drawables.push({
@@ -732,6 +750,7 @@ class FloorScene {
 
     pruneStale(this.furniturePool, this.entityContainer, liveFurniture);
     pruneStale(this.wallPool, this.entityContainer, liveWalls);
+    pruneStale(this.doorFramePool, this.entityContainer, liveDoorFrames);
     pruneStale(this.characterPool, this.entityContainer, liveBodies);
     pruneStale(this.outlinePool, this.entityContainer, liveOutlines);
     pruneStale(this.matrixPool, this.entityContainer, liveMatrix);

@@ -161,7 +161,7 @@ test.describe('Carpet', () => {
 
 const DEFAULT_LAYOUT_PATH = path.join(
   __dirname,
-  '../../../../webview-ui/public/assets/default-layout-7.json',
+  '../../../../webview-ui/public/assets/default-layout-11.json',
 );
 
 /** A valid furniture type from the bundled default layout (for the surface-placement seed). */

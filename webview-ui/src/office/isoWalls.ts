@@ -1,14 +1,17 @@
 /**
  * Wall tiles as isometric sprites. Walls on the far edges of the office (their
  * -row or -col neighbour is VOID or off the grid) are thin, tall wallpapered
- * boxes standing on the inner edge of their tile, the room's shell.
- * Every other wall is a glass partition: a thin framed pane along the wall's
- * run, so the room behind stays visible, the usual cutaway for an isometric
- * interior.
+ * boxes standing on the inner edge of their tile, the room's shell, with a
+ * window punched into some of them. Every other wall is a glass partition: a
+ * thin framed pane along the wall's run, so the room behind stays visible,
+ * the usual cutaway for an isometric interior. A walkable gap in either kind
+ * of wall line gets a door frame (`getDoorFrameSprite`), drawn on the gap
+ * tile itself since there is no wall tile there to carry it.
  */
 
 import { ART_SCALE } from '../../../core/src/assets/constants.ts';
 import {
+  DOOR_FRAME_COLOR,
   GLASS_FRAME_COLOR,
   GLASS_PANE_COLOR,
   GLASS_SHEEN_COLOR,
@@ -37,6 +40,23 @@ const PANE_HALF = 1;
 const FRAME_BASE = 3;
 const FRAME_TOP = 2;
 const MULLION = 1;
+/** A punched window on a solid back wall: pane bounds along the face (world
+ *  units into a 16-wide tile face) and height band, with a 1-unit painted
+ *  trim around it. Every 3rd eligible back-wall tile gets one, so a long run
+ *  reads as a fenestrated wall rather than a blank slab. */
+const WINDOW_MARGIN = 3;
+const WINDOW_SILL_PX = 16;
+const WINDOW_HEAD_PX = 42;
+const WINDOW_TRIM_PX = 1;
+const WINDOW_PERIOD = 3;
+/** A door frame's post width and its centered depth into the tile, both in
+ *  world units, and the lintel band's height at the top of the opening. */
+const DOOR_POST_WIDTH = 2;
+const DOOR_FRAME_DEPTH = 2;
+const DOOR_LINTEL_PX = 10;
+/** Longest gap in a wall line still read as a door: matches
+ *  `ctoOffice.ts`'s `MAX_DOOR_WIDTH`, the doorway a human queues outside. */
+const MAX_DOOR_WIDTH = 2;
 
 /** Scale a `#RRGGBB` colour toward black (< 1) or toward white (> 1). */
 function shadeHex(hex: string, amount: number): string {
@@ -125,18 +145,43 @@ function traceSprite(boxes: readonly Box[], height: number): SpriteData {
  *  overlapping cap ink never lines up pixel-for-pixel. A flat, undecorated
  *  cap plus a face whose ink only depends on height tiles seamlessly: every
  *  tile agrees on the same height-only rule regardless of which one a given
- *  screen pixel's ray happens to resolve to. */
-function solidWall(baseHex: string, topOpen: boolean, leftOpen: boolean): SpriteData {
+ *  screen pixel's ray happens to resolve to. `window` punches a pane into
+ *  the face (skipped on a corner post tile, which has no plain face). */
+function solidWall(
+  baseHex: string,
+  topOpen: boolean,
+  leftOpen: boolean,
+  window: boolean,
+): SpriteData {
   const cap = shadeHex(baseHex, CAP_SHADE);
   const left = shadeHex(baseHex, LEFT_FACE_SHADE);
   const right = shadeHex(baseHex, RIGHT_FACE_SHADE);
   const skirting = shadeHex(baseHex, SKIRTING_SHADE);
-  const face = (f: 'left' | 'right', z: number): string => {
+  const windowGlass = (along: number, z: number): string => {
+    const stripe = (along + z * 0.6) % 14;
+    return stripe < 2 ? GLASS_SHEEN_COLOR : GLASS_PANE_COLOR;
+  };
+  const face = (f: 'left' | 'right', along: number, z: number): string => {
     if (z > WALL_HEIGHT_PX - CAP_INK_WIDTH_UNITS) return ROOM_INK_COLOR;
     if (z < SKIRTING_PX) return skirting;
+    if (window) {
+      const paneLo = WINDOW_MARGIN;
+      const paneHi = TILE - WINDOW_MARGIN;
+      if (along > paneLo && along < paneHi && z > WINDOW_SILL_PX && z < WINDOW_HEAD_PX) {
+        return windowGlass(along, z);
+      }
+      if (
+        along > paneLo - WINDOW_TRIM_PX &&
+        along < paneHi + WINDOW_TRIM_PX &&
+        z > WINDOW_SILL_PX - WINDOW_TRIM_PX &&
+        z < WINDOW_HEAD_PX + WINDOW_TRIM_PX
+      ) {
+        return cap;
+      }
+    }
     return f === 'right' ? right : left;
   };
-  const paint: Box['paint'] = (f, _along, z) => (f === 'top' ? cap : face(f, z));
+  const paint: Box['paint'] = (f, along, z) => (f === 'top' ? cap : face(f, along, z));
   // Both walls stand on the tile's inner edges, so where they meet only the
   // square post on the inner corner faces the room. Anything outside it
   // would poke out past the other wall's back.
@@ -212,9 +257,12 @@ export function getWallSprite(
   const topOpen = openBeyond(tileMap, col, row - 1);
   const leftOpen = openBeyond(tileMap, col - 1, row);
   if (topOpen || leftOpen) {
-    const key = `solid:${topOpen ? 1 : 0}${leftOpen ? 1 : 0}:${baseHex}`;
+    // A corner post (both open) has no plain face to punch a window into.
+    const corner = topOpen && leftOpen;
+    const isWindow = !corner && (topOpen ? col % WINDOW_PERIOD === 1 : row % WINDOW_PERIOD === 1);
+    const key = `solid:${topOpen ? 1 : 0}${leftOpen ? 1 : 0}${isWindow ? 1 : 0}:${baseHex}`;
     let sprite = cache.get(key);
-    if (!sprite) cache.set(key, (sprite = solidWall(baseHex, topOpen, leftOpen)));
+    if (!sprite) cache.set(key, (sprite = solidWall(baseHex, topOpen, leftOpen, isWindow)));
     return { sprite, height: WALL_HEIGHT_PX };
   }
   const alongCols = isWall(tileMap, col - 1, row) || isWall(tileMap, col + 1, row);
@@ -223,4 +271,112 @@ export function getWallSprite(
   let sprite = cache.get(key);
   if (!sprite) cache.set(key, (sprite = glassWall(alongCols, alongRows)));
   return { sprite, height: WALL_GLASS_HEIGHT_PX };
+}
+
+/** A walkable tile inside a short (<= MAX_DOOR_WIDTH) gap of a wall line,
+ *  the axis the gap runs along, and whether a wall sits immediately on each
+ *  side of this particular tile (so a 2-wide door gets one post per tile and
+ *  a shared lintel, and a 1-wide door gets both posts on its only tile). */
+function doorwayGeometry(
+  tileMap: TileTypeVal[][],
+  col: number,
+  row: number,
+): { alongCols: boolean; capBefore: boolean; capAfter: boolean } | null {
+  const t = tileMap[row]?.[col];
+  if (t === undefined || t === TileType.WALL || t === TileType.VOID) return null;
+  for (const [dc, dr, alongCols] of [
+    [1, 0, true],
+    [0, 1, false],
+  ] as const) {
+    let before = 0;
+    while (
+      before <= MAX_DOOR_WIDTH &&
+      !isWall(tileMap, col - dc * (before + 1), row - dr * (before + 1))
+    )
+      before++;
+    let after = 0;
+    while (
+      after <= MAX_DOOR_WIDTH &&
+      !isWall(tileMap, col + dc * (after + 1), row + dr * (after + 1))
+    )
+      after++;
+    if (before + after + 1 <= MAX_DOOR_WIDTH) {
+      return {
+        alongCols,
+        capBefore: isWall(tileMap, col - dc, row - dr),
+        capAfter: isWall(tileMap, col + dc, row + dr),
+      };
+    }
+  }
+  return null;
+}
+
+function doorFrame(alongCols: boolean, capBefore: boolean, capAfter: boolean): SpriteData {
+  const lo = TILE / 2 - DOOR_FRAME_DEPTH / 2;
+  const hi = TILE / 2 + DOOR_FRAME_DEPTH / 2;
+  const doorSide = shadeHex(DOOR_FRAME_COLOR, LEFT_FACE_SHADE);
+  const paint: Box['paint'] = (face) => (face === 'top' ? DOOR_FRAME_COLOR : doorSide);
+  const boxes: Box[] = [];
+  if (alongCols) {
+    boxes.push({
+      x0: 0,
+      y0: lo,
+      z0: WALL_HEIGHT_PX - DOOR_LINTEL_PX,
+      x1: TILE,
+      y1: hi,
+      z1: WALL_HEIGHT_PX,
+      paint,
+    });
+    if (capBefore)
+      boxes.push({ x0: 0, y0: lo, z0: 0, x1: DOOR_POST_WIDTH, y1: hi, z1: WALL_HEIGHT_PX, paint });
+    if (capAfter)
+      boxes.push({
+        x0: TILE - DOOR_POST_WIDTH,
+        y0: lo,
+        z0: 0,
+        x1: TILE,
+        y1: hi,
+        z1: WALL_HEIGHT_PX,
+        paint,
+      });
+  } else {
+    boxes.push({
+      x0: lo,
+      y0: 0,
+      z0: WALL_HEIGHT_PX - DOOR_LINTEL_PX,
+      x1: hi,
+      y1: TILE,
+      z1: WALL_HEIGHT_PX,
+      paint,
+    });
+    if (capBefore)
+      boxes.push({ x0: lo, y0: 0, z0: 0, x1: hi, y1: DOOR_POST_WIDTH, z1: WALL_HEIGHT_PX, paint });
+    if (capAfter)
+      boxes.push({
+        x0: lo,
+        y0: TILE - DOOR_POST_WIDTH,
+        z0: 0,
+        x1: hi,
+        y1: TILE,
+        z1: WALL_HEIGHT_PX,
+        paint,
+      });
+  }
+  return traceSprite(boxes, WALL_HEIGHT_PX);
+}
+
+/** The door frame sprite for a walkable doorway tile, or null when (col, row)
+ *  is not inside a short gap of a wall line. Drawn on the gap tile itself:
+ *  it stays a normal floor tile type, so it stays walkable. */
+export function getDoorFrameSprite(
+  tileMap: TileTypeVal[][],
+  col: number,
+  row: number,
+): { sprite: SpriteData; height: number } | null {
+  const geo = doorwayGeometry(tileMap, col, row);
+  if (!geo) return null;
+  const key = `door:${geo.alongCols ? 1 : 0}${geo.capBefore ? 1 : 0}${geo.capAfter ? 1 : 0}`;
+  let sprite = cache.get(key);
+  if (!sprite) cache.set(key, (sprite = doorFrame(geo.alongCols, geo.capBefore, geo.capAfter)));
+  return { sprite, height: WALL_HEIGHT_PX };
 }

@@ -353,6 +353,7 @@ describe('configPersistence: areas', () => {
         lastSeenVersion: '',
         hooksInfoShown: false,
         areaMappings: {},
+        ctoOffice: true,
       });
     });
   });

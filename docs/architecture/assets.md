@@ -15,7 +15,7 @@ webview-ui/public/assets/
 
 Furniture, characters and floors are all **AI-generated with [PixelLab](https://pixellab.ai)**; only the default layout is authored directly. Edit the generators, not the PNGs.
 
-- `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office (an open work area, the CTO's office, a meeting room, and a lounge with a break corner and the coffee machine, each with its own floor, behind glass partitions) as `default-layout-<REVISION>.json`. Bump `REVISION` on every change.
+- `npx tsx scripts/iso-art/layout.ts` rebuilds the bundled default office as `default-layout-<REVISION>.json`. Bump `REVISION` on every change. It composes the layout from `core/src/officeModules.ts` (see [renderer.md](renderer.md#layout-modules)) rather than authoring tiles directly: the bundled default is one team module plus the CTO module.
 
 ## Default layout
 

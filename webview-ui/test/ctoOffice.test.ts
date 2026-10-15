@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { computeDoorQueue } from '../src/office/engine/ctoOffice.ts';
-import type { Seat, TileType as TileTypeVal } from '../src/office/types.ts';
+import { computeDoorQueue, computeOfficeTiles } from '../src/office/engine/ctoOffice.ts';
+import type { CtoOfficeArea, Seat, TileType as TileTypeVal } from '../src/office/types.ts';
 import { Direction, TileType } from '../src/office/types.ts';
 
 const W = TileType.WALL;
@@ -54,4 +54,81 @@ test('an office with no door has no queue', () => {
   const closed = map();
   closed[2][4] = W;
   assert.deepEqual(computeDoorQueue(closed, new Set(['7,2']), chair, 3), []);
+});
+
+/** A composed, fully open layout: no walls anywhere, the CTO module's own
+ *  12x12 rectangle (rows 0-11) directly north of a team module's floor
+ *  (rows 12-23), matching `core/src/officeModules.ts`'s join-free design. */
+function openMap(rows = 24): TileTypeVal[][] {
+  return Array.from({ length: rows }, () => Array.from({ length: 12 }, () => F));
+}
+
+const openArea: CtoOfficeArea = {
+  c0: 0,
+  r0: 0,
+  c1: 11,
+  r1: 11,
+  queueCol: 5,
+  queueRow: 12,
+  queueFacing: Direction.UP,
+};
+
+const openChair: Seat = {
+  uid: 'cto',
+  seatCol: 5,
+  seatRow: 1,
+  facingDir: Direction.DOWN,
+  assigned: true,
+  sitOffsetX: 0,
+  sitOffsetY: 0,
+};
+
+test('with an area, the office is exactly its rectangle, no doorway needed', () => {
+  const office = computeOfficeTiles(openMap(), openChair, openArea);
+  assert.equal(office.size, 12 * 12);
+  for (let row = 0; row <= 11; row++) {
+    for (let col = 0; col <= 11; col++) assert.ok(office.has(`${col},${row}`));
+  }
+  assert.ok(!office.has('5,12'), 'the team module floor is not part of the office');
+});
+
+test('with an area, the queue starts at its anchor and every slot faces queueFacing', () => {
+  const slots = computeDoorQueue(openMap(), new Set(), openChair, 5, openArea);
+  assert.equal(slots.length, 5);
+  assert.deepEqual(slots[0], { col: 5, row: 12, facing: Direction.UP });
+  for (const s of slots) {
+    assert.ok(s.row >= 12, `slot ${s.col},${s.row} is inside the office rectangle`);
+    assert.equal(s.facing, Direction.UP);
+  }
+});
+
+test('with an area, the queue is a straight line, not fanned out', () => {
+  const slots = computeDoorQueue(openMap(), new Set(), openChair, 5, openArea);
+  assert.deepEqual(
+    slots.map((s) => [s.col, s.row]),
+    [
+      [5, 12],
+      [5, 13],
+      [5, 14],
+      [5, 15],
+      [5, 16],
+    ],
+  );
+});
+
+test('with an area, a blocked tile on the line is skipped, not a stop', () => {
+  const slots = computeDoorQueue(openMap(), new Set(['5,13']), openChair, 3, openArea);
+  assert.deepEqual(
+    slots.map((s) => [s.col, s.row]),
+    [
+      [5, 12],
+      [5, 14],
+      [5, 15],
+    ],
+  );
+});
+
+test('with an area, no team module at the anchor means no queue', () => {
+  const noNeighbor = { ...openArea, queueRow: 24 };
+  assert.deepEqual(computeDoorQueue(openMap(24), new Set(), openChair, 3, noNeighbor), []);
 });

@@ -6,6 +6,13 @@ import type { LocalRect } from '../projection.js';
 import { boundsRect, contentBounds } from '../projection.js';
 import type { Character, OfficeLayout } from '../types.js';
 import { TILE_SIZE } from '../types.js';
+import {
+  composedToLayout,
+  composeOffice,
+  neededTeamModules,
+  nextTeamModuleCount,
+  rectOccupied,
+} from './modularOffice.js';
 import type { PersistableSeats } from './officeState.js';
 import { OfficeState } from './officeState.js';
 
@@ -16,6 +23,8 @@ export interface Floor {
   readonly office: OfficeState;
   /** How far this floor stands above the first, in iso px: it is drawn and hit-tested that much higher. */
   elevation: number;
+  /** Active team modules, when the building composes this floor's office itself (see `enableModularOffice`). */
+  teamModules: number;
 }
 
 /**
@@ -39,9 +48,16 @@ export class Building {
 
   /** Shared by every floor, so a sub-agent id names one character in the whole building. */
   private readonly subagentIds = { next: -1 };
-  /** The layout every floor above the first uses, once the server sent it. */
+  /** The layout every floor above the first uses, once the server sent it. Unused once `enableModularOffice`
+   *  switches the building over to composing every floor's layout itself from its own agent count. */
   private floorLayout: OfficeLayout | undefined;
   private areaMappings: Record<string, string[]> = {};
+  /** True once the server reports no `~/.terrarium/layout.json` (`LayoutLoaded.isDefault`): every floor composes
+   *  its own layout (`core/src/officeModules.ts`) from `ceil(its agents / 10)` team modules instead of using a
+   *  server-sent layout verbatim. */
+  private modularOffice = false;
+  /** `SettingsLoaded.ctoOffice`, read before `enableModularOffice` ever composes anything. */
+  private ctoOfficeEnabled = true;
 
   constructor(groundLayout?: OfficeLayout) {
     this.floors = [
@@ -50,6 +66,7 @@ export class Building {
         name: '',
         office: new OfficeState(groundLayout, this.subagentIds),
         elevation: 0,
+        teamModules: 1,
       },
     ];
   }
@@ -64,12 +81,29 @@ export class Building {
     return this.floors.length > 1 ? BUILDING_SLAB_PX : FLOOR_SLAB_PX;
   }
 
-  /** Furnish the first floor with `groundLayout` and every other with `floorLayout`. */
+  /** Furnish the first floor with `groundLayout` and every other with `floorLayout`. Only used when the office is
+   *  NOT composed at runtime (a custom `~/.terrarium/layout.json` exists): see `enableModularOffice`. */
   setLayouts(groundLayout: OfficeLayout, floorLayout: OfficeLayout): void {
     this.floorLayout = floorLayout;
     this.ground.rebuildFromLayout(groundLayout);
     for (const floor of this.floors.slice(1)) floor.office.rebuildFromLayout(floorLayout);
     this.restack();
+  }
+
+  /** `SettingsLoaded.ctoOffice`, read before any composition happens (it arrives before `layoutLoaded`). */
+  setCtoOfficeEnabled(enabled: boolean): void {
+    this.ctoOfficeEnabled = enabled;
+  }
+
+  /** Switch every floor over to composing its own layout from its own agent count (`LayoutLoaded.isDefault`:
+   *  no `~/.terrarium/layout.json`), starting at 1 team module plus the CTO. Each floor grows or shrinks that
+   *  count on its own as agents join or leave it (`addAgent`/`removeAgent`). */
+  enableModularOffice(): void {
+    this.modularOffice = true;
+    for (const floor of this.floors) {
+      floor.teamModules = 1;
+      this.recompose(floor);
+    }
   }
 
   setAreaMappings(mappings: Record<string, string[]>): void {
@@ -131,7 +165,8 @@ export class Building {
     nearAgentId?: number,
   ): void {
     if (this.floorOf(id)) return;
-    this.floorFor(machineId).office.addAgent(
+    const floor = this.floorFor(machineId);
+    floor.office.addAgent(
       id,
       preferredPalette,
       preferredHueShift,
@@ -140,11 +175,14 @@ export class Building {
       folderName,
       nearAgentId,
     );
+    this.growIfNeeded(floor);
   }
 
   removeAgent(id: number): void {
-    this.officeOf(id)?.removeAgent(id);
+    const floor = this.floorOf(id);
+    floor?.office.removeAgent(id);
     this.clearFocus(id);
+    if (floor) this.shrinkIfNeeded(floor);
   }
 
   /** A sub-agent spawns beside its parent, on its parent's floor. */
@@ -243,9 +281,61 @@ export class Building {
   }
 
   private createFloor(definition: FloorDefinition): Floor {
-    const office = new OfficeState(this.floorLayout, this.subagentIds);
+    const office = new OfficeState(this.initialLayoutFor(), this.subagentIds);
     office.setAreaMappings(this.areaMappings);
-    return { id: definition.id, name: definition.name, office, elevation: 0 };
+    return { id: definition.id, name: definition.name, office, elevation: 0, teamModules: 1 };
+  }
+
+  /** The layout a brand new floor starts with: 1 team module plus the CTO when the office composes itself,
+   *  else the server-sent `floorLayout` (or none yet, furnished later by `setLayouts`). */
+  private initialLayoutFor(): OfficeLayout | undefined {
+    if (!this.modularOffice) return this.floorLayout;
+    return composedToLayout(composeOffice({ teamModules: 1, cto: this.ctoOfficeEnabled }));
+  }
+
+  /** Attach a team module once this floor's agents need one more (an 11th, 21st, ... agent). */
+  private growIfNeeded(floor: Floor): void {
+    if (!this.modularOffice) return;
+    const needed = neededTeamModules(this.topLevelAgentCount(floor));
+    if (needed <= floor.teamModules) return;
+    floor.teamModules = needed;
+    this.recompose(floor);
+  }
+
+  /** Remove the outermost team module once it is both surplus to this floor's agent count and empty. */
+  private shrinkIfNeeded(floor: Floor): void {
+    if (!this.modularOffice) return;
+    const composed = composeOffice({ teamModules: floor.teamModules, cto: this.ctoOfficeEnabled });
+    const next = nextTeamModuleCount(
+      floor.teamModules,
+      this.topLevelAgentCount(floor),
+      (ringIndex) => {
+        const area = composed.teamModuleAreas[ringIndex];
+        return area !== undefined && !rectOccupied(floor.office.seats, area);
+      },
+    );
+    if (next === floor.teamModules) return;
+    floor.teamModules = next;
+    this.recompose(floor);
+  }
+
+  /** Characters on `floor` that count toward its team-module quota: every agent, not its sub-agents, and not one
+   *  mid-despawn — `removeAgent` starts that animation and only deletes the character once it finishes, so an
+   *  immediate grow/shrink check right after would otherwise still see it. */
+  private topLevelAgentCount(floor: Floor): number {
+    let count = 0;
+    for (const ch of floor.office.characters.values()) {
+      if (ch.matrixEffect === 'despawn') continue;
+      if (floor.office.subagentMeta.has(ch.id)) continue;
+      count++;
+    }
+    return count;
+  }
+
+  private recompose(floor: Floor): void {
+    const composed = composeOffice({ teamModules: floor.teamModules, cto: this.ctoOfficeEnabled });
+    floor.office.rebuildFromLayout(composedToLayout(composed));
+    this.restack();
   }
 
   /** Raise each floor so its slab clears the top of the walls of the floor below by BUILDING_FLOOR_GAP_PX. */

@@ -98,6 +98,9 @@ export const WALL_GLASS_HEIGHT_PX = 30;
 export const GLASS_FRAME_COLOR = ROOM_INK_COLOR;
 export const GLASS_PANE_COLOR = '#bfe3f066';
 export const GLASS_SHEEN_COLOR = '#ffffff8c';
+/** White trim around a back-wall door gap: the gap itself stays open floor,
+ *  so the frame is the only thing marking it as a doorway. */
+export const DOOR_FRAME_COLOR = '#f4ece0';
 
 // ── Backdrop (daylight hotel skyline behind the office) ─────
 /** Daylight sky, hard bands from the top of the canvas to the horizon. */
