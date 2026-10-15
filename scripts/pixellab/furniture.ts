@@ -271,6 +271,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
   COFFEE_MACHINE: {
     front: 'a modern countertop coffee machine in white and light wood',
     surfaceLift: COUNTER_SURFACE_LIFT_ART_PX,
+    stillOn: true,
     states: {
       front: {
         off: 'a modern countertop coffee machine in white and light wood, idle with no steam',
@@ -342,6 +343,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front: 'a modern flat wall-mounted screen with a thin white bezel',
     wallMounted: true,
     hang: true,
+    stillOn: true,
     states: {
       front: {
         off: 'a modern flat wall-mounted screen with a thin white bezel, turned off with a dark blank display',
