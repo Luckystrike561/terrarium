@@ -48,9 +48,19 @@ export const MATRIX_TRAIL_MID_THRESHOLD = 0.33;
 export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
 
 // ── Rendering ────────────────────────────────────────────────
-/** Screen-px shift of a seated character's sprite. The iso seated frames are
- *  drawn at chair height already. */
-export const CHARACTER_SITTING_OFFSET_PX = 0;
+/** How far a seated character's sprite drops into each kind of seat, in
+ *  world px, keyed by the seat's furniture group. The seated frames are drawn
+ *  with their hips at one shared height, and every PixelLab seat has its own. */
+export const SEAT_SINK_PX: Readonly<Record<string, number>> = {
+  EXEC_CHAIR: 3,
+  CUSHIONED_CHAIR: 4,
+  WOODEN_CHAIR: 7,
+  SOFA: 8,
+  WOODEN_BENCH: 5,
+};
+/** Share of the way from a seat tile toward the middle of its multi-tile seat
+ *  that the sitter moves: sofa and bench art is narrower than its footprint. */
+export const SEAT_PULL_TO_CENTER = 0.5;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;

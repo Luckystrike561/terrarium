@@ -58,6 +58,9 @@ export interface Seat {
   /** Direction character faces when sitting (toward adjacent desk) */
   facingDir: Direction;
   assigned: boolean;
+  /** Iso shift of a sitter's sprite from the seat tile's centre. */
+  sitOffsetX: number;
+  sitOffsetY: number;
 }
 
 export interface FurnitureInstance {

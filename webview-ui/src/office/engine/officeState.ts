@@ -5,7 +5,6 @@ import {
   CHARACTER_HIT_HALF_WIDTH,
   CHARACTER_HIT_HEIGHT,
   CHARACTER_SEATED_HIT_HEIGHT,
-  CHARACTER_SITTING_OFFSET_PX,
   CTO_COUCH_SEC,
   CTO_DESK_SEC,
   CTO_ID,
@@ -23,6 +22,7 @@ import {
   SEAT_LINGER_SEC,
   WAITING_BUBBLE_DURATION_SEC,
 } from '../../constants.js';
+import type { Point } from '../iso.js';
 import { worldToIso } from '../iso.js';
 import { getAnimationFrames, getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog.js';
 import {
@@ -68,6 +68,14 @@ function seatFacingOffset(direction: Direction): { dCol: number; dRow: number } 
   return { dCol: 0, dRow: -1 };
 }
 
+const NO_OFFSET: Readonly<Point> = { x: 0, y: 0 };
+
+function indexSeatsByTile(seats: Map<string, Seat>): Map<string, Seat> {
+  const byTile = new Map<string, Seat>();
+  for (const seat of seats.values()) byTile.set(`${seat.seatCol},${seat.seatRow}`, seat);
+  return byTile;
+}
+
 /** The `saveAgentSeats` payload: each agent's palette, hue and seat, by agent id. */
 export type PersistableSeats = Record<
   number,
@@ -78,6 +86,7 @@ export class OfficeState {
   layout: OfficeLayout;
   tileMap: TileTypeVal[][];
   seats: Map<string, Seat>;
+  private seatByTile: Map<string, Seat> = new Map();
   blockedTiles: Set<string>;
   /** Seats that face no electronics — lounge/sofa seating idle agents can rest in,
    *  as opposed to the PC-facing seats that are someone's desk. Recomputed with `seats`. */
@@ -146,11 +155,20 @@ export class OfficeState {
     this.areaMappings = mappings;
   }
 
+  /** Iso shift of a character's sprite: a seated character sinks into its
+   *  seat and slides toward the middle of a sofa or bench. */
+  sittingOffset(ch: Character): Point {
+    if (ch.state !== CharacterState.TYPE) return NO_OFFSET;
+    const seat = this.seatByTile.get(`${ch.tileCol},${ch.tileRow}`);
+    return seat ? { x: seat.sitOffsetX, y: seat.sitOffsetY } : NO_OFFSET;
+  }
+
   constructor(layout?: OfficeLayout, subagentIds: { next: number } = { next: -1 }) {
     this.subagentIds = subagentIds;
     this.layout = layout || createDefaultLayout();
     this.tileMap = layoutToTileMap(this.layout);
     this.seats = layoutToSeats(this.layout.furniture);
+    this.seatByTile = indexSeatsByTile(this.seats);
     this.restSeatUids = this.computeRestSeats();
     this.blockedTiles = getBlockedTiles(this.layout.furniture);
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
@@ -166,6 +184,7 @@ export class OfficeState {
     this.layout = layout;
     this.tileMap = layoutToTileMap(layout);
     this.seats = layoutToSeats(layout.furniture);
+    this.seatByTile = indexSeatsByTile(this.seats);
     this.blockedTiles = getBlockedTiles(layout.furniture);
     this.restSeatUids = this.computeRestSeats();
     // Drop claims (and the claiming character's pointer to them) for rest seats the
@@ -1499,12 +1518,13 @@ export class OfficeState {
     for (const ch of chars) {
       if (ch.matrixEffect === 'despawn') continue;
       const seated = ch.state === CharacterState.TYPE;
-      const sittingOffset = seated ? CHARACTER_SITTING_OFFSET_PX : 0;
+      const offset = this.sittingOffset(ch);
       const anchor = worldToIso(ch.x, ch.y);
-      const bottom = anchor.y + sittingOffset;
+      const centerX = anchor.x + offset.x;
+      const bottom = anchor.y + offset.y;
       const height = seated ? CHARACTER_SEATED_HIT_HEIGHT : CHARACTER_HIT_HEIGHT;
       if (
-        Math.abs(isoX - anchor.x) <= CHARACTER_HIT_HALF_WIDTH &&
+        Math.abs(isoX - centerX) <= CHARACTER_HIT_HALF_WIDTH &&
         isoY >= bottom - height &&
         isoY <= bottom
       ) {

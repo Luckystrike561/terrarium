@@ -30,6 +30,8 @@ const chair: Seat = {
   seatRow: 2,
   facingDir: Direction.DOWN,
   assigned: true,
+  sitOffsetX: 0,
+  sitOffsetY: 0,
 };
 
 test('queue spots sit outside the office, nearest the door first, facing it', () => {

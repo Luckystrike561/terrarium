@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Button } from '../../components/ui/Button.js';
 import {
   CHARACTER_HIT_HEIGHT,
-  CHARACTER_SITTING_OFFSET_PX,
   CONTEXT_CRITICAL_THRESHOLD,
   CONTEXT_DANGER_THRESHOLD,
   CONTEXT_GAUGE_BG,
@@ -23,7 +22,6 @@ import { isE2E } from '../../runtime.js';
 import type { Building } from '../engine/building.js';
 import { overlayProjection } from '../projection.js';
 import type { ToolActivity } from '../types.js';
-import { CharacterState } from '../types.js';
 
 // Both turn-end states show the green checkmark bubble. A finished turn (Stop)
 // shows ONLY the checkmark (the label falls through to its normal idle text);
@@ -137,7 +135,7 @@ export function ToolOverlay({
         if (!isE2E && !isSelected && !isHovered) return null;
 
         // Position above character
-        const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
+        const sittingOffset = floor.office.sittingOffset(ch).y;
         const point = project.project(
           ch.x,
           ch.y,

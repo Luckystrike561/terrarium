@@ -50,7 +50,6 @@ import {
   BUILDING_PILLAR_WIDTH_PX,
   CARPET_DEFAULT_ACCENT_COLOR,
   CARPET_DEFAULT_COLOR,
-  CHARACTER_SITTING_OFFSET_PX,
   FLOOR_NAME_COLOR,
   FLOOR_NAME_FONT_SIZE_PX,
   FLOOR_NAME_MIN_FONT_SIZE_PX,
@@ -143,6 +142,8 @@ export interface FloorRenderState {
   tileMap: TileTypeVal[][];
   furniture: FurnitureInstance[];
   characters: Character[];
+  /** Iso shift of a seated character's sprite into its seat. */
+  sittingOffset: (ch: Character) => Point;
   selection?: SelectionRenderState;
   tileColors?: Array<ColorValue | null>;
   layoutCols?: number;
@@ -695,10 +696,10 @@ class FloorScene {
       const sprites = ch.isCto ? getCtoSprites() : getCharacterSprites(ch.palette, ch.hueShift);
       const spriteData = getCharacterSprite(ch, sprites);
       const texture = getTexture(spriteData);
-      const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0;
+      const offset = state.sittingOffset(ch);
       const anchor = worldToIso(ch.x, ch.y);
-      const localX = Math.round(anchor.x - (texture.width * ART_SPRITE_SCALE) / 2);
-      const localY = Math.round(anchor.y + sittingOffset - texture.height * ART_SPRITE_SCALE);
+      const localX = Math.round(anchor.x + offset.x - (texture.width * ART_SPRITE_SCALE) / 2);
+      const localY = Math.round(anchor.y + offset.y - texture.height * ART_SPRITE_SCALE);
       const box = actorBox(ch.x, ch.y);
 
       if (ch.matrixEffect) {
@@ -786,12 +787,15 @@ class FloorScene {
         }
         const texture = getTexture(spriteData);
         const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
+        const offset = state.sittingOffset(ch);
         const anchor = worldToIso(ch.x, ch.y);
         const sprite = getOrCreateSprite(this.bubblePool, ch.id, this.bubbleContainer);
         sprite.texture = texture;
         sprite.position.set(
-          Math.round(anchor.x - texture.width / 2),
-          Math.round(anchor.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX - texture.height - 1),
+          Math.round(anchor.x + offset.x - texture.width / 2),
+          Math.round(
+            anchor.y + offset.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX - texture.height - 1,
+          ),
         );
         sprite.alpha = alpha;
         sprite.visible = true;
@@ -801,12 +805,15 @@ class FloorScene {
         liveBadges.add(ch.id);
         const texture = getTexture(statusBadgeSprite(ch));
         const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0;
+        const offset = state.sittingOffset(ch);
         const anchor = worldToIso(ch.x, ch.y);
         const sprite = getOrCreateSprite(this.badgePool, ch.id, this.badgeContainer);
         sprite.texture = texture;
         sprite.position.set(
-          Math.round(anchor.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2),
-          Math.round(anchor.y + sittingOff - STATUS_BADGE_VERTICAL_OFFSET_PX - texture.height / 2),
+          Math.round(anchor.x + offset.x + STATUS_BADGE_HORIZONTAL_OFFSET_PX - texture.width / 2),
+          Math.round(
+            anchor.y + offset.y + sittingOff - STATUS_BADGE_VERTICAL_OFFSET_PX - texture.height / 2,
+          ),
         );
         sprite.visible = true;
       }

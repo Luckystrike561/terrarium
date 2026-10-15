@@ -1,8 +1,9 @@
 import { ART_SCALE } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
+import { SEAT_PULL_TO_CENTER, SEAT_SINK_PX } from '../../constants.js';
 import { getColorizedSprite } from '../colorize.js';
 import { SortLayer } from '../engine/isoSort.js';
-import { footprintSpriteOrigin, ISO_TILE_W } from '../iso.js';
+import { footprintSpriteOrigin, ISO_TILE_W, worldToIso } from '../iso.js';
 import type {
   FurnitureInstance,
   OfficeLayout,
@@ -10,7 +11,7 @@ import type {
   Seat,
   TileType as TileTypeVal,
 } from '../types.js';
-import { DEFAULT_COLS, DEFAULT_ROWS, Direction, TileType } from '../types.js';
+import { DEFAULT_COLS, DEFAULT_ROWS, Direction, TILE_SIZE, TileType } from '../types.js';
 import { getCatalogEntry, getOrientationInGroup } from './furnitureCatalog.js';
 
 /** Convert flat tile array from layout into 2D grid */
@@ -31,6 +32,13 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
  *  other chairs draw under them. */
 const CHAIR_BEHIND_LAYER = SortLayer.FLOOR;
 const CHAIR_IN_FRONT_LAYER = SortLayer.ATTACHED;
+
+function seatSinkOf(type: string): number {
+  for (const [group, sink] of Object.entries(SEAT_SINK_PX)) {
+    if (type === group || type.startsWith(`${group}_`)) return sink;
+  }
+  return 0;
+}
 
 /** A wall item is drawn flat on the face of its wall, but its sprite is wider
  *  than that face and spills over the next wall tile along. Sorting it as a
@@ -210,6 +218,10 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           }
         }
 
+        const towardCenter = worldToIso(
+          (entry.footprintW / 2 - dc - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER,
+          (entry.footprintH / 2 - dr - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER,
+        );
         // First seat uses chair uid (backward compat), subsequent use uid:N
         const seatUid = seatCount === 0 ? item.uid : `${item.uid}:${seatCount}`;
         seats.set(seatUid, {
@@ -218,6 +230,8 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           seatRow: tileRow,
           facingDir,
           assigned: false,
+          sitOffsetX: towardCenter.x,
+          sitOffsetY: towardCenter.y + seatSinkOf(item.type),
         });
         seatCount++;
       }

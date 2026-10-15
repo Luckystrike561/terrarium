@@ -34,6 +34,7 @@ function floorRenderState(building: Building, floor: Floor): FloorRenderState {
     tileMap: office.tileMap,
     furniture: office.furniture,
     characters: office.getCharacters(),
+    sittingOffset: (ch) => office.sittingOffset(ch),
     selection: {
       selectedAgentId: building.selectedAgentId,
       hoveredAgentId: building.hoveredAgentId,

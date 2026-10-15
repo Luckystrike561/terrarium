@@ -28,6 +28,8 @@ function scenario() {
     seatRow: 2,
     facingDir: Direction.DOWN,
     assigned: true,
+    sitOffsetX: 0,
+    sitOffsetY: 0,
   };
   const sofaSeat: Seat = {
     uid: 'sofa',
@@ -35,6 +37,8 @@ function scenario() {
     seatRow: 7,
     facingDir: Direction.DOWN,
     assigned: false,
+    sitOffsetX: 0,
+    sitOffsetY: 0,
   };
   const seats = new Map<string, Seat>([
     ['desk', deskSeat],
