@@ -150,8 +150,8 @@ put('BIN', 12, 7);
 // coffee table in the corner, room for the queue at the col-13 door.
 put('EXEC_DESK_BACK', 15, 3);
 put('EXEC_CHAIR_FRONT', 16, 2);
-put('PC_BACK_OFF', 16, 3);
-put('COFFEE', 17, 3);
+put('PC_BACK_OFF', 17, 4);
+put('COFFEE', 15, 3);
 put('WOODEN_CHAIR_BACK', 15, 5);
 put('WOODEN_CHAIR_BACK', 17, 5);
 put('SOFA_RIGHT', 18, 2);
