@@ -216,6 +216,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
       'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic',
     back: 'a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front',
     stillOn: true,
+    surfaceLift: DESK_SURFACE_LIFT_ART_PX,
     states: {
       front: {
         off: 'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen turned off showing a dark blank display',
