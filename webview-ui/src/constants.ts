@@ -52,9 +52,9 @@ export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
  *  world px, keyed by the seat's furniture group. The seated frames are drawn
  *  with their hips at one shared height, and every PixelLab seat has its own. */
 export const SEAT_SINK_PX: Readonly<Record<string, number>> = {
-  EXEC_CHAIR: 6,
-  CUSHIONED_CHAIR: 6,
-  WOODEN_CHAIR: 9,
+  EXEC_CHAIR: 10,
+  CUSHIONED_CHAIR: 11,
+  WOODEN_CHAIR: 12,
   SOFA: 8,
   WOODEN_BENCH: 5,
 };
