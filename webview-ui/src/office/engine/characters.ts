@@ -519,12 +519,15 @@ export function getCharacterPose(ch: Character): CharacterPose {
   return isReadingTool(ch.currentTool) ? 'reading' : 'typing';
 }
 
-/** Step the current pose's frame loop, whose length varies by pose (a calm
- *  4-frame cycle for typing/reading, 2 frames for the rest). The caller adds
- *  `dt` to `ch.frameTimer` first. */
+/** Working poses hold their first frame: the typing and reading loops are
+ *  switched off until they are redrawn. */
+const STILL_POSES: ReadonlySet<CharacterPose> = new Set(['typing', 'reading']);
+
+/** Step the current pose's frame loop. The caller adds `dt` to
+ *  `ch.frameTimer` first. */
 export function advancePoseFrame(ch: Character): void {
   const pose = getCharacterPose(ch);
-  if (pose === 'walk') return;
+  if (pose === 'walk' || STILL_POSES.has(pose)) return;
   const durationSec = POSE_FRAME_DURATION_SEC[pose];
   if (ch.frameTimer >= durationSec) {
     ch.frameTimer -= durationSec;
@@ -535,6 +538,7 @@ export function advancePoseFrame(ch: Character): void {
 export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
   const pose = getCharacterPose(ch);
   if (pose === 'walk') return sprites.walk[ch.dir][ch.frame % 4];
+  if (STILL_POSES.has(pose)) return sprites[pose][ch.dir][0];
   return sprites[pose][ch.dir][ch.frame % POSE_FRAME_COUNTS[pose]];
 }
 

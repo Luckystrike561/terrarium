@@ -68,7 +68,7 @@ Movement stays on the top-down grid. In iso, grid DOWN and RIGHT face the viewer
 - Only a working agent types (writing tools) or reads (reading tools).
 - A seated agent without work rests (lounge sofa, a rest at its desk, the CTO's couch), and a standing idle agent breathes.
 - An agent in the CTO queue shows why it waits from `ctoQueueSlot.reason`: a raised hand for input, a held-up form for approval, seated on a visitor chair or standing at the door.
-- Every pose but walking is a frame loop stepped by `advancePoseFrame` at its own `*_FRAME_DURATION_SEC`: typing and reading run a calmer 4-frame cycle, every other pose 2 frames (`POSE_FRAME_COUNTS`).
+- Every pose but walking is a frame loop stepped by `advancePoseFrame` at its own `*_FRAME_DURATION_SEC` (2 frames, `POSE_FRAME_COUNTS`), except typing and reading, which hold their first frame (`STILL_POSES`) until they are redrawn.
 - All seated frames are drawn at chair height, so `CHARACTER_SITTING_OFFSET_PX` is 0.
 
 Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`).

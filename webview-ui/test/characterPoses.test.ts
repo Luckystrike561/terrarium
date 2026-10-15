@@ -73,20 +73,12 @@ test('a standing idle agent breathes instead of holding a walk frame', () => {
   assert.equal(ch.frame, 1, 'the loop steps after one idle frame duration');
 });
 
-test('typing runs a calmer 4-frame loop, not a 2-frame jitter', () => {
+test('a working agent holds still instead of looping', () => {
   const ch = character({ state: CharacterState.TYPE, isActive: true });
-  const seenFrames = new Set<number>();
-  for (let i = 0; i < 4; i++) {
-    seenFrames.add(ch.frame);
-    ch.frameTimer = TYPE_FRAME_DURATION_SEC;
-    advancePoseFrame(ch);
-  }
-  assert.deepEqual(
-    [...seenFrames].sort(),
-    [0, 1, 2, 3],
-    'the loop visits all four frames before repeating',
-  );
-  assert.equal(ch.frame, 0, 'the loop wraps back to the first frame');
+  const first = getCharacterSprite(ch, sprites);
+  ch.frameTimer = TYPE_FRAME_DURATION_SEC * 10;
+  advancePoseFrame(ch);
+  assert.equal(getCharacterSprite(ch, sprites), first);
 });
 
 test('a seated agent with no work rests instead of typing', () => {
