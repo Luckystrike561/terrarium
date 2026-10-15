@@ -174,6 +174,9 @@ interface ItemPrompt {
   /** Hangs on the wall at eye level rather than standing on the floor
    *  against it. */
   hang?: boolean;
+  /** Every on frame shows the first one. Separate renders of the same item
+   *  shift its outline, so cycling them makes the item jump. */
+  stillOn?: boolean;
   wallMounted?: boolean;
   /** Only for items with on/off electronics state: full descriptions for
    *  the off frame and each on frame, for front and (if the item has one)
@@ -208,6 +211,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic',
     back: 'a modern desktop computer monitor seen from behind, white and light grey plastic back panel and cables, keyboard in front',
+    stillOn: true,
     states: {
       front: {
         off: 'a modern desktop computer monitor and keyboard on a small stand, white and light grey plastic, screen turned off showing a dark blank display',
@@ -801,7 +805,8 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   const finalImages = new Map<string, PixelImage>();
   for (const leaf of leaves) {
     const so = sourceOrientationOf(leaf.orientation);
-    const base = generated.get(`${so ?? ''}|${leaf.state ?? ''}|${leaf.frame ?? ''}`);
+    const frame = prompt.stillOn && leaf.frame !== undefined ? 0 : leaf.frame;
+    const base = generated.get(`${so ?? ''}|${leaf.state ?? ''}|${frame ?? ''}`);
     if (!base) throw new Error(`missing generated image for ${leaf.id}`);
     const mirror = leaf.orientation === 'right' || leaf.orientation === 'left';
     finalImages.set(leaf.id, mirror ? base.mirrored() : base);

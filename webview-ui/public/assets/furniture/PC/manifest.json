@@ -162,7 +162,7 @@
               "id": "PC_BACK_ON_3",
               "file": "PC_BACK_ON_3.png",
               "width": 64,
-              "height": 69,
+              "height": 68,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2
@@ -216,7 +216,7 @@
               "id": "PC_LEFT_ON_3",
               "file": "PC_LEFT_ON_3.png",
               "width": 64,
-              "height": 69,
+              "height": 68,
               "footprintW": 1,
               "footprintH": 1,
               "frame": 2
