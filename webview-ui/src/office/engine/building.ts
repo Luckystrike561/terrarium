@@ -12,6 +12,7 @@ import {
   neededTeamModules,
   nextTeamModuleCount,
   rectOccupied,
+  teamModuleOfSeat,
 } from './modularOffice.js';
 import type { PersistableSeats } from './officeState.js';
 import { OfficeState } from './officeState.js';
@@ -96,12 +97,15 @@ export class Building {
   }
 
   /** Switch every floor over to composing its own layout from its own agent count (`LayoutLoaded.isDefault`:
-   *  no `~/.terrarium/layout.json`), starting at 1 team module plus the CTO. Each floor grows or shrinks that
-   *  count on its own as agents join or leave it (`addAgent`/`removeAgent`). */
+   *  no `~/.terrarium/layout.json`). Each floor grows or shrinks that count on its own as agents join or leave
+   *  it (`addAgent`/`removeAgent`). A repeated `layoutLoaded` (a reconnect, a second handshake) keeps every
+   *  floor's current modules, so seated agents keep their desks. */
   enableModularOffice(): void {
+    const wasModular = this.modularOffice;
     this.modularOffice = true;
     for (const floor of this.floors) {
-      floor.teamModules = 1;
+      const needed = neededTeamModules(this.topLevelAgentCount(floor));
+      floor.teamModules = wasModular ? Math.max(floor.teamModules, needed) : needed;
       this.recompose(floor);
     }
   }
@@ -166,6 +170,7 @@ export class Building {
   ): void {
     if (this.floorOf(id)) return;
     const floor = this.floorFor(machineId);
+    this.growIfNeeded(floor, 1, preferredSeatId);
     floor.office.addAgent(
       id,
       preferredPalette,
@@ -175,7 +180,6 @@ export class Building {
       folderName,
       nearAgentId,
     );
-    this.growIfNeeded(floor);
   }
 
   removeAgent(id: number): void {
@@ -293,10 +297,14 @@ export class Building {
     return composedToLayout(composeOffice({ teamModules: 1, cto: this.ctoOfficeEnabled }));
   }
 
-  /** Attach a team module once this floor's agents need one more (an 11th, 21st, ... agent). */
-  private growIfNeeded(floor: Floor): void {
+  /** Attach team modules before seating an agent: enough for this floor's agents plus `joining`, and the module
+   *  holding `preferredSeatId` (a restored agent's persisted desk) so that desk exists when it is claimed. */
+  private growIfNeeded(floor: Floor, joining: number, preferredSeatId?: string): void {
     if (!this.modularOffice) return;
-    const needed = neededTeamModules(this.topLevelAgentCount(floor));
+    const needed = Math.max(
+      neededTeamModules(this.topLevelAgentCount(floor) + joining),
+      teamModuleOfSeat(preferredSeatId),
+    );
     if (needed <= floor.teamModules) return;
     floor.teamModules = needed;
     this.recompose(floor);

@@ -24,6 +24,15 @@ export function neededTeamModules(topLevelAgentCount: number): number {
   return Math.max(1, Math.ceil(topLevelAgentCount / AGENTS_PER_TEAM_MODULE));
 }
 
+const TEAM_SEAT_ID = /^team(\d+)-/;
+
+/** Team modules needed for seat `seatId` to exist: `teamN-*` furniture belongs to the Nth team module.
+ *  0 for any other id (or none), so it never forces growth on its own. */
+export function teamModuleOfSeat(seatId: string | undefined): number {
+  const match = seatId ? TEAM_SEAT_ID.exec(seatId) : null;
+  return match ? Number(match[1]) : 0;
+}
+
 /** The team-module count a floor should move to. Grows straight to whatever
  *  `neededTeamModules` needs — an 11th, 21st, 31st, ... agent attaches one
  *  more module each. Shrinks only one module at a time, outermost first
