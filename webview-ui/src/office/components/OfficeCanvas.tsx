@@ -55,6 +55,8 @@ function floorRenderState(building: Building, floor: Floor): FloorRenderState {
 export function OfficeCanvas({ building, onClick, onZoomChange, panRef }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const officeRendererRef = useRef<OfficeSceneRenderer | null>(null);
+  const rendererReadyRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingDisposeRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 0, y: 0 });
   // Middle-mouse pan state (imperative, no re-renders)
@@ -109,8 +111,20 @@ export function OfficeCanvas({ building, onClick, onZoomChange, panRef }: Office
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const officeRenderer = new OfficeSceneRenderer(canvas);
-    officeRendererRef.current = officeRenderer;
+    // One renderer per canvas. Destroying a Pixi app loses the canvas's WebGL context, and a
+    // second app initialised on that lost context spins forever in Pixi's shader probe, so a
+    // remount (React StrictMode runs this effect twice) cancels the pending dispose and reuses it.
+    if (pendingDisposeRef.current !== null) {
+      window.clearTimeout(pendingDisposeRef.current);
+      pendingDisposeRef.current = null;
+    }
+    let renderer = officeRendererRef.current;
+    if (!renderer) {
+      const created = new OfficeSceneRenderer(canvas);
+      officeRendererRef.current = created;
+      rendererReadyRef.current = created.init().then(resizeCanvas);
+      renderer = created;
+    }
 
     resizeCanvas();
 
@@ -118,15 +132,6 @@ export function OfficeCanvas({ building, onClick, onZoomChange, panRef }: Office
     if (containerRef.current) {
       observer.observe(containerRef.current);
     }
-
-    let cancelled = false;
-    void officeRenderer.init().then(() => {
-      if (cancelled) {
-        officeRenderer.destroy();
-        return;
-      }
-      officeRenderer.resize(canvas.width, canvas.height);
-    });
 
     const stop = startGameLoop({
       update: (dt) => {
@@ -196,17 +201,19 @@ export function OfficeCanvas({ building, onClick, onZoomChange, panRef }: Office
           panX: panRef.current.x,
           panY: panRef.current.y,
         };
-        const { offsetX, offsetY } = officeRenderer.renderFrame(worldState);
+        const { offsetX, offsetY } = renderer.renderFrame(worldState);
         offsetRef.current = { x: offsetX, y: offsetY };
       },
     });
 
     return () => {
-      cancelled = true;
       stop();
       observer.disconnect();
-      officeRendererRef.current = null;
-      officeRenderer.destroy();
+      pendingDisposeRef.current = window.setTimeout(() => {
+        pendingDisposeRef.current = null;
+        officeRendererRef.current = null;
+        void rendererReadyRef.current.then(() => renderer.destroy());
+      }, 0);
     };
   }, [resizeCanvas, panRef, clampToView]);
 
