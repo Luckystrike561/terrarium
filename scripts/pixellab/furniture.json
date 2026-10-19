@@ -1,5 +1,5 @@
 {
-  "spentGenerations": 352,
+  "spentGenerations": 378,
   "items": {
     "DESK": {
       "front": {
@@ -449,72 +449,47 @@
       }
     },
     "COFFEE_MACHINE": {
-      "off": {
-        "description": "a modern countertop coffee machine in white and light wood, idle with no steam, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+      "front_off": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, idle with no steam, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
         "seed": 926121,
-        "objectId": "ea337fbb-1af7-4eac-a665-b0eac6797601",
+        "objectId": "f53d6450-9361-4e4c-9e4b-7fbc0b7badd3",
         "width": 64,
-        "height": 178
+        "height": 180
       },
-      "on_1": {
-        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a small puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+      "front_on_1": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a small puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
         "seed": 749975,
-        "objectId": "8a08844d-57f5-47e7-824c-40f240c3f8a2",
+        "objectId": "1c714d44-895a-4d94-9a16-d244be35addc",
         "width": 64,
-        "height": 178
+        "height": 180
       },
-      "on_2": {
-        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a larger puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+      "front_on_2": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a larger puff of steam rising from the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
         "seed": 749976,
-        "objectId": "afbc516e-46fa-4734-81b7-9fcdd780309b",
+        "objectId": "95429b72-0f47-4d4a-8afd-c0575424f5bb",
         "width": 64,
-        "height": 178
+        "height": 180
       },
-      "on_3": {
-        "description": "a modern countertop coffee machine in white and light wood, brewing coffee with a wisp of steam drifting to the side, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+      "front_on_3": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a wisp of steam drifting to the side, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
         "seed": 749977,
-        "objectId": "75752e05-13bd-4052-a73d-4a0c0ff82487",
+        "objectId": "bcc8b82c-ec93-427f-b554-a8ec0ef50069",
         "width": 64,
-        "height": 178
+        "height": 180
       },
-      "_off__x0.6": {
-        "description": "a modern countertop coffee machine in white and light wood",
+      "front_off__x0.6": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it",
         "seed": 0,
         "objectId": "",
-        "width": 25,
-        "height": 34
+        "width": 23,
+        "height": 37
       },
-      "_on_0_x0.6": {
-        "description": "a modern countertop coffee machine in white and light wood",
+      "front_on_0_x0.6": {
+        "description": "a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it",
         "seed": 0,
         "objectId": "",
-        "width": 25,
-        "height": 34
-      }
-    },
-    "KITCHEN_COUNTER": {
-      "front": {
-        "description": "a modern kitchen counter cabinet with a white countertop and light wood cabinet doors, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 750352,
-        "objectId": "334237a5-6244-42cf-b06f-289ecfdb0d34",
-        "width": 96,
-        "height": 190
-      },
-      "front___x0.56": {
-        "description": "a modern kitchen counter cabinet with a white countertop and light wood cabinet doors",
-        "seed": 0,
-        "objectId": "",
-        "width": 52,
-        "height": 71
-      }
-    },
-    "FRIDGE": {
-      "front": {
-        "description": "a modern compact refrigerator in white and light grey with rounded corners, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
-        "seed": 186804,
-        "objectId": "4fdaaefb-5760-4442-9bab-9f6844c79612",
-        "width": 64,
-        "height": 218
+        "width": 23,
+        "height": 37
       }
     },
     "WATER_COOLER": {
@@ -761,6 +736,95 @@
         "objectId": "9ec6288c-a07e-4288-bef5-3453f9a880f4",
         "width": 96,
         "height": 280
+      }
+    },
+    "FRIDGE": {
+      "front": {
+        "description": "a tall boxy kitchen refrigerator as deep as a kitchen counter, cream white enamel body, a small freezer door on top and a larger fridge door below, long brass handles, a warm brown wood trim along the top, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 186804,
+        "objectId": "01f55ab1-1df1-47db-8025-1df0566f865c",
+        "width": 128,
+        "height": 192
+      },
+      "front___x0.62": {
+        "description": "a tall boxy kitchen refrigerator as deep as a kitchen counter, cream white enamel body, a small freezer door on top and a larger fridge door below, long brass handles, a warm brown wood trim along the top",
+        "seed": 0,
+        "objectId": "",
+        "width": 46,
+        "height": 103
+      }
+    },
+    "KITCHEN_COUNTER": {
+      "front": {
+        "description": "a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop on top, white cabinet doors with small brass knob handles on the front face, plain flat sides so identical units line up seamlessly in a row, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 750352,
+        "objectId": "d2b66ae7-9102-477e-a3eb-5a11a8dae1fa",
+        "width": 128,
+        "height": 128
+      },
+      "front___x0.7": {
+        "description": "a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop on top, white cabinet doors with small brass knob handles on the front face, plain flat sides so identical units line up seamlessly in a row",
+        "seed": 0,
+        "objectId": "",
+        "width": 64,
+        "height": 71
+      }
+    },
+    "KITCHEN_TABLE": {
+      "front": {
+        "description": "a rectangular kitchen dining table covered by a blue and white gingham checkered tablecloth hanging over its edges, sturdy warm brown wood legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 789282,
+        "objectId": "b0871756-79e6-44b9-82b6-5fb8291d948a",
+        "width": 96,
+        "height": 168
+      }
+    },
+    "STOVE": {
+      "front": {
+        "description": "a low square freestanding kitchen cooker exactly as tall as a kitchen counter, wider than it is tall, white enamel body, four round black hob rings on the flat top, an oven door with a dark glass window and a long chrome handle, a row of small control knobs above the door, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 887084,
+        "objectId": "57c092ce-82a0-4dbe-87bf-1a40a7f18388",
+        "width": 128,
+        "height": 128
+      },
+      "front___x0.7": {
+        "description": "a low square freestanding kitchen cooker exactly as tall as a kitchen counter, wider than it is tall, white enamel body, four round black hob rings on the flat top, an oven door with a dark glass window and a long chrome handle, a row of small control knobs above the door",
+        "seed": 0,
+        "objectId": "",
+        "width": 64,
+        "height": 71
+      }
+    },
+    "KITCHEN_SINK": {
+      "front": {
+        "description": "a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop with a brushed steel sink basin set into it and a tall curved chrome tap, white cabinet doors with small brass knob handles, a green tea towel hanging on the door, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 86621,
+        "objectId": "5f58344b-e4da-4cbd-97bc-50f338e76acc",
+        "width": 128,
+        "height": 128
+      },
+      "front___x0.7": {
+        "description": "a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop with a brushed steel sink basin set into it and a tall curved chrome tap, white cabinet doors with small brass knob handles, a green tea towel hanging on the door",
+        "seed": 0,
+        "objectId": "",
+        "width": 64,
+        "height": 71
+      }
+    },
+    "KITCHEN_CABINET": {
+      "front": {
+        "description": "a single square upper kitchen wall cupboard unit shaped like a box, varnished warm brown wood, two glass-paned doors on the front face showing stacked white plates and pale blue cups inside, small brass knobs, a flat bottom with no legs, cozy modern office pixel art, light wood tones, white and soft pastel colors, clean minimalist shapes, soft daylight, single isolated game object, isometric view, viewed from an isometric angle, large and centered, filling most of the frame, facing the viewer, standing on the ground with a soft drop shadow, transparent background",
+        "seed": 296812,
+        "objectId": "56e45d5c-1ffe-4b74-9633-8d13e97077da",
+        "width": 128,
+        "height": 128
+      },
+      "front___x0.7": {
+        "description": "a single square upper kitchen wall cupboard unit shaped like a box, varnished warm brown wood, two glass-paned doors on the front face showing stacked white plates and pale blue cups inside, small brass knobs, a flat bottom with no legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 64,
+        "height": 71
       }
     }
   }

@@ -3,9 +3,11 @@
  * into one layout grid. Pure data and pure functions (no node `fs`), so
  * `scripts/iso-art/layout.ts` and the webview can both import it directly.
  *
- * Every module is `MODULE_SIZE` square, so any two line up edge to edge on
- * any side with no overhang. Each template reserves a 1-tile margin on all
- * four sides (local index 0 and `MODULE_SIZE - 1`) for the wall line the
+ * Every module owns one `MODULE_SIZE` square lattice cell, so any two cells
+ * line up edge to edge on any side with no overhang. A template's footprint
+ * is the part of its cell it actually floors: the whole cell for a team
+ * module, only the south half for the CTO's office. Each template reserves
+ * a 1-tile margin on all four sides of its footprint for the wall line the
  * composer may draw there; furniture never sits on that margin.
  */
 
@@ -17,10 +19,7 @@ const VOID_TILE = 255;
 const DIRECTION_UP = 3;
 
 export const MODULE_SIZE = 12;
-/** Local index range of the 2-wide door gap cut into a drawn wall, centered
- *  on a MODULE_SIZE-12 side. */
-const DOOR_LO = 5;
-const DOOR_HI = 6;
+const DOOR_WIDTH = 2;
 
 export interface ModuleColor {
   h: number;
@@ -56,6 +55,9 @@ interface ModuleFurniturePlacement {
   type: string;
   col: number;
   row: number;
+  /** Stands flush against a back wall, like a kitchen unit: the wall tile
+   *  behind it gets no window, which would otherwise open behind the unit. */
+  againstWall?: boolean;
 }
 
 /** A wall-mounted decoration, positioned along a back wall's run by a single
@@ -69,13 +71,17 @@ interface WallDecorItem {
 }
 
 export interface ModuleTemplate {
+  /** The floored part of the module's cell, in local cell coordinates. The
+   *  rest of the cell stays void. */
+  footprint: TileRect;
   floors: readonly FloorFill[];
   carpets?: readonly CarpetFill[];
   furniture: readonly ModuleFurniturePlacement[];
-  /** `_FRONT` items for the north wall (local row 0, runs along cols) and
-   *  `_RIGHT` items (front mirrored) for the west wall (local col 0, runs
-   *  along rows), each at least 2 tiles apart and clear of the door gap and
-   *  the window columns/rows. */
+  /** `_FRONT` items for the north wall (the footprint's first row, runs
+   *  along cols) and `_RIGHT` items (front mirrored) for the west wall (the
+   *  footprint's first col, runs along rows), each offset a local cell
+   *  index, at least 2 tiles apart and clear of the door gap and the window
+   *  columns/rows. */
   wallDecor: { north: readonly WallDecorItem[]; west: readonly WallDecorItem[] };
 }
 
@@ -88,20 +94,39 @@ const HONEY_WOOD: ModuleColor = { h: 0, s: 0, b: 0, c: 0 };
 const SUNSHINE_CHECKER: ModuleColor = { h: 10, s: 6, b: 3, c: 0 };
 
 const BREAK_RUG: CarpetFill = {
-  c0: 1,
+  c0: 8,
   r0: 8,
-  c1: 2,
+  c1: 9,
   r1: 9,
   color: { h: 175, s: 42, b: -4, c: 0 },
   accentColor: { h: 42, s: 48, b: 26, c: 0 },
 };
+const POD_RUG_COLOR: ModuleColor = { h: 215, s: 28, b: -6, c: 0 };
+const POD_RUG_ACCENT: ModuleColor = { h: 205, s: 38, b: 14, c: 0 };
+const WEST_POD_RUG: CarpetFill = {
+  c0: 1,
+  r0: 2,
+  c1: 4,
+  r1: 5,
+  color: POD_RUG_COLOR,
+  accentColor: POD_RUG_ACCENT,
+};
+const EAST_POD_RUG: CarpetFill = { ...WEST_POD_RUG, c0: 6, c1: 9 };
 const CTO_RUG: CarpetFill = {
   c0: 3,
-  r0: 1,
+  r0: 7,
   c1: 7,
-  r1: 4,
+  r1: 10,
   color: { h: 42, s: 65, b: 6, c: 0 },
   accentColor: { h: 24, s: 48, b: -18, c: 0 },
+};
+
+const FULL_CELL: TileRect = { c0: 0, r0: 0, c1: MODULE_SIZE - 1, r1: MODULE_SIZE - 1 };
+const CTO_FOOTPRINT: TileRect = {
+  c0: 0,
+  r0: MODULE_SIZE / 2,
+  c1: MODULE_SIZE - 1,
+  r1: MODULE_SIZE - 1,
 };
 
 /** One back-to-back desk pod: 2 desks, 2 PCs each, 4 chairs, 4 seats. */
@@ -120,92 +145,66 @@ function deskPod(c0: number, r0: number): ModuleFurniturePlacement[] {
   ];
 }
 
-/** Half a pod, front-facing only: 1 desk, 2 PCs, 2 chairs, 2 seats. */
-function deskPair(c0: number, r0: number): ModuleFurniturePlacement[] {
-  return [
-    { type: 'CUSHIONED_CHAIR_FRONT', col: c0, row: r0 },
-    { type: 'CUSHIONED_CHAIR_FRONT', col: c0 + 1, row: r0 },
-    { type: 'DESK_FRONT', col: c0, row: r0 + 1 },
-    { type: 'PC_FRONT_OFF', col: c0, row: r0 + 1 },
-    { type: 'PC_FRONT_OFF', col: c0 + 1, row: r0 + 1 },
-  ];
-}
-
-/** An open-plan floor of 10 desk seats (two 4-seat pods, one 2-seat pair)
- *  plus an attached break room on its own floor material: a sofa and coffee
- *  table, a kitchen counter with the coffee machine, a fridge, a bistro
- *  table and chairs, plants. */
+/** An open-plan floor of 8 desk seats in two 4-seat pods, each on its own
+ *  rug, plus an attached break room on its own floor material: a kitchen run
+ *  against the west wall (fridge, cooker, sink, a counter holding the coffee
+ *  machine, upper cupboards above), a dining table with six chairs, and a
+ *  sofa corner with a coffee table: eight rest seats, one for each desk
+ *  agent. */
 export const TEAM_MODULE: ModuleTemplate = {
+  footprint: FULL_CELL,
   floors: [
     { c0: 0, r0: 0, c1: 11, r1: 6, tile: PALE_TILE, color: SKY_TILE },
     { c0: 0, r0: 7, c1: 11, r1: 11, tile: CHECKER_COARSE, color: SUNSHINE_CHECKER },
   ],
-  carpets: [BREAK_RUG],
+  carpets: [WEST_POD_RUG, EAST_POD_RUG, BREAK_RUG],
   furniture: [
-    ...deskPod(1, 1),
-    ...deskPod(4, 1),
-    ...deskPair(7, 1),
-    { type: 'LARGE_PLANT', col: 10, row: 1 },
-    { type: 'LARGE_PLANT', col: 10, row: 4 },
-    { type: 'PLANT', col: 7, row: 4 },
+    ...deskPod(2, 2),
+    ...deskPod(7, 2),
     { type: 'BIN', col: 1, row: 6 },
-    { type: 'FLOOR_LAMP', col: 10, row: 6 },
-    { type: 'SOFA_FRONT', col: 1, row: 8 },
-    { type: 'COFFEE_TABLE_FRONT', col: 1, row: 9 },
-    { type: 'KITCHEN_COUNTER_FRONT', col: 4, row: 8 },
-    { type: 'COFFEE_MACHINE_ON_1', col: 4, row: 8 },
-    { type: 'FRIDGE_FRONT', col: 6, row: 8 },
-    { type: 'SMALL_TABLE', col: 8, row: 9 },
-    { type: 'WOODEN_CHAIR_RIGHT', col: 7, row: 9 },
-    { type: 'WOODEN_CHAIR_LEFT', col: 9, row: 9 },
-    { type: 'LARGE_PLANT', col: 9, row: 8 },
-    { type: 'PLANT', col: 1, row: 10 },
+    { type: 'FRIDGE_RIGHT', col: 1, row: 7, againstWall: true },
+    { type: 'STOVE_RIGHT', col: 1, row: 8, againstWall: true },
+    { type: 'KITCHEN_CABINET_RIGHT', col: 1, row: 8, againstWall: true },
+    { type: 'KITCHEN_SINK_RIGHT', col: 1, row: 9, againstWall: true },
+    { type: 'KITCHEN_CABINET_RIGHT', col: 1, row: 9, againstWall: true },
+    { type: 'KITCHEN_COUNTER_RIGHT', col: 1, row: 10, againstWall: true },
+    { type: 'COFFEE_MACHINE_RIGHT_ON_1', col: 1, row: 10 },
+    { type: 'WATER_COOLER', col: 1, row: 11, againstWall: true },
+    { type: 'KITCHEN_TABLE_FRONT', col: 4, row: 9 },
+    { type: 'WOODEN_CHAIR_FRONT', col: 4, row: 8 },
+    { type: 'WOODEN_CHAIR_FRONT', col: 5, row: 8 },
+    { type: 'WOODEN_CHAIR_BACK', col: 4, row: 10 },
+    { type: 'WOODEN_CHAIR_BACK', col: 5, row: 10 },
+    { type: 'WOODEN_CHAIR_RIGHT', col: 3, row: 9 },
+    { type: 'WOODEN_CHAIR_LEFT', col: 6, row: 9 },
+    { type: 'SOFA_FRONT', col: 8, row: 8 },
+    { type: 'COFFEE_TABLE_FRONT', col: 8, row: 9 },
   ],
   wallDecor: {
-    north: [
-      { type: 'WALL_SHELF_FRONT', offset: 2 },
-      { type: 'CLOCK_FRONT', offset: 9 },
-    ],
-    west: [
-      { type: 'SMALL_PAINTING_RIGHT', offset: 2 },
-      { type: 'HANGING_PLANT_RIGHT', offset: 9 },
-    ],
+    north: [{ type: 'WALL_SHELF_FRONT', offset: 2 }],
+    west: [],
   },
 };
 
-/** A square executive office: a desk and chair facing the entrance, two
- *  visitor chairs, a couch and coffee table, plants, on a wood floor. */
+/** A small executive office on the south half of its cell, flush with the
+ *  first team module below it: a desk and chair facing the entrance, two
+ *  visitor chairs, a couch and coffee table, on a wood floor. */
 export const CTO_MODULE: ModuleTemplate = {
-  floors: [{ c0: 0, r0: 0, c1: 11, r1: 11, tile: PLANKS, color: HONEY_WOOD }],
+  footprint: CTO_FOOTPRINT,
+  floors: [{ ...CTO_FOOTPRINT, tile: PLANKS, color: HONEY_WOOD }],
   carpets: [CTO_RUG],
   furniture: [
-    { type: 'EXEC_DESK_BACK', col: 4, row: 2 },
-    { type: 'EXEC_CHAIR_FRONT', col: 5, row: 1 },
-    { type: 'PC_BACK_OFF', col: 6, row: 3 },
-    { type: 'COFFEE', col: 4, row: 2 },
-    { type: 'WOODEN_CHAIR_BACK', col: 4, row: 4 },
-    { type: 'WOODEN_CHAIR_BACK', col: 6, row: 4 },
-    { type: 'SOFA_RIGHT', col: 9, row: 1 },
-    { type: 'COFFEE_TABLE_RIGHT', col: 10, row: 1 },
-    { type: 'LARGE_PLANT', col: 1, row: 1 },
-    { type: 'LARGE_PLANT', col: 10, row: 4 },
-    { type: 'PLANT', col: 1, row: 9 },
-    { type: 'PLANT', col: 9, row: 9 },
-    { type: 'FLOOR_LAMP', col: 1, row: 5 },
-    { type: 'BIN', col: 1, row: 8 },
+    { type: 'EXEC_DESK_BACK', col: 4, row: 8 },
+    { type: 'EXEC_CHAIR_FRONT', col: 5, row: 7 },
+    { type: 'PC_BACK_OFF', col: 6, row: 9 },
+    { type: 'COFFEE', col: 4, row: 8 },
+    { type: 'WOODEN_CHAIR_BACK', col: 4, row: 10 },
+    { type: 'WOODEN_CHAIR_BACK', col: 6, row: 10 },
+    { type: 'SOFA_FRONT', col: 8, row: 7 },
+    { type: 'COFFEE_TABLE_FRONT', col: 8, row: 8 },
+    { type: 'BIN', col: 1, row: 10 },
   ],
-  wallDecor: {
-    // CTO_SIGN must stay on the wall whose decor takes `_FRONT`: a `_RIGHT`
-    // (mirrored) sign would read backwards.
-    north: [
-      { type: 'CTO_SIGN_FRONT', offset: 2 },
-      { type: 'CLOCK_FRONT', offset: 9 },
-    ],
-    west: [
-      { type: 'WALL_SHELF_RIGHT', offset: 2 },
-      { type: 'SMALL_PAINTING_RIGHT', offset: 9 },
-    ],
-  },
+  wallDecor: { north: [], west: [] },
 };
 
 export interface ComposeOfficeOptions {
@@ -240,6 +239,9 @@ export interface ComposedOfficeLayout {
   tileColors: (ModuleColor | null)[];
   carpetTiles: ({ variant: number; color: ModuleColor; accentColor: ModuleColor } | null)[];
   furniture: { uid: string; type: string; col: number; row: number }[];
+  /** `"col,row"` keys of back-wall tiles with a unit standing against them,
+   *  which the wall renderer leaves without a window. */
+  windowlessWalls: string[];
   ctoOfficeArea?: CtoOfficeArea;
   /** Each team module's own tile rectangle, in ring order (the order
    *  `teamModules` grew them in): runtime growth uses this to tell whether
@@ -257,29 +259,32 @@ interface PlacedModule {
   key: string;
 }
 
-/** The 4 cardinal lattice neighbours of the centre, nearest first (the first
- *  is always the "first team module" `ctoOfficeArea`'s queue anchor faces),
- *  then the diagonal corners, then each cardinal direction doubled, tripled,
- *  and so on outward. Only the first 4 are exercised today (one ring around
- *  a single centre module); the rest keeps `composeOffice` total for
- *  whatever team count runtime growth asks for later. */
+/** The centre's lattice neighbours: south, east and west first (the first is
+ *  always the "first team module" `ctoOfficeArea`'s queue anchor faces),
+ *  then the 4 diagonal corners, then north last: the CTO's footprint is only
+ *  the south half of its cell, so a north module touches nothing until a
+ *  north corner is in place to connect it. Beyond that ring, each cardinal
+ *  direction doubled, tripled, and so on outward, which keeps
+ *  `composeOffice` total for whatever team count runtime growth asks for. */
 function ringOffset(index: number): { dc: number; dr: number } {
+  const RING_1 = [
+    { dc: 0, dr: 1 },
+    { dc: 1, dr: 0 },
+    { dc: -1, dr: 0 },
+    { dc: 1, dr: 1 },
+    { dc: -1, dr: 1 },
+    { dc: 1, dr: -1 },
+    { dc: -1, dr: -1 },
+    { dc: 0, dr: -1 },
+  ] as const;
+  if (index < RING_1.length) return RING_1[index];
   const CARDINALS = [
     { dc: 0, dr: 1 },
     { dc: 1, dr: 0 },
     { dc: -1, dr: 0 },
     { dc: 0, dr: -1 },
   ] as const;
-  if (index < CARDINALS.length) return CARDINALS[index];
-  const CORNERS = [
-    { dc: 1, dr: 1 },
-    { dc: -1, dr: 1 },
-    { dc: 1, dr: -1 },
-    { dc: -1, dr: -1 },
-  ] as const;
-  const cornerIndex = index - CARDINALS.length;
-  if (cornerIndex < CORNERS.length) return CORNERS[cornerIndex];
-  const outerIndex = cornerIndex - CORNERS.length;
+  const outerIndex = index - RING_1.length;
   const tier = 2 + Math.floor(outerIndex / CARDINALS.length);
   const base = CARDINALS[outerIndex % CARDINALS.length];
   return { dc: base.dc * tier, dr: base.dr * tier };
@@ -301,40 +306,55 @@ function fillFloor(
   }
 }
 
-/** A module's back walls (its local -row "north" and -col "west" edges) are
- *  the building's shell: solid where nothing is beyond them. Every other
- *  side — including a CTO-to-team or team-to-team join — stays fully open
- *  floor now: only the exterior shell gets a wall at all. */
-function hasBackWall(
-  m: PlacedModule,
-  axis: 'north' | 'west',
-  lattice: ReadonlyMap<string, PlacedModule>,
-): boolean {
-  const key = axis === 'north' ? `${m.gc},${m.gr - 1}` : `${m.gc - 1},${m.gr}`;
-  return !lattice.has(key);
+/** First local index of the `DOOR_WIDTH` gap centred on the run `lo..hi`. */
+function doorStart(lo: number, hi: number): number {
+  return lo + Math.floor((hi - lo + 1 - DOOR_WIDTH) / 2);
 }
 
+/** A module's back walls (the north and west edges of its footprint) are the
+ *  building's shell: a wall tile stands wherever nothing lies beyond it. A
+ *  side with nothing at all beyond it keeps a door gap centred on its run.
+ *  A side that only partly borders another module is walled exactly where
+ *  it is exposed. Every other side, including a CTO-to-team or team-to-team
+ *  join, stays open floor. Reads the tiles beyond, so it must run after
+ *  every module's floor is filled. Returns the local offsets it walled. */
 function drawBackWall(
   tiles: number[],
   tileColors: (ModuleColor | null)[],
   cols: number,
   originC: number,
   originR: number,
+  footprint: TileRect,
   axis: 'north' | 'west',
-): void {
-  for (let i = 0; i < MODULE_SIZE; i++) {
-    if (i >= DOOR_LO && i <= DOOR_HI) continue;
-    const col = axis === 'north' ? originC + i : originC;
-    const row = axis === 'north' ? originR : originR + i;
-    tiles[row * cols + col] = WALL;
-    tileColors[row * cols + col] = WALL_COLOR;
+): Set<number> {
+  const lo = axis === 'north' ? footprint.c0 : footprint.r0;
+  const hi = axis === 'north' ? footprint.c1 : footprint.r1;
+  const exposed: { offset: number; index: number }[] = [];
+  for (let offset = lo; offset <= hi; offset++) {
+    const col = axis === 'north' ? originC + offset : originC + footprint.c0;
+    const row = axis === 'north' ? originR + footprint.r0 : originR + offset;
+    const beyondCol = axis === 'north' ? col : col - 1;
+    const beyondRow = axis === 'north' ? row - 1 : row;
+    if (beyondCol < 0 || beyondRow < 0 || tiles[beyondRow * cols + beyondCol] === VOID_TILE) {
+      exposed.push({ offset, index: row * cols + col });
+    }
   }
+
+  const hasDoor = exposed.length === hi - lo + 1;
+  const door = doorStart(lo, hi);
+  const walled = new Set<number>();
+  for (const { offset, index } of exposed) {
+    if (hasDoor && offset >= door && offset < door + DOOR_WIDTH) continue;
+    tiles[index] = WALL;
+    tileColors[index] = WALL_COLOR;
+    walled.add(offset);
+  }
+  return walled;
 }
 
 /** Compose team and CTO modules on the lattice into one layout grid. Centre:
  *  the CTO module when `cto` is enabled, else the first team module. The
- *  rest of the team modules ring around the centre, nearest cardinal
- *  neighbour first. */
+ *  rest of the team modules ring around the centre in `ringOffset` order. */
 export function composeOffice(opts: ComposeOfficeOptions): ComposedOfficeLayout {
   const cto = opts.cto ?? true;
   const teamCount = Math.max(0, Math.floor(opts.teamModules));
@@ -355,9 +375,6 @@ export function composeOffice(opts: ComposeOfficeOptions): ComposedOfficeLayout 
     const teamNumber = cto ? i + 1 : i + 2;
     placed.push({ gc: dc, gr: dr, template: TEAM_MODULE, key: `team${teamNumber}` });
   }
-
-  const lattice = new Map<string, PlacedModule>();
-  for (const m of placed) lattice.set(`${m.gc},${m.gr}`, m);
 
   // The lattice always reserves the full ring (centre + its 4 cardinal and 4
   // diagonal neighbours, up to 8 team modules), regardless of how many are
@@ -383,15 +400,18 @@ export function composeOffice(opts: ComposeOfficeOptions): ComposedOfficeLayout 
   } | null>(cols * rows).fill(null);
   const furniture: { uid: string; type: string; col: number; row: number }[] = [];
   const teamModuleAreas: TileRect[] = [];
+  let ctoOfficeArea: CtoOfficeArea | undefined;
+
+  const nextIndex = new Map<string, number>();
+  const put = (m: PlacedModule, type: string, col: number, row: number): void => {
+    const index = nextIndex.get(m.key) ?? 1;
+    nextIndex.set(m.key, index + 1);
+    furniture.push({ uid: `${m.key}-${index}`, type, col, row });
+  };
 
   for (const m of placed) {
     const originC = (m.gc - minGC) * MODULE_SIZE;
     const originR = (m.gr - minGR) * MODULE_SIZE;
-    let nextIndex = 1;
-    const put = (type: string, col: number, row: number): void => {
-      furniture.push({ uid: `${m.key}-${nextIndex++}`, type, col, row });
-    };
-
     for (const fill of m.template.floors)
       fillFloor(tiles, tileColors, cols, originC, originR, fill);
     for (const rug of m.template.carpets ?? []) {
@@ -405,43 +425,59 @@ export function composeOffice(opts: ComposeOfficeOptions): ComposedOfficeLayout 
         }
       }
     }
-    for (const f of m.template.furniture) put(f.type, originC + f.col, originR + f.row);
+    for (const f of m.template.furniture) put(m, f.type, originC + f.col, originR + f.row);
 
-    const north = hasBackWall(m, 'north', lattice);
-    const west = hasBackWall(m, 'west', lattice);
-    if (north) {
-      drawBackWall(tiles, tileColors, cols, originC, originR, 'north');
-      for (const d of m.template.wallDecor.north) put(d.type, originC + d.offset, originR);
-    }
-    if (west) {
-      drawBackWall(tiles, tileColors, cols, originC, originR, 'west');
-      for (const d of m.template.wallDecor.west) put(d.type, originC, originR + d.offset);
-    }
-
-    if (m.template === TEAM_MODULE) {
-      teamModuleAreas.push({
-        c0: originC,
-        r0: originR,
-        c1: originC + MODULE_SIZE - 1,
-        r1: originR + MODULE_SIZE - 1,
-      });
-    }
-  }
-
-  let ctoOfficeArea: CtoOfficeArea | undefined;
-  if (cto) {
-    const originC = (0 - minGC) * MODULE_SIZE;
-    const originR = (0 - minGR) * MODULE_SIZE;
-    ctoOfficeArea = {
-      c0: originC,
-      r0: originR,
-      c1: originC + MODULE_SIZE - 1,
-      r1: originR + MODULE_SIZE - 1,
-      queueCol: originC + DOOR_LO,
-      queueRow: originR + MODULE_SIZE,
-      queueFacing: DIRECTION_UP,
+    const { footprint } = m.template;
+    const area: TileRect = {
+      c0: originC + footprint.c0,
+      r0: originR + footprint.r0,
+      c1: originC + footprint.c1,
+      r1: originR + footprint.r1,
     };
+    if (m.template === TEAM_MODULE) teamModuleAreas.push(area);
+    if (m.template === CTO_MODULE) {
+      ctoOfficeArea = {
+        ...area,
+        queueCol: originC + doorStart(footprint.c0, footprint.c1),
+        queueRow: area.r1 + 1,
+        queueFacing: DIRECTION_UP,
+      };
+    }
   }
 
-  return { cols, rows, tiles, tileColors, carpetTiles, furniture, ctoOfficeArea, teamModuleAreas };
+  const windowlessWalls: string[] = [];
+  for (const m of placed) {
+    const originC = (m.gc - minGC) * MODULE_SIZE;
+    const originR = (m.gr - minGR) * MODULE_SIZE;
+    const { footprint, wallDecor } = m.template;
+    const north = drawBackWall(tiles, tileColors, cols, originC, originR, footprint, 'north');
+    for (const d of wallDecor.north) {
+      if (north.has(d.offset)) put(m, d.type, originC + d.offset, originR + footprint.r0);
+    }
+    const west = drawBackWall(tiles, tileColors, cols, originC, originR, footprint, 'west');
+    for (const d of wallDecor.west) {
+      if (west.has(d.offset)) put(m, d.type, originC + footprint.c0, originR + d.offset);
+    }
+    for (const f of m.template.furniture) {
+      if (!f.againstWall) continue;
+      if (f.col - 1 === footprint.c0 && west.has(f.row)) {
+        windowlessWalls.push(`${originC + footprint.c0},${originR + f.row}`);
+      }
+      if (f.row - 1 === footprint.r0 && north.has(f.col)) {
+        windowlessWalls.push(`${originC + f.col},${originR + footprint.r0}`);
+      }
+    }
+  }
+
+  return {
+    cols,
+    rows,
+    tiles,
+    tileColors,
+    carpetTiles,
+    furniture,
+    windowlessWalls,
+    ctoOfficeArea,
+    teamModuleAreas,
+  };
 }

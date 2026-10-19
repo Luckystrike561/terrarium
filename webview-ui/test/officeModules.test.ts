@@ -10,7 +10,8 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { composeOffice, CTO_MODULE } from '../../core/src/officeModules.ts';
+import { composeOffice } from '../../core/src/officeModules.ts';
+import { TileType } from '../src/office/types.ts';
 
 function furnitureByModule(
   furniture: { uid: string; type: string; col: number; row: number }[],
@@ -55,25 +56,6 @@ test('the CTO module keeps the same furniture while its own neighbouring ring sl
   );
 });
 
-test('the CTO module regains its north wall decor once the north ring slot empties out again', () => {
-  // team4 (ring index 3) sits north of the CTO module: while it is there,
-  // both the CTO's north and west sides are open joins, not walls, so it
-  // carries no wall decor at all. Removing team4 (4 → 3) restores the north
-  // wall and its 2 decor items (CTO_SIGN_FRONT, CLOCK_FRONT); the west side
-  // still joins team3, so it stays undecorated.
-  const four = composeOffice({ teamModules: 4, cto: true });
-  const three = composeOffice({ teamModules: 3, cto: true });
-  assert.equal(furnitureByModule(four.furniture, 'cto').length, CTO_MODULE.furniture.length);
-  assert.equal(furnitureByModule(three.furniture, 'cto').length, CTO_MODULE.furniture.length + 2);
-  assert.deepEqual(
-    furnitureByModule(three.furniture, 'cto')
-      .map((f) => f.type)
-      .filter((type) => type === 'CTO_SIGN_FRONT' || type === 'CLOCK_FRONT')
-      .sort(),
-    ['CLOCK_FRONT', 'CTO_SIGN_FRONT'],
-  );
-});
-
 test('removing the outermost team module leaves every remaining team module byte-identical', () => {
   const four = composeOffice({ teamModules: 4, cto: true });
   const three = composeOffice({ teamModules: 3, cto: true });
@@ -111,18 +93,69 @@ test('the grid dimensions stay constant across 1 to 8 team modules (the fixed ri
   );
 });
 
-test('team module areas are in ring order: south, east, west, north', () => {
-  const { teamModuleAreas } = composeOffice({ teamModules: 4, cto: true });
-  assert.equal(teamModuleAreas.length, 4);
-  const cto = composeOffice({ teamModules: 4, cto: true }).ctoOfficeArea!;
-  // team1 (south) sits directly below the CTO rect.
-  assert.equal(teamModuleAreas[0].r0, cto.r1 + 1);
-  assert.equal(teamModuleAreas[0].c0, cto.c0);
-  // team2 (east) sits directly right of the CTO rect.
-  assert.equal(teamModuleAreas[1].c0, cto.c1 + 1);
-  assert.equal(teamModuleAreas[1].r0, cto.r0);
-  // team3 (west) sits directly left of the CTO rect.
-  assert.equal(teamModuleAreas[2].c1, cto.c0 - 1);
-  // team4 (north) sits directly above the CTO rect.
-  assert.equal(teamModuleAreas[3].r1, cto.r0 - 1);
+test('team modules ring the CTO south, east and west, then the corners, north last', () => {
+  const { teamModuleAreas, ctoOfficeArea } = composeOffice({ teamModules: 8, cto: true });
+  const cto = ctoOfficeArea!;
+  const [south, east, west, , , , , north] = teamModuleAreas;
+  assert.equal(south.r0, cto.r1 + 1);
+  assert.equal(south.c0, cto.c0);
+  assert.equal(east.c0, cto.c1 + 1);
+  assert.equal(east.r1, cto.r1);
+  assert.equal(west.c1, cto.c0 - 1);
+  assert.equal(west.r1, cto.r1);
+  assert.equal(north.c0, cto.c0);
+  assert.ok(north.r1 < cto.r0 - 1, 'the north module does not touch the half-depth CTO office');
+});
+
+test('every team module is reachable on foot from the CTO office, whatever the count', () => {
+  for (let teamModules = 1; teamModules <= 12; teamModules++) {
+    const { cols, rows, tiles, ctoOfficeArea, teamModuleAreas } = composeOffice({
+      teamModules,
+      cto: true,
+    });
+    const reached = new Set<number>();
+    const start = ctoOfficeArea!.r1 * cols + ctoOfficeArea!.c0;
+    const stack = [start];
+    reached.add(start);
+    while (stack.length > 0) {
+      const index = stack.pop()!;
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      for (const [dc, dr] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const c = col + dc;
+        const r = row + dr;
+        if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+        const next = r * cols + c;
+        if (reached.has(next) || tiles[next] === TileType.WALL || tiles[next] === TileType.VOID)
+          continue;
+        reached.add(next);
+        stack.push(next);
+      }
+    }
+    teamModuleAreas.forEach((area, i) => {
+      const centre =
+        Math.floor((area.r0 + area.r1) / 2) * cols + Math.floor((area.c0 + area.c1) / 2);
+      assert.ok(reached.has(centre), `team${i + 1} is cut off with ${teamModules} team modules`);
+    });
+  }
+});
+
+test('the wall behind the kitchen run is listed windowless, and only real wall tiles ever are', () => {
+  const one = composeOffice({ teamModules: 1, cto: true });
+  const team1 = one.teamModuleAreas[0];
+  const kitchenWall = [7, 8, 9, 10].map((row) => `${team1.c0},${team1.r0 + row}`);
+  for (const key of kitchenWall) assert.ok(one.windowlessWalls.includes(key), key);
+
+  for (let teamModules = 1; teamModules <= 8; teamModules++) {
+    const { cols, tiles, windowlessWalls } = composeOffice({ teamModules, cto: true });
+    for (const key of windowlessWalls) {
+      const [col, row] = key.split(',').map(Number);
+      assert.equal(tiles[row * cols + col], TileType.WALL, `${key} with ${teamModules} modules`);
+    }
+  }
 });

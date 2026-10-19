@@ -11,14 +11,14 @@ import type { OfficeLayout, Seat } from '../types.js';
 export { composeOffice };
 export type { ComposedOfficeLayout, TileRect };
 
-export const AGENTS_PER_TEAM_MODULE = 10;
+export const AGENTS_PER_TEAM_MODULE = 8;
 
 /** Truthy `layoutRevision` for a runtime-composed layout: it is always
  *  generated in the current tile encoding, so `migrateLayout`'s legacy
  *  VOID(8) check (gated on a falsy revision) never needs to run on it. */
 const COMPOSED_LAYOUT_REVISION = 1;
 
-/** Team modules a floor needs for `topLevelAgentCount` seated agents (10 desk
+/** Team modules a floor needs for `topLevelAgentCount` seated agents (8 desk
  *  seats each), at least 1 so an empty floor still shows a starting office. */
 export function neededTeamModules(topLevelAgentCount: number): number {
   return Math.max(1, Math.ceil(topLevelAgentCount / AGENTS_PER_TEAM_MODULE));
@@ -34,7 +34,7 @@ export function teamModuleOfSeat(seatId: string | undefined): number {
 }
 
 /** The team-module count a floor should move to. Grows straight to whatever
- *  `neededTeamModules` needs — an 11th, 21st, 31st, ... agent attaches one
+ *  `neededTeamModules` needs: a 9th, 17th, 25th, ... agent attaches one
  *  more module each. Shrinks only one module at a time, outermost first
  *  (`isModuleEmpty`'s `ringIndex` is 0-based, the order `teamModules` grew
  *  them in), and only while that module is actually empty: a module never
@@ -79,6 +79,7 @@ export function composedToLayout(composed: ComposedOfficeLayout): OfficeLayout {
     tileColors: composed.tileColors,
     carpetTiles: composed.carpetTiles,
     furniture: composed.furniture,
+    windowlessWalls: composed.windowlessWalls,
     ctoOfficeArea: composed.ctoOfficeArea as OfficeLayout['ctoOfficeArea'],
   };
 }

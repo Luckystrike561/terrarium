@@ -1,0 +1,33 @@
+{
+  "id": "KITCHEN_TABLE",
+  "name": "Kitchen Table",
+  "category": "desks",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "KITCHEN_TABLE_FRONT",
+      "file": "KITCHEN_TABLE_FRONT.png",
+      "width": 96,
+      "height": 75,
+      "footprintW": 2,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "KITCHEN_TABLE_RIGHT",
+      "file": "KITCHEN_TABLE_RIGHT.png",
+      "width": 96,
+      "height": 75,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "right"
+    }
+  ]
+}

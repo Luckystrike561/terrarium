@@ -1,0 +1,33 @@
+{
+  "id": "STOVE",
+  "name": "Stove",
+  "category": "misc",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "STOVE_FRONT",
+      "file": "STOVE_FRONT.png",
+      "width": 64,
+      "height": 71,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "STOVE_RIGHT",
+      "file": "STOVE_RIGHT.png",
+      "width": 64,
+      "height": 71,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    }
+  ]
+}

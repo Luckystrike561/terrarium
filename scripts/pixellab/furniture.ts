@@ -46,7 +46,7 @@ const BASE = 'https://api.pixellab.ai/v2';
 
 /** Budget: the run aborts before issuing a paid call that would cross this
  *  (shared with other PixelLab work running against the same account). */
-const GENERATION_BUDGET_CAP = 400;
+const GENERATION_BUDGET_CAP = 450;
 const RETRY_429_MAX_ATTEMPTS = 40;
 /** PixelLab map-object generation fails permanently from time to time for
  *  reasons unrelated to the prompt; retry with a different seed before
@@ -61,9 +61,14 @@ const TURNAROUND_GENERATIONS_ESTIMATE = 20;
 /** Height of a desk or table top above the floor, in art px, measured on the
  *  PixelLab desk and table renders. */
 const DESK_SURFACE_LIFT_ART_PX = 26;
-/** Height of the kitchen counter top above the floor, in art px, measured
- *  where the coffee machine stands on the resized PixelLab counter render. */
-const COUNTER_SURFACE_LIFT_ART_PX = 34;
+/** Height of the kitchen counter top above the floor, in art px: the
+ *  worktop's front corner over the base's front corner, measured down the
+ *  centre column of the packed PixelLab counter render. */
+const COUNTER_SURFACE_LIFT_ART_PX = 37;
+/** Height of an upper kitchen cupboard's underside above the floor, in art
+ *  px: a cupboard body as tall as the counter's (about 39) then tops out
+ *  level with the 112 px wall, clear of the coffee machine and the tap. */
+const UPPER_CUPBOARD_LIFT_ART_PX = 72;
 /** Where a hung item's centre sits on the wall, and the highest its top may
  *  reach, in art px above the floor. The wall is 112 art px tall. */
 const WALL_HANG_CENTRE_ART_PX = 70;
@@ -170,6 +175,10 @@ interface ItemPrompt {
   /** The turnaround's north-east view of a long item came back along the
    *  other floor axis from its south-west view. */
   mirrorBack?: boolean;
+  /** PixelLab's pixel-art resize redraws the item and may turn it to face
+   *  the other diagonal, whichever way its input faced: mirror the resized
+   *  front back. */
+  mirrorResizedFront?: boolean;
   /** Fraction of its generated size the item is resized to, matching the
    *  proportions of the room, the characters and the rest of the furniture
    *  (measured against the earlier procedural set, which had them right). */
@@ -185,6 +194,15 @@ interface ItemPrompt {
    *  shift its outline, so cycling them makes the item jump. */
   stillOn?: boolean;
   wallMounted?: boolean;
+  /** Item whose raw front render seeds this item's front render through
+   *  `init_image`, so units meant to stand side by side in one kitchen run
+   *  share its body, height and palette. Generate that item first. */
+  initFrom?: string;
+  /** PixelLab canvas in art px. The default (the sprite's width, and its
+   *  height + 110) leaves headroom for tall items, which makes a low,
+   *  tile-filling unit such as a kitchen counter come back tall. A canvas
+   *  wider than the sprite needs `resize` to bring the render back down. */
+  canvas?: { width: number; height: number };
   /** Only for items with on/off electronics state: full descriptions for
    *  the off frame and each on frame, for front and (if the item has one)
    *  back. Index 0 = on frame 1, 1 = on frame 2, 2 = on frame 3. */
@@ -294,26 +312,61 @@ const PROMPTS: Record<string, ItemPrompt> = {
     resize: 0.77,
   },
   COFFEE_MACHINE: {
-    front: 'a modern countertop coffee machine in white and light wood',
+    front:
+      'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it',
     surfaceLift: COUNTER_SURFACE_LIFT_ART_PX,
     stillOn: true,
     resize: 0.6,
     states: {
       front: {
-        off: 'a modern countertop coffee machine in white and light wood, idle with no steam',
+        off: 'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, idle with no steam',
         on: [
-          'a modern countertop coffee machine in white and light wood, brewing coffee with a small puff of steam rising from the top',
-          'a modern countertop coffee machine in white and light wood, brewing coffee with a larger puff of steam rising from the top',
-          'a modern countertop coffee machine in white and light wood, brewing coffee with a wisp of steam drifting to the side',
+          'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a small puff of steam rising from the top',
+          'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a larger puff of steam rising from the top',
+          'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it, brewing coffee with a wisp of steam drifting to the side',
         ],
       },
     },
   },
   KITCHEN_COUNTER: {
-    front: 'a modern kitchen counter cabinet with a white countertop and light wood cabinet doors',
-    resize: 0.56,
+    front:
+      'a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop on top, white cabinet doors with small brass knob handles on the front face, plain flat sides so identical units line up seamlessly in a row',
+    canvas: { width: 128, height: 128 },
+    resize: 0.7,
   },
-  FRIDGE: { front: 'a modern compact refrigerator in white and light grey with rounded corners' },
+  KITCHEN_SINK: {
+    front:
+      'a single low square kitchen base cabinet unit, wider than it is tall, a thick varnished warm brown wood worktop with a brushed steel sink basin set into it and a tall curved chrome tap, white cabinet doors with small brass knob handles, a green tea towel hanging on the door',
+    initFrom: 'KITCHEN_COUNTER',
+    canvas: { width: 128, height: 128 },
+    resize: 0.7,
+  },
+  STOVE: {
+    front:
+      'a low square freestanding kitchen cooker exactly as tall as a kitchen counter, wider than it is tall, white enamel body, four round black hob rings on the flat top, an oven door with a dark glass window and a long chrome handle, a row of small control knobs above the door',
+    initFrom: 'KITCHEN_COUNTER',
+    canvas: { width: 128, height: 128 },
+    resize: 0.7,
+  },
+  FRIDGE: {
+    front:
+      'a tall boxy kitchen refrigerator as deep as a kitchen counter, cream white enamel body, a small freezer door on top and a larger fridge door below, long brass handles, a warm brown wood trim along the top',
+    canvas: { width: 128, height: 192 },
+    resize: 0.62,
+    mirrorResizedFront: true,
+  },
+  KITCHEN_CABINET: {
+    front:
+      'a single square upper kitchen wall cupboard unit shaped like a box, varnished warm brown wood, two glass-paned doors on the front face showing stacked white plates and pale blue cups inside, small brass knobs, a flat bottom with no legs',
+    initFrom: 'KITCHEN_COUNTER',
+    canvas: { width: 128, height: 128 },
+    resize: 0.7,
+    surfaceLift: UPPER_CUPBOARD_LIFT_ART_PX,
+  },
+  KITCHEN_TABLE: {
+    front:
+      'a rectangular kitchen dining table covered by a blue and white gingham checkered tablecloth hanging over its edges, sturdy warm brown wood legs',
+  },
   WATER_COOLER: {
     front: 'a modern water cooler dispenser with a pale blue tinted water bottle on a white base',
   },
@@ -843,7 +896,13 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   };
   const leaves = flattenManifest(manifest);
   const width = leaves[0].width;
-  const canvasHeight = Math.floor(Math.min(400, leaves[0].height + 110) / 4) * 4;
+  const canvas = prompt.canvas ?? {
+    width,
+    height: Math.floor(Math.min(400, leaves[0].height + 110) / 4) * 4,
+  };
+  if (canvas.width > width && !prompt.resize) {
+    throw new Error(`${itemId} renders ${canvas.width}px wide for a ${width}px sprite: set resize`);
+  }
 
   const orientationsPresent = new Set(leaves.map((l) => l.orientation));
   const sourceOrientations: SourceOrientation[] = orientationsPresent.has(undefined)
@@ -853,7 +912,12 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   const generated = new Map<string, PixelImage>();
   for (const so of prompt.turnaround ? (['front'] as const) : sourceOrientations) {
     const combos = stateFrameCombos(leaves, so);
-    let prevRawPath: string | undefined;
+    let prevRawPath = prompt.initFrom
+      ? path.join(framesDir, prompt.initFrom, `${genKey(undefined, undefined, 'front')}.png`)
+      : undefined;
+    if (prevRawPath && !fs.existsSync(prevRawPath)) {
+      throw new Error(`${itemId} needs ${prompt.initFrom} generated first`);
+    }
     for (const { state, frame } of combos) {
       const key = genKey(state, frame, so);
       const description = describe(prompt, so, state, frame);
@@ -862,11 +926,11 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
         itemId,
         key,
         description,
-        width,
-        canvasHeight,
+        canvas.width,
+        canvas.height,
         prevRawPath,
       );
-      generated.set(`${so ?? ''}|${state ?? ''}|${frame ?? ''}`, trimAndPad(img, width));
+      generated.set(`${so ?? ''}|${state ?? ''}|${frame ?? ''}`, trimAndPad(img, canvas.width));
       prevRawPath = path.join(framesDir, itemId, `${key}.png`);
     }
   }
@@ -891,6 +955,9 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
       );
       generated.set(key, trimAndPad(resized, width, false));
     }
+  }
+  if (prompt.mirrorResizedFront) {
+    generated.set('front||', generated.get('front||')!.mirrored());
   }
   if (prompt.surfaceLift) {
     for (const [key, img] of generated) generated.set(key, liftOff(img, prompt.surfaceLift));

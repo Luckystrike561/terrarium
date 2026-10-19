@@ -54,7 +54,7 @@ export class Building {
   private floorLayout: OfficeLayout | undefined;
   private areaMappings: Record<string, string[]> = {};
   /** True once the server reports no `~/.terrarium/layout.json` (`LayoutLoaded.isDefault`): every floor composes
-   *  its own layout (`core/src/officeModules.ts`) from `ceil(its agents / 10)` team modules instead of using a
+   *  its own layout (`core/src/officeModules.ts`) from `ceil(its agents / 8)` team modules instead of using a
    *  server-sent layout verbatim. */
   private modularOffice = false;
   /** `SettingsLoaded.ctoOffice`, read before `enableModularOffice` ever composes anything. */

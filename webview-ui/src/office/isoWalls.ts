@@ -49,8 +49,10 @@ const WINDOW_SILL_PX = 16;
 const WINDOW_HEAD_PX = 42;
 const WINDOW_TRIM_PX = 1;
 const WINDOW_PERIOD = 3;
-/** A door frame's post width and its centered depth into the tile, both in
- *  world units, and the lintel band's height at the top of the opening. */
+/** A door frame's post width, its centered depth into the tile when it sits
+ *  in a glass partition (a back-wall doorway instead spans the wall's own
+ *  thickness, so its frame stays flush with the wall faces beside it), both
+ *  in world units, and the lintel band's height at the top of the opening. */
 const DOOR_POST_WIDTH = 2;
 const DOOR_FRAME_DEPTH = 2;
 const DOOR_LINTEL_PX = 10;
@@ -247,19 +249,22 @@ function glassWall(runsAlongCols: boolean, runsAlongRows: boolean): SpriteData {
 const cache = new Map<string, SpriteData>();
 
 /** The sprite for one wall tile (top-left at the tile's iso corner minus
- *  (16, height)) and its height above the floor. */
+ *  (16, height)) and its height above the floor. `windowAllowed` is false for
+ *  a back-wall tile with a unit standing against it. */
 export function getWallSprite(
   tileMap: TileTypeVal[][],
   col: number,
   row: number,
   baseHex: string,
+  windowAllowed: boolean,
 ): { sprite: SpriteData; height: number } {
   const topOpen = openBeyond(tileMap, col, row - 1);
   const leftOpen = openBeyond(tileMap, col - 1, row);
   if (topOpen || leftOpen) {
     // A corner post (both open) has no plain face to punch a window into.
     const corner = topOpen && leftOpen;
-    const isWindow = !corner && (topOpen ? col % WINDOW_PERIOD === 1 : row % WINDOW_PERIOD === 1);
+    const isWindow =
+      windowAllowed && !corner && (topOpen ? col % WINDOW_PERIOD === 1 : row % WINDOW_PERIOD === 1);
     const key = `solid:${topOpen ? 1 : 0}${leftOpen ? 1 : 0}${isWindow ? 1 : 0}:${baseHex}`;
     let sprite = cache.get(key);
     if (!sprite) cache.set(key, (sprite = solidWall(baseHex, topOpen, leftOpen, isWindow)));
@@ -274,14 +279,16 @@ export function getWallSprite(
 }
 
 /** A walkable tile inside a short (<= MAX_DOOR_WIDTH) gap of a wall line,
- *  the axis the gap runs along, and whether a wall sits immediately on each
- *  side of this particular tile (so a 2-wide door gets one post per tile and
- *  a shared lintel, and a 1-wide door gets both posts on its only tile). */
+ *  the axis the gap runs along, whether the gap is in a back wall (the room's
+ *  shell, open beyond it) rather than a glass partition, and whether a wall
+ *  sits immediately on each side of this particular tile (so a 2-wide door
+ *  gets one post per tile and a shared lintel, and a 1-wide door gets both
+ *  posts on its only tile). */
 function doorwayGeometry(
   tileMap: TileTypeVal[][],
   col: number,
   row: number,
-): { alongCols: boolean; capBefore: boolean; capAfter: boolean } | null {
+): { alongCols: boolean; inBackWall: boolean; capBefore: boolean; capAfter: boolean } | null {
   const t = tileMap[row]?.[col];
   if (t === undefined || t === TileType.WALL || t === TileType.VOID) return null;
   for (const [dc, dr, alongCols] of [
@@ -303,6 +310,9 @@ function doorwayGeometry(
     if (before + after + 1 <= MAX_DOOR_WIDTH) {
       return {
         alongCols,
+        inBackWall: alongCols
+          ? openBeyond(tileMap, col, row - 1)
+          : openBeyond(tileMap, col - 1, row),
         capBefore: isWall(tileMap, col - dc, row - dr),
         capAfter: isWall(tileMap, col + dc, row + dr),
       };
@@ -311,9 +321,14 @@ function doorwayGeometry(
   return null;
 }
 
-function doorFrame(alongCols: boolean, capBefore: boolean, capAfter: boolean): SpriteData {
-  const lo = TILE / 2 - DOOR_FRAME_DEPTH / 2;
-  const hi = TILE / 2 + DOOR_FRAME_DEPTH / 2;
+function doorFrame(
+  alongCols: boolean,
+  inBackWall: boolean,
+  capBefore: boolean,
+  capAfter: boolean,
+): SpriteData {
+  const lo = inBackWall ? TILE - WALL_THICKNESS : TILE / 2 - DOOR_FRAME_DEPTH / 2;
+  const hi = inBackWall ? TILE : TILE / 2 + DOOR_FRAME_DEPTH / 2;
   const doorSide = shadeHex(DOOR_FRAME_COLOR, LEFT_FACE_SHADE);
   const paint: Box['paint'] = (face) => (face === 'top' ? DOOR_FRAME_COLOR : doorSide);
   const boxes: Box[] = [];
@@ -375,8 +390,13 @@ export function getDoorFrameSprite(
 ): { sprite: SpriteData; height: number } | null {
   const geo = doorwayGeometry(tileMap, col, row);
   if (!geo) return null;
-  const key = `door:${geo.alongCols ? 1 : 0}${geo.capBefore ? 1 : 0}${geo.capAfter ? 1 : 0}`;
+  const key = `door:${geo.alongCols ? 1 : 0}${geo.inBackWall ? 1 : 0}${geo.capBefore ? 1 : 0}${geo.capAfter ? 1 : 0}`;
   let sprite = cache.get(key);
-  if (!sprite) cache.set(key, (sprite = doorFrame(geo.alongCols, geo.capBefore, geo.capAfter)));
+  if (!sprite) {
+    cache.set(
+      key,
+      (sprite = doorFrame(geo.alongCols, geo.inBackWall, geo.capBefore, geo.capAfter)),
+    );
+  }
   return { sprite, height: WALL_HEIGHT_PX };
 }

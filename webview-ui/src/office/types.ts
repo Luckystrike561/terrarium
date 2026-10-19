@@ -176,6 +176,9 @@ export interface OfficeLayout {
    *  hand-authored or seeded one, which falls back to the wall-doorway
    *  search. */
   ctoOfficeArea?: CtoOfficeArea;
+  /** `"col,row"` keys of back-wall tiles a unit stands flush against (a
+   *  composed layout's kitchen run): those tiles get no window. */
+  windowlessWalls?: string[];
 }
 
 export interface Character {

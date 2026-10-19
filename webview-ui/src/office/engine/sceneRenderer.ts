@@ -106,6 +106,14 @@ const CHARACTER_SPRITE_SCALE = ART_SPRITE_SCALE * CHARACTER_SCALE;
 /** Half-extent (tiles) of a character's or pet's sort box around its feet. */
 const ACTOR_SORT_HALF = 0.01;
 
+const windowlessWallsByLayout = new WeakMap<OfficeLayout, ReadonlySet<string>>();
+
+function windowlessWallsOf(layout: OfficeLayout): ReadonlySet<string> {
+  let walls = windowlessWallsByLayout.get(layout);
+  if (!walls) windowlessWallsByLayout.set(layout, (walls = new Set(layout.windowlessWalls)));
+  return walls;
+}
+
 // ── Public types ────────────────────────────────────────────────
 
 export interface SelectionRenderState {
@@ -622,6 +630,7 @@ class FloorScene {
 
     const tileMap = state.tileMap;
     const layoutCols = state.layoutCols ?? tileMap[0]?.length ?? 0;
+    const windowlessWalls = windowlessWallsOf(state.layout);
     for (let r = 0; r < tileMap.length; r++) {
       for (let c = 0; c < tileMap[r].length; c++) {
         if (tileMap[r][c] === TileType.WALL) {
@@ -633,6 +642,7 @@ class FloorScene {
             c,
             r,
             color ? wallColorToHex(color) : WALL_COLOR,
+            !windowlessWalls.has(`${c},${r}`),
           );
           const sprite = getOrCreateSprite(this.wallPool, key, this.entityContainer);
           sprite.texture = getTexture(wallSprite);

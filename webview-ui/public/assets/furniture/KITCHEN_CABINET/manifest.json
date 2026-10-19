@@ -1,0 +1,33 @@
+{
+  "id": "KITCHEN_CABINET",
+  "name": "Kitchen Cabinet",
+  "category": "storage",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": true,
+  "backgroundTiles": 0,
+  "type": "group",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
+  "members": [
+    {
+      "type": "asset",
+      "id": "KITCHEN_CABINET_FRONT",
+      "file": "KITCHEN_CABINET_FRONT.png",
+      "width": 64,
+      "height": 143,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "front"
+    },
+    {
+      "type": "asset",
+      "id": "KITCHEN_CABINET_RIGHT",
+      "file": "KITCHEN_CABINET_RIGHT.png",
+      "width": 64,
+      "height": 143,
+      "footprintW": 1,
+      "footprintH": 1,
+      "orientation": "right"
+    }
+  ]
+}

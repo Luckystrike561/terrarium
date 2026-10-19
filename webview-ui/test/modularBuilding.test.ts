@@ -15,6 +15,7 @@ import { beforeAll, test } from 'vitest';
 import { buildFurnitureCatalog } from '../../core/src/assets/build.ts';
 import { decodeAllFurniture } from '../../core/src/assets/loader.ts';
 import { Building } from '../src/office/engine/building.js';
+import { AGENTS_PER_TEAM_MODULE, neededTeamModules } from '../src/office/engine/modularOffice.js';
 import { buildDynamicCatalog } from '../src/office/layout/furnitureCatalog.js';
 
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../public/assets');
@@ -60,6 +61,15 @@ test('a repeated layoutLoaded keeps every agent at its desk', () => {
 
   building.enableModularOffice();
 
-  assert.equal(building.floors[0].teamModules, 3);
+  assert.equal(building.floors[0].teamModules, neededTeamModules(25));
   assert.deepEqual(seatsOf(building, range(1, 25)), before);
+});
+
+test('every team module has a rest seat for each of its desk agents', () => {
+  const office = modularBuilding().ground;
+  const restSeats = [...office.restSeatUids].filter((uid) => uid.startsWith('team1-'));
+  assert.ok(
+    restSeats.length >= AGENTS_PER_TEAM_MODULE,
+    `team1 has ${restSeats.length} rest seats for ${AGENTS_PER_TEAM_MODULE} agents`,
+  );
 });

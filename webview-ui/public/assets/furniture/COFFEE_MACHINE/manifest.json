@@ -6,52 +6,114 @@
   "canPlaceOnSurfaces": true,
   "backgroundTiles": 0,
   "type": "group",
-  "groupType": "state",
+  "groupType": "rotation",
+  "rotationScheme": "2-way",
   "members": [
     {
-      "type": "asset",
-      "id": "COFFEE_MACHINE_OFF",
-      "file": "COFFEE_MACHINE_OFF.png",
-      "width": 64,
-      "height": 67,
-      "footprintW": 1,
-      "footprintH": 1,
-      "state": "off"
-    },
-    {
       "type": "group",
-      "groupType": "animation",
-      "state": "on",
+      "groupType": "state",
+      "orientation": "front",
       "members": [
         {
           "type": "asset",
-          "id": "COFFEE_MACHINE_ON_1",
-          "file": "COFFEE_MACHINE_ON_1.png",
+          "id": "COFFEE_MACHINE_FRONT_OFF",
+          "file": "COFFEE_MACHINE_FRONT_OFF.png",
           "width": 64,
-          "height": 68,
+          "height": 74,
           "footprintW": 1,
           "footprintH": 1,
-          "frame": 0
+          "state": "off"
         },
         {
-          "type": "asset",
-          "id": "COFFEE_MACHINE_ON_2",
-          "file": "COFFEE_MACHINE_ON_2.png",
-          "width": 64,
-          "height": 68,
-          "footprintW": 1,
-          "footprintH": 1,
-          "frame": 1
-        },
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_FRONT_ON_1",
+              "file": "COFFEE_MACHINE_FRONT_ON_1.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_FRONT_ON_2",
+              "file": "COFFEE_MACHINE_FRONT_ON_2.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_FRONT_ON_3",
+              "file": "COFFEE_MACHINE_FRONT_ON_3.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "groupType": "state",
+      "orientation": "right",
+      "members": [
         {
           "type": "asset",
-          "id": "COFFEE_MACHINE_ON_3",
-          "file": "COFFEE_MACHINE_ON_3.png",
+          "id": "COFFEE_MACHINE_RIGHT_OFF",
+          "file": "COFFEE_MACHINE_RIGHT_OFF.png",
           "width": 64,
-          "height": 68,
+          "height": 74,
           "footprintW": 1,
           "footprintH": 1,
-          "frame": 2
+          "state": "off"
+        },
+        {
+          "type": "group",
+          "groupType": "animation",
+          "state": "on",
+          "members": [
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_RIGHT_ON_1",
+              "file": "COFFEE_MACHINE_RIGHT_ON_1.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 0
+            },
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_RIGHT_ON_2",
+              "file": "COFFEE_MACHINE_RIGHT_ON_2.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 1
+            },
+            {
+              "type": "asset",
+              "id": "COFFEE_MACHINE_RIGHT_ON_3",
+              "file": "COFFEE_MACHINE_RIGHT_ON_3.png",
+              "width": 64,
+              "height": 73,
+              "footprintW": 1,
+              "footprintH": 1,
+              "frame": 2
+            }
+          ]
         }
       ]
     }

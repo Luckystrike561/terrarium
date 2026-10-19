@@ -13,9 +13,9 @@
       "type": "asset",
       "id": "KITCHEN_COUNTER_FRONT",
       "file": "KITCHEN_COUNTER_FRONT.png",
-      "width": 96,
+      "width": 64,
       "height": 71,
-      "footprintW": 2,
+      "footprintW": 1,
       "footprintH": 1,
       "orientation": "front"
     },
@@ -23,10 +23,10 @@
       "type": "asset",
       "id": "KITCHEN_COUNTER_RIGHT",
       "file": "KITCHEN_COUNTER_RIGHT.png",
-      "width": 96,
+      "width": 64,
       "height": 71,
       "footprintW": 1,
-      "footprintH": 2,
+      "footprintH": 1,
       "orientation": "right"
     }
   ]

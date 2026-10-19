@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 
 import { composeOffice } from '../../core/src/officeModules.ts';
 
-const REVISION = 11;
+const REVISION = 13;
 
 const composed = composeOffice({ teamModules: 1, cto: true });
 
@@ -32,6 +32,7 @@ const layout = {
   tileColors: composed.tileColors,
   carpetTiles: composed.carpetTiles,
   furniture: composed.furniture,
+  windowlessWalls: composed.windowlessWalls,
   ctoOfficeArea: composed.ctoOfficeArea,
 };
 
