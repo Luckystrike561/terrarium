@@ -113,7 +113,6 @@ export class TerrariumServer {
     // entry (new hook scripts fan out to every entry here).
     this.writeServerJson(this.config);
     this.writeRegistryEntry(this.config);
-    console.log(`[Terrarium] Server: listening on 127.0.0.1:${port}`);
 
     return this.config;
   }

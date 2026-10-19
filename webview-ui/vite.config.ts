@@ -25,11 +25,11 @@ interface DecodedCache {
 // ── Vite plugin ───────────────────────────────────────────────────────────────
 
 function browserMockAssetsPlugin(): Plugin {
-  const assetsDir = path.resolve(__dirname, 'public/assets');
+  const assetsDir = path.resolve(import.meta.dirname, 'public/assets');
   // Default for production builds; configResolved below rewrites this to
   // track the actual build.outDir, so vite build calls that override outDir
   // (e.g. the build-subpath integration test) still receive the JSON sidecars.
-  let distAssetsDir = path.resolve(__dirname, '../dist/webview/assets');
+  let distAssetsDir = path.resolve(import.meta.dirname, '../dist/webview/assets');
 
   const cache: DecodedCache = {
     floors: null,
@@ -115,6 +115,9 @@ export default defineConfig({
   build: {
     outDir: '../dist/webview',
     emptyOutDir: true,
+    // pixi.js's renderer core alone minifies to ~560 kB in one chunk that no
+    // split can shrink, and the bundle is served from localhost.
+    chunkSizeWarningLimit: 700,
   },
   base: './',
 });

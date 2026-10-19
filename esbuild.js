@@ -111,7 +111,7 @@ const cliOptions = {
 async function buildCli() {
   await esbuild.build(cliOptions);
   if (!production) {
-    console.log('[build] CLI bundled: dist/cli.mjs');
+    console.log('✓ Bundled CLI → dist/cli.js');
   }
 }
 

@@ -258,7 +258,6 @@ async function main(): Promise<void> {
   const staticDir = path.join(distRoot, 'webview');
 
   // ── Load assets on startup ──
-  console.log('[Terrarium] Loading assets...');
   const assetCache: AssetCache = await buildAssetCache(distRoot);
   const charCount = assetCache.characters?.characters.length ?? 0;
   const petCount = assetCache.pets?.pets.length ?? 0;

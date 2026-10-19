@@ -196,7 +196,7 @@ export const CTO_MODULE: ModuleTemplate = {
   furniture: [
     { type: 'EXEC_DESK_BACK', col: 4, row: 8 },
     { type: 'EXEC_CHAIR_FRONT', col: 5, row: 7 },
-    { type: 'PC_BACK_OFF', col: 6, row: 9 },
+    { type: 'PC_BACK_OFF', col: 5, row: 8 },
     { type: 'COFFEE', col: 4, row: 8 },
     { type: 'WOODEN_CHAIR_BACK', col: 4, row: 10 },
     { type: 'WOODEN_CHAIR_BACK', col: 6, row: 10 },

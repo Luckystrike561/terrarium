@@ -50,7 +50,7 @@ const startTime = Date.now();
  */
 export async function createHttpServer(options: HttpServerOptions): Promise<HttpServerHandle> {
   const app = Fastify({
-    logger: true,
+    logger: { level: 'warn' },
     bodyLimit: MAX_HOOK_BODY_SIZE,
   });
 

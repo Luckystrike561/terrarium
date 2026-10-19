@@ -10,10 +10,8 @@ import * as path from 'path';
 
 import {
   CHAR_COUNT,
-  CHAR_FRAMES_PER_ROW,
   CTO_CHARACTER_FILE,
   MAX_PET_PNG_SIZE,
-  WALL_BITMASK_COUNT,
 } from '../../core/src/assets/constants.js';
 import type {
   FurnitureAsset,
@@ -47,9 +45,7 @@ export interface LoadedAssets {
  */
 export async function loadFurnitureAssets(workspaceRoot: string): Promise<LoadedAssets | null> {
   try {
-    console.log(`[AssetLoader] workspaceRoot received: "${workspaceRoot}"`);
     const furnitureDir = path.join(workspaceRoot, 'assets', 'furniture');
-    console.log(`[AssetLoader] Scanning furniture directory: ${furnitureDir}`);
 
     if (!fs.existsSync(furnitureDir)) {
       console.log('ℹ️  No furniture directory found at:', furnitureDir);
@@ -63,8 +59,6 @@ export async function loadFurnitureAssets(workspaceRoot: string): Promise<Loaded
       console.log('ℹ️  No furniture subdirectories found');
       return null;
     }
-
-    console.log(`📦 Found ${dirs.length} furniture folders`);
 
     const catalog: FurnitureAsset[] = [];
     const sprites = new Map<string, string[][]>();
@@ -166,9 +160,6 @@ export async function loadFurnitureAssets(workspaceRoot: string): Promise<Loaded
       }
     }
 
-    console.log(`  ✓ Loaded ${sprites.size} / ${catalog.length} assets`);
-    console.log(`[AssetLoader] ✅ Successfully loaded ${sprites.size} furniture sprites`);
-
     return { catalog, sprites };
   } catch (err) {
     console.error(
@@ -225,9 +216,6 @@ export function loadDefaultLayout(assetsRoot: string): Record<string, unknown> |
     if (bestRevision > 0 && !layout[LAYOUT_REVISION_KEY]) {
       layout[LAYOUT_REVISION_KEY] = bestRevision;
     }
-    console.log(
-      `[AssetLoader] Loaded default layout (${layout.cols}×${layout.rows}, revision ${layout[LAYOUT_REVISION_KEY] ?? 0}) from ${path.basename(bestPath)}`,
-    );
     return layout;
   } catch (err) {
     console.error(
@@ -257,8 +245,6 @@ export async function loadWallTiles(assetsRoot: string): Promise<LoadedWallTiles
       return null;
     }
 
-    console.log('[AssetLoader] Loading wall tiles from:', wallsDir);
-
     // Find all wall_N.png files and sort by index
     const entries = fs.readdirSync(wallsDir);
     const wallFiles: { index: number; filename: string }[] = [];
@@ -284,9 +270,6 @@ export async function loadWallTiles(assetsRoot: string): Promise<LoadedWallTiles
       sets.push(sprites);
     }
 
-    console.log(
-      `[AssetLoader] ✅ Loaded ${sets.length} wall tile set(s) (${sets.length * WALL_BITMASK_COUNT} pieces total)`,
-    );
     return { sets };
   } catch (err) {
     console.error(
@@ -322,8 +305,6 @@ export async function loadCarpetTiles(assetsRoot: string): Promise<LoadedCarpetT
       return null;
     }
 
-    console.log('[AssetLoader] Loading carpet tiles from:', carpetsDir);
-
     const entries = fs.readdirSync(carpetsDir);
     const carpetFiles: { index: number; filename: string }[] = [];
     for (const entry of entries) {
@@ -348,7 +329,6 @@ export async function loadCarpetTiles(assetsRoot: string): Promise<LoadedCarpetT
       sets.push(sprites);
     }
 
-    console.log(`[AssetLoader] ✅ Loaded ${sets.length} carpet tile variant(s)`);
     return { sets };
   } catch (err) {
     console.error(
@@ -376,8 +356,6 @@ export async function loadFloorTiles(assetsRoot: string): Promise<LoadedFloorTil
       return null;
     }
 
-    console.log('[AssetLoader] Loading floor tiles from:', floorsDir);
-
     // Find all floor_N.png files and sort by index
     const entries = fs.readdirSync(floorsDir);
     const floorFiles: { index: number; filename: string }[] = [];
@@ -403,7 +381,6 @@ export async function loadFloorTiles(assetsRoot: string): Promise<LoadedFloorTil
       sprites.push(sprite);
     }
 
-    console.log(`[AssetLoader] ✅ Loaded ${sprites.length} floor tile patterns from floors/`);
     return { sprites };
   } catch (err) {
     console.error(
@@ -455,9 +432,6 @@ export async function loadCharacterSprites(
     const cto = readSheet(CTO_CHARACTER_FILE);
     if (!cto) return null;
 
-    console.log(
-      `[AssetLoader] ✅ Loaded ${characters.length} character sprites and the CTO (${CHAR_FRAMES_PER_ROW} frames × 3 directions each)`,
-    );
     return { characters, cto };
   } catch (err) {
     console.error(
@@ -556,7 +530,6 @@ export async function loadPetSprites(assetsRoot: string): Promise<LoadedPetSprit
       return null;
     }
 
-    console.log(`[AssetLoader] ✅ Loaded ${pets.length} pet sprites`);
     return { pets, manifests };
   } catch (err) {
     console.error(

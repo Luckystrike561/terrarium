@@ -190,6 +190,14 @@ interface ItemPrompt {
   /** Hangs on the wall at eye level rather than standing on the floor
    *  against it. */
   hang?: boolean;
+  /** Moves the item toward the back of its tile, in art px along screen x
+   *  (positive right) with half that upward, the iso slope of a floor axis:
+   *  right for a `front` item backed by the north wall, left for one backed
+   *  by the west wall. The renderer centres a 1×1 sprite on its tile at any
+   *  width, so transparent columns on the far side and rows underneath move
+   *  the item without moving its anchor. `right` mirrors `front`, so its shift
+   *  mirrors too. */
+  towardWall?: number;
   /** Every on frame shows the first one. Separate renders of the same item
    *  shift its outline, so cycling them makes the item jump. */
   stillOn?: boolean;
@@ -315,6 +323,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
     front:
       'a compact espresso coffee machine in white and brushed steel with a small glass coffee pot under the spout, standing on its own short feet with no stand or tray under it',
     surfaceLift: COUNTER_SURFACE_LIFT_ART_PX,
+    towardWall: 8,
     stillOn: true,
     resize: 0.6,
     states: {
@@ -369,6 +378,7 @@ const PROMPTS: Record<string, ItemPrompt> = {
   },
   WATER_COOLER: {
     front: 'a modern water cooler dispenser with a pale blue tinted water bottle on a white base',
+    towardWall: -8,
   },
   FLOOR_LAMP: {
     front:
@@ -708,6 +718,13 @@ function liftOff(img: PixelImage, rows: number): PixelImage {
   return out;
 }
 
+function shiftTowardWall(img: PixelImage, dx: number): PixelImage {
+  const pad = Math.abs(dx) * 2;
+  const out = new PixelImage(img.width + pad, img.height + Math.abs(dx) / 2);
+  out.blit(img, dx > 0 ? pad : 0, 0);
+  return out;
+}
+
 function hangLift(height: number): number {
   const centred = Math.round(WALL_HANG_CENTRE_ART_PX - height / 2);
   return Math.max(0, Math.min(centred, WALL_HANG_TOP_ART_PX - height));
@@ -961,6 +978,9 @@ async function processItem(record: Record_, itemId: string): Promise<FurnitureSp
   }
   if (prompt.surfaceLift) {
     for (const [key, img] of generated) generated.set(key, liftOff(img, prompt.surfaceLift));
+  }
+  if (prompt.towardWall) {
+    for (const [key, img] of generated) generated.set(key, shiftTowardWall(img, prompt.towardWall));
   }
   if (prompt.hang) {
     for (const [key, img] of generated) generated.set(key, liftOff(img, hangLift(img.height)));
