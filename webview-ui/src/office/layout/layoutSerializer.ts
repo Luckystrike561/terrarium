@@ -1,6 +1,6 @@
 import { ART_SCALE } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
-import { SEAT_PULL_TO_CENTER, SEAT_SINK_PX } from '../../constants.js';
+import { SEAT_AWAY_FORWARD_TILES, SEAT_PULL_TO_CENTER, SEAT_SINK_PX } from '../../constants.js';
 import { getColorizedSprite } from '../colorize.js';
 import { SortLayer } from '../engine/isoSort.js';
 import { footprintSpriteOrigin, ISO_TILE_W, worldToIso } from '../iso.js';
@@ -27,10 +27,18 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
   return map;
 }
 
+/** A seat facing away from the viewer shows its backrest between the viewer
+ *  and its sitter, so it draws over the sitter the way a Habbo chair's
+ *  backrest layer does. Every other seat draws under its sitter. */
+function facesAway(orientation: string | undefined): boolean {
+  return orientation === 'back' || orientation === 'left';
+}
+
 function seatSinkOf(type: string, orientation: string | undefined): number {
-  const facesAway = orientation === 'back' || orientation === 'left';
   for (const [group, sink] of Object.entries(SEAT_SINK_PX)) {
-    if (type === group || type.startsWith(`${group}_`)) return facesAway ? sink.away : sink.facing;
+    if (type === group || type.startsWith(`${group}_`)) {
+      return facesAway(orientation) ? sink.away : sink.facing;
+    }
   }
   return 0;
 }
@@ -84,6 +92,7 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
 
     let layer: number = SortLayer.FLOOR;
     if (entry.canPlaceOnSurfaces || entry.canPlaceOnWalls) layer = SortLayer.ATTACHED;
+    if (entry.category === 'chairs' && facesAway(entry.orientation)) layer = SortLayer.ATTACHED;
 
     const origin = footprintSpriteOrigin(
       item.col,
@@ -209,9 +218,12 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           }
         }
 
+        const onto = facesAway(entry.orientation) ? SEAT_AWAY_FORWARD_TILES * TILE_SIZE : 0;
         const towardCenter = worldToIso(
-          (entry.footprintW / 2 - dc - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER,
-          (entry.footprintH / 2 - dr - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER,
+          (entry.footprintW / 2 - dc - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER -
+            (entry.orientation === 'left' ? onto : 0),
+          (entry.footprintH / 2 - dr - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER -
+            (entry.orientation === 'back' ? onto : 0),
         );
         // First seat uses chair uid (backward compat), subsequent use uid:N
         const seatUid = seatCount === 0 ? item.uid : `${item.uid}:${seatCount}`;

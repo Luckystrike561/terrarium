@@ -1,6 +1,6 @@
 /**
- * A seated character draws over the chair or couch it sits on, whichever way
- * the seat faces, with the bundled furniture.
+ * Seats layer like Habbo Hotel's: a sitter draws over a seat facing the
+ * viewer, and a seat facing away draws its backrest over its sitter.
  *
  * Run with: npm test
  */
@@ -39,26 +39,31 @@ function sitterBox(col: number, row: number): SortBox {
   };
 }
 
-const SEAT_TYPES = [
-  'WOODEN_CHAIR_FRONT',
+const SEATS_FACING_VIEWER = ['WOODEN_CHAIR_FRONT', 'WOODEN_CHAIR_RIGHT', 'SOFA_FRONT'];
+const SEATS_FACING_AWAY = [
   'WOODEN_CHAIR_BACK',
   'WOODEN_CHAIR_LEFT',
-  'WOODEN_CHAIR_RIGHT',
   'CUSHIONED_CHAIR_BACK',
   'EXEC_CHAIR_BACK',
-  'SOFA_FRONT',
   'SOFA_BACK',
 ];
 
-for (const type of SEAT_TYPES) {
+function drawOrders(type: string): number[][] {
+  const placed = [{ uid: 'seat', type, col: 4, row: 4 }];
+  const [instance] = layoutToFurnitureInstances(placed);
+  const seats = [...layoutToSeats(placed).values()];
+  assert.ok(seats.length > 0);
+  return seats.map((seat) => isoDrawOrder([instance.sort, sitterBox(seat.seatCol, seat.seatRow)]));
+}
+
+for (const type of SEATS_FACING_VIEWER) {
   test(`a character seated on ${type} draws over it`, () => {
-    const placed = [{ uid: 'seat', type, col: 4, row: 4 }];
-    const [instance] = layoutToFurnitureInstances(placed);
-    const seats = [...layoutToSeats(placed).values()];
-    assert.ok(seats.length > 0);
-    for (const seat of seats) {
-      const order = isoDrawOrder([instance.sort, sitterBox(seat.seatCol, seat.seatRow)]);
-      assert.deepEqual(order, [0, 1], `${type} seat ${seat.uid}`);
-    }
+    for (const order of drawOrders(type)) assert.deepEqual(order, [0, 1]);
+  });
+}
+
+for (const type of SEATS_FACING_AWAY) {
+  test(`${type} draws its backrest over its sitter`, () => {
+    for (const order of drawOrders(type)) assert.deepEqual(order, [1, 0]);
   });
 }

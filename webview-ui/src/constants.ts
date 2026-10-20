@@ -65,9 +65,13 @@ export const SEAT_SINK_PX: Readonly<Record<string, { facing: number; away: numbe
   SOFA: { facing: 16, away: 12 },
   WOODEN_BENCH: { facing: 16, away: 12 },
 };
+/** How far, in tiles, a sitter on a seat facing away moves from the seat
+ *  tile's centre toward the way it faces: onto the seat, behind the backrest,
+ *  so the backrest drawn over it hides only its lower back. */
+export const SEAT_AWAY_FORWARD_TILES = 0.25;
 /** Share of the way from a seat tile toward the middle of its multi-tile seat
  *  that the sitter moves: sofa and bench art is narrower than its footprint. */
-export const SEAT_PULL_TO_CENTER = 0.5;
+export const SEAT_PULL_TO_CENTER = 0.2;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;
