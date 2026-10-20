@@ -27,15 +27,10 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
   return map;
 }
 
-/** Overlap layers for furniture sharing tiles with something else. A chair
- *  whose backrest faces the viewer (sitter faces away) covers its sitter;
- *  other chairs draw under them. */
-const CHAIR_BEHIND_LAYER = SortLayer.FLOOR;
-const CHAIR_IN_FRONT_LAYER = SortLayer.ATTACHED;
-
-function seatSinkOf(type: string): number {
+function seatSinkOf(type: string, orientation: string | undefined): number {
+  const facesAway = orientation === 'back' || orientation === 'left';
   for (const [group, sink] of Object.entries(SEAT_SINK_PX)) {
-    if (type === group || type.startsWith(`${group}_`)) return sink;
+    if (type === group || type.startsWith(`${group}_`)) return facesAway ? sink.away : sink.facing;
   }
   return 0;
 }
@@ -89,10 +84,6 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
 
     let layer: number = SortLayer.FLOOR;
     if (entry.canPlaceOnSurfaces || entry.canPlaceOnWalls) layer = SortLayer.ATTACHED;
-    if (entry.category === 'chairs') {
-      const facesAway = entry.orientation === 'back' || entry.orientation === 'left';
-      layer = facesAway ? CHAIR_IN_FRONT_LAYER : CHAIR_BEHIND_LAYER;
-    }
 
     const origin = footprintSpriteOrigin(
       item.col,
@@ -231,7 +222,7 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           facingDir,
           assigned: false,
           sitOffsetX: towardCenter.x,
-          sitOffsetY: towardCenter.y + seatSinkOf(item.type),
+          sitOffsetY: towardCenter.y + seatSinkOf(item.type, entry.orientation),
         });
         seatCount++;
       }

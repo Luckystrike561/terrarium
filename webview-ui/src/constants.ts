@@ -53,14 +53,17 @@ export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
  *  constants below are measured on the native art and scaled by it. */
 export const CHARACTER_SCALE = 1.25;
 /** How far a seated character's sprite drops into each kind of seat, in
- *  world px, keyed by the seat's furniture group. The seated frames are drawn
- *  with their hips at one shared height, and every PixelLab seat has its own. */
-export const SEAT_SINK_PX: Readonly<Record<string, number>> = {
-  EXEC_CHAIR: 8,
-  CUSHIONED_CHAIR: 8,
-  WOODEN_CHAIR: 9,
-  SOFA: 10,
-  WOODEN_BENCH: 11,
+ *  world px, keyed by the seat's furniture group, for a seat facing the
+ *  viewer (`front`, `right`) and one facing away (`back`, `left`). The seated
+ *  frames are drawn with their hips at one shared height, every PixelLab seat
+ *  has its own, and a seat facing away shows its seat further down its sprite,
+ *  behind the backrest. */
+export const SEAT_SINK_PX: Readonly<Record<string, { facing: number; away: number }>> = {
+  EXEC_CHAIR: { facing: 16, away: 12 },
+  CUSHIONED_CHAIR: { facing: 16, away: 12 },
+  WOODEN_CHAIR: { facing: 16, away: 12 },
+  SOFA: { facing: 16, away: 12 },
+  WOODEN_BENCH: { facing: 16, away: 12 },
 };
 /** Share of the way from a seat tile toward the middle of its multi-tile seat
  *  that the sitter moves: sofa and bench art is narrower than its footprint. */

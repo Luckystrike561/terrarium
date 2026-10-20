@@ -38,7 +38,7 @@ The office is a building with one floor per machine (see [CLAUDE.md](../../CLAUD
 
 ### Draw order
 
-`office/engine/isoSort.ts`: every wall tile, furniture piece, character and pet carries a footprint box. Two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort correctly where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). A chair whose sitter faces away (`back` or `left`) uses the attached layer so its backrest covers the sitter. Other chairs draw under them.
+`office/engine/isoSort.ts`: every wall tile, furniture piece, character and pet carries a footprint box. Two boxes whose screen columns overlap are ordered by a separating axis (the one entirely at lower col or lower row is behind), so a long desk and a character at its front corner sort correctly where any single depth key fails. Overlapping footprints fall back to `SortLayer`: floor furniture, then actors, then attached items (surface items, wall items). Chairs and couches are floor furniture whichever way they face, so a sitter always draws over its seat, as in Habbo Hotel, and a backrest facing the viewer never hides it.
 
 Character and pet hit-testing (`getCharacterAt`, `getPetAt`) works in iso screen space, because tall sprites cover tiles behind their footprint. A character's hit box runs from its feet to its crown: `CHARACTER_HIT_HEIGHT` standing, `CHARACTER_SEATED_HIT_HEIGHT` seated, since a seated frame draws the head lower. The front-most character whose box holds the point wins. Floors never overlap, so a draw order across floors needs no sort box.
 
@@ -69,7 +69,7 @@ Movement stays on the top-down grid. In iso, grid DOWN and RIGHT face the viewer
 - A seated agent without work rests (lounge sofa, a rest at its desk, the CTO's couch), and a standing idle agent breathes.
 - An agent in the CTO queue shows why it waits from `ctoQueueSlot.reason`: a raised hand for input, a held-up form for approval, seated on a visitor chair or standing at the door.
 - Every pose but walking is a frame loop stepped by `advancePoseFrame` at its own `*_FRAME_DURATION_SEC` (2 frames, `POSE_FRAME_COUNTS`), except typing and reading, which hold their first frame (`STILL_POSES`) until they are redrawn.
-- Seated frames share one hip height, and every seat sinks its sitter by its own amount (`SEAT_SINK_PX`, by furniture group) and pulls it toward the middle of a sofa or bench (`SEAT_PULL_TO_CENTER`), through `OfficeState.sittingOffset`. Sprite, hit box and label all follow it.
+- Seated frames share one hip height, and every seat sinks its sitter by its own amount (`SEAT_SINK_PX`, by furniture group, one depth for a seat facing the viewer and one for a seat facing away) and pulls it toward the middle of a sofa or bench (`SEAT_PULL_TO_CENTER`), through `OfficeState.sittingOffset`. Sprite, hit box and label all follow it.
 - Characters are drawn `CHARACTER_SCALE` (1.25) times their art's native size, so a standing character stands as tall against the desks, chairs and walls as the procedural set's did. Hit boxes and label offsets are measured on the native art and scaled by it.
 
 Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`).

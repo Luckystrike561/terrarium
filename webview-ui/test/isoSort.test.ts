@@ -53,14 +53,6 @@ test('items attached to a footprint draw after it', () => {
   assert.ok(drawsBefore([monitor, DESK], 1, 0));
 });
 
-test('a chair whose back faces the viewer covers its sitter, others do not', () => {
-  const sitter = actor(5.5, 7.5);
-  const facingAway = box(5, 7, 6, 8, SortLayer.ATTACHED);
-  const facingViewer = box(5, 7, 6, 8, SortLayer.FLOOR);
-  assert.ok(drawsBefore([sitter, facingAway], 0, 1));
-  assert.ok(drawsBefore([sitter, facingViewer], 1, 0));
-});
-
 test('every box is emitted exactly once, even when overlaps disagree', () => {
   const boxes = [box(0, 0, 3, 3), box(1, 1, 4, 4), box(2, 2, 5, 5), actor(1.5, 1.5)];
   const order = isoDrawOrder(boxes);
