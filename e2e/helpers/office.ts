@@ -35,8 +35,25 @@ export interface TestHooksWindow extends Window {
     selectAgent?: (id: number) => void;
     getFloors?: () => OfficeFloor[];
     getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
+    getSeatFits?: (floorId: string) => SeatFit[];
     messageLog?: Array<{ type: string }>;
   };
+}
+
+/** How one seated character sits in its seat as drawn (see the webview's
+ *  `getSeatFits` test hook): who is on top, how much of each the other leaves
+ *  visible, and the screen rows of the feet and the seat (y grows down). */
+export interface SeatFit {
+  id: number;
+  isCto: boolean;
+  seatType: string;
+  facesAway: boolean;
+  characterOnTop: boolean;
+  seatShown: number;
+  characterShown: number;
+  feetY: number;
+  seatTopY: number;
+  seatBottomY: number;
 }
 
 const OVERLAY_TIMEOUT_MS = 15_000;
@@ -378,4 +395,12 @@ export async function readCharacterHitPoint(
   const x = Number(await overlay.getAttribute('data-hit-x'));
   const y = Number(await overlay.getAttribute('data-hit-y'));
   return { x: (container?.x ?? 0) + x, y: (container?.y ?? 0) + y };
+}
+
+/** Every character sitting in a seat on one floor, the CTO included. */
+export async function readSeatFits(page: Page, floorId: string): Promise<SeatFit[]> {
+  return page.evaluate(
+    (id) => (window as TestHooksWindow).__terrariumTestHooks?.getSeatFits?.(id) ?? [],
+    floorId,
+  );
 }

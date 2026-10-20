@@ -1,7 +1,127 @@
 import type { ColorValue } from './components/ui/types.js';
 import type { Building } from './office/engine/building.js';
+import { isoDrawOrder } from './office/engine/isoSort.js';
 import { OfficeState } from './office/engine/officeState.js';
+import {
+  actorBox,
+  ART_SPRITE_SCALE,
+  characterSpritePlacement,
+} from './office/engine/sceneRenderer.js';
+import { getCatalogEntry } from './office/layout/furnitureCatalog.js';
 import { carpetJunctionCase } from './office/sprites/carpetTiles.js';
+import type { SpriteData } from './office/types.js';
+import { CharacterState } from './office/types.js';
+
+/** How one seated character sits in its seat, as drawn: who is on top, how
+ *  much of the seat and of the character the other leaves visible (opaque
+ *  pixels, 0 to 1), and the screen rows of the character's feet and the
+ *  seat's top and bottom (iso local px, y grows downward). */
+export interface SeatFit {
+  id: number;
+  isCto: boolean;
+  seatType: string;
+  facesAway: boolean;
+  characterOnTop: boolean;
+  seatShown: number;
+  characterShown: number;
+  feetY: number;
+  seatTopY: number;
+  seatBottomY: number;
+}
+
+const OPAQUE_ALPHA = 0x80;
+
+function isOpaque(color: string | undefined): boolean {
+  if (!color) return false;
+  return color.length !== 9 || parseInt(color.slice(7, 9), 16) >= OPAQUE_ALPHA;
+}
+
+/** A sprite drawn with its top-left at (x, y), `ART_SPRITE_SCALE` iso px per
+ *  art px, optionally flipped in place the way the renderer flips it. */
+interface DrawnSprite {
+  sprite: SpriteData;
+  x: number;
+  y: number;
+  mirrored: boolean;
+}
+
+function opaqueAt(drawn: DrawnSprite, px: number, py: number): boolean {
+  const row = Math.floor((py - drawn.y) / ART_SPRITE_SCALE);
+  const col = Math.floor((px - drawn.x) / ART_SPRITE_SCALE);
+  const width = drawn.sprite[0]?.length ?? 0;
+  if (row < 0 || row >= drawn.sprite.length || col < 0 || col >= width) return false;
+  return isOpaque(drawn.sprite[row][drawn.mirrored ? width - 1 - col : col]);
+}
+
+/** Share of `back`'s opaque pixels that `front`, drawn over it, leaves
+ *  visible. */
+function shownShare(back: DrawnSprite, front: DrawnSprite): number {
+  let opaque = 0;
+  let shown = 0;
+  back.sprite.forEach((line, row) => {
+    line.forEach((_, col) => {
+      const px = back.x + (col + 0.5) * ART_SPRITE_SCALE;
+      const py = back.y + (row + 0.5) * ART_SPRITE_SCALE;
+      if (!opaqueAt(back, px, py)) return;
+      opaque++;
+      if (!opaqueAt(front, px, py)) shown++;
+    });
+  });
+  return opaque === 0 ? 1 : shown / opaque;
+}
+
+function opaqueRows(drawn: DrawnSprite): { top: number; bottom: number } {
+  const rows = drawn.sprite
+    .map((line, row) => (line.some(isOpaque) ? row : -1))
+    .filter((row) => row >= 0);
+  return {
+    top: drawn.y + rows[0] * ART_SPRITE_SCALE,
+    bottom: drawn.y + (rows[rows.length - 1] + 1) * ART_SPRITE_SCALE,
+  };
+}
+
+function seatFitsOf(office: OfficeState): SeatFit[] {
+  const fits: SeatFit[] = [];
+  const layoutFurniture = office.getLayout().furniture;
+  for (const ch of office.getCharacters()) {
+    if (ch.state !== CharacterState.TYPE) continue;
+    const seat = [...office.seats.values()].find(
+      (s) => s.seatCol === ch.tileCol && s.seatRow === ch.tileRow,
+    );
+    if (!seat) continue;
+    const furnitureUid = seat.uid.split(':')[0];
+    const instance = office.furniture.find((f) => f.uid === furnitureUid);
+    const placed = layoutFurniture.find((f) => f.uid === furnitureUid);
+    if (!instance || !placed) continue;
+    const orientation = getCatalogEntry(placed.type)?.orientation;
+    const seatDrawn: DrawnSprite = {
+      sprite: instance.sprite,
+      x: instance.x,
+      y: instance.y,
+      mirrored: !!instance.mirrored,
+    };
+    const characterDrawn: DrawnSprite = {
+      ...characterSpritePlacement(ch, office.sittingOffset(ch)),
+      mirrored: false,
+    };
+    const [first] = isoDrawOrder([instance.sort, actorBox(ch.x, ch.y)]);
+    const characterOnTop = first === 0;
+    const seatRows = opaqueRows(seatDrawn);
+    fits.push({
+      id: ch.id,
+      isCto: !!ch.isCto,
+      seatType: placed.type,
+      facesAway: orientation === 'back' || orientation === 'left',
+      characterOnTop,
+      seatShown: characterOnTop ? shownShare(seatDrawn, characterDrawn) : 1,
+      characterShown: characterOnTop ? 1 : shownShare(characterDrawn, seatDrawn),
+      feetY: opaqueRows(characterDrawn).bottom,
+      seatTopY: seatRows.top,
+      seatBottomY: seatRows.bottom,
+    });
+  }
+  return fits;
+}
 
 declare global {
   interface Window {
@@ -82,6 +202,8 @@ declare global {
       getFloors?: () => Array<{ id: string; name: string; elevation: number; agentIds: number[] }>;
       /** The CTO queue of one floor: who waits there, by reason, in arrival order. */
       getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
+      /** Every character sitting in a seat on one floor, the CTO included. */
+      getSeatFits?: (floorId: string) => SeatFit[];
     };
   }
 }
@@ -152,6 +274,11 @@ export function installTestHooks(buildingRef: { current: Building | null }): voi
     ]
       .filter((ch) => ch.ctoQueueSlot)
       .map((ch) => ({ id: ch.id, reason: ch.ctoQueueSlot!.reason }));
+
+  hooks.getSeatFits = (floorId) => {
+    const office = buildingRef.current?.floors.find((floor) => floor.id === floorId)?.office;
+    return office ? seatFitsOf(office) : [];
+  };
 
   // Point-in-time snapshot of every live pet. Pets render only on the canvas
   // (no DOM) and the heart bubble is never persisted, so e2e reads pet state

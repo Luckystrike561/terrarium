@@ -48,10 +48,6 @@ export const MATRIX_TRAIL_MID_THRESHOLD = 0.33;
 export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
 
 // ── Rendering ────────────────────────────────────────────────
-/** Characters are drawn this much larger than their art's native scale, so
- *  their height matches the room, the desks and the chairs. The geometry
- *  constants below are measured on the native art and scaled by it. */
-export const CHARACTER_SCALE = 1.25;
 /** How far a seated character's sprite drops into each kind of seat, in
  *  world px, keyed by the seat's furniture group, for a seat facing the
  *  viewer (`front`, `right`) and one facing away (`back`, `left`). The seated
@@ -203,15 +199,15 @@ export const INACTIVE_SEAT_TIMER_MIN_SEC = 3.0;
 export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0;
 export const AUTO_ON_FACING_DEPTH = 3;
 export const AUTO_ON_SIDE_DEPTH = 2;
-export const CHARACTER_HIT_HALF_WIDTH = 11 * CHARACTER_SCALE;
+export const CHARACTER_HIT_HALF_WIDTH = 11;
 /** From the feet to the crown of a standing character (measured from the
  *  packed character sheets). */
-export const CHARACTER_HIT_HEIGHT = 32 * CHARACTER_SCALE;
+export const CHARACTER_HIT_HEIGHT = 32;
 /** A seated frame draws the head a measured amount higher, not lower.
  *  Kept as its own measured constant rather than derived, since "seated
  *  minus an offset" no longer describes the real geometry. */
-export const CHARACTER_SEATED_HIT_HEIGHT = 39 * CHARACTER_SCALE;
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 47 * CHARACTER_SCALE;
+export const CHARACTER_SEATED_HIT_HEIGHT = 39;
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 47;
 
 // ── Greeter + Intro bubble ──────────────────────────────────
 /** Reserved character id for the Intro's greeter. Far outside both real agent
@@ -238,7 +234,7 @@ export const GREETER_TILE_MARGIN = 3;
 /** World px above the greeter's anchor (feet) where the bubble's bottom sits.
  *  Kept well above the head target (INTRO_TAIL_TARGET_RISE_WORLD) so the
  *  tail squares have a visible run between bubble and head. */
-export const INTRO_BUBBLE_ANCHOR_RISE_PX = 50 * CHARACTER_SCALE;
+export const INTRO_BUBBLE_ANCHOR_RISE_PX = 50;
 /** World px right of the greeter's center where the bubble's left edge starts —
  *  just clear of the sprite so the tail points down-left at the head. */
 export const INTRO_BUBBLE_OFFSET_X_PX = 10;
@@ -260,7 +256,7 @@ export const INTRO_TAIL_STEPS = [
   { t: 0.82, size: 6 },
 ] as const;
 /** World px above the greeter's anchor (feet) the tail points at — the head. */
-export const INTRO_TAIL_TARGET_RISE_PX = 30 * CHARACTER_SCALE;
+export const INTRO_TAIL_TARGET_RISE_PX = 30;
 /** Camera-offset caps while centering character + bubble. The ideal composition
  *  assumes the bubble fits beside/above the character; when it can't (narrow or
  *  short viewports clamp the bubble to the screen), uncapped offsets shove the
