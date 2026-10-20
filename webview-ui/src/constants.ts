@@ -63,29 +63,29 @@ export const SEATED_HIP_ART_PX = {
 export const SEAT_SIT_POINTS_ART_PX: Readonly<
   Record<string, ReadonlyArray<{ x: number; y: number }>>
 > = {
-  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 25 }],
-  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 20 }],
-  WOODEN_CHAIR_FRONT: [{ x: 36, y: 25 }],
-  WOODEN_CHAIR_BACK: [{ x: 29, y: 22 }],
-  EXEC_CHAIR_FRONT: [{ x: 32, y: 34 }],
-  EXEC_CHAIR_BACK: [{ x: 31, y: 26 }],
+  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 14 }],
+  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 11 }],
+  WOODEN_CHAIR_FRONT: [{ x: 34, y: 16 }],
+  WOODEN_CHAIR_BACK: [{ x: 30, y: 14 }],
+  EXEC_CHAIR_FRONT: [{ x: 32, y: 21 }],
+  EXEC_CHAIR_BACK: [{ x: 31, y: 17 }],
   SOFA_FRONT: [
-    { x: 38, y: 31 },
-    { x: 60, y: 38 },
+    { x: 42, y: 19 },
+    { x: 55, y: 23 },
   ],
   SOFA_BACK: [
-    { x: 31, y: 14 },
-    { x: 60, y: 24 },
+    { x: 38, y: 9 },
+    { x: 55, y: 15 },
   ],
   WOODEN_BENCH_FRONT: [
-    { x: 37, y: 14 },
-    { x: 57, y: 24 },
+    { x: 41, y: 9 },
+    { x: 53, y: 15 },
   ],
   CUSHIONED_BENCH_FRONT: [
-    { x: 35, y: 67 },
-    { x: 62, y: 77 },
+    { x: 40, y: 40 },
+    { x: 56, y: 46 },
   ],
-  STOOL: [{ x: 31, y: 11 }],
+  STOOL: [{ x: 31, y: 7 }],
 };
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;

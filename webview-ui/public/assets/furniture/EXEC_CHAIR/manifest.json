@@ -14,7 +14,7 @@
       "id": "EXEC_CHAIR_FRONT",
       "file": "EXEC_CHAIR_FRONT.png",
       "width": 64,
-      "height": 68,
+      "height": 47,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "front"
@@ -24,7 +24,7 @@
       "id": "EXEC_CHAIR_RIGHT",
       "file": "EXEC_CHAIR_RIGHT.png",
       "width": 64,
-      "height": 68,
+      "height": 47,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "right"
@@ -34,7 +34,7 @@
       "id": "EXEC_CHAIR_BACK",
       "file": "EXEC_CHAIR_BACK.png",
       "width": 64,
-      "height": 55,
+      "height": 40,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "back"
@@ -44,7 +44,7 @@
       "id": "EXEC_CHAIR_LEFT",
       "file": "EXEC_CHAIR_LEFT.png",
       "width": 64,
-      "height": 55,
+      "height": 40,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "left"

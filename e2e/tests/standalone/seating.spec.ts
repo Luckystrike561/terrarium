@@ -25,14 +25,19 @@ import { launchStandalone } from '../../helpers/standalone';
 const FLOOR = 'local';
 const AGENTS = 16;
 const ASSETS_DIR = path.join(__dirname, '../../../webview-ui/public/assets');
-/** Share of a seat facing the viewer its sitter must leave visible: the seat
- *  still reads around the sitter instead of vanishing behind it. */
-const MIN_SEAT_SHOWN = 0.2;
+/** Share of a seat facing the viewer its sitter must leave visible. Seats are
+ *  sized to the characters' short legs, so a sitter covers most of one, as in
+ *  Habbo; the seat must still show, not vanish. */
+const MIN_SEAT_SHOWN = 0.08;
 /** Share of a sitter a backrest facing away must leave visible: head and
  *  shoulders above the backrest. */
 const MIN_CHARACTER_SHOWN = 0.45;
 /** Rounding slack, in iso px, for the feet resting on the seat's bottom row. */
 const FEET_SLACK_PX = 1;
+/** Highest a sitter's feet may hang above the seat's lowest pixel (the floor
+ *  under the seat), in iso px: the feet reach the floor. Seats sized to the
+ *  room instead of the legs left them 8 to 16 px up. */
+const MAX_FEET_ABOVE_FLOOR_PX = 7;
 const SEAT_TYPES_COVERED = [
   'CUSHIONED_CHAIR_FRONT',
   'CUSHIONED_CHAIR_BACK',
@@ -70,6 +75,9 @@ function expectSeatedInSeat(fit: SeatFit): void {
   expect(fit.feetY, `${who}: feet below the seat's top`).toBeGreaterThan(fit.seatTopY);
   expect(fit.feetY, `${who}: feet no lower than the seat's bottom`).toBeLessThanOrEqual(
     fit.seatBottomY + FEET_SLACK_PX,
+  );
+  expect(fit.seatBottomY - fit.feetY, `${who}: feet reach the floor`).toBeLessThanOrEqual(
+    MAX_FEET_ABOVE_FLOOR_PX,
   );
 }
 

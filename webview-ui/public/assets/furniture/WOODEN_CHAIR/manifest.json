@@ -14,7 +14,7 @@
       "id": "WOODEN_CHAIR_FRONT",
       "file": "WOODEN_CHAIR_FRONT.png",
       "width": 64,
-      "height": 55,
+      "height": 40,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "front"
@@ -24,7 +24,7 @@
       "id": "WOODEN_CHAIR_RIGHT",
       "file": "WOODEN_CHAIR_RIGHT.png",
       "width": 64,
-      "height": 55,
+      "height": 40,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "right"
@@ -34,7 +34,7 @@
       "id": "WOODEN_CHAIR_BACK",
       "file": "WOODEN_CHAIR_BACK.png",
       "width": 64,
-      "height": 51,
+      "height": 37,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "back"
@@ -44,7 +44,7 @@
       "id": "WOODEN_CHAIR_LEFT",
       "file": "WOODEN_CHAIR_LEFT.png",
       "width": 64,
-      "height": 51,
+      "height": 37,
       "footprintW": 1,
       "footprintH": 1,
       "orientation": "left"

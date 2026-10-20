@@ -69,6 +69,12 @@ const COUNTER_SURFACE_LIFT_ART_PX = 37;
  *  px: a cupboard body as tall as the counter's (about 39) then tops out
  *  level with the 112 px wall, clear of the coffee machine and the tap. */
 const UPPER_CUPBOARD_LIFT_ART_PX = 72;
+/** How far a seat shrunk to the characters' legs stands above its
+ *  footprint's front corner, in art px, so it stands on the middle of its
+ *  tiles: a seat at 0.6 of tile-filling size keeps 0.4 of the footprint's
+ *  half-height (16 art px per tile of `cols + rows`, halved) clear in front. */
+const SEAT_CENTRING_LIFT_1X1_ART_PX = 6;
+const SEAT_CENTRING_LIFT_2X1_ART_PX = 10;
 /** Where a hung item's centre sits on the wall, and the highest its top may
  *  reach, in art px above the floor. The wall is 112 art px tall. */
 const WALL_HANG_CENTRE_ART_PX = 70;
@@ -272,37 +278,53 @@ const PROMPTS: Record<string, ItemPrompt> = {
       },
     },
   },
+  // Seats are sized to the chibi characters' legs, not to the room: a seat
+  // low and shallow enough that a sitter's back reaches the backrest and its
+  // feet reach the floor, as Habbo's seats are (0.6 of the room-proportion
+  // size, checked in scripts/seat-fitter.html). Smaller than its tiles, each
+  // is lifted to stand on their middle.
   CUSHIONED_CHAIR: {
     front: 'a modern upholstered office swivel chair with cream fabric cushions and a white frame',
     turnaround: true,
-    resize: 0.79,
+    resize: 0.47,
+    surfaceLift: SEAT_CENTRING_LIFT_1X1_ART_PX,
   },
   WOODEN_CHAIR: {
     front: 'a simple wooden dining chair with a light wood frame and a pale cushion seat',
     turnaround: true,
-    resize: 0.76,
+    resize: 0.46,
+    surfaceLift: SEAT_CENTRING_LIFT_1X1_ART_PX,
   },
   SOFA: {
     front: 'a cozy two-seat sofa with soft pastel sage green cushions and light wood legs',
     turnaround: true,
-    resize: 1.27,
+    resize: 0.76,
+    surfaceLift: SEAT_CENTRING_LIFT_2X1_ART_PX,
   },
   CUSHIONED_BENCH: {
     front:
       'a cozy upholstered bench with a thick pastel blush pink seat cushion clearly separate from a tall pastel blush pink backrest cushion, white wooden frame and legs',
+    resize: 0.6,
+    surfaceLift: SEAT_CENTRING_LIFT_2X1_ART_PX,
   },
   WOODEN_BENCH: {
     front: 'a simple light wood bench with a smooth plank seat',
     mirrorFront: true,
-    resize: 0.75,
+    resize: 0.45,
+    surfaceLift: SEAT_CENTRING_LIFT_2X1_ART_PX,
   },
   EXEC_CHAIR: {
     front:
       'an elegant high-back executive office chair with cream leather upholstery and brushed gold trim',
     turnaround: true,
-    resize: 0.76,
+    resize: 0.46,
+    surfaceLift: SEAT_CENTRING_LIFT_1X1_ART_PX,
   },
-  STOOL: { front: 'a simple round bar stool with a pale wood seat and thin white metal legs' },
+  STOOL: {
+    front: 'a simple round bar stool with a pale wood seat and thin white metal legs',
+    resize: 0.6,
+    surfaceLift: SEAT_CENTRING_LIFT_1X1_ART_PX,
+  },
   PLANT: { front: 'a leafy potted houseplant in a simple white ceramic pot' },
   PLANT_2: { front: 'a bushy potted houseplant with broad green leaves in a pale terracotta pot' },
   LARGE_PLANT: { front: 'a tall leafy potted floor plant in a large white ceramic planter' },

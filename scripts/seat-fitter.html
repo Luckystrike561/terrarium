@@ -38,18 +38,19 @@
 // frame's hip point lands on the seat's sit point, in the seat sprite's art px.
 const SEATED_HIP_ART_PX = { facing: { x: 53, y: 67 }, away: { x: 43, y: 67 } };
 const SEAT_SIT_POINTS_ART_PX = {
-  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 25 }],
-  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 20 }],
-  WOODEN_CHAIR_FRONT: [{ x: 36, y: 25 }],
-  WOODEN_CHAIR_BACK: [{ x: 29, y: 22 }],
-  EXEC_CHAIR_FRONT: [{ x: 32, y: 34 }],
-  EXEC_CHAIR_BACK: [{ x: 31, y: 26 }],
-  SOFA_FRONT: [{ x: 38, y: 31 }, { x: 60, y: 38 }],
-  SOFA_BACK: [{ x: 31, y: 14 }, { x: 60, y: 24 }],
-  WOODEN_BENCH_FRONT: [{ x: 37, y: 14 }, { x: 57, y: 24 }],
-  CUSHIONED_BENCH_FRONT: [{ x: 35, y: 67 }, { x: 62, y: 77 }],
-  STOOL: [{ x: 31, y: 11 }],
+  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 14 }],
+  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 11 }],
+  WOODEN_CHAIR_FRONT: [{ x: 34, y: 16 }],
+  WOODEN_CHAIR_BACK: [{ x: 30, y: 14 }],
+  EXEC_CHAIR_FRONT: [{ x: 32, y: 21 }],
+  EXEC_CHAIR_BACK: [{ x: 31, y: 17 }],
+  SOFA_FRONT: [{ x: 42, y: 19 }, { x: 55, y: 23 }],
+  SOFA_BACK: [{ x: 38, y: 9 }, { x: 55, y: 15 }],
+  WOODEN_BENCH_FRONT: [{ x: 41, y: 9 }, { x: 53, y: 15 }],
+  CUSHIONED_BENCH_FRONT: [{ x: 40, y: 40 }, { x: 56, y: 46 }],
+  STOOL: [{ x: 31, y: 7 }],
 };
+const PAGE_LOADED_AT = Date.now();
 const ASSETS = '../webview-ui/public/assets';
 const FRAME = 96;
 /** read1 in CHARACTER_FRAMES: the seated frame an agent at work shows. */
@@ -76,13 +77,13 @@ const FLOOR_FILL = '#c9bfae';
 const FLOOR_EDGE = '#8a7f6c';
 /** Each seat group's `resize` in scripts/pixellab/furniture.ts (1 = none). */
 const PIXELLAB_RESIZE = {
-  CUSHIONED_CHAIR: 0.79,
-  WOODEN_CHAIR: 0.76,
-  EXEC_CHAIR: 0.76,
-  SOFA: 1.27,
-  WOODEN_BENCH: 0.75,
-  CUSHIONED_BENCH: 1,
-  STOOL: 1,
+  CUSHIONED_CHAIR: 0.47,
+  WOODEN_CHAIR: 0.46,
+  EXEC_CHAIR: 0.46,
+  SOFA: 0.76,
+  WOODEN_BENCH: 0.45,
+  CUSHIONED_BENCH: 0.6,
+  STOOL: 0.6,
 };
 /** Preview scale per seat group, applied to the seat sprite only. */
 const seatScale = Object.fromEntries(Object.keys(PIXELLAB_RESIZE).map((group) => [group, 1]));
@@ -106,7 +107,8 @@ function loadImage(src) {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      img.src = src;
+      // A regenerated sprite keeps its file name, so skip the browser cache.
+      img.src = `${src}?v=${PAGE_LOADED_AT}`;
     }));
   }
   return images.get(src);

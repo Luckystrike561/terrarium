@@ -1,5 +1,5 @@
 {
-  "spentGenerations": 378,
+  "spentGenerations": 389,
   "items": {
     "DESK": {
       "front": {
@@ -219,6 +219,20 @@
         "objectId": "",
         "width": 40,
         "height": 46
+      },
+      "front___x0.47": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 24,
+        "height": 34
+      },
+      "back___x0.47": {
+        "description": "a modern upholstered office swivel chair with cream fabric cushions and a white frame",
+        "seed": 0,
+        "objectId": "",
+        "width": 24,
+        "height": 27
       }
     },
     "WOODEN_CHAIR": {
@@ -263,6 +277,20 @@
         "objectId": "",
         "width": 36,
         "height": 51
+      },
+      "front___x0.46": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 20,
+        "height": 34
+      },
+      "back___x0.46": {
+        "description": "a simple wooden dining chair with a light wood frame and a pale cushion seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 22,
+        "height": 31
       }
     },
     "SOFA": {
@@ -293,6 +321,20 @@
         "objectId": "",
         "width": 89,
         "height": 76
+      },
+      "front___x0.76": {
+        "description": "a cozy two-seat sofa with soft pastel sage green cushions and light wood legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 53,
+        "height": 46
+      },
+      "back___x0.76": {
+        "description": "a cozy two-seat sofa with soft pastel sage green cushions and light wood legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 53,
+        "height": 46
       }
     },
     "CUSHIONED_BENCH": {
@@ -302,6 +344,13 @@
         "objectId": "9b889b9b-c2d8-43c2-9acd-535a5c7889c3",
         "width": 96,
         "height": 188
+      },
+      "front___x0.6": {
+        "description": "a cozy upholstered bench with a thick pastel blush pink seat cushion clearly separate from a tall pastel blush pink backrest cushion, white wooden frame and legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 43,
+        "height": 73
       }
     },
     "WOODEN_BENCH": {
@@ -318,6 +367,13 @@
         "objectId": "",
         "width": 54,
         "height": 48
+      },
+      "front___x0.45": {
+        "description": "a simple light wood bench with a smooth plank seat",
+        "seed": 0,
+        "objectId": "",
+        "width": 32,
+        "height": 29
       }
     },
     "EXEC_CHAIR": {
@@ -362,6 +418,20 @@
         "objectId": "",
         "width": 36,
         "height": 57
+      },
+      "front___x0.46": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 23,
+        "height": 41
+      },
+      "back___x0.46": {
+        "description": "an elegant high-back executive office chair with cream leather upholstery and brushed gold trim",
+        "seed": 0,
+        "objectId": "",
+        "width": 22,
+        "height": 35
       }
     },
     "PLANT": {
@@ -640,6 +710,13 @@
         "objectId": "34fc14b0-4f44-4ba1-8cac-3b2342e331e9",
         "width": 64,
         "height": 136
+      },
+      "___x0.6": {
+        "description": "a simple round bar stool with a pale wood seat and thin white metal legs",
+        "seed": 0,
+        "objectId": "",
+        "width": 29,
+        "height": 54
       }
     },
     "MEETING_TABLE": {
