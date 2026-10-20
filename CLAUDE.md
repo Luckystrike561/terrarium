@@ -154,7 +154,7 @@ scripts/
   record-demo.mjs                    Records docs/media/demo.gif
   iso-art/                           layout.ts (the default office plan) and lib/ shared by pixellab/furniture.ts
   pixellab/                          PixelLab generators: generate.ts (characters), furniture.ts, floors.ts, pack.ts, api.ts, env.ts; cast.json/furniture.json/floors.json record every prompt, seed and PixelLab id
-  asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
+  asset-manager.html, wall-tile-editor.html, seat-fitter.html, jsonl-viewer.html
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
 Dockerfile                           Standalone server image (herdr + omp)

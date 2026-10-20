@@ -63,15 +63,15 @@ export const SEATED_HIP_ART_PX = {
 export const SEAT_SIT_POINTS_ART_PX: Readonly<
   Record<string, ReadonlyArray<{ x: number; y: number }>>
 > = {
-  CUSHIONED_CHAIR_FRONT: [{ x: 26, y: 29 }],
-  CUSHIONED_CHAIR_BACK: [{ x: 40, y: 18 }],
-  WOODEN_CHAIR_FRONT: [{ x: 30, y: 28 }],
-  WOODEN_CHAIR_BACK: [{ x: 36, y: 21 }],
-  EXEC_CHAIR_FRONT: [{ x: 24, y: 39 }],
-  EXEC_CHAIR_BACK: [{ x: 41, y: 26 }],
+  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 25 }],
+  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 20 }],
+  WOODEN_CHAIR_FRONT: [{ x: 36, y: 25 }],
+  WOODEN_CHAIR_BACK: [{ x: 29, y: 22 }],
+  EXEC_CHAIR_FRONT: [{ x: 32, y: 34 }],
+  EXEC_CHAIR_BACK: [{ x: 31, y: 26 }],
   SOFA_FRONT: [
-    { x: 34, y: 35 },
-    { x: 52, y: 42 },
+    { x: 38, y: 31 },
+    { x: 60, y: 38 },
   ],
   SOFA_BACK: [
     { x: 31, y: 14 },

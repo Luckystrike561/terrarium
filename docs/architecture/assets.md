@@ -80,8 +80,9 @@ Each asset message is skipped when its part of the cache is missing. Agent state
 
 ## Editor tools
 
-`scripts/` keeps three standalone HTML tools, opened directly in a browser:
+`scripts/` keeps four standalone HTML tools, opened in a browser:
 
 - `asset-manager.html`: furniture editor for positions and metadata, with Save and Save As via the File System Access API.
 - `wall-tile-editor.html`: wall sprite editor.
+- `seat-fitter.html`: places our seated character art on every seat sprite by the same sit-point rule as the office (hips from `SEATED_HIP_ART_PX` onto `SEAT_SIT_POINTS_ART_PX`), with a seat facing away drawn over its sitter. Drag a sitter or nudge it with the arrow keys, then paste the printed constant into `webview-ui/src/constants.ts`. Serve the repo root over HTTP (for example `python3 -m http.server`) and open `/scripts/seat-fitter.html`.
 - `jsonl-viewer.html`: transcript inspector.

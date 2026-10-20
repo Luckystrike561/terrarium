@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Seat Fitter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 12px; }
+    #toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; }
+    #toolbar select, #toolbar button { font-size: 12px; padding: 4px 8px; background: #2a2a4a; color: #e0e0e0; border: 1px solid #555; border-radius: 3px; }
+    #help { color: #aaa; font-size: 12px; }
+    #cards { display: flex; flex-wrap: wrap; gap: 10px; }
+    .card { background: #16213e; border: 1px solid #333; border-radius: 4px; padding: 6px; }
+    .card.selected { border-color: #f1c40f; }
+    .card h3 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .card .points { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .card .mirror { font-size: 10px; color: #777; }
+    canvas { image-rendering: pixelated; background: #e8e4dc; display: block; cursor: crosshair; }
+    #output { width: 100%; height: 260px; margin-top: 12px; font-family: monospace; font-size: 12px; background: #0f0f1e; color: #9fe39f; border: 1px solid #333; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label>Character <select id="character"></select></label>
+    <label>Zoom <select id="zoom"><option>4</option><option selected>6</option><option>8</option></select></label>
+    <label><input type="checkbox" id="markers" checked> Sit point markers</label>
+    <span id="help">Click a sitter to select it, then drag it or nudge with the arrow keys (1 art px). A seat facing away draws over its sitter, as in the office. The right and left cards mirror the front and back ones and follow them. Paste the output over <code>SEAT_SIT_POINTS_ART_PX</code> in <code>webview-ui/src/constants.ts</code>.</span>
+  </div>
+  <div id="cards"></div>
+  <textarea id="output" readonly></textarea>
+
+<script>
+// Mirrors SEATED_HIP_ART_PX and SEAT_SIT_POINTS_ART_PX in webview-ui/src/constants.ts,
+// and the placement rule in layoutSerializer.ts's sitOffsetOnto: the seated
+// frame's hip point lands on the seat's sit point, in the seat sprite's art px.
+const SEATED_HIP_ART_PX = { facing: { x: 53, y: 67 }, away: { x: 43, y: 67 } };
+const SEAT_SIT_POINTS_ART_PX = {
+  CUSHIONED_CHAIR_FRONT: [{ x: 33, y: 25 }],
+  CUSHIONED_CHAIR_BACK: [{ x: 31, y: 20 }],
+  WOODEN_CHAIR_FRONT: [{ x: 36, y: 25 }],
+  WOODEN_CHAIR_BACK: [{ x: 29, y: 22 }],
+  EXEC_CHAIR_FRONT: [{ x: 32, y: 34 }],
+  EXEC_CHAIR_BACK: [{ x: 31, y: 26 }],
+  SOFA_FRONT: [{ x: 38, y: 31 }, { x: 60, y: 38 }],
+  SOFA_BACK: [{ x: 31, y: 14 }, { x: 60, y: 24 }],
+  WOODEN_BENCH_FRONT: [{ x: 37, y: 14 }, { x: 57, y: 24 }],
+  CUSHIONED_BENCH_FRONT: [{ x: 35, y: 67 }, { x: 62, y: 77 }],
+  STOOL: [{ x: 31, y: 11 }],
+};
+const ASSETS = '../webview-ui/public/assets';
+const FRAME = 96;
+/** read1 in CHARACTER_FRAMES: the seated frame an agent at work shows. */
+const SEATED_FRAME_INDEX = 7;
+const ROW_DOWN = 0;
+const ROW_UP = 1;
+const ROW_RIGHT = 2;
+const MARGIN = 20;
+
+const groupOf = (id) => (id === 'STOOL' ? 'STOOL' : id.replace(/_(FRONT|BACK)$/, ''));
+const mirrorId = (id) => id.replace(/_FRONT$/, '_RIGHT').replace(/_BACK$/, '_LEFT');
+
+/** Every seat card: the measured `_FRONT`/`_BACK` sprite plus its mirrored
+ *  `_RIGHT`/`_LEFT` twin, which reads the same points mirrored. */
+const cards = [];
+for (const id of Object.keys(SEAT_SIT_POINTS_ART_PX)) {
+  const away = id.endsWith('_BACK');
+  cards.push({ id, source: id, mirrored: false, away });
+  if (id !== 'STOOL') cards.push({ id: mirrorId(id), source: id, mirrored: true, away });
+}
+
+const images = new Map();
+function loadImage(src) {
+  if (!images.has(src)) {
+    images.set(src, new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    }));
+  }
+  return images.get(src);
+}
+
+const characterSelect = document.getElementById('character');
+for (let i = 0; i < 12; i++) characterSelect.add(new Option(`char_${i}`, `characters/char_${i}.png`));
+characterSelect.add(new Option('cto', 'characters/cto.png'));
+
+let selected = { source: 'CUSHIONED_CHAIR_FRONT', index: 0 };
+
+function hipFor(card) {
+  const hip = card.away ? SEATED_HIP_ART_PX.away : SEATED_HIP_ART_PX.facing;
+  return card.mirrored ? { x: FRAME - hip.x, y: hip.y } : hip;
+}
+
+function pointFor(card, seatW, index) {
+  const p = SEAT_SIT_POINTS_ART_PX[card.source][index];
+  return card.mirrored ? { x: seatW - p.x, y: p.y } : p;
+}
+
+function drawCharacter(ctx, sheet, card, x, y) {
+  const row = card.away ? ROW_UP : card.mirrored ? ROW_RIGHT : ROW_DOWN;
+  const sx = SEATED_FRAME_INDEX * FRAME;
+  const sy = row * FRAME;
+  if (card.away && card.mirrored) {
+    ctx.save();
+    ctx.translate(x + FRAME, y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(sheet, sx, sy, FRAME, FRAME, 0, 0, FRAME, FRAME);
+    ctx.restore();
+  } else {
+    ctx.drawImage(sheet, sx, sy, FRAME, FRAME, x, y, FRAME, FRAME);
+  }
+}
+
+async function render() {
+  const zoom = Number(document.getElementById('zoom').value);
+  const showMarkers = document.getElementById('markers').checked;
+  const sheet = await loadImage(`${ASSETS}/${characterSelect.value}`);
+  const root = document.getElementById('cards');
+  root.innerHTML = '';
+  for (const card of cards) {
+    const seat = await loadImage(`${ASSETS}/furniture/${groupOf(card.source)}/${card.id}.png`);
+    if (!seat || !sheet) continue;
+    const el = document.createElement('div');
+    el.className = 'card' + (selected.source === card.source && !card.mirrored ? ' selected' : '');
+    const canvas = document.createElement('canvas');
+    const w = seat.width + MARGIN * 2;
+    const h = seat.height + MARGIN * 2 + FRAME / 2;
+    canvas.width = w * zoom;
+    canvas.height = h * zoom;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.scale(zoom, zoom);
+    const ox = MARGIN;
+    const oy = MARGIN + FRAME / 2;
+    const points = SEAT_SIT_POINTS_ART_PX[card.source].map((_, i) => pointFor(card, seat.width, i));
+    const hip = hipFor(card);
+    const drawSeat = () => ctx.drawImage(seat, ox, oy);
+    const drawSitters = () =>
+      points.forEach((p) => drawCharacter(ctx, sheet, card, ox + p.x - hip.x, oy + p.y - hip.y));
+    if (card.away) {
+      drawSitters();
+      drawSeat();
+    } else {
+      drawSeat();
+      drawSitters();
+    }
+    if (showMarkers) {
+      points.forEach((p, i) => {
+        const isSelected = !card.mirrored && selected.source === card.source && selected.index === i;
+        ctx.fillStyle = isSelected ? '#f1c40f' : '#e74c3c';
+        ctx.fillRect(ox + p.x - 0.5, oy + p.y - 0.5, 1, 1);
+      });
+    }
+    if (!card.mirrored) attachEditing(canvas, card, seat.width, zoom, ox, oy);
+    el.innerHTML = `<h3>${card.id}${card.away ? ' (faces away)' : ''}</h3>`;
+    el.appendChild(canvas);
+    const info = document.createElement('div');
+    info.className = card.mirrored ? 'mirror' : 'points';
+    info.textContent = card.mirrored
+      ? `mirror of ${card.source}`
+      : points.map((p) => `(${p.x}, ${p.y})`).join('  ');
+    el.appendChild(info);
+    root.appendChild(el);
+  }
+  writeOutput();
+}
+
+function attachEditing(canvas, card, seatW, zoom, ox, oy) {
+  let dragging = null;
+  const toArt = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.round((event.clientX - rect.left) / zoom - ox),
+      y: Math.round((event.clientY - rect.top) / zoom - oy),
+    };
+  };
+  canvas.addEventListener('mousedown', (event) => {
+    const at = toArt(event);
+    const points = SEAT_SIT_POINTS_ART_PX[card.source];
+    let best = 0;
+    points.forEach((p, i) => {
+      if (Math.hypot(p.x - at.x, p.y - at.y) < Math.hypot(points[best].x - at.x, points[best].y - at.y)) best = i;
+    });
+    selected = { source: card.source, index: best };
+    dragging = { start: at, from: { ...points[best] } };
+    render();
+  });
+  window.addEventListener('mousemove', (event) => {
+    if (!dragging || selected.source !== card.source) return;
+    const at = toArt(event);
+    const p = SEAT_SIT_POINTS_ART_PX[card.source][selected.index];
+    const nx = dragging.from.x + (at.x - dragging.start.x);
+    const ny = dragging.from.y + (at.y - dragging.start.y);
+    if (nx === p.x && ny === p.y) return;
+    p.x = nx;
+    p.y = ny;
+    render();
+  });
+  window.addEventListener('mouseup', () => (dragging = null));
+}
+
+window.addEventListener('keydown', (event) => {
+  const steps = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  const step = steps[event.key];
+  if (!step) return;
+  event.preventDefault();
+  const p = SEAT_SIT_POINTS_ART_PX[selected.source][selected.index];
+  p.x += step[0];
+  p.y += step[1];
+  render();
+});
+
+function writeOutput() {
+  const lines = Object.entries(SEAT_SIT_POINTS_ART_PX).map(([id, points]) => {
+    const body = points.map((p) => `{ x: ${p.x}, y: ${p.y} }`);
+    return body.length === 1
+      ? `  ${id}: [${body[0]}],`
+      : `  ${id}: [\n${body.map((b) => `    ${b},`).join('\n')}\n  ],`;
+  });
+  document.getElementById('output').value =
+    'export const SEAT_SIT_POINTS_ART_PX: Readonly<\n  Record<string, ReadonlyArray<{ x: number; y: number }>>\n> = {\n' +
+    lines.join('\n') +
+    '\n};\n';
+}
+
+characterSelect.addEventListener('change', render);
+document.getElementById('zoom').addEventListener('change', render);
+document.getElementById('markers').addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

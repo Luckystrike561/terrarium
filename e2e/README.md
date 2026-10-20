@@ -232,7 +232,7 @@ This section is auto-generated. Do not edit between the markers. The pre-push ho
 
 ### `@area:office` (1 tests)
 
-- `e2e/standalone/seating.spec.ts:80` — characters sit in desk chairs, dining chairs, sofas and the CTO chair and couch (Office / seating)
+- `e2e/standalone/seating.spec.ts:81` — characters sit in desk chairs, dining chairs, sofas and the CTO chair and couch (Office / seating)
 
 ### `@area:pets` (3 tests)
 
