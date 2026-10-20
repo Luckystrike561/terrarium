@@ -113,9 +113,9 @@ const WEST_POD_RUG: CarpetFill = {
 };
 const EAST_POD_RUG: CarpetFill = { ...WEST_POD_RUG, c0: 6, c1: 9 };
 const CTO_RUG: CarpetFill = {
-  c0: 3,
+  c0: 6,
   r0: 7,
-  c1: 7,
+  c1: 10,
   r1: 10,
   color: { h: 42, s: 65, b: 6, c: 0 },
   accentColor: { h: 24, s: 48, b: -18, c: 0 },
@@ -187,22 +187,24 @@ export const TEAM_MODULE: ModuleTemplate = {
 };
 
 /** A small executive office on the south half of its cell, flush with the
- *  first team module below it: a desk and chair facing the entrance, two
- *  visitor chairs, a couch and coffee table, on a wood floor. */
+ *  first team module below it: a desk and chair facing the entrance with two
+ *  visitor chairs on the east side, a couch and coffee table on the west
+ *  side, on a wood floor. Cols 4 to 6 and col 1 stay clear so the north and
+ *  west back-wall doorways open onto free floor. */
 export const CTO_MODULE: ModuleTemplate = {
   footprint: CTO_FOOTPRINT,
   floors: [{ ...CTO_FOOTPRINT, tile: PLANKS, color: HONEY_WOOD }],
   carpets: [CTO_RUG],
   furniture: [
-    { type: 'EXEC_DESK_BACK', col: 4, row: 8 },
-    { type: 'EXEC_CHAIR_FRONT', col: 5, row: 7 },
-    { type: 'PC_BACK_OFF', col: 5, row: 8 },
-    { type: 'COFFEE', col: 4, row: 8 },
-    { type: 'WOODEN_CHAIR_BACK', col: 4, row: 10 },
-    { type: 'WOODEN_CHAIR_BACK', col: 6, row: 10 },
-    { type: 'SOFA_FRONT', col: 8, row: 7 },
-    { type: 'COFFEE_TABLE_FRONT', col: 8, row: 8 },
-    { type: 'BIN', col: 1, row: 10 },
+    { type: 'EXEC_DESK_BACK', col: 7, row: 8 },
+    { type: 'EXEC_CHAIR_FRONT', col: 8, row: 7 },
+    { type: 'PC_BACK_OFF', col: 8, row: 8 },
+    { type: 'COFFEE', col: 7, row: 8 },
+    { type: 'WOODEN_CHAIR_BACK', col: 7, row: 10 },
+    { type: 'WOODEN_CHAIR_BACK', col: 9, row: 10 },
+    { type: 'SOFA_FRONT', col: 2, row: 7 },
+    { type: 'COFFEE_TABLE_FRONT', col: 2, row: 8 },
+    { type: 'BIN', col: 10, row: 10 },
   ],
   wallDecor: { north: [], west: [] },
 };

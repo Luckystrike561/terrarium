@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 
 import { composeOffice } from '../../core/src/officeModules.ts';
 
-const REVISION = 13;
+const REVISION = 14;
 
 const composed = composeOffice({ teamModules: 1, cto: true });
 
