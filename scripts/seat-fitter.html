@@ -59,6 +59,21 @@ const ROW_UP = 1;
 const ROW_RIGHT = 2;
 const MARGIN = 20;
 const MAX_SEAT_SCALE = 1.6;
+/** Floor tiles each seat group stands on, cols × rows of its front view. */
+const FOOTPRINT = {
+  CUSHIONED_CHAIR: [1, 1],
+  WOODEN_CHAIR: [1, 1],
+  EXEC_CHAIR: [1, 1],
+  SOFA: [2, 1],
+  WOODEN_BENCH: [2, 1],
+  CUSHIONED_BENCH: [2, 1],
+  STOOL: [1, 1],
+};
+/** One floor tile's iso diamond is 64 × 32 art px. */
+const HALF_TILE_W = 32;
+const HALF_TILE_H = 16;
+const FLOOR_FILL = '#c9bfae';
+const FLOOR_EDGE = '#8a7f6c';
 /** Each seat group's `resize` in scripts/pixellab/furniture.ts (1 = none). */
 const PIXELLAB_RESIZE = {
   CUSHIONED_CHAIR: 0.79,
@@ -189,6 +204,25 @@ async function render() {
     const toCanvas = (p) => ({ x: ox + p.x * scale, y: oy + p.y * scale });
     const points = SEAT_SIT_POINTS_ART_PX[card.source].map((_, i) => pointFor(card, seat.width, i));
     const hip = hipFor(card);
+    // The seat's floor tiles, at the seat's own unscaled footing: a seat
+    // rescaled in the preview still stands on the same tiles in the office.
+    const footprint = FOOTPRINT[groupOf(card.source)];
+    const [fw, fh] = card.mirrored ? [footprint[1], footprint[0]] : footprint;
+    const floorLeft = MARGIN + (seat.width * (MAX_SEAT_SCALE - 1)) / 2;
+    const floorBottom = MARGIN + FRAME / 2 + seat.height * MAX_SEAT_SCALE;
+    const corner = (dc, dr) => ({
+      x: floorLeft + fh * HALF_TILE_W + (dc - dr) * HALF_TILE_W,
+      y: floorBottom - (dc + dr) * HALF_TILE_H,
+    });
+    const floor = [corner(0, 0), corner(fw, 0), corner(fw, fh), corner(0, fh)];
+    ctx.beginPath();
+    floor.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.fillStyle = FLOOR_FILL;
+    ctx.fill();
+    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = FLOOR_EDGE;
+    ctx.stroke();
     const drawSeat = () => ctx.drawImage(seat, ox, oy, seat.width * scale, seat.height * scale);
     const drawSitters = () =>
       points.forEach((p) => {
