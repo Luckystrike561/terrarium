@@ -1,8 +1,9 @@
-import { ART_SCALE } from '../../../../core/src/assets/constants.ts';
+import { ART_SCALE, CHAR_FRAME_H, CHAR_FRAME_W } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
-import { SEAT_AWAY_FORWARD_TILES, SEAT_PULL_TO_CENTER, SEAT_SINK_PX } from '../../constants.js';
+import { SEAT_SIT_POINTS_ART_PX, SEATED_HIP_ART_PX } from '../../constants.js';
 import { getColorizedSprite } from '../colorize.js';
 import { SortLayer } from '../engine/isoSort.js';
+import type { Point } from '../iso.js';
 import { footprintSpriteOrigin, ISO_TILE_W, worldToIso } from '../iso.js';
 import type {
   FurnitureInstance,
@@ -27,20 +28,56 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
   return map;
 }
 
-/** A seat facing away from the viewer shows its backrest between the viewer
- *  and its sitter, so it draws over the sitter the way a Habbo chair's
- *  backrest layer does. Every other seat draws under its sitter. */
-function facesAway(orientation: string | undefined): boolean {
-  return orientation === 'back' || orientation === 'left';
+/** Where on its seat sprite seat `index` puts its sitter's hips, in art px:
+ *  its own point, or the mirrored point of the `_FRONT` or `_BACK` sprite it
+ *  mirrors. Null for a seat with no measured sit point. */
+function seatSitPoint(type: string, spriteW: number, index: number): Point | null {
+  const own = SEAT_SIT_POINTS_ART_PX[type]?.[index];
+  if (own) return own;
+  const mirroredFrom = type.replace(/_RIGHT$/, '_FRONT').replace(/_LEFT$/, '_BACK');
+  const point = mirroredFrom === type ? undefined : SEAT_SIT_POINTS_ART_PX[mirroredFrom]?.[index];
+  return point ? { x: spriteW - point.x, y: point.y } : null;
 }
 
-function seatSinkOf(type: string, orientation: string | undefined): number {
-  for (const [group, sink] of Object.entries(SEAT_SINK_PX)) {
-    if (type === group || type.startsWith(`${group}_`)) {
-      return facesAway(orientation) ? sink.away : sink.facing;
-    }
-  }
-  return 0;
+/** Where a seated frame facing `facing` has its hips, in art px. */
+function seatedHip(facing: Direction): Point {
+  const hip =
+    facing === Direction.UP || facing === Direction.LEFT
+      ? SEATED_HIP_ART_PX.away
+      : SEATED_HIP_ART_PX.facing;
+  const mirrored = facing === Direction.RIGHT || facing === Direction.LEFT;
+  return { x: mirrored ? CHAR_FRAME_W - hip.x : hip.x, y: hip.y };
+}
+
+/** Iso shift that puts the hips of a character seated on tile (col, row) of
+ *  `item`, facing `facing`, on that seat's sit point. The character is drawn
+ *  feet on its tile's centre (`characterSpritePlacement`), the seat at its
+ *  footprint's sprite origin, both at 1 / ART_SCALE iso px per art px. */
+function sitOffsetOnto(
+  item: PlacedFurniture,
+  index: number,
+  col: number,
+  row: number,
+  facing: Direction,
+): Point {
+  const entry = getCatalogEntry(item.type)!;
+  const spriteW = entry.sprite[0]?.length ?? 0;
+  const point = seatSitPoint(item.type, spriteW, index);
+  if (!point) return { x: 0, y: 0 };
+  const origin = footprintSpriteOrigin(
+    item.col,
+    item.row,
+    entry.footprintW,
+    entry.footprintH,
+    spriteW,
+    entry.sprite.length,
+  );
+  const anchor = worldToIso((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE);
+  const hip = seatedHip(facing);
+  return {
+    x: origin.x + (point.x + CHAR_FRAME_W / 2 - hip.x) / ART_SCALE - anchor.x,
+    y: origin.y + (point.y + CHAR_FRAME_H - hip.y) / ART_SCALE - anchor.y,
+  };
 }
 
 /** A wall item is drawn flat on the face of its wall, but its sprite is wider
@@ -92,7 +129,15 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
 
     let layer: number = SortLayer.FLOOR;
     if (entry.canPlaceOnSurfaces || entry.canPlaceOnWalls) layer = SortLayer.ATTACHED;
-    if (entry.category === 'chairs' && facesAway(entry.orientation)) layer = SortLayer.ATTACHED;
+    // A seat facing away shows its backrest between the viewer and its
+    // sitter, so it draws over the sitter the way a Habbo chair's backrest
+    // layer does. Every other seat draws under its sitter.
+    if (
+      entry.category === 'chairs' &&
+      (entry.orientation === 'back' || entry.orientation === 'left')
+    ) {
+      layer = SortLayer.ATTACHED;
+    }
 
     const origin = footprintSpriteOrigin(
       item.col,
@@ -218,13 +263,7 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           }
         }
 
-        const onto = facesAway(entry.orientation) ? SEAT_AWAY_FORWARD_TILES * TILE_SIZE : 0;
-        const towardCenter = worldToIso(
-          (entry.footprintW / 2 - dc - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER -
-            (entry.orientation === 'left' ? onto : 0),
-          (entry.footprintH / 2 - dr - 0.5) * TILE_SIZE * SEAT_PULL_TO_CENTER -
-            (entry.orientation === 'back' ? onto : 0),
-        );
+        const sitOffset = sitOffsetOnto(item, seatCount, tileCol, tileRow, facingDir);
         // First seat uses chair uid (backward compat), subsequent use uid:N
         const seatUid = seatCount === 0 ? item.uid : `${item.uid}:${seatCount}`;
         seats.set(seatUid, {
@@ -233,8 +272,8 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           seatRow: tileRow,
           facingDir,
           assigned: false,
-          sitOffsetX: towardCenter.x,
-          sitOffsetY: towardCenter.y + seatSinkOf(item.type, entry.orientation),
+          sitOffsetX: sitOffset.x,
+          sitOffsetY: sitOffset.y,
         });
         seatCount++;
       }

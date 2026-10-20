@@ -48,26 +48,45 @@ export const MATRIX_TRAIL_MID_THRESHOLD = 0.33;
 export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66;
 
 // ── Rendering ────────────────────────────────────────────────
-/** How far a seated character's sprite drops into each kind of seat, in
- *  world px, keyed by the seat's furniture group, for a seat facing the
- *  viewer (`front`, `right`) and one facing away (`back`, `left`). The seated
- *  frames are drawn with their hips at one shared height, every PixelLab seat
- *  has its own, and a seat facing away shows its seat further down its sprite,
- *  behind the backrest. */
-export const SEAT_SINK_PX: Readonly<Record<string, { facing: number; away: number }>> = {
-  EXEC_CHAIR: { facing: 16, away: 12 },
-  CUSHIONED_CHAIR: { facing: 16, away: 12 },
-  WOODEN_CHAIR: { facing: 16, away: 12 },
-  SOFA: { facing: 16, away: 12 },
-  WOODEN_BENCH: { facing: 16, away: 12 },
+/** Where a seated frame's hips rest, in art px of its 96×96 frame: the point
+ *  put on its seat's sit point. `facing` is the frame facing the viewer (the
+ *  DOWN row), `away` the frame facing away (UP). RIGHT and LEFT are those
+ *  mirrored. */
+export const SEATED_HIP_ART_PX = {
+  facing: { x: 53, y: 67 },
+  away: { x: 43, y: 67 },
+} as const;
+/** Where a sitter's hips rest on each seat, in art px of its sprite, one
+ *  point per seat tile in footprint order, the way a Habbo chair carries its
+ *  avatar's sit position. `_RIGHT` and `_LEFT` sprites are the `_FRONT` and
+ *  `_BACK` ones mirrored, and so are their points. */
+export const SEAT_SIT_POINTS_ART_PX: Readonly<
+  Record<string, ReadonlyArray<{ x: number; y: number }>>
+> = {
+  CUSHIONED_CHAIR_FRONT: [{ x: 26, y: 29 }],
+  CUSHIONED_CHAIR_BACK: [{ x: 40, y: 18 }],
+  WOODEN_CHAIR_FRONT: [{ x: 30, y: 28 }],
+  WOODEN_CHAIR_BACK: [{ x: 36, y: 21 }],
+  EXEC_CHAIR_FRONT: [{ x: 24, y: 39 }],
+  EXEC_CHAIR_BACK: [{ x: 41, y: 26 }],
+  SOFA_FRONT: [
+    { x: 34, y: 35 },
+    { x: 52, y: 42 },
+  ],
+  SOFA_BACK: [
+    { x: 31, y: 14 },
+    { x: 60, y: 24 },
+  ],
+  WOODEN_BENCH_FRONT: [
+    { x: 37, y: 14 },
+    { x: 57, y: 24 },
+  ],
+  CUSHIONED_BENCH_FRONT: [
+    { x: 35, y: 67 },
+    { x: 62, y: 77 },
+  ],
+  STOOL: [{ x: 31, y: 11 }],
 };
-/** How far, in tiles, a sitter on a seat facing away moves from the seat
- *  tile's centre toward the way it faces: onto the seat, behind the backrest,
- *  so the backrest drawn over it hides only its lower back. */
-export const SEAT_AWAY_FORWARD_TILES = 0.25;
-/** Share of the way from a seat tile toward the middle of its multi-tile seat
- *  that the sitter moves: sofa and bench art is narrower than its footprint. */
-export const SEAT_PULL_TO_CENTER = 0.2;
 export const SELECTED_OUTLINE_ALPHA = 1.0;
 export const HOVERED_OUTLINE_ALPHA = 0.5;
 export const BUBBLE_FADE_DURATION_SEC = 0.5;

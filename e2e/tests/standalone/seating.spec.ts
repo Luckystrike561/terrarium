@@ -25,10 +25,11 @@ import { launchStandalone } from '../../helpers/standalone';
 const FLOOR = 'local';
 const AGENTS = 16;
 const ASSETS_DIR = path.join(__dirname, '../../../webview-ui/public/assets');
-/** Share of a seat facing the viewer its sitter must leave visible. */
-const MIN_SEAT_SHOWN = 0.15;
+/** Share of a seat facing the viewer its sitter must leave visible. A sitter
+ *  off its seat's sit point covers more of it (0.19 to 0.28 measured). */
+const MIN_SEAT_SHOWN = 0.35;
 /** Share of a sitter a backrest facing away must leave visible. */
-const MIN_CHARACTER_SHOWN = 0.5;
+const MIN_CHARACTER_SHOWN = 0.6;
 /** Rounding slack, in iso px, for the feet resting on the seat's bottom row. */
 const FEET_SLACK_PX = 1;
 const SEAT_TYPES_COVERED = [
