@@ -24,7 +24,9 @@
     <label>Character <select id="character"></select></label>
     <label>Zoom <select id="zoom"><option>4</option><option selected>6</option><option>8</option></select></label>
     <label><input type="checkbox" id="markers" checked> Sit point markers</label>
-    <span id="help">Click a sitter to select it, then drag it or nudge with the arrow keys (1 art px). A seat facing away draws over its sitter, as in the office. The right and left cards mirror the front and back ones and follow them. Paste the output over <code>SEAT_SIT_POINTS_ART_PX</code> in <code>webview-ui/src/constants.ts</code>.</span>
+    <label>Sitter opacity <input type="range" id="opacity" min="10" max="100" value="55"></label>
+    <label><input type="checkbox" id="outline" checked> Seat outline on top</label>
+    <span id="help">Click a sitter to select it, then drag it or nudge with the arrow keys (1 art px). The sitter is see-through and the seat's outline is drawn over it so the seat stays visible; set opacity to 100 and untick the outline to see it exactly as the office draws it (a seat facing away covers its sitter). The right and left cards mirror the front and back ones and follow them. Paste the output over <code>SEAT_SIT_POINTS_ART_PX</code> in <code>webview-ui/src/constants.ts</code>.</span>
   </div>
   <div id="cards"></div>
   <textarea id="output" readonly></textarea>
@@ -97,24 +99,58 @@ function pointFor(card, seatW, index) {
   return card.mirrored ? { x: seatW - p.x, y: p.y } : p;
 }
 
-function drawCharacter(ctx, sheet, card, x, y) {
+function drawCharacter(ctx, sheet, card, x, y, alpha) {
   const row = card.away ? ROW_UP : card.mirrored ? ROW_RIGHT : ROW_DOWN;
   const sx = SEATED_FRAME_INDEX * FRAME;
   const sy = row * FRAME;
+  ctx.save();
+  ctx.globalAlpha = alpha;
   if (card.away && card.mirrored) {
-    ctx.save();
     ctx.translate(x + FRAME, y);
     ctx.scale(-1, 1);
     ctx.drawImage(sheet, sx, sy, FRAME, FRAME, 0, 0, FRAME, FRAME);
-    ctx.restore();
   } else {
     ctx.drawImage(sheet, sx, sy, FRAME, FRAME, x, y, FRAME, FRAME);
   }
+  ctx.restore();
+}
+
+const OUTLINE_COLOR = [0, 229, 255, 255];
+const outlines = new Map();
+/** The seat's silhouette edge: every opaque pixel with a transparent
+ *  neighbour, so the seat's shape shows through a sitter drawn over it. */
+function outlineOf(img) {
+  if (outlines.has(img)) return outlines.get(img);
+  const src = document.createElement('canvas');
+  src.width = img.width;
+  src.height = img.height;
+  const sctx = src.getContext('2d');
+  sctx.drawImage(img, 0, 0);
+  const pixels = sctx.getImageData(0, 0, img.width, img.height).data;
+  const opaque = (x, y) =>
+    x >= 0 && y >= 0 && x < img.width && y < img.height && pixels[(y * img.width + x) * 4 + 3] >= 128;
+  const out = document.createElement('canvas');
+  out.width = img.width;
+  out.height = img.height;
+  const octx = out.getContext('2d');
+  const edge = octx.createImageData(img.width, img.height);
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (!opaque(x, y)) continue;
+      if (opaque(x - 1, y) && opaque(x + 1, y) && opaque(x, y - 1) && opaque(x, y + 1)) continue;
+      edge.data.set(OUTLINE_COLOR, (y * img.width + x) * 4);
+    }
+  }
+  octx.putImageData(edge, 0, 0);
+  outlines.set(img, out);
+  return out;
 }
 
 async function render() {
   const zoom = Number(document.getElementById('zoom').value);
   const showMarkers = document.getElementById('markers').checked;
+  const showOutline = document.getElementById('outline').checked;
+  const alpha = Number(document.getElementById('opacity').value) / 100;
   const sheet = await loadImage(`${ASSETS}/${characterSelect.value}`);
   const root = document.getElementById('cards');
   root.innerHTML = '';
@@ -137,7 +173,7 @@ async function render() {
     const hip = hipFor(card);
     const drawSeat = () => ctx.drawImage(seat, ox, oy);
     const drawSitters = () =>
-      points.forEach((p) => drawCharacter(ctx, sheet, card, ox + p.x - hip.x, oy + p.y - hip.y));
+      points.forEach((p) => drawCharacter(ctx, sheet, card, ox + p.x - hip.x, oy + p.y - hip.y, alpha));
     if (card.away) {
       drawSitters();
       drawSeat();
@@ -145,6 +181,7 @@ async function render() {
       drawSeat();
       drawSitters();
     }
+    if (showOutline) ctx.drawImage(outlineOf(seat), ox, oy);
     if (showMarkers) {
       points.forEach((p, i) => {
         const isSelected = !card.mirrored && selected.source === card.source && selected.index === i;
@@ -227,6 +264,8 @@ function writeOutput() {
 characterSelect.addEventListener('change', render);
 document.getElementById('zoom').addEventListener('change', render);
 document.getElementById('markers').addEventListener('change', render);
+document.getElementById('opacity').addEventListener('input', render);
+document.getElementById('outline').addEventListener('change', render);
 render();
 </script>
 </body>
