@@ -162,6 +162,8 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
           ? wallFaceBox(footprint, entry.orientation, sprite[0]?.length ?? 0)
           : footprint),
         layer,
+        screenLeft: origin.x / TILE_SIZE,
+        screenRight: (origin.x + (sprite[0]?.length ?? 0) / ART_SCALE) / TILE_SIZE,
       },
       uid: item.uid,
       ...(mirrored ? { mirrored: true } : {}),

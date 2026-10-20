@@ -18,6 +18,12 @@ export interface SortBox {
   readonly maxRow: number;
   /** Tie-break for overlapping footprints: higher draws later. */
   readonly layer: number;
+  /** Horizontal screen extent of what is actually drawn, in the same
+   *  `col - row` units as the footprint's. A sprite wider than its footprint
+   *  (a character over its feet, a sofa past its tiles) overlaps neighbours
+   *  its footprint alone would never reach. Defaults to the footprint's. */
+  readonly screenLeft?: number;
+  readonly screenRight?: number;
 }
 
 /** `layer` values: furniture on the floor, characters and pets, then things
@@ -36,8 +42,14 @@ function depth(b: SortBox): number {
 
 /** -1 when a draws before b, 1 when after, 0 when unordered. */
 function compare(a: SortBox, b: SortBox): number {
-  if (a.maxCol <= b.minCol + EPS || a.maxRow <= b.minRow + EPS) return -1;
-  if (b.maxCol <= a.minCol + EPS || b.maxRow <= a.minRow + EPS) return 1;
+  const aFirst = a.maxCol <= b.minCol + EPS || a.maxRow <= b.minRow + EPS;
+  const bFirst = b.maxCol <= a.minCol + EPS || b.maxRow <= a.minRow + EPS;
+  // Separated along one axis each way, the footprints stand side by side on
+  // screen and only a sprite wider than its footprint overlaps the other:
+  // the one whose front corner is nearer the viewer is in front there.
+  if (aFirst && bFirst) return a.maxCol + a.maxRow <= b.maxCol + b.maxRow ? -1 : 1;
+  if (aFirst) return -1;
+  if (bFirst) return 1;
   if (a.layer !== b.layer) return a.layer < b.layer ? -1 : 1;
   const da = depth(a);
   const db = depth(b);
@@ -49,8 +61,8 @@ export function isoDrawOrder(boxes: readonly SortBox[]): number[] {
   const n = boxes.length;
   const after: number[][] = Array.from({ length: n }, () => []);
   const pending = new Array<number>(n).fill(0);
-  const left = boxes.map((b) => b.minCol - b.maxRow);
-  const right = boxes.map((b) => b.maxCol - b.minRow);
+  const left = boxes.map((b) => b.screenLeft ?? b.minCol - b.maxRow);
+  const right = boxes.map((b) => b.screenRight ?? b.maxCol - b.minRow);
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {

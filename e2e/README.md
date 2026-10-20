@@ -36,7 +36,7 @@ The animated pets feature, which has no hook dependency. Pet sprites load and th
 
 ### Office rendering (`@area:office`)
 
-How characters are drawn against the furniture. Seating: working agents at the desk pods, idle agents on the dining chairs and the sofa, the CTO at its desk and on its couch, covering every seat orientation in the office. On a seat facing the viewer the sitter draws over it and leaves part of it visible, on a seat facing away the backrest draws over the sitter and leaves most of it visible, and every sitter's feet land within its seat. The canvas has no DOM, so this reads what the renderer draws (sprite frames, positions and draw order) through the `getSeatFits` e2e test hook.
+How characters are drawn against the furniture. Seating: working agents at the desk pods, idle agents on the dining chairs and the sofa, the CTO at its desk and on its couch, covering every seat orientation in the office. On a seat facing the viewer the sitter draws over it and leaves part of it visible, on a seat facing away the backrest draws over the sitter and leaves most of it visible, and every sitter's feet land within its seat, on the floor. Draw order: throughout, every character and furniture pair whose opaque pixels overlap draws in the order their footprints stand. The canvas has no DOM, so this reads what the renderer draws (sprite frames, positions and draw order) through the `getSeatFits` and `getDrawOrderViolations` e2e test hooks.
 
 ## What's NOT covered (gaps + deferred)
 
@@ -232,7 +232,7 @@ This section is auto-generated. Do not edit between the markers. The pre-push ho
 
 ### `@area:office` (1 tests)
 
-- `e2e/standalone/seating.spec.ts:89` — characters sit in desk chairs, dining chairs, sofas and the CTO chair and couch (Office / seating)
+- `e2e/standalone/seating.spec.ts:94` — characters sit in desk chairs, dining chairs, sofas and the CTO chair and couch (Office / seating)
 
 ### `@area:pets` (3 tests)
 

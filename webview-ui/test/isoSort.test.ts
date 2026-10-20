@@ -53,6 +53,15 @@ test('items attached to a footprint draw after it', () => {
   assert.ok(drawsBefore([monitor, DESK], 1, 0));
 });
 
+test('a character whose sprite overlaps a desk its feet do not reach draws behind it when it stands behind', () => {
+  // A long desk, and a character standing past its far end, one row behind
+  // it: its feet are clear of the desk on screen but its 3-tile-wide sprite
+  // covers the desk's end. A depth key alone puts it in front (it is deeper).
+  const longDesk = box(2, 5, 10, 6);
+  const behind: SortBox = { ...actor(10.5, 4.5), screenLeft: 4.5, screenRight: 7.5 };
+  assert.ok(drawsBefore([longDesk, behind], 1, 0));
+});
+
 test('every box is emitted exactly once, even when overlaps disagree', () => {
   const boxes = [box(0, 0, 3, 3), box(1, 1, 4, 4), box(2, 2, 5, 5), actor(1.5, 1.5)];
   const order = isoDrawOrder(boxes);

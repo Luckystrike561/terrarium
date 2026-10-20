@@ -1,10 +1,11 @@
 import type { ColorValue } from './components/ui/types.js';
 import type { Building } from './office/engine/building.js';
+import type { SortBox } from './office/engine/isoSort.js';
 import { isoDrawOrder } from './office/engine/isoSort.js';
 import { OfficeState } from './office/engine/officeState.js';
 import {
-  actorBox,
   ART_SPRITE_SCALE,
+  characterSortBox,
   characterSpritePlacement,
 } from './office/engine/sceneRenderer.js';
 import { getCatalogEntry } from './office/layout/furnitureCatalog.js';
@@ -100,11 +101,12 @@ function seatFitsOf(office: OfficeState): SeatFit[] {
       y: instance.y,
       mirrored: !!instance.mirrored,
     };
-    const characterDrawn: DrawnSprite = {
-      ...characterSpritePlacement(ch, office.sittingOffset(ch)),
-      mirrored: false,
-    };
-    const [first] = isoDrawOrder([instance.sort, actorBox(ch.x, ch.y)]);
+    const placement = characterSpritePlacement(ch, office.sittingOffset(ch));
+    const characterDrawn: DrawnSprite = { ...placement, mirrored: false };
+    const [first] = isoDrawOrder([
+      instance.sort,
+      characterSortBox(ch, placement.x, placement.sprite),
+    ]);
     const characterOnTop = first === 0;
     const seatRows = opaqueRows(seatDrawn);
     fits.push({
@@ -121,6 +123,89 @@ function seatFitsOf(office: OfficeState): SeatFit[] {
     });
   }
   return fits;
+}
+
+/** A pair of drawn things whose opaque pixels overlap and whose draw order
+ *  contradicts where their footprints stand. */
+export interface DrawOrderViolation {
+  front: string;
+  behind: string;
+}
+
+interface Drawn extends DrawnSprite {
+  name: string;
+  box: SortBox;
+}
+
+function opaqueOverlap(a: DrawnSprite, b: DrawnSprite): boolean {
+  const aw = (a.sprite[0]?.length ?? 0) * ART_SPRITE_SCALE;
+  const bw = (b.sprite[0]?.length ?? 0) * ART_SPRITE_SCALE;
+  const ah = a.sprite.length * ART_SPRITE_SCALE;
+  const bh = b.sprite.length * ART_SPRITE_SCALE;
+  if (a.x >= b.x + bw || b.x >= a.x + aw || a.y >= b.y + bh || b.y >= a.y + ah) return false;
+  for (let row = 0; row < a.sprite.length; row++) {
+    for (let col = 0; col < (a.sprite[row]?.length ?? 0); col++) {
+      const px = a.x + (col + 0.5) * ART_SPRITE_SCALE;
+      const py = a.y + (row + 0.5) * ART_SPRITE_SCALE;
+      if (opaqueAt(a, px, py) && opaqueAt(b, px, py)) return true;
+    }
+  }
+  return false;
+}
+
+/** Which of two footprints stands in front, from the grid alone: 1 when `a`
+ *  is in front, -1 when `b` is, 0 when they share floor (then the layer rule
+ *  decides, which the seat checks cover). Side by side, separated along one
+ *  axis each way, the one whose front corner is nearer the viewer is. */
+function standsInFront(a: SortBox, b: SortBox): number {
+  const aBehind = a.maxCol <= b.minCol || a.maxRow <= b.minRow;
+  const bBehind = b.maxCol <= a.minCol || b.maxRow <= a.minRow;
+  if (aBehind && bBehind) return a.maxCol + a.maxRow > b.maxCol + b.maxRow ? 1 : -1;
+  if (aBehind) return -1;
+  if (bBehind) return 1;
+  return 0;
+}
+
+/** Every character against every piece of furniture and every other
+ *  character on one floor, drawn the way the renderer draws them: each pair
+ *  whose opaque pixels overlap must be drawn in the order their footprints
+ *  stand. */
+function drawOrderViolationsOf(office: OfficeState): DrawOrderViolation[] {
+  const drawn: Drawn[] = office.furniture.map((f) => ({
+    name: f.uid ?? 'furniture',
+    box: f.sort,
+    sprite: f.sprite,
+    x: f.x,
+    y: f.y,
+    mirrored: !!f.mirrored,
+  }));
+  const characterStart = drawn.length;
+  for (const ch of office.getCharacters()) {
+    if (ch.matrixEffect) continue;
+    const placement = characterSpritePlacement(ch, office.sittingOffset(ch));
+    drawn.push({
+      name: ch.isCto ? 'cto' : `agent ${ch.id}`,
+      box: characterSortBox(ch, placement.x, placement.sprite),
+      ...placement,
+      mirrored: false,
+    });
+  }
+  const order = isoDrawOrder(drawn.map((d) => d.box));
+  const position = new Array<number>(drawn.length);
+  order.forEach((index, at) => (position[index] = at));
+  const violations: DrawOrderViolation[] = [];
+  for (let i = characterStart; i < drawn.length; i++) {
+    for (let j = 0; j < drawn.length; j++) {
+      if (j === i || (j >= characterStart && j < i)) continue;
+      const inFront = standsInFront(drawn[i].box, drawn[j].box);
+      if (inFront === 0 || !opaqueOverlap(drawn[i], drawn[j])) continue;
+      const [front, behind] = inFront > 0 ? [i, j] : [j, i];
+      if (position[front] < position[behind]) {
+        violations.push({ front: drawn[front].name, behind: drawn[behind].name });
+      }
+    }
+  }
+  return violations;
 }
 
 declare global {
@@ -204,6 +289,9 @@ declare global {
       getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
       /** Every character sitting in a seat on one floor, the CTO included. */
       getSeatFits?: (floorId: string) => SeatFit[];
+      /** Overlapping character/furniture and character/character pairs on one
+       *  floor drawn against where their footprints stand. */
+      getDrawOrderViolations?: (floorId: string) => DrawOrderViolation[];
     };
   }
 }
@@ -278,6 +366,11 @@ export function installTestHooks(buildingRef: { current: Building | null }): voi
   hooks.getSeatFits = (floorId) => {
     const office = buildingRef.current?.floors.find((floor) => floor.id === floorId)?.office;
     return office ? seatFitsOf(office) : [];
+  };
+
+  hooks.getDrawOrderViolations = (floorId) => {
+    const office = buildingRef.current?.floors.find((floor) => floor.id === floorId)?.office;
+    return office ? drawOrderViolationsOf(office) : [];
   };
 
   // Point-in-time snapshot of every live pet. Pets render only on the canvas

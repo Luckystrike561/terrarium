@@ -36,6 +36,7 @@ export interface TestHooksWindow extends Window {
     getFloors?: () => OfficeFloor[];
     getCtoQueue?: (floorId: string) => Array<{ id: number; reason: string }>;
     getSeatFits?: (floorId: string) => SeatFit[];
+    getDrawOrderViolations?: (floorId: string) => Array<{ front: string; behind: string }>;
     messageLog?: Array<{ type: string }>;
   };
 }
@@ -401,6 +402,19 @@ export async function readCharacterHitPoint(
 export async function readSeatFits(page: Page, floorId: string): Promise<SeatFit[]> {
   return page.evaluate(
     (id) => (window as TestHooksWindow).__terrariumTestHooks?.getSeatFits?.(id) ?? [],
+    floorId,
+  );
+}
+
+/** Overlapping character/furniture and character/character pairs on one floor
+ *  drawn against where their footprints stand; empty when the office draws
+ *  everything in depth order. */
+export async function readDrawOrderViolations(
+  page: Page,
+  floorId: string,
+): Promise<Array<{ front: string; behind: string }>> {
+  return page.evaluate(
+    (id) => (window as TestHooksWindow).__terrariumTestHooks?.getDrawOrderViolations?.(id) ?? [],
     floorId,
   );
 }

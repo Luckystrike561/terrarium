@@ -6,7 +6,12 @@ import type { TestInfo } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { applyAllureLabels } from '../../helpers/allure-labels';
-import { expectOverlayCount, readSeatFits, type SeatFit } from '../../helpers/office';
+import {
+  expectOverlayCount,
+  readDrawOrderViolations,
+  readSeatFits,
+  type SeatFit,
+} from '../../helpers/office';
 import { launchStandalone } from '../../helpers/standalone';
 
 /**
@@ -117,6 +122,10 @@ test.describe('Office / seating', () => {
 
       const seen = new Set<string>();
       const recordFits = async (): Promise<void> => {
+        expect(
+          await readDrawOrderViolations(page, FLOOR),
+          'overlapping characters and furniture draw in depth order',
+        ).toEqual([]);
         for (const fit of await readSeatFits(page, FLOOR)) {
           expectSeatedInSeat(fit);
           seen.add(`${fit.isCto ? 'cto' : 'agent'}:${fit.seatType}`);

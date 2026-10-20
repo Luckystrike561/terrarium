@@ -262,6 +262,16 @@ export function actorBox(x: number, y: number): SortBox {
   };
 }
 
+/** A character's sort box at its feet, widened on screen to the sprite it is
+ *  drawn as, so it is ordered against everything that sprite overlaps. */
+export function characterSortBox(ch: Character, spriteX: number, sprite: SpriteData): SortBox {
+  return {
+    ...actorBox(ch.x, ch.y),
+    screenLeft: spriteX / TILE_SIZE,
+    screenRight: (spriteX + (sprite[0]?.length ?? 0) * ART_SPRITE_SCALE) / TILE_SIZE,
+  };
+}
+
 // ── One floor ─────────────────────────────────────────────────────
 
 /** Everything drawn for one floor, in one container raised by the floor's elevation. Area labels live in the
@@ -710,7 +720,7 @@ class FloorScene {
       const texture = getTexture(spriteData);
       const localX = placement.x;
       const localY = placement.y;
-      const box = actorBox(ch.x, ch.y);
+      const box = characterSortBox(ch, localX, spriteData);
 
       if (ch.matrixEffect) {
         liveMatrix.add(ch.id);
@@ -763,7 +773,14 @@ class FloorScene {
       );
       sprite.scale.set(1, 1);
       sprite.visible = true;
-      drawables.push({ box: actorBox(pet.x, pet.y), nodes: [sprite] });
+      drawables.push({
+        box: {
+          ...actorBox(pet.x, pet.y),
+          screenLeft: sprite.position.x / TILE_SIZE,
+          screenRight: (sprite.position.x + texture.width) / TILE_SIZE,
+        },
+        nodes: [sprite],
+      });
     }
 
     let z = 0;
