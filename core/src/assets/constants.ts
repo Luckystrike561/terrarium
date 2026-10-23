@@ -63,8 +63,6 @@ export interface CharacterAnimationSpec {
   readonly seated: boolean;
 }
 
-/** Every character animation: its frames, how long each shows and whether
- *  the character is seated. Slow for breathing, quick for a waving hand. */
 export const CHARACTER_ANIMATIONS = {
   walk: { frames: ['walk1', 'walk2', 'walk3', 'walk2'], frameDurationSec: 0.15, seated: false },
   typing: { frames: ['type1', 'type2'], frameDurationSec: 0.3, seated: true },
