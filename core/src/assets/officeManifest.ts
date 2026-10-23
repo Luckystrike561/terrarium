@@ -65,7 +65,11 @@ export interface WallTiles {
 
 /** Marching-squares carpet sheets: `grid` pieces of `pieceSize`, piece index
  *  = OR of `cornerBits` for each carpeted tile around a grid corner, drawn
- *  as a diamond centred on that corner. */
+ *  as a diamond centred on that corner. The corner (col, row) is the top
+ *  corner of tile (col, row), and each key names the tile at this
+ *  (dCol, dRow) from it: `nw` (-1, -1), `ne` (0, -1), `se` (0, 0), `sw`
+ *  (-1, 0). On screen those tiles sit up, right, down and left of the
+ *  corner, not at its compass corners. */
 export interface CarpetTiles {
   pieceSize: Size;
   projectedSize: Size;
