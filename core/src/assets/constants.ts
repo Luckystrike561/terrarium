@@ -13,8 +13,8 @@ export const WALL_HEIGHT_PX = 40;
 export const WALL_GLASS_HEIGHT_PX = 30;
 /** Seconds per frame of a furniture animation (an electronic item's on state). */
 export const FURNITURE_FRAME_DURATION_SEC = 0.2;
-/** Layout tile values. A floor tile N (1 and up) is drawn with floor_{N-1}.png. */
 export const WALL_TILE = 0;
+/** A floor tile N draws the office manifest's tiles.floor.textures[N - FIRST_FLOOR_TILE]. */
 export const FIRST_FLOOR_TILE = 1;
 export const VOID_TILE = 255;
 
