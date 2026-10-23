@@ -5,6 +5,7 @@ import * as path from 'path';
 import { PNG } from 'pngjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { buildAssetIndex } from '../../core/src/assets/build.js';
 import { CHAR_FRAME_H, CHAR_FRAME_W } from '../../core/src/assets/constants.js';
 import type { OfficeManifest } from '../../core/src/assets/officeManifest.js';
 import { OFFICE_MANIFEST_FILE } from '../../core/src/assets/officeManifest.js';
@@ -14,7 +15,7 @@ const ROOT = path.join(__dirname, '../..');
 const BUNDLED_ASSETS = path.join(ROOT, 'webview-ui/public/assets');
 const VALIDATE_SCRIPT = path.join(ROOT, 'scripts/validate-assets.ts');
 const SHEET = 'characters/char_3.png';
-const LAYOUT = 'default-layout-3.json';
+const LAYOUT = buildAssetIndex(BUNDLED_ASSETS).defaultLayout!;
 
 let assetsDir: string;
 
