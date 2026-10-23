@@ -87,7 +87,6 @@ function findAdjacentTile(
   return null;
 }
 
-/** Advance the walk-cycle frame counter through `PET_ANIMATIONS.walk.sequence`. */
 function updateWalkAnimation(pet: Pet, dt: number): void {
   pet.frameTimer += dt;
   if (pet.frameTimer >= PET_ANIMATIONS.walk.frameDurationSec) {
@@ -96,8 +95,6 @@ function updateWalkAnimation(pet: Pet, dt: number): void {
   }
 }
 
-/** Advance the idle-cycle frame counter through `PET_ANIMATIONS.idle.sequence`
- *  (slower than walk). */
 function updateIdleAnimation(pet: Pet, dt: number): void {
   pet.frameTimer += dt;
   if (pet.frameTimer >= PET_ANIMATIONS.idle.frameDurationSec) {
