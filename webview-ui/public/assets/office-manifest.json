@@ -1,0 +1,3155 @@
+{
+  "schemaVersion": 1,
+  "projection": {
+    "tileSize": 16,
+    "isoTileWidth": 32,
+    "isoTileHeight": 16
+  },
+  "tiles": {
+    "voidTile": 255,
+    "floor": {
+      "textureSize": {
+        "width": 16,
+        "height": 16
+      },
+      "projectedSize": {
+        "width": 32,
+        "height": 16
+      },
+      "textures": [
+        {
+          "tile": 1,
+          "file": "floors/floor_0.png"
+        },
+        {
+          "tile": 2,
+          "file": "floors/floor_1.png"
+        },
+        {
+          "tile": 3,
+          "file": "floors/floor_2.png"
+        },
+        {
+          "tile": 4,
+          "file": "floors/floor_3.png"
+        },
+        {
+          "tile": 5,
+          "file": "floors/floor_4.png"
+        },
+        {
+          "tile": 6,
+          "file": "floors/floor_5.png"
+        },
+        {
+          "tile": 7,
+          "file": "floors/floor_6.png"
+        },
+        {
+          "tile": 8,
+          "file": "floors/floor_7.png"
+        },
+        {
+          "tile": 9,
+          "file": "floors/floor_8.png"
+        }
+      ]
+    },
+    "wall": {
+      "tile": 0,
+      "solidHeight": 40,
+      "glassHeight": 30
+    },
+    "carpet": {
+      "pieceSize": {
+        "width": 16,
+        "height": 16
+      },
+      "projectedSize": {
+        "width": 32,
+        "height": 16
+      },
+      "grid": {
+        "columns": 4,
+        "rows": 4
+      },
+      "cornerBits": {
+        "nw": 1,
+        "ne": 2,
+        "se": 4,
+        "sw": 8
+      },
+      "textures": [
+        {
+          "variant": 0,
+          "file": "carpets/carpet_0.png"
+        },
+        {
+          "variant": 1,
+          "file": "carpets/carpet_1.png"
+        },
+        {
+          "variant": 2,
+          "file": "carpets/carpet_2.png"
+        }
+      ]
+    }
+  },
+  "furniture": [
+    {
+      "id": "DESK",
+      "name": "Desk",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 12,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "DESK_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 38
+          },
+          "anchor": {
+            "x": 16,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "DESK_FRONT",
+              "file": "furniture/DESK/DESK_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "DESK_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 38
+          },
+          "anchor": {
+            "x": 32,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "DESK_RIGHT",
+              "file": "furniture/DESK/DESK_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "DESK_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 38
+          },
+          "anchor": {
+            "x": 16,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "DESK_BACK",
+              "file": "furniture/DESK/DESK_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "DESK_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 38
+          },
+          "anchor": {
+            "x": 32,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "DESK_LEFT",
+              "file": "furniture/DESK/DESK_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "SMALL_TABLE",
+      "name": "Small Table",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 12,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "SMALL_TABLE",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 30
+          },
+          "anchor": {
+            "x": 16,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "SMALL_TABLE",
+              "file": "furniture/SMALL_TABLE/SMALL_TABLE.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "MEETING_TABLE",
+      "name": "Meeting Table",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 3,
+        "depth": 2
+      },
+      "heightZ": 12,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "MEETING_TABLE_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 3,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 54
+          },
+          "anchor": {
+            "x": 32,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "MEETING_TABLE_FRONT",
+              "file": "furniture/MEETING_TABLE/MEETING_TABLE_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "MEETING_TABLE_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 3
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 54
+          },
+          "anchor": {
+            "x": 48,
+            "y": 14
+          },
+          "frames": [
+            {
+              "id": "MEETING_TABLE_RIGHT",
+              "file": "furniture/MEETING_TABLE/MEETING_TABLE_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "COFFEE_TABLE",
+      "name": "Coffee Table",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 7,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "COFFEE_TABLE_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 34
+          },
+          "anchor": {
+            "x": 16,
+            "y": 10
+          },
+          "frames": [
+            {
+              "id": "COFFEE_TABLE_FRONT",
+              "file": "furniture/COFFEE_TABLE/COFFEE_TABLE_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "COFFEE_TABLE_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 34
+          },
+          "anchor": {
+            "x": 32,
+            "y": 10
+          },
+          "frames": [
+            {
+              "id": "COFFEE_TABLE_RIGHT",
+              "file": "furniture/COFFEE_TABLE/COFFEE_TABLE_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "EXEC_DESK",
+      "name": "Executive Desk",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 3,
+        "depth": 2
+      },
+      "heightZ": 12,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "EXEC_DESK_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 3,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 58
+          },
+          "anchor": {
+            "x": 32,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "EXEC_DESK_FRONT",
+              "file": "furniture/EXEC_DESK/EXEC_DESK_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_DESK_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 3
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 58
+          },
+          "anchor": {
+            "x": 48,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "EXEC_DESK_RIGHT",
+              "file": "furniture/EXEC_DESK/EXEC_DESK_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_DESK_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 3,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 58
+          },
+          "anchor": {
+            "x": 32,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "EXEC_DESK_BACK",
+              "file": "furniture/EXEC_DESK/EXEC_DESK_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_DESK_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 3
+          },
+          "frameSize": {
+            "width": 80,
+            "height": 58
+          },
+          "anchor": {
+            "x": 48,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "EXEC_DESK_LEFT",
+              "file": "furniture/EXEC_DESK/EXEC_DESK_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "PC",
+      "name": "Computer",
+      "category": "electronics",
+      "placement": "surface",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 27,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "PC_FRONT_OFF",
+          "orientation": "front",
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_FRONT_OFF",
+              "file": "furniture/PC/PC_FRONT_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "PC_FRONT_ON",
+          "orientation": "front",
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_FRONT_ON_1",
+              "file": "furniture/PC/PC_FRONT_ON_1.png"
+            },
+            {
+              "id": "PC_FRONT_ON_2",
+              "file": "furniture/PC/PC_FRONT_ON_2.png"
+            },
+            {
+              "id": "PC_FRONT_ON_3",
+              "file": "furniture/PC/PC_FRONT_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        },
+        {
+          "id": "PC_RIGHT_OFF",
+          "orientation": "right",
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_RIGHT_OFF",
+              "file": "furniture/PC/PC_RIGHT_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "PC_RIGHT_ON",
+          "orientation": "right",
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_RIGHT_ON_1",
+              "file": "furniture/PC/PC_RIGHT_ON_1.png"
+            },
+            {
+              "id": "PC_RIGHT_ON_2",
+              "file": "furniture/PC/PC_RIGHT_ON_2.png"
+            },
+            {
+              "id": "PC_RIGHT_ON_3",
+              "file": "furniture/PC/PC_RIGHT_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        },
+        {
+          "id": "PC_BACK_OFF",
+          "orientation": "back",
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_BACK_OFF",
+              "file": "furniture/PC/PC_BACK_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "PC_BACK_ON",
+          "orientation": "back",
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_BACK_ON_1",
+              "file": "furniture/PC/PC_BACK_ON_1.png"
+            },
+            {
+              "id": "PC_BACK_ON_2",
+              "file": "furniture/PC/PC_BACK_ON_2.png"
+            },
+            {
+              "id": "PC_BACK_ON_3",
+              "file": "furniture/PC/PC_BACK_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        },
+        {
+          "id": "PC_LEFT_OFF",
+          "orientation": "left",
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_LEFT_OFF",
+              "file": "furniture/PC/PC_LEFT_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "PC_LEFT_ON",
+          "orientation": "left",
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 46
+          },
+          "anchor": {
+            "x": 16,
+            "y": 30
+          },
+          "frames": [
+            {
+              "id": "PC_LEFT_ON_1",
+              "file": "furniture/PC/PC_LEFT_ON_1.png"
+            },
+            {
+              "id": "PC_LEFT_ON_2",
+              "file": "furniture/PC/PC_LEFT_ON_2.png"
+            },
+            {
+              "id": "PC_LEFT_ON_3",
+              "file": "furniture/PC/PC_LEFT_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        }
+      ]
+    },
+    {
+      "id": "CUSHIONED_CHAIR",
+      "name": "Office Chair",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 18,
+      "seatZ": 6,
+      "occlusionSplitZ": 6,
+      "variants": [
+        {
+          "id": "CUSHIONED_CHAIR_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_CHAIR_FRONT",
+              "file": "furniture/CUSHIONED_CHAIR/CUSHIONED_CHAIR_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CUSHIONED_CHAIR_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_CHAIR_RIGHT",
+              "file": "furniture/CUSHIONED_CHAIR/CUSHIONED_CHAIR_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CUSHIONED_CHAIR_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_CHAIR_BACK",
+              "file": "furniture/CUSHIONED_CHAIR/CUSHIONED_CHAIR_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CUSHIONED_CHAIR_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_CHAIR_LEFT",
+              "file": "furniture/CUSHIONED_CHAIR/CUSHIONED_CHAIR_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WOODEN_CHAIR",
+      "name": "Wooden Chair",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 17,
+      "seatZ": 6,
+      "occlusionSplitZ": 6,
+      "variants": [
+        {
+          "id": "WOODEN_CHAIR_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "WOODEN_CHAIR_FRONT",
+              "file": "furniture/WOODEN_CHAIR/WOODEN_CHAIR_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WOODEN_CHAIR_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "WOODEN_CHAIR_RIGHT",
+              "file": "furniture/WOODEN_CHAIR/WOODEN_CHAIR_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WOODEN_CHAIR_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "WOODEN_CHAIR_BACK",
+              "file": "furniture/WOODEN_CHAIR/WOODEN_CHAIR_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WOODEN_CHAIR_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "WOODEN_CHAIR_LEFT",
+              "file": "furniture/WOODEN_CHAIR/WOODEN_CHAIR_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "SOFA",
+      "name": "Sofa",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 17,
+      "seatZ": 6,
+      "occlusionSplitZ": 6,
+      "variants": [
+        {
+          "id": "SOFA_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 42
+          },
+          "anchor": {
+            "x": 16,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "SOFA_FRONT",
+              "file": "furniture/SOFA/SOFA_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "SOFA_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 42
+          },
+          "anchor": {
+            "x": 32,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "SOFA_RIGHT",
+              "file": "furniture/SOFA/SOFA_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "SOFA_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 42
+          },
+          "anchor": {
+            "x": 16,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "SOFA_BACK",
+              "file": "furniture/SOFA/SOFA_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "SOFA_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 42
+          },
+          "anchor": {
+            "x": 32,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "SOFA_LEFT",
+              "file": "furniture/SOFA/SOFA_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "CUSHIONED_BENCH",
+      "name": "Cushioned Bench",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 6,
+      "seatZ": 6,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "CUSHIONED_BENCH_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 34
+          },
+          "anchor": {
+            "x": 16,
+            "y": 10
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_BENCH_FRONT",
+              "file": "furniture/CUSHIONED_BENCH/CUSHIONED_BENCH_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CUSHIONED_BENCH_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 34
+          },
+          "anchor": {
+            "x": 32,
+            "y": 10
+          },
+          "frames": [
+            {
+              "id": "CUSHIONED_BENCH_RIGHT",
+              "file": "furniture/CUSHIONED_BENCH/CUSHIONED_BENCH_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WOODEN_BENCH",
+      "name": "Wooden Bench",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 6,
+      "seatZ": 6,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "WOODEN_BENCH_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 32
+          },
+          "anchor": {
+            "x": 16,
+            "y": 8
+          },
+          "frames": [
+            {
+              "id": "WOODEN_BENCH_FRONT",
+              "file": "furniture/WOODEN_BENCH/WOODEN_BENCH_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WOODEN_BENCH_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 32
+          },
+          "anchor": {
+            "x": 32,
+            "y": 8
+          },
+          "frames": [
+            {
+              "id": "WOODEN_BENCH_RIGHT",
+              "file": "furniture/WOODEN_BENCH/WOODEN_BENCH_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "EXEC_CHAIR",
+      "name": "Executive Chair",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 22,
+      "seatZ": 6,
+      "occlusionSplitZ": 6,
+      "variants": [
+        {
+          "id": "EXEC_CHAIR_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "EXEC_CHAIR_FRONT",
+              "file": "furniture/EXEC_CHAIR/EXEC_CHAIR_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_CHAIR_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "EXEC_CHAIR_RIGHT",
+              "file": "furniture/EXEC_CHAIR/EXEC_CHAIR_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_CHAIR_BACK",
+          "orientation": "back",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "EXEC_CHAIR_BACK",
+              "file": "furniture/EXEC_CHAIR/EXEC_CHAIR_BACK.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "EXEC_CHAIR_LEFT",
+          "orientation": "left",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "EXEC_CHAIR_LEFT",
+              "file": "furniture/EXEC_CHAIR/EXEC_CHAIR_LEFT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "STOOL",
+      "name": "Bar Stool",
+      "category": "chairs",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 6,
+      "seatZ": 6,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "STOOL",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 34
+          },
+          "anchor": {
+            "x": 16,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "STOOL",
+              "file": "furniture/STOOL/STOOL.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "PLANT",
+      "name": "Plant",
+      "category": "decor",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 24,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "PLANT",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "PLANT",
+              "file": "furniture/PLANT/PLANT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "PLANT_2",
+      "name": "Plant 2",
+      "category": "decor",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 30,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "PLANT_2",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 44
+          },
+          "anchor": {
+            "x": 16,
+            "y": 28
+          },
+          "frames": [
+            {
+              "id": "PLANT_2",
+              "file": "furniture/PLANT_2/PLANT_2.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "LARGE_PLANT",
+      "name": "Large Plant",
+      "category": "decor",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 42,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "LARGE_PLANT",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 60
+          },
+          "anchor": {
+            "x": 16,
+            "y": 44
+          },
+          "frames": [
+            {
+              "id": "LARGE_PLANT",
+              "file": "furniture/LARGE_PLANT/LARGE_PLANT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "CACTUS",
+      "name": "Cactus",
+      "category": "decor",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 20,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "CACTUS",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "CACTUS",
+              "file": "furniture/CACTUS/CACTUS.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "POT",
+      "name": "Pot",
+      "category": "decor",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 12,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "POT",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "POT",
+              "file": "furniture/POT/POT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "BIN",
+      "name": "Bin",
+      "category": "misc",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 17,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "BIN",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 24
+          },
+          "frames": [
+            {
+              "id": "BIN",
+              "file": "furniture/BIN/BIN.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "COFFEE",
+      "name": "Coffee",
+      "category": "misc",
+      "placement": "surface",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 24,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "COFFEE",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 36
+          },
+          "anchor": {
+            "x": 16,
+            "y": 20
+          },
+          "frames": [
+            {
+              "id": "COFFEE",
+              "file": "furniture/COFFEE/COFFEE.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "COFFEE_MACHINE",
+      "name": "Coffee Machine",
+      "category": "electronics",
+      "placement": "surface",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 24,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "COFFEE_MACHINE_OFF",
+          "orientation": null,
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 34
+          },
+          "anchor": {
+            "x": 16,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "COFFEE_MACHINE_OFF",
+              "file": "furniture/COFFEE_MACHINE/COFFEE_MACHINE_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "COFFEE_MACHINE_ON",
+          "orientation": null,
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 34
+          },
+          "anchor": {
+            "x": 16,
+            "y": 18
+          },
+          "frames": [
+            {
+              "id": "COFFEE_MACHINE_ON_1",
+              "file": "furniture/COFFEE_MACHINE/COFFEE_MACHINE_ON_1.png"
+            },
+            {
+              "id": "COFFEE_MACHINE_ON_2",
+              "file": "furniture/COFFEE_MACHINE/COFFEE_MACHINE_ON_2.png"
+            },
+            {
+              "id": "COFFEE_MACHINE_ON_3",
+              "file": "furniture/COFFEE_MACHINE/COFFEE_MACHINE_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        }
+      ]
+    },
+    {
+      "id": "KITCHEN_COUNTER",
+      "name": "Kitchen Counter",
+      "category": "desks",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 17,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "KITCHEN_COUNTER_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 40
+          },
+          "anchor": {
+            "x": 16,
+            "y": 16
+          },
+          "frames": [
+            {
+              "id": "KITCHEN_COUNTER_FRONT",
+              "file": "furniture/KITCHEN_COUNTER/KITCHEN_COUNTER_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "KITCHEN_COUNTER_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 40
+          },
+          "anchor": {
+            "x": 32,
+            "y": 16
+          },
+          "frames": [
+            {
+              "id": "KITCHEN_COUNTER_RIGHT",
+              "file": "furniture/KITCHEN_COUNTER/KITCHEN_COUNTER_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "FRIDGE",
+      "name": "Fridge",
+      "category": "misc",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 34,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "FRIDGE_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 54
+          },
+          "anchor": {
+            "x": 16,
+            "y": 38
+          },
+          "frames": [
+            {
+              "id": "FRIDGE_FRONT",
+              "file": "furniture/FRIDGE/FRIDGE_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "FRIDGE_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 54
+          },
+          "anchor": {
+            "x": 16,
+            "y": 38
+          },
+          "frames": [
+            {
+              "id": "FRIDGE_RIGHT",
+              "file": "furniture/FRIDGE/FRIDGE_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WATER_COOLER",
+      "name": "Water Cooler",
+      "category": "misc",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 32,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "WATER_COOLER",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 48
+          },
+          "anchor": {
+            "x": 16,
+            "y": 32
+          },
+          "frames": [
+            {
+              "id": "WATER_COOLER",
+              "file": "furniture/WATER_COOLER/WATER_COOLER.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "FLOOR_LAMP",
+      "name": "Floor Lamp",
+      "category": "misc",
+      "placement": "floor",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 35,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "FLOOR_LAMP",
+          "orientation": null,
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 52
+          },
+          "anchor": {
+            "x": 16,
+            "y": 36
+          },
+          "frames": [
+            {
+              "id": "FLOOR_LAMP",
+              "file": "furniture/FLOOR_LAMP/FLOOR_LAMP.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "RUG_PLANT",
+      "name": "Planter Box",
+      "category": "misc",
+      "placement": "floor",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 28,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "RUG_PLANT_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 50
+          },
+          "anchor": {
+            "x": 16,
+            "y": 26
+          },
+          "frames": [
+            {
+              "id": "RUG_PLANT_FRONT",
+              "file": "furniture/RUG_PLANT/RUG_PLANT_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "RUG_PLANT_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 50
+          },
+          "anchor": {
+            "x": 32,
+            "y": 26
+          },
+          "frames": [
+            {
+              "id": "RUG_PLANT_RIGHT",
+              "file": "furniture/RUG_PLANT/RUG_PLANT_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "BOOKSHELF",
+      "name": "Bookshelf",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 36,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "BOOKSHELF_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "BOOKSHELF_FRONT",
+              "file": "furniture/BOOKSHELF/BOOKSHELF_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "BOOKSHELF_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "BOOKSHELF_RIGHT",
+              "file": "furniture/BOOKSHELF/BOOKSHELF_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "DOUBLE_BOOKSHELF",
+      "name": "Tall Bookcase",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 45,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "DOUBLE_BOOKSHELF_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "DOUBLE_BOOKSHELF_FRONT",
+              "file": "furniture/DOUBLE_BOOKSHELF/DOUBLE_BOOKSHELF_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "DOUBLE_BOOKSHELF_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "DOUBLE_BOOKSHELF_RIGHT",
+              "file": "furniture/DOUBLE_BOOKSHELF/DOUBLE_BOOKSHELF_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "CLOCK",
+      "name": "Clock",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 32,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "CLOCK_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "CLOCK_FRONT",
+              "file": "furniture/CLOCK/CLOCK_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CLOCK_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "CLOCK_RIGHT",
+              "file": "furniture/CLOCK/CLOCK_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "SMALL_PAINTING",
+      "name": "Small Painting",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 33,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "SMALL_PAINTING_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "SMALL_PAINTING_FRONT",
+              "file": "furniture/SMALL_PAINTING/SMALL_PAINTING_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "SMALL_PAINTING_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "SMALL_PAINTING_RIGHT",
+              "file": "furniture/SMALL_PAINTING/SMALL_PAINTING_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "SMALL_PAINTING_2",
+      "name": "Small Painting 2",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 33,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "SMALL_PAINTING_2_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "SMALL_PAINTING_2_FRONT",
+              "file": "furniture/SMALL_PAINTING_2/SMALL_PAINTING_2_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "SMALL_PAINTING_2_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "SMALL_PAINTING_2_RIGHT",
+              "file": "furniture/SMALL_PAINTING_2/SMALL_PAINTING_2_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "LARGE_PAINTING",
+      "name": "Large Painting",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 33,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "LARGE_PAINTING_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "LARGE_PAINTING_FRONT",
+              "file": "furniture/LARGE_PAINTING/LARGE_PAINTING_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "LARGE_PAINTING_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "LARGE_PAINTING_RIGHT",
+              "file": "furniture/LARGE_PAINTING/LARGE_PAINTING_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WHITEBOARD",
+      "name": "Sprint Board",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 35,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "WHITEBOARD_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WHITEBOARD_FRONT",
+              "file": "furniture/WHITEBOARD/WHITEBOARD_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WHITEBOARD_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WHITEBOARD_RIGHT",
+              "file": "furniture/WHITEBOARD/WHITEBOARD_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "KANBAN_BOARD",
+      "name": "Kanban Board",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 3,
+        "depth": 1
+      },
+      "heightZ": 35,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "KANBAN_BOARD_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 3,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 64,
+            "height": 78
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "KANBAN_BOARD_FRONT",
+              "file": "furniture/KANBAN_BOARD/KANBAN_BOARD_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "KANBAN_BOARD_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 3
+          },
+          "frameSize": {
+            "width": 64,
+            "height": 78
+          },
+          "anchor": {
+            "x": 48,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "KANBAN_BOARD_RIGHT",
+              "file": "furniture/KANBAN_BOARD/KANBAN_BOARD_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "HANGING_PLANT",
+      "name": "Hanging Plant",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 36,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "HANGING_PLANT_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "HANGING_PLANT_FRONT",
+              "file": "furniture/HANGING_PLANT/HANGING_PLANT_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "HANGING_PLANT_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "HANGING_PLANT_RIGHT",
+              "file": "furniture/HANGING_PLANT/HANGING_PLANT_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WALL_TV",
+      "name": "Wall Screen",
+      "category": "electronics",
+      "placement": "wall",
+      "footprint": {
+        "width": 2,
+        "depth": 1
+      },
+      "heightZ": 34,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "WALL_TV_FRONT_OFF",
+          "orientation": "front",
+          "state": "off",
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_TV_FRONT_OFF",
+              "file": "furniture/WALL_TV/WALL_TV_FRONT_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WALL_TV_FRONT_ON",
+          "orientation": "front",
+          "state": "on",
+          "footprint": {
+            "width": 2,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_TV_FRONT_ON_1",
+              "file": "furniture/WALL_TV/WALL_TV_FRONT_ON_1.png"
+            },
+            {
+              "id": "WALL_TV_FRONT_ON_2",
+              "file": "furniture/WALL_TV/WALL_TV_FRONT_ON_2.png"
+            },
+            {
+              "id": "WALL_TV_FRONT_ON_3",
+              "file": "furniture/WALL_TV/WALL_TV_FRONT_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        },
+        {
+          "id": "WALL_TV_RIGHT_OFF",
+          "orientation": "right",
+          "state": "off",
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_TV_RIGHT_OFF",
+              "file": "furniture/WALL_TV/WALL_TV_RIGHT_OFF.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WALL_TV_RIGHT_ON",
+          "orientation": "right",
+          "state": "on",
+          "footprint": {
+            "width": 1,
+            "depth": 2
+          },
+          "frameSize": {
+            "width": 48,
+            "height": 70
+          },
+          "anchor": {
+            "x": 32,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_TV_RIGHT_ON_1",
+              "file": "furniture/WALL_TV/WALL_TV_RIGHT_ON_1.png"
+            },
+            {
+              "id": "WALL_TV_RIGHT_ON_2",
+              "file": "furniture/WALL_TV/WALL_TV_RIGHT_ON_2.png"
+            },
+            {
+              "id": "WALL_TV_RIGHT_ON_3",
+              "file": "furniture/WALL_TV/WALL_TV_RIGHT_ON_3.png"
+            }
+          ],
+          "frameDurationSec": 0.2
+        }
+      ]
+    },
+    {
+      "id": "CTO_SIGN",
+      "name": "Office Sign",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 34,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "CTO_SIGN_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "CTO_SIGN_FRONT",
+              "file": "furniture/CTO_SIGN/CTO_SIGN_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "CTO_SIGN_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "CTO_SIGN_RIGHT",
+              "file": "furniture/CTO_SIGN/CTO_SIGN_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    },
+    {
+      "id": "WALL_SHELF",
+      "name": "Wall Shelf",
+      "category": "wall",
+      "placement": "wall",
+      "footprint": {
+        "width": 1,
+        "depth": 1
+      },
+      "heightZ": 29,
+      "seatZ": null,
+      "occlusionSplitZ": null,
+      "variants": [
+        {
+          "id": "WALL_SHELF_FRONT",
+          "orientation": "front",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_SHELF_FRONT",
+              "file": "furniture/WALL_SHELF/WALL_SHELF_FRONT.png"
+            }
+          ],
+          "frameDurationSec": null
+        },
+        {
+          "id": "WALL_SHELF_RIGHT",
+          "orientation": "right",
+          "state": null,
+          "footprint": {
+            "width": 1,
+            "depth": 1
+          },
+          "frameSize": {
+            "width": 32,
+            "height": 62
+          },
+          "anchor": {
+            "x": 16,
+            "y": 46
+          },
+          "frames": [
+            {
+              "id": "WALL_SHELF_RIGHT",
+              "file": "furniture/WALL_SHELF/WALL_SHELF_RIGHT.png"
+            }
+          ],
+          "frameDurationSec": null
+        }
+      ]
+    }
+  ],
+  "characters": {
+    "frameSize": {
+      "width": 24,
+      "height": 40
+    },
+    "anchor": {
+      "x": 12,
+      "y": 40
+    },
+    "seatedAnchor": {
+      "x": 12,
+      "y": 34
+    },
+    "frameNames": [
+      "walk1",
+      "walk2",
+      "walk3",
+      "type1",
+      "type2",
+      "read1",
+      "read2",
+      "idle1",
+      "idle2",
+      "rest1",
+      "rest2",
+      "raiseHand1",
+      "raiseHand2",
+      "raiseHandSeated1",
+      "raiseHandSeated2",
+      "holdForm1",
+      "holdForm2",
+      "holdFormSeated1",
+      "holdFormSeated2"
+    ],
+    "facings": [
+      {
+        "facing": "down",
+        "row": 0,
+        "mirrored": false
+      },
+      {
+        "facing": "up",
+        "row": 1,
+        "mirrored": false
+      },
+      {
+        "facing": "right",
+        "row": 2,
+        "mirrored": false
+      },
+      {
+        "facing": "left",
+        "row": 1,
+        "mirrored": true
+      }
+    ],
+    "animations": [
+      {
+        "name": "walk",
+        "frames": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "frameDurationSec": 0.15,
+        "seated": false
+      },
+      {
+        "name": "typing",
+        "frames": [
+          3,
+          4
+        ],
+        "frameDurationSec": 0.3,
+        "seated": true
+      },
+      {
+        "name": "reading",
+        "frames": [
+          5,
+          6
+        ],
+        "frameDurationSec": 0.3,
+        "seated": true
+      },
+      {
+        "name": "idle",
+        "frames": [
+          7,
+          8
+        ],
+        "frameDurationSec": 1,
+        "seated": false
+      },
+      {
+        "name": "rest",
+        "frames": [
+          9,
+          10
+        ],
+        "frameDurationSec": 1.4,
+        "seated": true
+      },
+      {
+        "name": "raiseHand",
+        "frames": [
+          11,
+          12
+        ],
+        "frameDurationSec": 0.4,
+        "seated": false
+      },
+      {
+        "name": "raiseHandSeated",
+        "frames": [
+          13,
+          14
+        ],
+        "frameDurationSec": 0.4,
+        "seated": true
+      },
+      {
+        "name": "holdForm",
+        "frames": [
+          15,
+          16
+        ],
+        "frameDurationSec": 0.6,
+        "seated": false
+      },
+      {
+        "name": "holdFormSeated",
+        "frames": [
+          17,
+          18
+        ],
+        "frameDurationSec": 0.6,
+        "seated": true
+      }
+    ],
+    "sheets": [
+      {
+        "id": "char_0",
+        "file": "characters/char_0.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_1",
+        "file": "characters/char_1.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_2",
+        "file": "characters/char_2.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_3",
+        "file": "characters/char_3.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_4",
+        "file": "characters/char_4.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_5",
+        "file": "characters/char_5.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_6",
+        "file": "characters/char_6.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_7",
+        "file": "characters/char_7.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_8",
+        "file": "characters/char_8.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_9",
+        "file": "characters/char_9.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_10",
+        "file": "characters/char_10.png",
+        "role": "agent"
+      },
+      {
+        "id": "char_11",
+        "file": "characters/char_11.png",
+        "role": "agent"
+      },
+      {
+        "id": "cto",
+        "file": "characters/cto.png",
+        "role": "cto"
+      }
+    ]
+  },
+  "pets": {
+    "sheetSize": {
+      "width": 96,
+      "height": 96
+    },
+    "animations": [
+      {
+        "name": "walk",
+        "sequence": [
+          0,
+          1,
+          0,
+          2
+        ],
+        "frameDurationSec": 0.15,
+        "facings": [
+          {
+            "facing": "down",
+            "strip": {
+              "x": 0,
+              "y": 0,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "up",
+            "strip": {
+              "x": 0,
+              "y": 32,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "right",
+            "strip": {
+              "x": 0,
+              "y": 64,
+              "frameSize": {
+                "width": 32,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 16,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "left",
+            "strip": {
+              "x": 0,
+              "y": 64,
+              "frameSize": {
+                "width": 32,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 16,
+                "y": 32
+              }
+            },
+            "mirrored": true
+          }
+        ]
+      },
+      {
+        "name": "idle",
+        "sequence": [
+          0,
+          1,
+          2,
+          1
+        ],
+        "frameDurationSec": 0.3,
+        "facings": [
+          {
+            "facing": "down",
+            "strip": {
+              "x": 48,
+              "y": 0,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "up",
+            "strip": {
+              "x": 48,
+              "y": 32,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "right",
+            "strip": {
+              "x": 48,
+              "y": 0,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          },
+          {
+            "facing": "left",
+            "strip": {
+              "x": 48,
+              "y": 32,
+              "frameSize": {
+                "width": 16,
+                "height": 32
+              },
+              "count": 3,
+              "anchor": {
+                "x": 8,
+                "y": 32
+              }
+            },
+            "mirrored": false
+          }
+        ]
+      }
+    ],
+    "sheets": [
+      {
+        "id": "claudio",
+        "name": "Claudio",
+        "file": "pets/claudio/pet.png"
+      },
+      {
+        "id": "gitcat",
+        "name": "Gitcat",
+        "file": "pets/gitcat/pet.png"
+      }
+    ]
+  }
+}

@@ -31,6 +31,9 @@ export function mix(a: RGBA, b: RGBA, t: number): RGBA {
 
 export class PixelImage {
   readonly data: Uint8Array;
+  /** Height (screen px above the floor) of the highest surface drawn, for an
+   *  image rendered from an IsoScene. */
+  topZ = 0;
 
   constructor(
     readonly width: number,
@@ -76,6 +79,7 @@ export class PixelImage {
 
   mirrored(): PixelImage {
     const out = new PixelImage(this.width, this.height);
+    out.topZ = this.topZ;
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) out.set(this.width - 1 - x, y, this.get(x, y));
     }

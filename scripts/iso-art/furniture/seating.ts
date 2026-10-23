@@ -1,5 +1,5 @@
 import type { PixelImage, RGBA } from '../lib/image.js';
-import { hex, mix, shade } from '../lib/image.js';
+import { hex, mix } from '../lib/image.js';
 import { CHAIR_SEAT_Z } from '../lib/iso.js';
 import { PAL } from '../lib/palette.js';
 import type { Paint } from '../lib/scene.js';
@@ -163,29 +163,35 @@ function fourWay(fw: number, fh: number, front: PixelImage, back: PixelImage): F
   ];
 }
 
+const SEAT_WITH_BACKREST = { seatZ: CHAIR_SEAT_Z, occlusionSplitZ: CHAIR_SEAT_Z } as const;
+
 export const ITEMS: FurnitureSpec[] = [
   {
     id: 'CUSHIONED_CHAIR',
     name: 'Office Chair',
     category: 'chairs',
+    ...SEAT_WITH_BACKREST,
     variants: fourWay(1, 1, buildOfficeChair(false), buildOfficeChair(true)),
   },
   {
     id: 'WOODEN_CHAIR',
     name: 'Wooden Chair',
     category: 'chairs',
+    ...SEAT_WITH_BACKREST,
     variants: fourWay(1, 1, buildWoodenChair(false), buildWoodenChair(true)),
   },
   {
     id: 'SOFA',
     name: 'Sofa',
     category: 'chairs',
+    ...SEAT_WITH_BACKREST,
     variants: fourWay(2, 1, buildSofa(false), buildSofa(true)),
   },
   {
     id: 'CUSHIONED_BENCH',
     name: 'Cushioned Bench',
     category: 'chairs',
+    seatZ: CHAIR_SEAT_Z,
     variants: (() => {
       const front = buildCushionedBench();
       return [
@@ -198,6 +204,7 @@ export const ITEMS: FurnitureSpec[] = [
     id: 'WOODEN_BENCH',
     name: 'Wooden Bench',
     category: 'chairs',
+    seatZ: CHAIR_SEAT_Z,
     variants: (() => {
       const front = buildWoodenBench();
       return [
@@ -210,12 +217,14 @@ export const ITEMS: FurnitureSpec[] = [
     id: 'EXEC_CHAIR',
     name: 'Executive Chair',
     category: 'chairs',
+    ...SEAT_WITH_BACKREST,
     variants: fourWay(1, 1, buildExecChair(false), buildExecChair(true)),
   },
   {
     id: 'STOOL',
     name: 'Bar Stool',
     category: 'chairs',
+    seatZ: CHAIR_SEAT_Z,
     variants: [{ footprintW: 1, footprintH: 1, images: [buildStool()] }],
   },
 ];

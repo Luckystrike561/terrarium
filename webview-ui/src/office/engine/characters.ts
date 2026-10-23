@@ -1,13 +1,8 @@
+import { CHARACTER_ANIMATIONS } from '../../../../core/src/assets/constants.ts';
 import {
   DEFAULT_MAX_CONTEXT_TOKENS,
-  HOLD_FORM_FRAME_DURATION_SEC,
-  IDLE_FRAME_DURATION_SEC,
-  RAISE_HAND_FRAME_DURATION_SEC,
-  REST_FRAME_DURATION_SEC,
   SEAT_REST_MAX_SEC,
   SEAT_REST_MIN_SEC,
-  TYPE_FRAME_DURATION_SEC,
-  WALK_FRAME_DURATION_SEC,
   WALK_SPEED_PX_PER_SEC,
   WANDER_MOVES_BEFORE_REST_MAX,
   WANDER_MOVES_BEFORE_REST_MIN,
@@ -15,21 +10,10 @@ import {
   WANDER_PAUSE_MIN_SEC,
 } from '../../constants.js';
 import { findPath } from '../layout/tileMap.js';
-import type { CharacterPose, CharacterSprites, LoopingPose } from '../sprites/spriteData.js';
+import type { CharacterPose, CharacterSprites } from '../sprites/spriteData.js';
 import { isReadingToolName } from '../toolUtils.js';
 import type { Character, Seat, SpriteData, TileType as TileTypeVal } from '../types.js';
 import { CharacterState, Direction, TILE_SIZE } from '../types.js';
-
-const POSE_FRAME_DURATION_SEC: Record<LoopingPose, number> = {
-  typing: TYPE_FRAME_DURATION_SEC,
-  reading: TYPE_FRAME_DURATION_SEC,
-  idle: IDLE_FRAME_DURATION_SEC,
-  rest: REST_FRAME_DURATION_SEC,
-  raiseHand: RAISE_HAND_FRAME_DURATION_SEC,
-  raiseHandSeated: RAISE_HAND_FRAME_DURATION_SEC,
-  holdForm: HOLD_FORM_FRAME_DURATION_SEC,
-  holdFormSeated: HOLD_FORM_FRAME_DURATION_SEC,
-};
 
 /** Whether a tool should show the reading animation (vs typing). Taxonomy comes
  *  from the enabled agent modules via the `providerCapabilities` message. */
@@ -211,9 +195,10 @@ function headToOwnSeat(
 /** Walk animation + one step of movement along `ch.path`. The caller adds
  *  `dt` to `ch.frameTimer` first. */
 export function advanceAlongPath(ch: Character, dt: number): void {
-  if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
-    ch.frameTimer -= WALK_FRAME_DURATION_SEC;
-    ch.frame = (ch.frame + 1) % 4;
+  const { frames, frameDurationSec } = CHARACTER_ANIMATIONS.walk;
+  if (ch.frameTimer >= frameDurationSec) {
+    ch.frameTimer -= frameDurationSec;
+    ch.frame = (ch.frame + 1) % frames.length;
   }
   const nextTile = ch.path[0];
   if (!nextTile) return;
@@ -513,22 +498,23 @@ export function getCharacterPose(ch: Character): CharacterPose {
   return isReadingTool(ch.currentTool) ? 'reading' : 'typing';
 }
 
-/** Step the two-frame loop of the current pose. The caller adds `dt` to
+/** Step the frame loop of the current pose. The caller adds `dt` to
  *  `ch.frameTimer` first. */
 export function advancePoseFrame(ch: Character): void {
   const pose = getCharacterPose(ch);
   if (pose === 'walk') return;
-  const durationSec = POSE_FRAME_DURATION_SEC[pose];
-  if (ch.frameTimer >= durationSec) {
-    ch.frameTimer -= durationSec;
-    ch.frame = (ch.frame + 1) % 2;
+  const { frames, frameDurationSec } = CHARACTER_ANIMATIONS[pose];
+  if (ch.frameTimer >= frameDurationSec) {
+    ch.frameTimer -= frameDurationSec;
+    ch.frame = (ch.frame + 1) % frames.length;
   }
 }
 
 export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
   const pose = getCharacterPose(ch);
-  if (pose === 'walk') return sprites.walk[ch.dir][ch.frame % 4];
-  return sprites[pose][ch.dir][ch.frame % 2];
+  const frameIndex = ch.frame % CHARACTER_ANIMATIONS[pose].frames.length;
+  if (pose === 'walk') return sprites.walk[ch.dir][frameIndex];
+  return sprites[pose][ch.dir][frameIndex];
 }
 
 function randomRange(min: number, max: number): number {

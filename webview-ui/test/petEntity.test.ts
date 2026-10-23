@@ -19,11 +19,8 @@ import assert from 'node:assert/strict';
 
 import { afterEach, beforeEach, test } from 'vitest';
 
-import {
-  PET_FOLLOW_DURATION_MAX_SEC,
-  PET_WALK_FRAME_DURATION_SEC,
-  PET_WANDER_PAUSE_MAX_SEC,
-} from '../src/constants.js';
+import { PET_ANIMATIONS } from '../../core/src/assets/constants.js';
+import { PET_FOLLOW_DURATION_MAX_SEC, PET_WANDER_PAUSE_MAX_SEC } from '../src/constants.js';
 import { createPet, updatePet } from '../src/office/engine/petEntity.js';
 import type { Character, TileType as TileTypeVal } from '../src/office/types.js';
 import { CharacterState, Direction, PetState, TileType } from '../src/office/types.js';
@@ -283,7 +280,7 @@ test('FOLLOW → IDLE when within Manhattan distance 1 of target (faces target)'
 
 // ── Animation timers ─────────────────────────────────────────
 
-test('WALK animation: frameTimer wraps to 0 and frame increments after PET_WALK_FRAME_DURATION_SEC', () => {
+test('WALK animation: frameTimer wraps to 0 and frame increments after one walk frame duration', () => {
   const tileMap = buildOpenTileMap(5, 5);
   const walkable = buildWalkableTiles(5, 5);
   const pet = createPet('p1', 0, 0, 0);
@@ -293,11 +290,18 @@ test('WALK animation: frameTimer wraps to 0 and frame increments after PET_WALK_
   pet.frame = 0;
   pet.frameTimer = 0;
   // Run with dt slightly larger than the animation duration
-  updatePet(pet, PET_WALK_FRAME_DURATION_SEC + 0.001, walkable, new Map(), tileMap, new Set());
+  updatePet(
+    pet,
+    PET_ANIMATIONS.walk.frameDurationSec + 0.001,
+    walkable,
+    new Map(),
+    tileMap,
+    new Set(),
+  );
   // frame should have advanced by 1 (4-step cycle).
   assert.equal(pet.frame, 1);
   // frameTimer should be small positive (the leftover after the threshold)
-  assert.ok(pet.frameTimer >= 0 && pet.frameTimer < PET_WALK_FRAME_DURATION_SEC);
+  assert.ok(pet.frameTimer >= 0 && pet.frameTimer < PET_ANIMATIONS.walk.frameDurationSec);
 });
 
 test('IDLE animation ticks while pet is in IDLE state', () => {
@@ -308,7 +312,6 @@ test('IDLE animation ticks while pet is in IDLE state', () => {
   pet.frame = 0;
   pet.frameTimer = 0;
   updatePet(pet, 0.5, walkable, new Map(), tileMap, new Set());
-  // frame may or may not have ticked depending on PET_IDLE_FRAME_DURATION_SEC (=0.3)
   // 0.5s > 0.3s → frame increments by 1, frameTimer holds the remainder
   assert.equal(pet.frame, 1);
 });

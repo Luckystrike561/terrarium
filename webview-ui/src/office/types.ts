@@ -1,3 +1,4 @@
+import { VOID_TILE, WALL_TILE } from '../../../core/src/assets/constants.ts';
 import type { SortBox } from './engine/isoSort.js';
 
 export {
@@ -8,7 +9,7 @@ export {
 } from '../constants.js';
 
 export const TileType = {
-  WALL: 0,
+  WALL: WALL_TILE,
   FLOOR_1: 1,
   FLOOR_2: 2,
   FLOOR_3: 3,
@@ -18,7 +19,7 @@ export const TileType = {
   FLOOR_7: 7,
   FLOOR_8: 8,
   FLOOR_9: 9,
-  VOID: 255,
+  VOID: VOID_TILE,
 } as const;
 export type TileType = (typeof TileType)[keyof typeof TileType];
 
@@ -283,7 +284,7 @@ export interface Pet {
   path: Array<{ col: number; row: number }>;
   /** 0..1 lerp progress between current tile and next tile. */
   moveProgress: number;
-  /** Animation cycle index 0..3. */
+  /** Step in the current `PET_ANIMATIONS` sequence. */
   frame: number;
   frameTimer: number;
   /** Countdown for next IDLE→WALK/FOLLOW decision. */

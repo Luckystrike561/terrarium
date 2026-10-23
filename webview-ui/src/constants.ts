@@ -1,20 +1,12 @@
 import type { ColorValue } from './components/ui/types.js';
 
 // ── Grid & Layout ────────────────────────────────────────────
-export const TILE_SIZE = 16;
+export { TILE_SIZE } from '../../core/src/assets/constants.ts';
 export const DEFAULT_COLS = 20;
 export const DEFAULT_ROWS = 11;
 
 // ── Character Animation ─────────────────────────────────────
 export const WALK_SPEED_PX_PER_SEC = 48;
-export const WALK_FRAME_DURATION_SEC = 0.15;
-export const TYPE_FRAME_DURATION_SEC = 0.3;
-/** Two-frame pose loops: how long each frame shows. Slow for breathing, quick
- *  for a waving hand. */
-export const IDLE_FRAME_DURATION_SEC = 1.0;
-export const REST_FRAME_DURATION_SEC = 1.4;
-export const RAISE_HAND_FRAME_DURATION_SEC = 0.4;
-export const HOLD_FORM_FRAME_DURATION_SEC = 0.6;
 export const WANDER_PAUSE_MIN_SEC = 2.0;
 export const WANDER_PAUSE_MAX_SEC = 20.0;
 export const WANDER_MOVES_BEFORE_REST_MIN = 3;
@@ -77,8 +69,7 @@ export const BUILDING_PILLAR_WIDTH_PX = 4;
 export const FLOOR_NAME_FONT_SIZE_PX = 20;
 export const FLOOR_NAME_MIN_FONT_SIZE_PX = 20;
 export const FLOOR_NAME_COLOR = '#f4ecd8';
-/** Interior glass partitions: height (sprite px), frame (ink), pane and sheen. */
-export const WALL_GLASS_HEIGHT_PX = 30;
+/** Interior glass partitions: frame (ink), pane and sheen. */
 export const GLASS_FRAME_COLOR = '#1a1426';
 export const GLASS_PANE_COLOR = '#bfe3f04d';
 export const GLASS_SHEEN_COLOR = '#ffffff8c';
@@ -160,9 +151,6 @@ export const PERMISSION_NOTE_1_START_SEC = 0;
 export const PERMISSION_NOTE_2_START_SEC = 0.12;
 export const PERMISSION_NOTE_DURATION_SEC = 0.15;
 export const PERMISSION_VOLUME = 0.12;
-
-// ── Furniture Animation ─────────────────────────────────────
-export const FURNITURE_ANIM_INTERVAL_SEC = 0.2;
 
 // ── Version Notice ──────────────────────────────────────────
 export const WHATS_NEW_AUTO_CLOSE_MS = 20000;
@@ -279,14 +267,6 @@ export const TEAM_ROLE_COLOR = '#66aaff';
 // ── Pets ────────────────────────────────────────────────────────
 /** Walking speed in world pixels per second (matches character walk speed visually but slower). */
 export const PET_WALK_SPEED_PX_PER_SEC = 32;
-/** Time per WALK animation cycle step (4 cycle steps × 0.15s = 0.6s per loop). */
-export const PET_WALK_FRAME_DURATION_SEC = 0.15;
-/** Time per IDLE animation cycle step (4 cycle steps × 0.3s = 1.2s per loop). */
-export const PET_IDLE_FRAME_DURATION_SEC = 0.3;
-/** Walk cycle: 4-step lookup into the 3-frame walkDown/walkUp/walkRight arrays. */
-export const PET_WALK_SEQUENCE = [0, 1, 0, 2] as const;
-/** Idle cycle: 4-step lookup into the 3-frame idleDown/idleUp arrays. */
-export const PET_IDLE_SEQUENCE = [0, 1, 2, 1] as const;
 /** Minimum seconds the pet stays in IDLE before making a new decision. */
 export const PET_WANDER_PAUSE_MIN_SEC = 3.0;
 /** Maximum seconds the pet stays in IDLE before making a new decision. */

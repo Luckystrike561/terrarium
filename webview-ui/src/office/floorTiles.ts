@@ -6,6 +6,7 @@
  * Caches colorized SpriteData by (pattern, h, s, b, c) key.
  */
 
+import { FIRST_FLOOR_TILE } from '../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../components/ui/types.js';
 import { CANVAS_ERROR_TILE_COLOR, FALLBACK_FLOOR_COLOR, TILE_SIZE } from '../constants.js';
 import { clearColorizeCache, getColorizedSprite } from './colorize.js';
@@ -29,14 +30,14 @@ export function setFloorSprites(sprites: SpriteData[]): void {
   clearColorizeCache();
 }
 
-/** Get the raw (grayscale) floor sprite for a pattern index (1-7 -> array index 0-6).
+/** Get the raw (grayscale) floor sprite for a tile value (FIRST_FLOOR_TILE onward).
  *  Falls back to the default solid gray tile when floors.png is not loaded. */
 function getFloorSprite(patternIndex: number): SpriteData | null {
-  const idx = patternIndex - 1;
+  const idx = patternIndex - FIRST_FLOOR_TILE;
   if (idx < 0) return null;
   if (idx < floorSprites.length) return floorSprites[idx];
   // No PNG sprites loaded — return default solid tile for any valid pattern index
-  if (floorSprites.length === 0 && patternIndex >= 1) return DEFAULT_FLOOR_SPRITE;
+  if (floorSprites.length === 0 && patternIndex >= FIRST_FLOOR_TILE) return DEFAULT_FLOOR_SPRITE;
   return null;
 }
 

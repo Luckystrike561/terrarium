@@ -4,15 +4,21 @@ set -e
 echo "🔍 Type-checking..."
 npm run check-types
 
-# Catch generated-file drift locally instead of only in CI. Regenerate the
-# AsyncAPI bindings + the e2e test inventory, then fail if either differs from
-# what's committed (same gate CI runs). On drift the files are left regenerated
-# in the working tree -- just commit them and push again.
-echo "🔍 Checking generated-file drift (AsyncAPI bindings + e2e inventory)..."
+# assets:generate deletes furniture/ and overwrites the generated sheets, and
+# the drift check below diffs all of webview-ui/public/assets, so refuse on any
+# local change there.
+if [ -n "$(git status --porcelain webview-ui/public/assets)" ]; then
+  echo "❌ webview-ui/public/assets has uncommitted changes."
+  echo "   Commit or stash them (git stash push -u -- webview-ui/public/assets), then push again."
+  exit 1
+fi
+
+echo "🔍 Checking generated-file drift (AsyncAPI bindings + office manifest + e2e inventory)..."
 npm run asyncapi:generate
+npm run assets:generate
 npm run e2e:inventory
-if ! git diff --exit-code core/src/messages.ts e2e/README.md; then
+if ! git diff --exit-code core/src/messages.ts webview-ui/public/assets e2e/README.md || [ -n "$(git ls-files --others --exclude-standard webview-ui/public/assets)" ]; then
   echo "❌ Generated files were out of date and have been regenerated above."
-  echo "   Commit the changes (core/src/messages.ts and/or e2e/README.md), then push again."
+  echo "   Commit the changes (core/src/messages.ts, webview-ui/public/assets and/or e2e/README.md), then push again."
   exit 1
 fi

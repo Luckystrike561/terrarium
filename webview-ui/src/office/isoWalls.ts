@@ -6,13 +6,9 @@
  * interior.
  */
 
-import {
-  GLASS_FRAME_COLOR,
-  GLASS_PANE_COLOR,
-  GLASS_SHEEN_COLOR,
-  WALL_GLASS_HEIGHT_PX,
-} from '../constants.js';
-import { ISO_TILE_H, ISO_TILE_W, WALL_HEIGHT_PX } from './iso.js';
+import { WALL_GLASS_HEIGHT_PX, WALL_HEIGHT_PX } from '../../../core/src/assets/constants.ts';
+import { GLASS_FRAME_COLOR, GLASS_PANE_COLOR, GLASS_SHEEN_COLOR } from '../constants.js';
+import { ISO_TILE_H, ISO_TILE_W } from './iso.js';
 import type { SpriteData, TileType as TileTypeVal } from './types.js';
 import { TileType } from './types.js';
 

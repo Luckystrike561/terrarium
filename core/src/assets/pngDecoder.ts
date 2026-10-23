@@ -42,7 +42,7 @@ import type { CharacterDirectionSprites, PetSpriteFrames } from './types.js';
  * Some encoders emit ≤4 bytes of trailing garbage, so we scan from `buf.length - 8`
  * (not `-12`) to find the IEND type marker.
  */
-function sanitizePngBuffer(buf: Buffer): Buffer {
+export function sanitizePngBuffer(buf: Buffer): Buffer {
   // IEND type bytes: 0x49 0x45 0x4E 0x44 ('I' 'E' 'N' 'D')
   for (let i = buf.length - 8; i >= 8; i--) {
     if (buf[i] === 0x49 && buf[i + 1] === 0x45 && buf[i + 2] === 0x4e && buf[i + 3] === 0x44) {
@@ -136,7 +136,7 @@ export function parseWallPng(pngBuffer: Buffer): string[][][] {
  * '#RRGGBBAA' = semi-transparent.
  */
 export function parseCarpetPng(pngBuffer: Buffer): string[][][] {
-  const png = PNG.sync.read(pngBuffer);
+  const png = PNG.sync.read(sanitizePngBuffer(pngBuffer));
   const sprites: string[][][] = [];
   for (let msCase = 0; msCase < CARPET_MARCHING_SQUARES_COUNT; msCase++) {
     const ox = (msCase % CARPET_GRID_COLS) * CARPET_TILE_SIZE;

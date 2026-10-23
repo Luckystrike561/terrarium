@@ -1,4 +1,4 @@
-import { FURNITURE_ANIM_INTERVAL_SEC } from '../../constants.js';
+import { FURNITURE_FRAME_DURATION_SEC } from '../../../../core/src/assets/constants.ts';
 import {
   createDefaultLayout,
   getBlockedTiles,
@@ -449,9 +449,9 @@ export class OfficeState {
 
   update(dt: number): void {
     // Furniture animation cycling
-    const prevFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
+    const prevFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_FRAME_DURATION_SEC);
     this.furnitureAnimTimer += dt;
-    const newFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
+    const newFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_FRAME_DURATION_SEC);
     if (newFrame !== prevFrame) {
       this.rebuildFurnitureInstances();
     }

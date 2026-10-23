@@ -1,9 +1,9 @@
 /**
  * Isometric conventions shared by every generated sprite and by the webview
- * renderer (`webview-ui/src/office/iso.ts` mirrors these numbers).
+ * renderer.
  *
- * World units: one grid tile = 16 units along +col (gx) and +row (gy); z is
- * height in screen pixels. A tile renders as a 32×16 diamond, so
+ * World units: one grid tile = TILE_SIZE units along +col (gx) and +row (gy);
+ * z is height in screen pixels. A tile renders as a 32×16 diamond, so
  *   screenX = gx - gy,   screenY = (gx + gy) / 2 - z.
  *
  * Light comes from the viewer's upper left: TOP faces are brightest, faces
@@ -17,9 +17,11 @@
  * diamond is the item's height. `heightAbove` is the room left for that.
  */
 
-export const TILE = 16;
-export const WALL_HEIGHT = 40;
+import { TILE_SIZE } from '../../../core/src/assets/constants.js';
+
 export const DESK_SURFACE_Z = 12;
+/** Seat surface of every chair, sofa, bench and stool. The seated character
+ *  frames are drawn for this height. */
 export const CHAIR_SEAT_Z = 6;
 
 export function footprintImageSize(
@@ -27,5 +29,5 @@ export function footprintImageSize(
   fh: number,
   heightAbove: number,
 ): { width: number; height: number } {
-  return { width: (fw + fh) * TILE, height: (fw + fh) * (TILE / 2) + heightAbove };
+  return { width: (fw + fh) * TILE_SIZE, height: (fw + fh) * (TILE_SIZE / 2) + heightAbove };
 }
