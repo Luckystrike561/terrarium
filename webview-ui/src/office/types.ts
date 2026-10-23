@@ -284,7 +284,7 @@ export interface Pet {
   path: Array<{ col: number; row: number }>;
   /** 0..1 lerp progress between current tile and next tile. */
   moveProgress: number;
-  /** Animation cycle index 0..3. */
+  /** Step in the current `PET_ANIMATIONS` sequence. */
   frame: number;
   frameTimer: number;
   /** Countdown for next IDLE→WALK/FOLLOW decision. */

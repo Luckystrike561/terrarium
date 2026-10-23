@@ -129,7 +129,10 @@ function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
   const pairs = {} as Record<LoopingPose, Record<Direction, FramePair>>;
   for (const pose of Object.keys(CHARACTER_ANIMATIONS) as CharacterAnimationName[]) {
     if (pose === 'walk') continue;
-    const [first, second] = CHARACTER_ANIMATIONS[pose].frames;
+    // The annotation pins the arity: a pose with another frame count must
+    // fail to compile here, not silently drop frames the manifest publishes.
+    const [first, second]: readonly [CharacterFrame, CharacterFrame] =
+      CHARACTER_ANIMATIONS[pose].frames;
     pairs[pose] = byDirection((dir) => [
       sheetFrame(sheet, dir, first),
       sheetFrame(sheet, dir, second),
@@ -144,7 +147,12 @@ function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
         if (!sprite) frames.set(name, (sprite = sheetFrame(sheet, dir, name)));
         return sprite;
       };
-      const [a, b, c, d] = CHARACTER_ANIMATIONS.walk.frames;
+      const [a, b, c, d]: readonly [
+        CharacterFrame,
+        CharacterFrame,
+        CharacterFrame,
+        CharacterFrame,
+      ] = CHARACTER_ANIMATIONS.walk.frames;
       return [frame(a), frame(b), frame(c), frame(d)];
     }),
     ...pairs,

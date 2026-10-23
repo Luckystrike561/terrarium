@@ -195,10 +195,10 @@ function headToOwnSeat(
 /** Walk animation + one step of movement along `ch.path`. The caller adds
  *  `dt` to `ch.frameTimer` first. */
 export function advanceAlongPath(ch: Character, dt: number): void {
-  const { frameDurationSec } = CHARACTER_ANIMATIONS.walk;
+  const { frames, frameDurationSec } = CHARACTER_ANIMATIONS.walk;
   if (ch.frameTimer >= frameDurationSec) {
     ch.frameTimer -= frameDurationSec;
-    ch.frame = (ch.frame + 1) % 4;
+    ch.frame = (ch.frame + 1) % frames.length;
   }
   const nextTile = ch.path[0];
   if (!nextTile) return;
@@ -498,22 +498,23 @@ export function getCharacterPose(ch: Character): CharacterPose {
   return isReadingTool(ch.currentTool) ? 'reading' : 'typing';
 }
 
-/** Step the two-frame loop of the current pose. The caller adds `dt` to
+/** Step the frame loop of the current pose. The caller adds `dt` to
  *  `ch.frameTimer` first. */
 export function advancePoseFrame(ch: Character): void {
   const pose = getCharacterPose(ch);
   if (pose === 'walk') return;
-  const durationSec = CHARACTER_ANIMATIONS[pose].frameDurationSec;
-  if (ch.frameTimer >= durationSec) {
-    ch.frameTimer -= durationSec;
-    ch.frame = (ch.frame + 1) % 2;
+  const { frames, frameDurationSec } = CHARACTER_ANIMATIONS[pose];
+  if (ch.frameTimer >= frameDurationSec) {
+    ch.frameTimer -= frameDurationSec;
+    ch.frame = (ch.frame + 1) % frames.length;
   }
 }
 
 export function getCharacterSprite(ch: Character, sprites: CharacterSprites): SpriteData {
   const pose = getCharacterPose(ch);
-  if (pose === 'walk') return sprites.walk[ch.dir][ch.frame % 4];
-  return sprites[pose][ch.dir][ch.frame % 2];
+  const frameIndex = ch.frame % CHARACTER_ANIMATIONS[pose].frames.length;
+  if (pose === 'walk') return sprites.walk[ch.dir][frameIndex];
+  return sprites[pose][ch.dir][frameIndex];
 }
 
 function randomRange(min: number, max: number): number {
