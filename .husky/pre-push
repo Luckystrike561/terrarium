@@ -13,10 +13,6 @@ if [ -n "$(git status --porcelain webview-ui/public/assets)" ]; then
   exit 1
 fi
 
-# Catch generated-file drift before pushing. Regenerate the AsyncAPI
-# bindings, the generated art with its office manifest and the e2e test
-# inventory, then fail if any differs from what's committed. On drift the
-# files are left regenerated in the working tree: commit them and push again.
 echo "🔍 Checking generated-file drift (AsyncAPI bindings + office manifest + e2e inventory)..."
 npm run asyncapi:generate
 npm run assets:generate
