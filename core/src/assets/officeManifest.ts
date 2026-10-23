@@ -121,7 +121,10 @@ export interface FurnitureItem {
   footprint: Footprint;
   /** Top of the item above the floor. */
   heightZ: number;
-  /** Seat surface above the floor, when a character sits on the item. */
+  /** Seat surface above the floor, or null when nothing sits on the item.
+   *  Every tile of the placed variant's footprint is one seat. With a null
+   *  orientation the sitter faces an adjacent tile of a `desks` item
+   *  (checked up, down, left, right), else down. */
   seatZ: number | null;
   /** Height that splits the item into a lower part, drawn under its sitter,
    *  and an upper part (the backrest), drawn over its sitter when the
