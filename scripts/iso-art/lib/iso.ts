@@ -1,7 +1,6 @@
 /**
  * Isometric conventions shared by every generated sprite and by the webview
- * renderer. The tile and wall sizes come from `core/src/assets/constants.ts`,
- * and the office manifest publishes all of them.
+ * renderer.
  *
  * World units: one grid tile = TILE_SIZE units along +col (gx) and +row (gy);
  * z is height in screen pixels. A tile renders as a 32×16 diamond, so
