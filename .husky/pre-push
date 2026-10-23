@@ -4,8 +4,9 @@ set -e
 echo "🔍 Type-checking..."
 npm run check-types
 
-# assets:generate deletes and rewrites webview-ui/public/assets, so refuse
-# before it can destroy uncommitted or untracked work there.
+# assets:generate deletes furniture/ and overwrites the generated sheets, and
+# the drift check below diffs all of webview-ui/public/assets, so refuse on any
+# local change there.
 if [ -n "$(git status --porcelain webview-ui/public/assets)" ]; then
   echo "❌ webview-ui/public/assets has uncommitted changes."
   echo "   Commit or stash them (git stash push -u -- webview-ui/public/assets), then push again."
