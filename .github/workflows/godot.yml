@@ -1,0 +1,61 @@
+name: Godot
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: godot-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-export:
+    name: Build and check the web export
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Cache the pinned Godot editor and web template
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .cache/godot
+          key: godot-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/godot/pin.mjs') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the server and the current client
+        run: npm run build
+
+      - name: Export the Godot client
+        run: npm run godot:export
+
+      - name: Check the export reproduces the committed checksums
+        run: git diff --exit-code godot/web-export.sha256
+
+      - name: Check the export in a browser against its budget
+        run: npm run godot:check
+
+      - name: Upload the export
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: godot-web-export
+          path: dist/godot
+          if-no-files-found: error

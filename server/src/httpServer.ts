@@ -4,12 +4,18 @@ import fastifyWebsocket from '@fastify/websocket';
 import * as crypto from 'crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import Fastify from 'fastify';
+import * as fs from 'fs';
 
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import type { AssetCache, SetHooksEnabledSideEffect } from './clientMessageHandler.js';
 import { handleClientMessage } from './clientMessageHandler.js';
-import { HOOK_API_PREFIX, MAX_HOOK_BODY_SIZE, WS_CLOSE_FORBIDDEN_ORIGIN } from './constants.js';
+import {
+  GODOT_ROUTE_PREFIX,
+  HOOK_API_PREFIX,
+  MAX_HOOK_BODY_SIZE,
+  WS_CLOSE_FORBIDDEN_ORIGIN,
+} from './constants.js';
 import type { AgentState } from './types.js';
 
 /** Options for creating the HTTP + WebSocket server. */
@@ -26,6 +32,8 @@ export interface HttpServerOptions {
   runtime?: AgentRuntime;
   /** Path to SPA dist directory for static serving (standalone only) */
   staticDir?: string;
+  /** Path to the Godot client's web export, served under GODOT_ROUTE_PREFIX when it was built (standalone only) */
+  godotDir?: string;
   /** Cached assets loaded at startup (standalone only) */
   assetCache?: AssetCache;
   /** Callback when a hook event is received */
@@ -69,6 +77,10 @@ export async function createHttpServer(options: HttpServerOptions): Promise<Http
     });
   }
 
+  if (options.godotDir && fs.existsSync(options.godotDir)) {
+    await registerGodotRoute(app, options.godotDir);
+  }
+
   // ── Routes ──────────────────────────────────────────────────
 
   registerHealthRoute(app);
@@ -82,6 +94,36 @@ export async function createHttpServer(options: HttpServerOptions): Promise<Http
   const port = typeof address === 'object' ? (address?.port ?? 0) : 0;
 
   return { app, port };
+}
+
+// ── Godot web client ───────────────────────────────────────────
+
+/**
+ * Serves the export with the `.br` / `.gz` siblings `npm run godot:export`
+ * writes, picked by Accept-Encoding. Its own scope so a missing file is a 404
+ * instead of the SPA's index.html fallback.
+ */
+async function registerGodotRoute(app: FastifyInstance, godotDir: string): Promise<void> {
+  const scopePrefix = GODOT_ROUTE_PREFIX.replace(/\/$/, '');
+  // The export's index.html loads its files by relative URL, so it only works from the directory URL.
+  app.get(scopePrefix, (req, reply) => {
+    const query = req.url.slice(scopePrefix.length);
+    return reply.redirect(`${GODOT_ROUTE_PREFIX}${query}`, 301);
+  });
+  await app.register(
+    async (scope) => {
+      await scope.register(fastifyStatic, {
+        root: godotDir,
+        prefix: '/',
+        decorateReply: false,
+        preCompressed: true,
+      });
+      scope.setNotFoundHandler((_req, reply) => {
+        reply.code(404).send({ error: 'Not found' });
+      });
+    },
+    { prefix: scopePrefix },
+  );
 }
 
 // ── Health ──────────────────────────────────────────────────────

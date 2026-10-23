@@ -39,6 +39,12 @@ export const WS_CLOSE_FORBIDDEN_ORIGIN = 4003;
 export const HOOK_EVENT_BUFFER_MS = 5_000;
 export const MAX_HOOK_BODY_SIZE = 65_536; // 64KB
 
+// ── Godot web client ───────────────────────────────────────
+/** Route the Godot client's web export is served under, beside the current client at `/`. */
+export const GODOT_ROUTE_PREFIX = '/godot/';
+/** Directory under dist/ that `npm run godot:export` writes the export to. */
+export const GODOT_EXPORT_DIR = 'godot';
+
 // ── Layout/Config Persistence ──────────────────────────────
 export const LAYOUT_FILE_DIR = '.terrarium';
 /** The state directory before the rename to Terrarium. Moved to LAYOUT_FILE_DIR on startup. */
