@@ -55,8 +55,8 @@ export interface FloorTiles {
   textures: Array<{ tile: number; file: string }>;
 }
 
-/** Walls are procedural boxes on the wall tile value: solid on the office's
- *  far edges, glass partitions inside. */
+/** Walls are procedural boxes on the wall tile value: solid when the tile at
+ *  -row or -col is void or off the grid, a glass partition otherwise. */
 export interface WallTiles {
   tile: number;
   solidHeight: number;
