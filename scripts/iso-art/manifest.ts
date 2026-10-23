@@ -140,7 +140,7 @@ function tiles(assetsDir: string): Tiles {
       textureSize: { width: FLOOR_TILE_SIZE, height: FLOOR_TILE_SIZE },
       projectedSize: PROJECTED_TILE,
       textures: numberedFiles(path.join(assetsDir, 'floors'), /^floor_(\d+)\.png$/i).map(
-        ({ index, file }) => ({ tile: FIRST_FLOOR_TILE + index, file: `floors/${file}` }),
+        ({ file }, i) => ({ tile: FIRST_FLOOR_TILE + i, file: `floors/${file}` }),
       ),
     },
     wall: { tile: WALL_TILE, solidHeight: WALL_HEIGHT_PX, glassHeight: WALL_GLASS_HEIGHT_PX },
@@ -153,7 +153,7 @@ function tiles(assetsDir: string): Tiles {
       },
       cornerBits: { ...CARPET_CORNER_BITS },
       textures: numberedFiles(path.join(assetsDir, 'carpets'), /^carpet_(\d+)\.png$/i).map(
-        ({ index, file }) => ({ variant: index, file: `carpets/${file}` }),
+        ({ file }, i) => ({ variant: i, file: `carpets/${file}` }),
       ),
     },
   };
