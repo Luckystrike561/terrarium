@@ -124,7 +124,8 @@ export interface FurnitureItem {
   /** Seat surface above the floor, when a character sits on the item. */
   seatZ: number | null;
   /** Height that splits the item into a lower part, drawn under its sitter,
-   *  and an upper part (a backrest) that occludes by depth. */
+   *  and an upper part (the backrest), drawn over its sitter when the
+   *  variant's orientation is back or left and under it otherwise. */
   occlusionSplitZ: number | null;
   variants: FurnitureVariant[];
 }
