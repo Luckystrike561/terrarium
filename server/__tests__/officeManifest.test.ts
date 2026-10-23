@@ -142,6 +142,15 @@ describe('office manifest validation', () => {
     ]);
   });
 
+  it('names a pet animation that lost a facing', () => {
+    editManifest((manifest) => {
+      const walk = manifest.pets.animations.find((animation) => animation.name === 'walk')!;
+      walk.facings = walk.facings.filter((f) => f.facing !== 'left');
+    });
+
+    expect(issuesFor('pets')).toEqual(["pet animation 'walk' facing 'left' is missing"]);
+  });
+
   it('flags a layout piece the manifest does not describe', () => {
     editManifest((manifest) => {
       manifest.furniture = manifest.furniture.filter((item) => item.id !== 'DESK');

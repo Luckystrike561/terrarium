@@ -279,6 +279,11 @@ function checkTiles(tiles: Tiles, sheets: Sheets, report: Report): void {
 
 function checkPets(pets: Pets, sheets: Sheets, report: Report): void {
   for (const animation of pets.animations) {
+    for (const facing of FACINGS) {
+      if (!animation.facings.some((f) => f.facing === facing)) {
+        report('pets', `pet animation '${animation.name}' facing '${facing}' is missing`);
+      }
+    }
     for (const { facing, strip } of animation.facings) {
       const where = `pet animation '${animation.name}' facing '${facing}'`;
       const right = strip.x + strip.frameSize.width * strip.count;
