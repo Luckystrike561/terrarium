@@ -102,8 +102,7 @@ export const PET_IDLE_FRAMES_VERT = 3;
 export const PET_WALK_FRAMES_HORIZ = 3;
 export const MAX_PET_PNG_SIZE = 512 * 1024; // 512 KB cap per pet PNG
 
-/** Pet animations: a 4-step lookup into the 3 frames of each strip, and how
- *  long each step shows. */
+/** Pet animations: the strip frame shown at each step, and how long each step shows. */
 export const PET_ANIMATIONS = {
   walk: { sequence: [0, 1, 0, 2], frameDurationSec: 0.15 },
   idle: { sequence: [0, 1, 2, 1], frameDurationSec: 0.3 },
