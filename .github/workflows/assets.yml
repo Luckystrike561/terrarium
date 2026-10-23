@@ -35,6 +35,12 @@ jobs:
       - name: Validate the bundled sheets against the manifest
         run: npm run assets:validate
 
+      - name: Check the generated art and manifest are up to date
+        run: |
+          npm run assets:generate
+          git status --porcelain webview-ui/public/assets
+          test -z "$(git status --porcelain webview-ui/public/assets)"
+
       - name: Check that corrupted sheets are caught
         working-directory: server
         run: npx vitest run __tests__/officeManifest.test.ts

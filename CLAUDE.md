@@ -274,7 +274,7 @@ npm run site:build         # build the website from site/ into dist/site/
 
 ## Checks
 
-No workflow runs the full checks. `.github/workflows/` holds `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release), `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`) and `assets.yml` (validates the office manifest against the sprite sheets and runs the corrupted-sheet tests on every push and pull request). Run the checks locally before pushing:
+No workflow runs the full checks. `.github/workflows/` holds `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release), `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`) and `assets.yml` (validates the office manifest against the sprite sheets, fails if regenerating the art changes anything committed, and runs the corrupted-sheet tests on every push and pull request). Run the checks locally before pushing:
 
 ```bash
 npm run lint && npm run check-types && npm run asyncapi:validate && npm run assets:validate
