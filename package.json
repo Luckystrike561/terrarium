@@ -46,7 +46,7 @@
     "asyncapi:validate": "node scripts/validate-asyncapi.mjs",
     "assets:generate": "tsx scripts/iso-art/generate.ts",
     "assets:validate": "tsx scripts/validate-assets.ts",
-    "check-types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.test.json",
+    "check-types": "tsc --noEmit && tsc --noEmit -p server/tsconfig.test.json && tsc --noEmit -p scripts/tsconfig.json",
     "prepare": "husky",
     "lint": "eslint server core e2e && cd webview-ui && eslint .",
     "lint:fix": "eslint server core e2e --fix && cd webview-ui && eslint . --fix",

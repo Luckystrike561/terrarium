@@ -1,5 +1,5 @@
 import type { PixelImage, RGBA } from '../lib/image.js';
-import { hex, mix, shade } from '../lib/image.js';
+import { hex, mix } from '../lib/image.js';
 import { CHAIR_SEAT_Z } from '../lib/iso.js';
 import { PAL } from '../lib/palette.js';
 import type { Paint } from '../lib/scene.js';
