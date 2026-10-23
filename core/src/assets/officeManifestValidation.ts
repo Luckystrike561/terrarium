@@ -267,7 +267,13 @@ function checkTiles(tiles: Tiles, sheets: Sheets, report: Report): void {
   };
   for (const texture of carpet.textures) {
     const png = sheets.load(texture.file);
-    if (png) checkSize(texture.file, png, carpetSheet, report);
+    if (!png || !checkSize(texture.file, png, carpetSheet, report)) continue;
+    for (let piece = 1; piece < carpet.grid.columns * carpet.grid.rows; piece++) {
+      const x = (piece % carpet.grid.columns) * carpet.pieceSize.width;
+      const y = Math.floor(piece / carpet.grid.columns) * carpet.pieceSize.height;
+      if (isEmpty(png, x, y, carpet.pieceSize))
+        report(texture.file, `carpet piece ${piece} is empty`);
+    }
   }
 }
 

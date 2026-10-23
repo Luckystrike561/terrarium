@@ -42,6 +42,14 @@ function clearRows(file: string, y0: number, y1: number): void {
   writePng(file, png);
 }
 
+function clearRect(file: string, x0: number, y0: number, width: number, height: number): void {
+  const png = readPng(file);
+  for (let y = y0; y < y0 + height; y++) {
+    png.data.fill(0, (y * png.width + x0) * 4, (y * png.width + x0 + width) * 4);
+  }
+  writePng(file, png);
+}
+
 function editManifest(edit: (manifest: OfficeManifest) => void): void {
   const file = path.join(assetsDir, OFFICE_MANIFEST_FILE);
   const manifest = JSON.parse(fs.readFileSync(file, 'utf-8')) as OfficeManifest;
@@ -91,6 +99,12 @@ describe('office manifest validation', () => {
     clearRows(SHEET, 2 * CHAR_FRAME_H, 3 * CHAR_FRAME_H);
 
     expect(issuesFor(SHEET)).toEqual(["facing 'right' (row 2) is missing: every frame is empty"]);
+  });
+
+  it('names a carpet sheet with an erased piece', () => {
+    clearRect('carpets/carpet_1.png', 16, 16, 16, 16);
+
+    expect(issuesFor('carpets/carpet_1.png')).toEqual(['carpet piece 5 is empty']);
   });
 
   it('names a furniture frame whose size disagrees with its variant', () => {
