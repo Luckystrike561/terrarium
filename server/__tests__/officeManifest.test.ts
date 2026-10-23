@@ -195,6 +195,7 @@ describe('office manifest validation', () => {
     const run = spawnSync(process.execPath, ['--import', 'tsx', VALIDATE_SCRIPT, assetsDir], {
       cwd: ROOT,
       encoding: 'utf-8',
+      timeout: 8000,
     });
 
     expect(run.status).toBe(1);
