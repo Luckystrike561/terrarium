@@ -20,7 +20,7 @@ echo "🔍 Checking generated-file drift (AsyncAPI bindings + office manifest + 
 npm run asyncapi:generate
 npm run assets:generate
 npm run e2e:inventory
-if ! git diff --exit-code core/src/messages.ts webview-ui/public/assets e2e/README.md; then
+if ! git diff --exit-code core/src/messages.ts webview-ui/public/assets e2e/README.md || [ -n "$(git ls-files --others --exclude-standard webview-ui/public/assets)" ]; then
   echo "❌ Generated files were out of date and have been regenerated above."
   echo "   Commit the changes (core/src/messages.ts, webview-ui/public/assets and/or e2e/README.md), then push again."
   exit 1
