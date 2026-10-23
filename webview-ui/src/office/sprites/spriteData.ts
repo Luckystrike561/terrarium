@@ -140,7 +140,8 @@ function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
   }
   return {
     walk: byDirection((dir) => {
-      // A frame the cycle passes through twice stays one sprite.
+      // sheetFrame mirrors LEFT into a new sprite per call and textures are cached
+      // per sprite object, so a repeated frame must reuse one sprite.
       const frames = new Map<CharacterFrame, SpriteData>();
       const frame = (name: CharacterFrame): SpriteData => {
         let sprite = frames.get(name);
