@@ -117,7 +117,7 @@ export interface FurnitureItem {
   /** Floor items stand on the floor, surface items on a desk tile, wall items
    *  hang on a wall tile. */
   placement: 'floor' | 'surface' | 'wall';
-  /** Footprint of the first variant. Rotated variants transpose it. */
+  /** Footprint of the first variant. Right and left variants transpose it. */
   footprint: Footprint;
   /** Top of the item above the floor. */
   heightZ: number;
