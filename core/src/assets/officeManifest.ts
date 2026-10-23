@@ -92,8 +92,8 @@ export interface FurnitureFrame {
 }
 
 export interface FurnitureVariant {
-  /** Catalog id of the variant (`DESK_FRONT`, or `PC_FRONT_ON` for an
-   *  animation whose frames carry their own ids). */
+  /** Key of the variant (`DESK_FRONT`, or `PC_FRONT_ON` for an animation).
+   *  Only `frames[].id` is a catalog id a layout may place. */
   id: string;
   /** Which way the item faces. A sitter faces the same way as its chair. */
   orientation: FurnitureOrientation | null;

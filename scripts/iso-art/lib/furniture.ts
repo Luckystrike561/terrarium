@@ -54,8 +54,8 @@ interface ManifestAssetJson {
 
 type ManifestNodeJson = ManifestAssetJson | Record<string, unknown>;
 
-/** Catalog id of a variant (`PC_FRONT_ON`), or of one frame of an animated
- *  variant (`PC_FRONT_ON_1`). */
+/** Key of a variant (`PC_FRONT_ON`), or catalog id of one frame of an
+ *  animated variant (`PC_FRONT_ON_1`). */
 export function furnitureAssetId(
   spec: FurnitureSpec,
   variant: FurnitureVariant,

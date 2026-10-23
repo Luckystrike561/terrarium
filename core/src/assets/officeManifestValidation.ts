@@ -359,9 +359,7 @@ function checkCoverage(manifest: OfficeManifest, assetsDir: string, report: Repo
     furniture?: Array<{ type: string }>;
   };
   const types = new Set(
-    manifest.furniture.flatMap((item) =>
-      item.variants.flatMap((v) => [v.id, ...v.frames.map((f) => f.id)]),
-    ),
+    manifest.furniture.flatMap((item) => item.variants.flatMap((v) => v.frames.map((f) => f.id))),
   );
   for (const placed of layout.furniture ?? []) {
     if (!types.has(placed.type)) {

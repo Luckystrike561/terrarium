@@ -14,6 +14,7 @@ const ROOT = path.join(__dirname, '../..');
 const BUNDLED_ASSETS = path.join(ROOT, 'webview-ui/public/assets');
 const VALIDATE_SCRIPT = path.join(ROOT, 'scripts/validate-assets.ts');
 const SHEET = 'characters/char_3.png';
+const LAYOUT = 'default-layout-3.json';
 
 let assetsDir: string;
 
@@ -127,6 +128,17 @@ describe('office manifest validation', () => {
     expect(
       issues.some((i) => i.endsWith("places 'DESK_FRONT', which the manifest does not describe")),
     ).toBe(true);
+  });
+
+  it('flags a layout that places an animated variant by its key instead of a frame id', () => {
+    const file = path.join(assetsDir, LAYOUT);
+    const layout = JSON.parse(fs.readFileSync(file, 'utf-8')) as { furniture: object[] };
+    layout.furniture.push({ uid: 'pc', type: 'PC_FRONT_ON', col: 0, row: 0 });
+    fs.writeFileSync(file, JSON.stringify(layout));
+
+    expect(issuesFor(LAYOUT)).toEqual([
+      "places 'PC_FRONT_ON', which the manifest does not describe",
+    ]);
   });
 
   it('rejects a schema version it does not understand', () => {
