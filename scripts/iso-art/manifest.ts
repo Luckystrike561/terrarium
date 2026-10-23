@@ -1,6 +1,6 @@
 /**
- * Build the office manifest (core/src/assets/officeManifest.ts) from the
- * furniture specs, the shared asset constants and the sheets on disk.
+ * Build the office manifest from the furniture specs, the shared asset
+ * constants and the sheets on disk.
  */
 
 import * as fs from 'fs';
