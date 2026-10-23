@@ -8,7 +8,7 @@ npm run check-types
 # before it can destroy uncommitted or untracked work there.
 if [ -n "$(git status --porcelain webview-ui/public/assets)" ]; then
   echo "❌ webview-ui/public/assets has uncommitted changes."
-  echo "   Commit or stash them (git stash push -- webview-ui/public/assets), then push again."
+  echo "   Commit or stash them (git stash push -u -- webview-ui/public/assets), then push again."
   exit 1
 fi
 
