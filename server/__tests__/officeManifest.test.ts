@@ -139,6 +139,19 @@ describe('office manifest validation', () => {
     ]);
   });
 
+  it('names every missing top-level section instead of throwing', () => {
+    editManifest((manifest) => {
+      const partial = manifest as Partial<OfficeManifest>;
+      partial.characters = undefined;
+      partial.projection = undefined;
+    });
+
+    expect(validateOfficeManifest(assetsDir)).toEqual([
+      { asset: OFFICE_MANIFEST_FILE, message: "missing 'projection'" },
+      { asset: OFFICE_MANIFEST_FILE, message: "missing 'characters'" },
+    ]);
+  });
+
   it('exits non-zero from the command line, naming the asset and the mismatch', () => {
     const png = readPng(SHEET);
     cropPng(SHEET, png.width - CHAR_FRAME_W, png.height);

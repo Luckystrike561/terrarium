@@ -35,6 +35,14 @@ export interface ManifestIssue {
 
 type Report = (asset: string, message: string) => void;
 
+const MANIFEST_SECTIONS = [
+  'projection',
+  'tiles',
+  'furniture',
+  'characters',
+  'pets',
+] as const satisfies readonly (keyof OfficeManifest)[];
+
 function sizeText(size: Size): string {
   return `${size.width}×${size.height}`;
 }
@@ -400,6 +408,13 @@ export function validateOfficeManifest(assetsDir: string): ManifestIssue[] {
       OFFICE_MANIFEST_FILE,
       `schemaVersion is ${JSON.stringify(manifest.schemaVersion)}, expected ${OFFICE_MANIFEST_SCHEMA_VERSION}`,
     );
+    return issues;
+  }
+  const missing = MANIFEST_SECTIONS.filter(
+    (section) => manifest[section] === undefined || manifest[section] === null,
+  );
+  if (missing.length > 0) {
+    for (const section of missing) report(OFFICE_MANIFEST_FILE, `missing '${section}'`);
     return issues;
   }
   const sheets = new Sheets(assetsDir, report);
