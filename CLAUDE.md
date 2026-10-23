@@ -22,7 +22,7 @@ Code, paths and commands use the Terrarium name too: the npm package and CLI `te
 | Hooks consent, the hook installer, the Claude status line, the `/ws` privilege gate            | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
 | Context gauge                                                                                  | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
 | Pixi iso renderer, UI styling, characters, CTO queue, seats, layout                            | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
-| Assets, generated art, catalog, load order                                                     | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
+| Assets, generated art, catalog, office manifest, load order                                    | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
 | Test tiers, mocks, inventory, drift checks                                                     | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
 | Consent revision rule (ADR)                                                                    | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
 | Art direction                                                                                  | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
@@ -46,7 +46,7 @@ core/                                Protocol + interface definitions
     paletteUtils.ts                  Palette diversity for character assignment
     normalizeProjectPath.ts
     constants.ts
-    assets/                          PNG decoders, manifest helpers, buildFurnitureCatalog, CHARACTER_FRAMES
+    assets/                          PNG decoders, manifest helpers, buildFurnitureCatalog, CHARACTER_FRAMES, the office manifest and its validation
 
 server/                              Runtime + Fastify HTTP/WS server + CLI
   src/
@@ -167,7 +167,8 @@ scripts/
   verify-npm-package.mjs             Packs, installs and smoke-tests the tarball
   publish-npm-package.mjs            Publishes a verified tarball
   record-demo.mjs                    Records docs/media/demo.gif
-  iso-art/                           Generators for furniture, characters, floors and the default layout
+  iso-art/                           Generators for furniture, characters, floors, the default layout and the office manifest
+  validate-assets.ts                 Validates the office manifest against every sprite sheet
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
@@ -249,7 +250,7 @@ Game state lives in imperative classes, not React state, and is drawn as 2:1 iso
 
 ```bash
 npm install                # root + all workspaces
-npm run build              # asyncapi:generate, check-types, lint, esbuild, vite (alias of compile)
+npm run build              # asyncapi:generate, assets:validate, check-types, lint, esbuild, vite (alias of compile)
 npm run package            # production build
 npm run watch              # esbuild watch + tsc --noEmit watch (no Vite)
 npm run dev                # build, then watch esbuild + vite and run the server with herdr,omp on :8790
@@ -263,6 +264,8 @@ npm run lint               # core + server + webview + e2e ESLint
 npm run check-types        # tsc across all packages
 npm run asyncapi:validate  # validate the contract
 npm run asyncapi:generate  # regenerate core/src/messages.ts
+npm run assets:generate    # regenerate the art and assets/office-manifest.json
+npm run assets:validate    # check every sprite sheet against the office manifest
 npm run verify:npm-package # pack, install and smoke-test the tarball
 npm run site:build         # build the website from site/ into dist/site/
 ```
@@ -271,15 +274,15 @@ npm run site:build         # build the website from site/ into dist/site/
 
 ## Checks
 
-No workflow runs the checks. `.github/workflows/` holds only `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release) and `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`). Run the checks locally before pushing:
+No workflow runs the full checks. `.github/workflows/` holds `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release), `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`) and `assets.yml` (validates the office manifest against the sprite sheets and runs the corrupted-sheet tests on every push and pull request). Run the checks locally before pushing:
 
 ```bash
-npm run lint && npm run check-types && npm run asyncapi:validate
-npm run asyncapi:generate && npm run e2e:inventory   # must leave no git diff
+npm run lint && npm run check-types && npm run asyncapi:validate && npm run assets:validate
+npm run asyncapi:generate && npm run assets:generate && npm run e2e:inventory   # must leave no git diff
 npm run build && npm test && npm run e2e
 ```
 
-The husky `pre-commit` hook runs gitleaks and lint-staged (ESLint, Prettier). The `pre-push` hook runs `check-types` and fails if `core/src/messages.ts` or `e2e/README.md` drift from their generators. Test tiers and authoring rules: [testing.md](docs/architecture/testing.md) and [e2e/README.md](e2e/README.md).
+The husky `pre-commit` hook runs gitleaks and lint-staged (ESLint, Prettier). The `pre-push` hook runs `check-types` and fails if `core/src/messages.ts`, the generated art in `webview-ui/public/assets` (with `office-manifest.json`) or `e2e/README.md` drift from their generators. Test tiers and authoring rules: [testing.md](docs/architecture/testing.md) and [e2e/README.md](e2e/README.md).
 
 ## TypeScript constraints
 

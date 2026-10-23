@@ -5,11 +5,8 @@
  * through them on a timer.
  */
 
-import {
-  AUTO_ON_FACING_DEPTH,
-  AUTO_ON_SIDE_DEPTH,
-  FURNITURE_ANIM_INTERVAL_SEC,
-} from '../../constants.js';
+import { FURNITURE_FRAME_DURATION_SEC } from '../../../../core/src/assets/constants.ts';
+import { AUTO_ON_FACING_DEPTH, AUTO_ON_SIDE_DEPTH } from '../../constants.js';
 import { getAnimationFrames, getCatalogEntry, getOnStateType } from '../layout/furnitureCatalog.js';
 import { layoutToFurnitureInstances } from '../layout/layoutSerializer.js';
 import type { Character, FurnitureInstance, PlacedFurniture, Seat } from '../types.js';
@@ -51,7 +48,7 @@ export function rebuildFurnitureInstances(
 
   // Items placed directly in an animated on state (an espresso machine that is
   // always running) animate regardless of who is nearby.
-  const animFrame = Math.floor(furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
+  const animFrame = Math.floor(furnitureAnimTimer / FURNITURE_FRAME_DURATION_SEC);
   const animate = (type: string): string => {
     const frames = getAnimationFrames(type);
     return frames && frames.length > 1 ? frames[animFrame % frames.length] : type;

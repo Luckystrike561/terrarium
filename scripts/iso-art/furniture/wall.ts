@@ -1,13 +1,13 @@
+import { TILE_SIZE, WALL_HEIGHT_PX } from '../../../core/src/assets/constants.js';
 import type { FurnitureSpec, FurnitureVariant } from '../lib/furniture.js';
 import type { PixelImage, RGBA } from '../lib/image.js';
 import { hex, mix } from '../lib/image.js';
-import { TILE, WALL_HEIGHT } from '../lib/iso.js';
 import { PAL } from '../lib/palette.js';
 import type { Paint, SurfaceHit } from '../lib/scene.js';
 import { IsoScene, solid } from '../lib/scene.js';
 
-const HEIGHT_ABOVE = WALL_HEIGHT + 6;
-const D = TILE;
+const HEIGHT_ABOVE = WALL_HEIGHT_PX + 6;
+const D = TILE_SIZE;
 
 const TEAL = hex('#4fb8a6');
 const CORAL = hex('#ef8166');

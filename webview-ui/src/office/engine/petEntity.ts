@@ -1,13 +1,10 @@
+import { PET_ANIMATIONS } from '../../../../core/src/assets/constants.ts';
 import {
   PET_FOLLOW_CHANCE,
   PET_FOLLOW_DURATION_MAX_SEC,
   PET_FOLLOW_DURATION_MIN_SEC,
   PET_FOLLOW_RADIUS_TILES,
   PET_FOLLOW_RECALC_INTERVAL_SEC,
-  PET_IDLE_FRAME_DURATION_SEC,
-  PET_IDLE_SEQUENCE,
-  PET_WALK_FRAME_DURATION_SEC,
-  PET_WALK_SEQUENCE,
   PET_WALK_SPEED_PX_PER_SEC,
   PET_WANDER_PAUSE_MAX_SEC,
   PET_WANDER_PAUSE_MIN_SEC,
@@ -93,8 +90,8 @@ function findAdjacentTile(
 /** Advance the walk-cycle frame counter (4-step cycle). */
 function updateWalkAnimation(pet: Pet, dt: number): void {
   pet.frameTimer += dt;
-  if (pet.frameTimer >= PET_WALK_FRAME_DURATION_SEC) {
-    pet.frameTimer -= PET_WALK_FRAME_DURATION_SEC;
+  if (pet.frameTimer >= PET_ANIMATIONS.walk.frameDurationSec) {
+    pet.frameTimer -= PET_ANIMATIONS.walk.frameDurationSec;
     pet.frame = (pet.frame + 1) % 4;
   }
 }
@@ -102,8 +99,8 @@ function updateWalkAnimation(pet: Pet, dt: number): void {
 /** Advance the idle-cycle frame counter (4-step cycle, slower than walk). */
 function updateIdleAnimation(pet: Pet, dt: number): void {
   pet.frameTimer += dt;
-  if (pet.frameTimer >= PET_IDLE_FRAME_DURATION_SEC) {
-    pet.frameTimer -= PET_IDLE_FRAME_DURATION_SEC;
+  if (pet.frameTimer >= PET_ANIMATIONS.idle.frameDurationSec) {
+    pet.frameTimer -= PET_ANIMATIONS.idle.frameDurationSec;
     pet.frame = (pet.frame + 1) % 4;
   }
 }
@@ -315,7 +312,8 @@ export function getPetSpriteData(pet: Pet, petSprites: PetSpriteFrames | null): 
   if (!petSprites) return null;
 
   if (pet.state === PetState.IDLE) {
-    const frameIdx = PET_IDLE_SEQUENCE[pet.frame % PET_IDLE_SEQUENCE.length];
+    const { sequence } = PET_ANIMATIONS.idle;
+    const frameIdx = sequence[pet.frame % sequence.length];
     switch (pet.dir) {
       case Direction.DOWN:
         return petSprites.idleDown[frameIdx];
@@ -329,7 +327,8 @@ export function getPetSpriteData(pet: Pet, petSprites: PetSpriteFrames | null): 
   }
 
   // WALK or FOLLOW
-  const frameIdx = PET_WALK_SEQUENCE[pet.frame % PET_WALK_SEQUENCE.length];
+  const { sequence } = PET_ANIMATIONS.walk;
+  const frameIdx = sequence[pet.frame % sequence.length];
   switch (pet.dir) {
     case Direction.DOWN:
       return petSprites.walkDown[frameIdx];

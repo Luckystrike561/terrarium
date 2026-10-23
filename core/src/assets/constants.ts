@@ -1,8 +1,23 @@
 /**
- * Shared constants — used by the server and Vite build scripts.
- *
- * Only asset parsing and layout-related values.
+ * Shared asset constants: used by the server, the webview, the Vite build
+ * and the art pipeline (scripts/iso-art), and published in the office
+ * manifest.
  */
+
+// ── Iso geometry ────────────────────────────────────────────
+/** World px per grid tile along +col and +row. A tile renders as a
+ *  (2 × TILE_SIZE) × TILE_SIZE diamond, and z is height in screen px. */
+export const TILE_SIZE = 16;
+/** Height of a solid back wall. */
+export const WALL_HEIGHT_PX = 40;
+/** Height of an interior glass partition. */
+export const WALL_GLASS_HEIGHT_PX = 30;
+/** Seconds per frame of a furniture animation (an electronic item's on state). */
+export const FURNITURE_FRAME_DURATION_SEC = 0.2;
+/** Layout tile values. A floor tile N (1 and up) is drawn with floor_{N-1}.png. */
+export const WALL_TILE = 0;
+export const FIRST_FLOOR_TILE = 1;
+export const VOID_TILE = 255;
 
 // ── PNG / Asset Parsing ─────────────────────────────────────
 export const PNG_ALPHA_THRESHOLD = 2;
@@ -39,6 +54,39 @@ export const CHARACTER_FRAMES = [
 ] as const;
 export type CharacterFrame = (typeof CHARACTER_FRAMES)[number];
 export const CHAR_FRAMES_PER_ROW = CHARACTER_FRAMES.length;
+
+export interface CharacterAnimation {
+  /** Sheet frames in play order. A frame may repeat (the walk cycle passes
+   *  through walk2 twice). */
+  readonly frames: readonly CharacterFrame[];
+  readonly frameDurationSec: number;
+  /** Drawn on a seat rather than standing on the floor. */
+  readonly seated: boolean;
+}
+
+/** Every character animation: its frames, how long each shows and whether
+ *  the character is seated. Slow for breathing, quick for a waving hand. */
+export const CHARACTER_ANIMATIONS = {
+  walk: { frames: ['walk1', 'walk2', 'walk3', 'walk2'], frameDurationSec: 0.15, seated: false },
+  typing: { frames: ['type1', 'type2'], frameDurationSec: 0.3, seated: true },
+  reading: { frames: ['read1', 'read2'], frameDurationSec: 0.3, seated: true },
+  idle: { frames: ['idle1', 'idle2'], frameDurationSec: 1.0, seated: false },
+  rest: { frames: ['rest1', 'rest2'], frameDurationSec: 1.4, seated: true },
+  raiseHand: { frames: ['raiseHand1', 'raiseHand2'], frameDurationSec: 0.4, seated: false },
+  raiseHandSeated: {
+    frames: ['raiseHandSeated1', 'raiseHandSeated2'],
+    frameDurationSec: 0.4,
+    seated: true,
+  },
+  holdForm: { frames: ['holdForm1', 'holdForm2'], frameDurationSec: 0.6, seated: false },
+  holdFormSeated: {
+    frames: ['holdFormSeated1', 'holdFormSeated2'],
+    frameDurationSec: 0.6,
+    seated: true,
+  },
+} as const satisfies Record<string, CharacterAnimation>;
+export type CharacterAnimationName = keyof typeof CHARACTER_ANIMATIONS;
+
 /** Bundled agent sheets, char_0.png to char_11.png. */
 export const CHAR_COUNT = 12;
 /** The CTO's own sheet, beside the agent sheets. No agent is drawn with it. */
@@ -55,7 +103,17 @@ export const PET_IDLE_FRAMES_VERT = 3;
 export const PET_WALK_FRAMES_HORIZ = 3;
 export const MAX_PET_PNG_SIZE = 512 * 1024; // 512 KB cap per pet PNG
 
+/** Pet animations: a 4-step lookup into the 3 frames of each strip, and how
+ *  long each step shows. */
+export const PET_ANIMATIONS = {
+  walk: { sequence: [0, 1, 0, 2], frameDurationSec: 0.15 },
+  idle: { sequence: [0, 1, 2, 1], frameDurationSec: 0.3 },
+} as const;
+
 // ── Carpet auto-tile parsing ────────────────────────────────
 export const CARPET_TILE_SIZE = 16;
 export const CARPET_GRID_COLS = 4;
 export const CARPET_MARCHING_SQUARES_COUNT = 16;
+/** Bit of each carpeted tile around a grid corner in the marching-squares
+ *  case, which indexes the carpet sheet's pieces. */
+export const CARPET_CORNER_BITS = { nw: 1, ne: 2, se: 4, sw: 8 } as const;

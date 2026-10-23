@@ -4,9 +4,11 @@
  *   npx tsx scripts/iso-art/generate.ts [--preview <dir>]
  *
  * Rewrites webview-ui/public/assets/furniture/ from the furniture modules,
- * the character sheets (12 workers + the CTO) from ./characters.ts and the
- * floor patterns from ./floors.ts. With --preview, also writes upscaled
- * contact sheets (one per furniture module, plus characters and floors).
+ * the character sheets (12 workers + the CTO) from ./characters.ts, the
+ * floor patterns from ./floors.ts and office-manifest.json from all of them,
+ * then validates every sheet against the manifest and exits non-zero on any
+ * mismatch. With --preview, also writes upscaled contact sheets (one per
+ * furniture module, plus characters and floors).
  */
 
 import * as fs from 'fs';
@@ -14,6 +16,8 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 import { CTO_CHARACTER_FILE } from '../../core/src/assets/constants.js';
+import { OFFICE_MANIFEST_FILE } from '../../core/src/assets/officeManifest.js';
+import { validateOfficeManifest } from '../../core/src/assets/officeManifestValidation.js';
 import { renderCharacterSheets, renderCtoSheet } from './characters.js';
 import { renderFloorTiles } from './floors.js';
 import { ITEMS as DECOR } from './furniture/decor.js';
@@ -23,6 +27,7 @@ import { ITEMS as WALL } from './furniture/wall.js';
 import type { FurnitureSpec } from './lib/furniture.js';
 import { writeFurniture } from './lib/furniture.js';
 import { contactSheet } from './lib/image.js';
+import { buildOfficeManifest } from './manifest.js';
 
 const MODULES: Record<string, FurnitureSpec[]> = {
   desks: DESKS,
@@ -66,6 +71,15 @@ if (previewDir) {
   contactSheet(floors, 8).writePng(path.join(previewDir, 'floors.png'));
 }
 
+fs.writeFileSync(
+  path.join(assets, OFFICE_MANIFEST_FILE),
+  `${JSON.stringify(buildOfficeManifest(specs, assets), null, 2)}\n`,
+);
+
 console.log(
   `[iso-art] ${specs.length} furniture items, ${sheets.length} character sheets, ${floors.length} floor tiles`,
 );
+
+const issues = validateOfficeManifest(assets);
+for (const { asset, message } of issues) console.error(`[iso-art] ${asset}: ${message}`);
+if (issues.length > 0) process.exit(1);

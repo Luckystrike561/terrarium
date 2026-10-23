@@ -31,6 +31,11 @@ export interface FurnitureSpec {
   category: FurnitureCategory;
   canPlaceOnWalls?: boolean;
   canPlaceOnSurfaces?: boolean;
+  /** Seat surface height, for an item a character sits on. */
+  seatZ?: number;
+  /** Height that splits the item into a lower part, drawn under its sitter,
+   *  and an upper part (a backrest) that occludes by depth. */
+  occlusionSplitZ?: number;
   variants: FurnitureVariant[];
 }
 
@@ -49,6 +54,18 @@ interface ManifestAssetJson {
 
 type ManifestNodeJson = ManifestAssetJson | Record<string, unknown>;
 
+/** Catalog id of a variant (`PC_FRONT_ON`), or of one frame of an animated
+ *  variant (`PC_FRONT_ON_1`). */
+export function furnitureAssetId(
+  spec: FurnitureSpec,
+  variant: FurnitureVariant,
+  frame?: number,
+): string {
+  const parts = [spec.id, variant.orientation?.toUpperCase(), variant.state?.toUpperCase()];
+  if (frame !== undefined) parts.push(String(frame + 1));
+  return parts.filter(Boolean).join('_');
+}
+
 function assetNode(
   spec: FurnitureSpec,
   variant: FurnitureVariant,
@@ -56,9 +73,7 @@ function assetNode(
   files: Map<string, PixelImage>,
   frame?: number,
 ): ManifestAssetJson {
-  const parts = [spec.id, variant.orientation?.toUpperCase(), variant.state?.toUpperCase()];
-  if (frame !== undefined) parts.push(String(frame + 1));
-  const id = parts.filter(Boolean).join('_');
+  const id = furnitureAssetId(spec, variant, frame);
   files.set(`${id}.png`, image);
   return {
     type: 'asset',

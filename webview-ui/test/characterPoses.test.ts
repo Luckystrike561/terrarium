@@ -12,9 +12,12 @@ import * as path from 'node:path';
 
 import { beforeAll, test } from 'vitest';
 
-import { CHAR_COUNT, CTO_CHARACTER_FILE } from '../../core/src/assets/constants.js';
+import {
+  CHAR_COUNT,
+  CHARACTER_ANIMATIONS,
+  CTO_CHARACTER_FILE,
+} from '../../core/src/assets/constants.js';
 import { decodeCharacterPng } from '../../core/src/assets/pngDecoder.js';
-import { IDLE_FRAME_DURATION_SEC } from '../src/constants.js';
 import {
   advancePoseFrame,
   createCharacter,
@@ -68,7 +71,7 @@ test('a standing idle agent breathes instead of holding a walk frame', () => {
   assert.notDeepEqual(idle[0], idle[1], 'the two idle frames differ');
   assert.ok(!idle.includes(sprites.walk[Direction.DOWN][1]), 'idle is not the held walk frame');
 
-  ch.frameTimer = IDLE_FRAME_DURATION_SEC;
+  ch.frameTimer = CHARACTER_ANIMATIONS.idle.frameDurationSec;
   advancePoseFrame(ch);
   assert.equal(ch.frame, 1, 'the loop steps after one idle frame duration');
 });

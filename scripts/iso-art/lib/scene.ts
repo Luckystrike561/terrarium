@@ -12,9 +12,10 @@
  * occlusion between primitives for free.
  */
 
+import { TILE_SIZE } from '../../../core/src/assets/constants.js';
 import type { RGBA } from './image.js';
 import { hex, mix, PixelImage, shade } from './image.js';
-import { footprintImageSize, TILE } from './iso.js';
+import { footprintImageSize } from './iso.js';
 
 export type Face = 'top' | 'left' | 'right' | 'side' | 'sphere';
 
@@ -104,8 +105,8 @@ export class IsoScene {
     const size = footprintImageSize(fw, fh, heightAbove);
     this.width = size.width;
     this.height = size.height;
-    this.originX = fh * TILE;
-    this.originY = this.height - (fw + fh) * (TILE / 2);
+    this.originX = fh * TILE_SIZE;
+    this.originY = this.height - (fw + fh) * (TILE_SIZE / 2);
   }
 
   /** Axis-aligned box from min to max corner ([gx, gy, z]). */
@@ -279,6 +280,7 @@ export class IsoScene {
     const faceAt: (Face | null)[] = new Array(this.width * this.height).fill(null);
     const depth = new Float64Array(this.width * this.height).fill(-Infinity);
 
+    let topZ = 0;
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const u = x + 0.5 - this.originX;
@@ -299,14 +301,17 @@ export class IsoScene {
           prim[i] = h.prim;
           faceAt[i] = h.face;
           depth[i] = h.t;
+          topZ = Math.max(topZ, h.z);
           break;
         }
       }
     }
+    img.topZ = Math.round(topZ);
 
     if (!outline && !rimLight) return img;
     const out = new PixelImage(this.width, this.height);
     out.data.set(img.data);
+    out.topZ = img.topZ;
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const c = img.get(x, y);

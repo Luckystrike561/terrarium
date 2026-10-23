@@ -11,6 +11,7 @@
  * each flat-colorized with the user's `color` / `accentColor`, then merged.
  */
 
+import { CARPET_CORNER_BITS } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
 import { CARPET_DEFAULT_ACCENT_COLOR, CARPET_DEFAULT_COLOR } from '../../constants.js';
 import { flatColorizeSprite } from '../colorize.js';
@@ -112,11 +113,14 @@ export function carpetJunctionCase(
   rows: number,
   paletteKey?: string,
 ): number {
+  const bits = CARPET_CORNER_BITS;
   let msCase = 0;
-  if (tileHasVariant(jx - 1, jy - 1, variant, carpetTiles, cols, rows, paletteKey)) msCase |= 1;
-  if (tileHasVariant(jx, jy - 1, variant, carpetTiles, cols, rows, paletteKey)) msCase |= 2;
-  if (tileHasVariant(jx, jy, variant, carpetTiles, cols, rows, paletteKey)) msCase |= 4;
-  if (tileHasVariant(jx - 1, jy, variant, carpetTiles, cols, rows, paletteKey)) msCase |= 8;
+  if (tileHasVariant(jx - 1, jy - 1, variant, carpetTiles, cols, rows, paletteKey)) {
+    msCase |= bits.nw;
+  }
+  if (tileHasVariant(jx, jy - 1, variant, carpetTiles, cols, rows, paletteKey)) msCase |= bits.ne;
+  if (tileHasVariant(jx, jy, variant, carpetTiles, cols, rows, paletteKey)) msCase |= bits.se;
+  if (tileHasVariant(jx - 1, jy, variant, carpetTiles, cols, rows, paletteKey)) msCase |= bits.sw;
   return msCase;
 }
 

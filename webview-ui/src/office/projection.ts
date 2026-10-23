@@ -14,9 +14,10 @@
  * graph that imports it.
  */
 
+import { WALL_HEIGHT_PX } from '../../../core/src/assets/constants.ts';
 import { ZOOM_MIN } from '../constants.js';
 import type { Point } from './iso.js';
-import { tileCorner, WALL_HEIGHT_PX, worldToIso } from './iso.js';
+import { tileCorner, worldToIso } from './iso.js';
 import { TileType } from './types.js';
 
 /** Tile-space rectangle the camera fits to the viewport.

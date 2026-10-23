@@ -1,8 +1,12 @@
-import type { CharacterFrame } from '../../../../core/src/assets/constants.ts';
+import type {
+  CharacterAnimationName,
+  CharacterFrame,
+} from '../../../../core/src/assets/constants.ts';
 import {
   CHAR_COUNT,
   CHAR_FRAME_H,
   CHAR_FRAME_W,
+  CHARACTER_ANIMATIONS,
   CHARACTER_FRAMES,
 } from '../../../../core/src/assets/constants.ts';
 import type { ColorValue } from '../../components/ui/types.js';
@@ -92,20 +96,8 @@ function flipSpriteHorizontal(sprite: SpriteData): SpriteData {
 type FramePair = readonly [SpriteData, SpriteData];
 type WalkCycle = readonly [SpriteData, SpriteData, SpriteData, SpriteData];
 
-/** Two-frame poses and the sheet frames they alternate between. */
-const POSE_FRAMES = {
-  typing: ['type1', 'type2'],
-  reading: ['read1', 'read2'],
-  idle: ['idle1', 'idle2'],
-  rest: ['rest1', 'rest2'],
-  raiseHand: ['raiseHand1', 'raiseHand2'],
-  raiseHandSeated: ['raiseHandSeated1', 'raiseHandSeated2'],
-  holdForm: ['holdForm1', 'holdForm2'],
-  holdFormSeated: ['holdFormSeated1', 'holdFormSeated2'],
-} as const satisfies Record<string, readonly [CharacterFrame, CharacterFrame]>;
-
-export type LoopingPose = keyof typeof POSE_FRAMES;
-export type CharacterPose = 'walk' | LoopingPose;
+export type LoopingPose = Exclude<CharacterAnimationName, 'walk'>;
+export type CharacterPose = CharacterAnimationName;
 
 export type CharacterSprites = { walk: Record<Direction, WalkCycle> } & Record<
   LoopingPose,
@@ -135,8 +127,9 @@ function sheetFrame(sheet: CharacterSheet, dir: Direction, frame: CharacterFrame
 
 function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
   const pairs = {} as Record<LoopingPose, Record<Direction, FramePair>>;
-  for (const pose of Object.keys(POSE_FRAMES) as LoopingPose[]) {
-    const [first, second] = POSE_FRAMES[pose];
+  for (const pose of Object.keys(CHARACTER_ANIMATIONS) as CharacterAnimationName[]) {
+    if (pose === 'walk') continue;
+    const [first, second] = CHARACTER_ANIMATIONS[pose].frames;
     pairs[pose] = byDirection((dir) => [
       sheetFrame(sheet, dir, first),
       sheetFrame(sheet, dir, second),
@@ -144,8 +137,15 @@ function buildCharacterSprites(sheet: CharacterSheet): CharacterSprites {
   }
   return {
     walk: byDirection((dir) => {
-      const passing = sheetFrame(sheet, dir, 'walk2');
-      return [sheetFrame(sheet, dir, 'walk1'), passing, sheetFrame(sheet, dir, 'walk3'), passing];
+      // A frame the cycle passes through twice stays one sprite.
+      const frames = new Map<CharacterFrame, SpriteData>();
+      const frame = (name: CharacterFrame): SpriteData => {
+        let sprite = frames.get(name);
+        if (!sprite) frames.set(name, (sprite = sheetFrame(sheet, dir, name)));
+        return sprite;
+      };
+      const [a, b, c, d] = CHARACTER_ANIMATIONS.walk.frames;
+      return [frame(a), frame(b), frame(c), frame(d)];
     }),
     ...pairs,
   };

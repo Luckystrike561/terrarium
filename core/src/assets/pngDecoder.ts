@@ -42,7 +42,7 @@ import type { CharacterDirectionSprites, PetSpriteFrames } from './types.js';
  * Some encoders emit ≤4 bytes of trailing garbage, so we scan from `buf.length - 8`
  * (not `-12`) to find the IEND type marker.
  */
-function sanitizePngBuffer(buf: Buffer): Buffer {
+export function sanitizePngBuffer(buf: Buffer): Buffer {
   // IEND type bytes: 0x49 0x45 0x4E 0x44 ('I' 'E' 'N' 'D')
   for (let i = buf.length - 8; i >= 8; i--) {
     if (buf[i] === 0x49 && buf[i + 1] === 0x45 && buf[i + 2] === 0x4e && buf[i + 3] === 0x44) {
