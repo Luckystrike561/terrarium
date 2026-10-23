@@ -122,6 +122,16 @@ describe('office manifest validation', () => {
     expect(issuesFor('DESK_FRONT')).toEqual(['anchor (16, -2) is outside the 48×38 frame']);
   });
 
+  it('rejects an anchor off the footprint top vertex', () => {
+    editManifest((manifest) => {
+      manifest.furniture.find((item) => item.id === 'DESK')!.variants[0].anchor = { x: 16, y: 20 };
+    });
+
+    expect(issuesFor('DESK_FRONT')).toEqual([
+      "anchor is (16, 20), expected (16, 14), the footprint's top vertex",
+    ]);
+  });
+
   it('rejects a seat height the seated character frames were not drawn for', () => {
     editManifest((manifest) => {
       manifest.furniture.find((item) => item.id === 'STOOL')!.seatZ = 10;
