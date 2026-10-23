@@ -31,10 +31,7 @@ export interface FurnitureSpec {
   category: FurnitureCategory;
   canPlaceOnWalls?: boolean;
   canPlaceOnSurfaces?: boolean;
-  /** Seat surface height, for an item a character sits on. */
   seatZ?: number;
-  /** Height that splits the item into a lower part, drawn under its sitter,
-   *  and an upper part (a backrest) that occludes by depth. */
   occlusionSplitZ?: number;
   variants: FurnitureVariant[];
 }
