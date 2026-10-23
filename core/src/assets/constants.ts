@@ -1,7 +1,6 @@
 /**
- * Shared asset constants: used by the server, the webview, the Vite build
- * and the art pipeline (scripts/iso-art), and published in the office
- * manifest.
+ * Asset parsing, geometry and animation constants shared by every reader of
+ * the bundled art.
  */
 
 // ── Iso geometry ────────────────────────────────────────────
