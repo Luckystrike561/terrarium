@@ -24,7 +24,7 @@ The bundled furniture, characters and floors are **generated** to the art direct
 
 `assets/office-manifest.json` is one versioned, machine-readable document that describes every furniture item, character sheet, pet sheet, tile texture and animation the office uses. It is the only geometry source a client needs: footprints, anchors, heights and frame timings are read from it, never from a renderer constant or a filename. The types and field semantics live in `core/src/assets/officeManifest.ts`.
 
-The art pipeline writes it (`scripts/iso-art/manifest.ts`, called by `generate.ts`) from the furniture specs, the shared constants in `core/src/assets/constants.ts` and the sheets on disk. The webview reads the same constants, so the manifest and today's renderer cannot drift apart.
+The art pipeline writes it (`scripts/iso-art/manifest.ts`, called by `generate.ts`) from the furniture specs, the shared constants in `core/src/assets/constants.ts` and the sheets on disk. The webview reads the same constants, so changing a constant moves the manifest and today's renderer together.
 
 | Section         | What it carries                                                                                                                                                                                                                                                                                                        |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
