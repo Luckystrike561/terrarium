@@ -15,6 +15,7 @@ import {
   CHAR_FRAME_H,
   CHAR_FRAME_W,
   CHARACTER_ANIMATIONS,
+  CHARACTER_DIRECTIONS,
   CHARACTER_FRAMES,
   CTO_CHARACTER_FILE,
   FIRST_FLOOR_TILE,
@@ -95,10 +96,10 @@ function characters(assetsDir: string): Characters {
     seatedAnchor: { x: anchor.x, y: anchor.y - CHAIR_SEAT_Z },
     frameNames: [...CHARACTER_FRAMES],
     facings: [
-      { facing: 'down', row: 0, mirrored: false },
-      { facing: 'up', row: 1, mirrored: false },
-      { facing: 'right', row: 2, mirrored: false },
-      { facing: 'left', row: 1, mirrored: true },
+      { facing: 'down', row: CHARACTER_DIRECTIONS.indexOf('down'), mirrored: false },
+      { facing: 'up', row: CHARACTER_DIRECTIONS.indexOf('up'), mirrored: false },
+      { facing: 'right', row: CHARACTER_DIRECTIONS.indexOf('right'), mirrored: false },
+      { facing: 'left', row: CHARACTER_DIRECTIONS.indexOf('up'), mirrored: true },
     ],
     animations: Object.entries(CHARACTER_ANIMATIONS).map(([name, animation]) => ({
       name,
