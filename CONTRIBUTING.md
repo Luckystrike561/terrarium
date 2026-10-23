@@ -218,13 +218,14 @@ The auto-generated test inventory in `e2e/README.md` groups tests by `@area:` ta
    npm run check-types                  # TypeScript strict check across all packages
    npm run asyncapi:validate            # AsyncAPI spec validation
    npm run asyncapi:generate            # Regen core/src/messages.ts (must produce no git diff)
+   npm run assets:validate              # Check every sprite sheet against the office manifest
    npm run assets:generate              # Regen the art and office manifest (must produce no git diff)
    npm run e2e:inventory                # Regen e2e/README.md (must produce no git diff)
    npm run build                        # esbuild (CLI + hooks) + Vite (webview)
    npm test                             # Server vitest + webview vitest + package contract
    npm run e2e                          # Full Playwright suite; inventory lives in e2e/README.md
    ```
-   Only the art drift check also runs in CI (the `Assets` workflow), so these local runs are the gate. The husky `pre-push` hook runs `check-types` and the three drift checks (AsyncAPI bindings, the generated art with its office manifest, and the e2e inventory) for you. Always regenerate and commit the result.
+   Only the asset checks also run in CI (the `Assets` workflow validates the manifest, reruns the art generator and runs the corrupted-sheet tests), so these local runs are the gate. The husky `pre-push` hook runs `check-types` and the three drift checks (AsyncAPI bindings, the generated art with its office manifest, and the e2e inventory) for you. Always regenerate and commit the result.
 4. Open a pull request against `master` with:
    - A **conventional commit PR title** (e.g. `feat: add zoom controls`, `fix: character freezing on terminal close`, `refactor: extract pathfinding module`). See [Conventional Commits](https://www.conventionalcommits.org/).
    - A link to the issue it closes (`Closes #123`)
