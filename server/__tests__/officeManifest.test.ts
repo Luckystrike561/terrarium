@@ -26,7 +26,6 @@ function writePng(file: string, png: PNG): void {
   fs.writeFileSync(path.join(assetsDir, file), PNG.sync.write(png));
 }
 
-/** Copy the top-left `width` × `height` of a sheet over itself. */
 function cropPng(file: string, width: number, height: number): void {
   const src = readPng(file);
   const out = new PNG({ width, height });
