@@ -4,6 +4,14 @@ set -e
 echo "🔍 Type-checking..."
 npm run check-types
 
+# assets:generate deletes and rewrites webview-ui/public/assets, so refuse
+# before it can destroy uncommitted or untracked work there.
+if [ -n "$(git status --porcelain webview-ui/public/assets)" ]; then
+  echo "❌ webview-ui/public/assets has uncommitted changes."
+  echo "   Commit or stash them (git stash push -- webview-ui/public/assets), then push again."
+  exit 1
+fi
+
 # Catch generated-file drift locally instead of only in CI. Regenerate the
 # AsyncAPI bindings, the generated art with its office manifest and the e2e
 # test inventory, then fail if any differs from what's committed (same gate CI
