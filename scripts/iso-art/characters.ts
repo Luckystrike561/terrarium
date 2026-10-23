@@ -48,6 +48,7 @@ import {
   OUTLINE,
   PAPER,
   SEAT_DROP,
+  SEATED_LEG_LIFT,
   SHADOW,
   SIGN_MARK,
   TORSO_BACK_HOLD,
@@ -235,7 +236,7 @@ function drawFrame(
   const { legs, torso, yOffset } = buildParts(worker, facing, pose);
   const headY = drop + bob + yOffset;
   const torsoY = TORSO_Y + drop + bob + yOffset;
-  const legsY = LEGS_Y + drop + yOffset + (seated ? -2 : 0);
+  const legsY = LEGS_Y + drop + yOffset + (seated ? -SEATED_LEG_LIFT : 0);
 
   const reach = REACH[pose] ?? 0;
   img.stamp(legs, pal, 0, legsY);

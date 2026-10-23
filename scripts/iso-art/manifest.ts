@@ -48,9 +48,9 @@ import {
   footprintAnchor,
   OFFICE_MANIFEST_SCHEMA_VERSION,
 } from '../../core/src/assets/officeManifest.js';
+import { SEATED_HIP_Y } from './characters/templates.js';
 import type { FurnitureSpec } from './lib/furniture.js';
 import { furnitureAssetId } from './lib/furniture.js';
-import { CHAIR_SEAT_Z } from './lib/iso.js';
 
 const PROJECTED_TILE = { width: TILE_SIZE * 2, height: TILE_SIZE };
 
@@ -93,7 +93,7 @@ function characters(assetsDir: string): Characters {
   return {
     frameSize: { width: CHAR_FRAME_W, height: CHAR_FRAME_H },
     anchor,
-    seatedAnchor: { x: anchor.x, y: anchor.y - CHAIR_SEAT_Z },
+    seatedAnchor: { x: anchor.x, y: SEATED_HIP_Y },
     frameNames: [...CHARACTER_FRAMES],
     facings: [
       { facing: 'down', row: CHARACTER_DIRECTIONS.indexOf('down'), mirrored: false },

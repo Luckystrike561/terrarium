@@ -19,6 +19,9 @@ export const TORSO_Y = 17;
 export const LEGS_Y = 29;
 /** Seated figures sit this many rows lower than standing ones. */
 export const SEAT_DROP = 7;
+export const SEATED_LEG_LIFT = 2;
+/** Row where the seated legs start: the hips, resting on the seat. */
+export const SEATED_HIP_Y = LEGS_Y + SEAT_DROP - SEATED_LEG_LIFT;
 /** Extra rows prepended to the raise/hold torso templates for the raised
  *  arm or held-up form, tall enough that the hand clears every hairstyle's
  *  top, including the afro and the beanie. */
