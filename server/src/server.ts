@@ -60,6 +60,7 @@ export class TerrariumServer {
     host?: string;
     port?: number;
     staticDir?: string;
+    godotDir?: string;
     assetCache?: AssetCache;
     onSetHooksEnabled?: SetHooksEnabledSideEffect;
   }): Promise<ServerConfig> {
@@ -89,6 +90,7 @@ export class TerrariumServer {
       store: store!,
       runtime: options?.runtime,
       staticDir: options?.staticDir,
+      godotDir: options?.godotDir,
       assetCache: options?.assetCache,
       onHookEvent: (providerId, event) => this.callback?.(providerId, event),
       onSetHooksEnabled: options?.onSetHooksEnabled,
