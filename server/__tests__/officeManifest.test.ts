@@ -10,6 +10,7 @@ import { CHAR_FRAME_H, CHAR_FRAME_W } from '../../core/src/assets/constants.js';
 import type { OfficeManifest } from '../../core/src/assets/officeManifest.js';
 import { OFFICE_MANIFEST_FILE } from '../../core/src/assets/officeManifest.js';
 import { validateOfficeManifest } from '../../core/src/assets/officeManifestValidation.js';
+import { parseCarpetPng } from '../../core/src/assets/pngDecoder.js';
 
 const ROOT = path.join(__dirname, '../..');
 const BUNDLED_ASSETS = path.join(ROOT, 'webview-ui/public/assets');
@@ -105,6 +106,15 @@ describe('office manifest validation', () => {
     clearRect('carpets/carpet_1.png', 16, 16, 16, 16);
 
     expect(issuesFor('carpets/carpet_1.png')).toEqual(['carpet piece 5 is empty']);
+  });
+
+  it('decodes a carpet sheet with bytes after IEND, as the validator reads it', () => {
+    const file = path.join(assetsDir, 'carpets/carpet_1.png');
+    const sheet = fs.readFileSync(file);
+    fs.writeFileSync(file, Buffer.concat([sheet, Buffer.alloc(4)]));
+
+    expect(issuesFor('carpets/carpet_1.png')).toEqual([]);
+    expect(parseCarpetPng(fs.readFileSync(file))).toEqual(parseCarpetPng(sheet));
   });
 
   it('names a furniture frame whose size disagrees with its variant', () => {

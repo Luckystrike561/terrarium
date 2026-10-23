@@ -136,7 +136,7 @@ export function parseWallPng(pngBuffer: Buffer): string[][][] {
  * '#RRGGBBAA' = semi-transparent.
  */
 export function parseCarpetPng(pngBuffer: Buffer): string[][][] {
-  const png = PNG.sync.read(pngBuffer);
+  const png = PNG.sync.read(sanitizePngBuffer(pngBuffer));
   const sprites: string[][][] = [];
   for (let msCase = 0; msCase < CARPET_MARCHING_SQUARES_COUNT; msCase++) {
     const ox = (msCase % CARPET_GRID_COLS) * CARPET_TILE_SIZE;
