@@ -55,7 +55,7 @@ export const CHARACTER_FRAMES = [
 export type CharacterFrame = (typeof CHARACTER_FRAMES)[number];
 export const CHAR_FRAMES_PER_ROW = CHARACTER_FRAMES.length;
 
-export interface CharacterAnimation {
+export interface CharacterAnimationSpec {
   /** Sheet frames in play order. A frame may repeat (the walk cycle passes
    *  through walk2 twice). */
   readonly frames: readonly CharacterFrame[];
@@ -84,7 +84,7 @@ export const CHARACTER_ANIMATIONS = {
     frameDurationSec: 0.6,
     seated: true,
   },
-} as const satisfies Record<string, CharacterAnimation>;
+} as const satisfies Record<string, CharacterAnimationSpec>;
 export type CharacterAnimationName = keyof typeof CHARACTER_ANIMATIONS;
 
 /** Bundled agent sheets, char_0.png to char_11.png. */
