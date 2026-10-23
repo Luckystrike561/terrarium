@@ -237,7 +237,9 @@ function buildCoffee(): PixelImage {
   ];
   steamPoints.forEach(([gx, gy, z], i) => {
     const [sx, sy] = project(img.height, gx, gy, z);
-    if (!img.get(sx, sy)) img.set(sx, sy, [220, 224, 230, i === 0 ? 120 : 90 - i * 10]);
+    if (img.get(sx, sy)) return;
+    img.set(sx, sy, [220, 224, 230, i === 0 ? 120 : 90 - i * 10]);
+    img.topZ = Math.max(img.topZ, Math.round(z));
   });
   return img;
 }
