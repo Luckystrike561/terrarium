@@ -24,12 +24,12 @@ function writeWithCompressed(dir: string, file: string, content: Buffer | string
   fs.writeFileSync(path.join(dir, `${file}.gz`), zlib.gzipSync(body));
 }
 
-async function start(withGodot: boolean): Promise<HttpServerHandle> {
+async function start(exportDir: string): Promise<HttpServerHandle> {
   handle = await createHttpServer({
     token: 'test-token',
     store: new AgentStateStore(),
     staticDir,
-    godotDir: withGodot ? godotDir : path.join(tmpDir, 'never-exported'),
+    godotDir: exportDir,
   });
   return handle;
 }
@@ -53,7 +53,7 @@ afterEach(async () => {
 
 describe('Godot web export route', () => {
   it('serves the precompressed wasm the client accepts, as application/wasm', async () => {
-    const { app } = await start(true);
+    const { app } = await start(godotDir);
 
     const brotli = await app.inject({
       url: '/godot/index.wasm',
@@ -80,7 +80,7 @@ describe('Godot web export route', () => {
   });
 
   it('serves the export index at the directory URL and redirects the bare prefix to it', async () => {
-    const { app } = await start(true);
+    const { app } = await start(godotDir);
 
     const index = await app.inject({ url: '/godot/', headers: { 'accept-encoding': 'identity' } });
     expect(index.statusCode).toBe(200);
@@ -92,7 +92,7 @@ describe('Godot web export route', () => {
   });
 
   it('answers a missing export file with 404 instead of the current client', async () => {
-    const { app } = await start(true);
+    const { app } = await start(godotDir);
 
     const missing = await app.inject({ url: '/godot/missing.js' });
     expect(missing.statusCode).toBe(404);
@@ -100,14 +100,14 @@ describe('Godot web export route', () => {
   });
 
   it('leaves the root route and the history fallback on the current client', async () => {
-    const { app } = await start(true);
+    const { app } = await start(godotDir);
 
     expect((await app.inject({ url: '/' })).body).toBe(SPA_INDEX);
     expect((await app.inject({ url: '/some/client/route' })).body).toBe(SPA_INDEX);
   });
 
   it('falls back to the current client under the prefix when no export was built', async () => {
-    const { app } = await start(false);
+    const { app } = await start(path.join(tmpDir, 'never-exported'));
 
     const response = await app.inject({ url: '/godot/' });
     expect(response.statusCode).toBe(200);
