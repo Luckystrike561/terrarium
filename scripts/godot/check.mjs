@@ -26,7 +26,7 @@ const LOAD_TIMEOUT_MS = 30_000;
 /** How long the page runs after its first frame before its console is judged. */
 const SETTLE_MS = 2000;
 const SERVER_START_TIMEOUT_MS = 15_000;
-/** godot/scripts/iso_grid.gd LINE_COLOR, as 8-bit RGB. */
+/** IsoGrid.LINE_COLOR as 8-bit RGB. */
 const GRID_LINE_RGB = [84, 93, 113];
 const GRID_LINE_TOLERANCE = 24;
 const MIN_GRID_PIXELS = 1000;
