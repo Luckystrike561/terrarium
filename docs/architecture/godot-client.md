@@ -8,6 +8,7 @@ The Godot client is the office renderer that replaces the Pixi one at cutover. U
 godot/                       Godot 4 project (open this directory in the editor)
   project.godot              Rendering settings (below)
   export_presets.cfg         The one "Web" preset: single-threaded, no GDExtension, no PWA
+  icon.png, icon.png.import  The tab icon (a copy of the repo's icon.png) and its import settings, uid included
   scenes/office.tscn         Main scene: Office (root) → IsoGrid, Camera
   scripts/office.gd          Centres the camera on the grid, marks the first frame
   scripts/iso_grid.gd        Draws the 20 × 20 placeholder grid
