@@ -104,11 +104,10 @@ export async function createHttpServer(options: HttpServerOptions): Promise<Http
  * instead of the SPA's index.html fallback.
  */
 async function registerGodotRoute(app: FastifyInstance, godotDir: string): Promise<void> {
-  const scopePrefix = GODOT_ROUTE_PREFIX.replace(/\/$/, '');
   // The export's index.html loads its files by relative URL, so it only works from the directory URL.
-  app.get(scopePrefix, (req, reply) => {
-    const query = req.url.slice(scopePrefix.length);
-    return reply.redirect(`${GODOT_ROUTE_PREFIX}${query}`, 301);
+  app.get(GODOT_ROUTE_PREFIX, (req, reply) => {
+    const query = req.url.slice(GODOT_ROUTE_PREFIX.length);
+    return reply.redirect(`${GODOT_ROUTE_PREFIX}/${query}`, 301);
   });
   await app.register(
     async (scope) => {
@@ -122,7 +121,7 @@ async function registerGodotRoute(app: FastifyInstance, godotDir: string): Promi
         reply.code(404).send({ error: 'Not found' });
       });
     },
-    { prefix: scopePrefix },
+    { prefix: GODOT_ROUTE_PREFIX },
   );
 }
 

@@ -41,7 +41,7 @@ export const MAX_HOOK_BODY_SIZE = 65_536; // 64KB
 
 // ── Godot web client ───────────────────────────────────────
 /** Route the Godot client's web export is served under, beside the current client at `/`. */
-export const GODOT_ROUTE_PREFIX = '/godot/';
+export const GODOT_ROUTE_PREFIX = '/godot';
 /** Directory under dist/ that `npm run godot:export` writes the export to. */
 export const GODOT_EXPORT_DIR = 'godot';
 
