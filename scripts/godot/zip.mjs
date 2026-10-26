@@ -10,6 +10,7 @@ const EOCD_SIZE = 22;
 const ZIP64_LOCATOR_SIZE = 20;
 const MAX_COMMENT = 0xffff;
 const LOCAL_HEADER_SIZE = 30;
+const CENTRAL_HEADER_SIZE = 46;
 const U32_MAX = 0xffffffff;
 const METHOD_STORED = 0;
 const METHOD_DEFLATE = 8;
@@ -85,8 +86,9 @@ export async function listEntries(source) {
     const nameLength = directory.readUInt16LE(at + 28);
     const extraLength = directory.readUInt16LE(at + 30);
     const commentLength = directory.readUInt16LE(at + 32);
+    const nameStart = at + CENTRAL_HEADER_SIZE;
     const entry = {
-      name: directory.toString('utf8', at + 46, at + 46 + nameLength),
+      name: directory.toString('utf8', nameStart, nameStart + nameLength),
       method: directory.readUInt16LE(at + 10),
       size: directory.readUInt32LE(at + 24),
       compressedSize: directory.readUInt32LE(at + 20),
@@ -94,10 +96,10 @@ export async function listEntries(source) {
     };
     applyZip64Extra(
       entry,
-      directory.subarray(at + 46 + nameLength, at + 46 + nameLength + extraLength),
+      directory.subarray(nameStart + nameLength, nameStart + nameLength + extraLength),
     );
     entries.push(entry);
-    at += 46 + nameLength + extraLength + commentLength;
+    at = nameStart + nameLength + extraLength + commentLength;
   }
   return entries;
 }
