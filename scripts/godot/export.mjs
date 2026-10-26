@@ -2,9 +2,9 @@
 /**
  * `npm run godot:export`: builds the Godot client's single-threaded web export
  * into dist/godot/ with the pinned Godot release, then writes .br and .gz
- * siblings for the server to serve and records every file's SHA-256 in
- * godot/web-export.sha256, so a diff there means this run did not reproduce
- * the committed artifact.
+ * siblings for the server to serve and records the SHA-256 of every file
+ * Godot wrote in godot/web-export.sha256, so a diff there means this run did
+ * not reproduce the committed artifact.
  */
 import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -33,6 +33,8 @@ const TEMPLATES_DIR = path.join(
 );
 const EXPORT_PRESET = 'Web';
 const PRECOMPRESSED_EXTENSIONS = new Set(['.html', '.js', '.wasm', '.pck']);
+/** Their bytes depend on the zlib and Brotli Node was built with, which the checksums must not pin. */
+const COMPRESSED_SIBLING_EXTENSIONS = new Set(['.br', '.gz']);
 
 function log(message) {
   console.log(`[godot:export] ${message}`);
@@ -145,6 +147,7 @@ function precompress() {
 function writeChecksums() {
   const lines = fs
     .readdirSync(EXPORT_DIR)
+    .filter((file) => !COMPRESSED_SIBLING_EXTENSIONS.has(path.extname(file)))
     .sort()
     .map((file) => `${hash('sha256', fs.readFileSync(path.join(EXPORT_DIR, file)))}  ${file}`);
   fs.writeFileSync(CHECKSUM_FILE, `${lines.join('\n')}\n`);

@@ -150,7 +150,7 @@ site/                                GitHub Pages website source (index.html tem
 godot/                               Godot 4 client (empty iso grid until cutover), web export served at /godot/
   project.godot, export_presets.cfg  Pixel-art rendering settings, the single-threaded Web preset
   scenes/, scripts/                  office.tscn, office.gd, iso_grid.gd
-  web-export.sha256                  Committed checksums of the export, which must reproduce byte for byte
+  web-export.sha256                  Committed checksums of the files Godot exports (siblings excluded), which must reproduce byte for byte
 
 e2e/                                 Playwright, Chromium only
   playwright.config.ts, global-setup.ts, run-config.ts

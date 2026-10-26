@@ -12,7 +12,7 @@ godot/                       Godot 4 project (open this directory in the editor)
   scenes/office.tscn         Main scene: Office (root) → IsoGrid, Camera
   scripts/office.gd          Centres the camera on the grid, marks the first frame
   scripts/iso_grid.gd        Draws the 20 × 20 placeholder grid
-  web-export.sha256          SHA-256 of every file the export writes, committed
+  web-export.sha256          SHA-256 of every file Godot exports (not the .br/.gz siblings), committed
 scripts/godot/
   pin.mjs                    The pinned Godot release and the hashes of what is downloaded
   export.mjs                 npm run godot:export
@@ -49,9 +49,9 @@ From a clean checkout this is the only step. It:
 3. Keeps both under `.cache/godot/<version>/`, with a `_sc_` marker so Godot runs self-contained and never touches `~/.local/share/godot`.
 4. Copies `godot/` without `.godot/` to a temporary directory, imports it and exports the `Web` preset into `dist/godot/`.
 5. Writes a Brotli (quality 11) and a gzip (level 9) sibling for every `.html`, `.js`, `.wasm` and `.pck`.
-6. Rewrites `godot/web-export.sha256`.
+6. Rewrites `godot/web-export.sha256` from the files step 4 exported, siblings excluded.
 
-The export is deterministic on the pinned Linux x86_64 and arm64 editors: the same commit exports byte-identical files, as long as Node uses the zlib it bundles (the official builds, and the `.nvmrc` version CI runs, do). A distro Node linked against the system zlib writes different `.gz` siblings. The `Godot` workflow runs the same command and fails when `godot/web-export.sha256` changes, so a commit that changes the export must commit the new checksums too. Bumping Godot means changing `VERSION` and every hash in `pin.mjs`.
+The export is deterministic on the pinned Linux x86_64 and arm64 editors: from the same commit, Godot exports byte-identical files. `godot/web-export.sha256` records only those, not the `.br` and `.gz` siblings, because their bytes depend on the zlib and Brotli Node was built with. A Node linked against the system zlib, the devbox one included, writes different `.gz` siblings. The `Godot` workflow runs the same command and fails when `godot/web-export.sha256` changes, so a commit that changes the export must commit the new checksums too. Bumping Godot means changing `VERSION` and every hash in `pin.mjs`.
 
 The export is not part of `npm run build`, the npm package or the Docker image yet.
 
