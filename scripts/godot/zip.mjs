@@ -8,6 +8,7 @@ const LOCAL_SIGNATURE = 0x04034b50;
 const ZIP64_EXTRA_ID = 0x0001;
 const EOCD_SIZE = 22;
 const ZIP64_LOCATOR_SIZE = 20;
+const ZIP64_EOCD_SIZE = 56;
 const MAX_COMMENT = 0xffff;
 const LOCAL_HEADER_SIZE = 30;
 const CENTRAL_HEADER_SIZE = 46;
@@ -70,7 +71,7 @@ export async function listEntries(source) {
   const locator = eocd - ZIP64_LOCATOR_SIZE;
   if (locator >= 0 && tail.readUInt32LE(locator) === ZIP64_LOCATOR_SIGNATURE) {
     const zip64Offset = Number(tail.readBigUInt64LE(locator + 8));
-    const zip64 = await source.read(zip64Offset, 56);
+    const zip64 = await source.read(zip64Offset, ZIP64_EOCD_SIZE);
     if (zip64.readUInt32LE(0) !== ZIP64_EOCD_SIGNATURE) throw new Error('corrupt ZIP64 directory');
     count = Number(zip64.readBigUInt64LE(32));
     directorySize = Number(zip64.readBigUInt64LE(40));
