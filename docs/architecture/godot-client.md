@@ -56,7 +56,7 @@ The export is not part of `npm run build`, the npm package or the Docker image y
 
 ## Serving
 
-`createHttpServer` serves `dist/godot/` under `/godot/` when that directory exists (`GODOT_ROUTE_PREFIX`, `GODOT_EXPORT_DIR` in `server/src/constants.ts`). `@fastify/static` with `preCompressed` picks the `.br` or `.gz` sibling by `Accept-Encoding` and keeps the original's `Content-Type` (`application/wasm` for the wasm, which streaming compilation requires). A missing file is a 404, not the current client's `index.html`, and `/godot` redirects to `/godot/` because the export loads its files by relative URL. The build is single-threaded, so it needs no cross-origin isolation headers. Every other route is unchanged.
+`createHttpServer` serves `dist/godot/` under `/godot/` when that directory exists at startup (`GODOT_ROUTE_PREFIX`, `GODOT_EXPORT_DIR` in `server/src/constants.ts`). It checks once, so a first export needs a server restart, while a re-export over an existing `dist/godot/` is served at once because every file is read per request. `@fastify/static` with `preCompressed` picks the `.br` or `.gz` sibling by `Accept-Encoding` and keeps the original's `Content-Type` (`application/wasm` for the wasm, which streaming compilation requires). A missing file is a 404, not the current client's `index.html`, and `/godot` redirects to `/godot/` because the export loads its files by relative URL. The build is single-threaded, so it needs no cross-origin isolation headers. Every other route is unchanged.
 
 ## Budget
 
