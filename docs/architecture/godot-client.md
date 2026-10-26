@@ -51,7 +51,7 @@ From a clean checkout this is the only step. It:
 5. Writes a Brotli (quality 11) and a gzip (level 9) sibling for every `.html`, `.js`, `.wasm` and `.pck`.
 6. Rewrites `godot/web-export.sha256`.
 
-The export is deterministic: the same commit exports byte-identical files on any machine. The `Godot` workflow runs the same command and fails when `godot/web-export.sha256` changes, so a commit that changes the export must commit the new checksums too. Bumping Godot means changing `VERSION` and every hash in `pin.mjs`.
+The export is deterministic on the pinned Linux x86_64 and arm64 editors: the same commit exports byte-identical files, as long as Node uses the zlib it bundles (the official builds, and the `.nvmrc` version CI runs, do). A distro Node linked against the system zlib writes different `.gz` siblings. The `Godot` workflow runs the same command and fails when `godot/web-export.sha256` changes, so a commit that changes the export must commit the new checksums too. Bumping Godot means changing `VERSION` and every hash in `pin.mjs`.
 
 The export is not part of `npm run build`, the npm package or the Docker image yet.
 
