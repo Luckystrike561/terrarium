@@ -194,13 +194,14 @@ if (!fs.existsSync(CLI) || !fs.existsSync(path.join(EXPORT_DIR, 'index.html'))) 
 }
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-godot-check-'));
-const port = await freePort();
-const server = await startServer(port, home);
+let server;
 let failures;
 try {
+  const port = await freePort();
+  server = await startServer(port, home);
   failures = evaluate(await measure(`http://127.0.0.1:${port}${ROUTE}`));
 } finally {
-  server.kill();
+  server?.kill();
   fs.rmSync(home, { recursive: true, force: true });
 }
 if (failures.length > 0) {
