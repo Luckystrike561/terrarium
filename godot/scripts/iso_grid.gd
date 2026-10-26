@@ -1,3 +1,4 @@
+class_name IsoGrid
 extends Node2D
 
 # The office manifest's projection: a tile is a 32 x 16 diamond (2:1 dimetric).
