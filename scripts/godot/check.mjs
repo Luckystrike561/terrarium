@@ -113,15 +113,17 @@ async function measure(url) {
     page.on('response', (response) => responses.push(response));
 
     await page.goto(url);
-    await page.waitForFunction(
-      (mark) => performance.getEntriesByName(mark).length > 0,
-      FIRST_FRAME_MARK,
-      { timeout: LOAD_TIMEOUT_MS },
-    );
-    const firstFrameMs = await page.evaluate(
-      (mark) => performance.getEntriesByName(mark)[0].startTime,
-      FIRST_FRAME_MARK,
-    );
+    const firstFrameMs = await page
+      .waitForFunction(
+        (mark) => performance.getEntriesByName(mark)[0]?.startTime,
+        FIRST_FRAME_MARK,
+        { timeout: LOAD_TIMEOUT_MS },
+      )
+      .then((handle) => handle.jsonValue())
+      .catch((error) => {
+        if (error.name !== 'TimeoutError') throw error;
+        return Number.POSITIVE_INFINITY;
+      });
     await page.waitForTimeout(SETTLE_MS);
     // Capturing a WebGL canvas reads its pixels back, which Chromium reports
     // as a "GPU stall due to ReadPixels" driver warning. That comes from this
