@@ -39,6 +39,8 @@ const MIN_GRID_PIXELS = 1000;
  * explicitly, so Chromium does not warn about an automatic software fallback.
  */
 const CHROMIUM_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+/** Twice the Godot project's 640 × 360 frame, so integer scaling fills it with no letterbox. */
+const BROWSER_VIEWPORT = { width: 1280, height: 720 };
 /** The LAN the first-frame budget is stated for: 100 Mbit/s Ethernet, 2 ms round trip. */
 const LAN_BYTES_PER_SECOND = (100 * 1000 * 1000) / 8;
 const LAN_LATENCY_MS = 2;
@@ -93,7 +95,7 @@ function countGridPixels(screenshot) {
 async function measure(url) {
   const browser = await chromium.launch({ args: CHROMIUM_ARGS });
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+    const page = await browser.newPage({ viewport: BROWSER_VIEWPORT });
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
     await cdp.send('Network.emulateNetworkConditions', {
