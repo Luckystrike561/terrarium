@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * `npm run godot:check`: loads the built Godot export through the real server
- * in Chromium and fails unless it stays inside the budget documented in
- * docs/architecture/godot-client.md: no console error or warning, the grid
- * drawn, every response compressed, and the payload and first frame under
- * their limits. Needs `npm run build` and `npm run godot:export` first.
+ * in Chromium and fails unless it stays inside its budget: no console error
+ * or warning, the grid drawn, every response compressed, and the payload and
+ * first frame under their limits. Needs `npm run build` and
+ * `npm run godot:export` first.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
