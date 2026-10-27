@@ -45,10 +45,26 @@ class PlacedFurniture:
 	var color: Dictionary
 
 
-## Null, with the reason logged, for anything but a version 1 layout.
+## Null, with the reason logged, for anything but a well-formed version 1 layout.
 static func parse(document: Dictionary, manifest: OfficeManifest) -> OfficeLayout:
 	if int(document.get("version", 0)) != LAYOUT_VERSION:
 		push_error("[Godot] layout version %s, this client reads %d" % [document.get("version"), LAYOUT_VERSION])
+		return null
+	var cols: Variant = document.get("cols")
+	var rows: Variant = document.get("rows")
+	if not (cols is float and rows is float):
+		push_error("[Godot] layout cols %s and rows %s, both must be numbers" % [cols, rows])
+		return null
+	var tiles: Variant = document.get("tiles")
+	if not tiles is Array:
+		push_error("[Godot] layout tiles %s, must be an array" % [tiles])
+		return null
+	var furniture: Variant = document.get("furniture")
+	if not furniture is Array:
+		push_error("[Godot] layout furniture %s, must be an array" % [furniture])
+		return null
+	if tiles.size() != int(cols) * int(rows):
+		push_error("[Godot] layout has %d tiles for %d × %d" % [tiles.size(), cols, rows])
 		return null
 	var layout := OfficeLayout.new()
 	layout._read(document, manifest)
