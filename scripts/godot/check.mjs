@@ -336,6 +336,35 @@ function edgeView(layout, zoom, direction) {
   return { zoom, offsetX, offsetY };
 }
 
+/**
+ * The view the current client's clampPan gives `view` dragged by (dx, dy)
+ * browser px. `view`'s pan must be whole, as it is at an office edge.
+ */
+function draggedView(layout, view, dx, dy) {
+  const { grid, view: rect } = viewGeometry(layout);
+  const base = mapOffset(GODOT_FRAME.width, GODOT_FRAME.height, grid, view.zoom, 0, 0);
+  const pan = clampPan(
+    {
+      x: view.offsetX - base.offsetX + dx / STRETCH,
+      y: view.offsetY - base.offsetY + dy / STRETCH,
+    },
+    grid,
+    rect,
+    view.zoom,
+    GODOT_FRAME.width,
+    GODOT_FRAME.height,
+  );
+  const { offsetX, offsetY } = mapOffset(
+    GODOT_FRAME.width,
+    GODOT_FRAME.height,
+    grid,
+    view.zoom,
+    pan.x,
+    pan.y,
+  );
+  return { zoom: view.zoom, offsetX, offsetY };
+}
+
 /** Drags the office as far as it goes in each diagonal and compares every edge view. */
 async function checkEdges(page, reference, layout, zoom, label) {
   const failures = [];
@@ -419,18 +448,22 @@ async function checkZoomSteps(page, reference, layout) {
         failures.push(
           ...(await checkEdges(page, reference, layout, view.zoom, `zoom ${view.zoom}`)),
         );
+        const cornered = await readView(page);
+        const expected = draggedView(layout, cornered, ODD_DRAG_PX, ODD_DRAG_PX);
+        const name = `zoom ${view.zoom} after a ${ODD_DRAG_PX} px drag`;
         await drag(page, ODD_DRAG_PX, ODD_DRAG_PX);
-        const dragged = await readView(page);
-        failures.push(...clampFailures(dragged, layout, `zoom ${view.zoom} odd drag`));
-        failures.push(
-          ...(await compareFrame(
+        try {
+          const dragged = await settledView(
             page,
-            reference,
-            dragged,
-            `zoom ${view.zoom} after a ${ODD_DRAG_PX} px drag`,
-          )),
-        );
-        view = dragged;
+            (v) => sameView(v, expected),
+            `${name}, expected ${JSON.stringify(expected)}`,
+          );
+          failures.push(...(await compareFrame(page, reference, dragged, name)));
+          view = dragged;
+        } catch (error) {
+          failures.push(error.message);
+          view = await readView(page);
+        }
       }
     }
     const limit = direction < 0 ? GODOT_ZOOM_MAX : GODOT_ZOOM_MIN;
