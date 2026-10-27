@@ -13,8 +13,8 @@ const GLASS_SHEEN_COLOR := Color8(0xff, 0xff, 0xff, 0x8c)
 
 const CAP_SHADE := 1.18
 const RIM_SHADE := 1.34
-## Rim light band at the top face's front edges, in world px.
-const RIM_WIDTH := 1.0
+## Rim light band at the top face's front edges.
+const RIM_WIDTH_PX := 1.0
 const LEFT_FACE_SHADE := 0.95
 const RIGHT_FACE_SHADE := 0.78
 ## Plaster texture: quiet value noise, at most one light band either way.
@@ -22,15 +22,14 @@ const PLASTER_NOISE_AMOUNT := 0.05
 const BASEBOARD_SHADE := 0.55
 const BASEBOARD_PX := 3.0
 const GLASS_FRAME_LEFT_SHADE := 1.25
-## Glass pane half thickness and frame sizes, in world px.
-const PANE_HALF := 1.0
-const FRAME_BASE := 3.0
-const FRAME_TOP := 2.0
-const MULLION := 1.0
+const PANE_HALF_THICKNESS_PX := 1.0
+const FRAME_BASE_PX := 3.0
+const FRAME_TOP_PX := 2.0
+const MULLION_PX := 1.0
 ## The diagonal sheen stripe across a pane: its period, slant and width.
-const SHEEN_PERIOD := 14.0
+const SHEEN_PERIOD_PX := 14.0
 const SHEEN_SLANT := 0.6
-const SHEEN_WIDTH := 2.0
+const SHEEN_WIDTH_PX := 2.0
 
 enum Face { TOP, LEFT, RIGHT }
 
@@ -88,7 +87,7 @@ func _solid(base: Color) -> Image:
 	var right_base := _shade(base, BASEBOARD_SHADE * RIGHT_FACE_SHADE)
 	var paint := func(face: Face, along: float, z: float) -> Color:
 		if face == Face.TOP:
-			return rim if along < RIM_WIDTH else cap
+			return rim if along < RIM_WIDTH_PX else cap
 		if z < BASEBOARD_PX:
 			return right_base if face == Face.RIGHT else left_base
 		var plaster := (_hash3(along, z, 2 if face == Face.RIGHT else 1) - 0.5) * 2 * PLASTER_NOISE_AMOUNT
@@ -97,8 +96,8 @@ func _solid(base: Color) -> Image:
 
 
 func _glass(along_cols: bool, along_rows: bool) -> Image:
-	var low := _tile / 2 - PANE_HALF
-	var high := _tile / 2 + PANE_HALF
+	var low := _tile / 2 - PANE_HALF_THICKNESS_PX
+	var high := _tile / 2 + PANE_HALF_THICKNESS_PX
 	var boxes: Array[Box] = []
 	if along_cols or not along_rows:
 		boxes.append(Box.new([0, low, 0], [_tile, high, _glass_height], _glass_paint(_tile)))
@@ -114,12 +113,12 @@ func _glass_paint(length: float) -> Callable:
 		if face == Face.TOP:
 			return frame_left
 		var frame := frame_left if face == Face.LEFT else GLASS_FRAME_COLOR
-		if z < FRAME_BASE or z > glass_height - FRAME_TOP:
+		if z < FRAME_BASE_PX or z > glass_height - FRAME_TOP_PX:
 			return frame
-		if along < MULLION or along > length - MULLION:
+		if along < MULLION_PX or along > length - MULLION_PX:
 			return frame
-		var stripe := fmod(along + z * SHEEN_SLANT, SHEEN_PERIOD)
-		return GLASS_SHEEN_COLOR if stripe < SHEEN_WIDTH else GLASS_PANE_COLOR
+		var stripe := fmod(along + z * SHEEN_SLANT, SHEEN_PERIOD_PX)
+		return GLASS_SHEEN_COLOR if stripe < SHEEN_WIDTH_PX else GLASS_PANE_COLOR
 
 
 ## Traces each pixel along the view ray (1, 1, 1) against tile-local boxes
