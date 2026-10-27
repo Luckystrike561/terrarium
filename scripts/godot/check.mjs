@@ -57,6 +57,9 @@ const CHROMIUM_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
 /** The Godot project's fixed frame and its clear colour (project.godot). */
 const GODOT_FRAME = { width: 640, height: 360 };
 const CLEAR_COLOR = [20, 22, 28, 255];
+/** office_camera.gd's ZOOM_MIN and ZOOM_MAX. */
+const GODOT_ZOOM_MIN = 1;
+const GODOT_ZOOM_MAX = 4;
 /** Twice the Godot frame, so integer scaling fills it with no letterbox. */
 const STRETCH = 2;
 const BROWSER_VIEWPORT = {
@@ -401,7 +404,8 @@ async function checkZoomSteps(page, reference, layout) {
       await page.mouse.wheel(0, direction * 100);
       try {
         view = await settledView(page, (v) => v.zoom !== before.zoom, 'wheel');
-      } catch {
+      } catch (error) {
+        if (!error.message.startsWith('wheel:')) throw error;
         view = before;
         break;
       }
@@ -429,8 +433,13 @@ async function checkZoomSteps(page, reference, layout) {
         view = dragged;
       }
     }
+    const limit = direction < 0 ? GODOT_ZOOM_MAX : GODOT_ZOOM_MIN;
+    if (view.zoom !== limit) {
+      failures.push(
+        `wheeling ${direction < 0 ? 'in' : 'out'} stopped at zoom ${view.zoom}, not ${limit}`,
+      );
+    }
   }
-  if (view.zoom !== 1) failures.push(`wheeling out stopped at zoom ${view.zoom}, not 1`);
   return failures;
 }
 
