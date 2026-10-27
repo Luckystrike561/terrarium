@@ -134,17 +134,22 @@ func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], offset:
 		if not atlas_index.has(image):
 			atlas_index[image] = atlas_index.size()
 	var size := _projection.iso_tile_size
-	var atlas := Image.create_empty(maxi(1, atlas_index.size()) * size.x, size.y, false, Image.FORMAT_RGBA8)
+	var count := maxi(1, atlas_index.size())
+	var columns := ceili(sqrt(count))
+	var atlas := Image.create_empty(columns * size.x, ceili(float(count) / columns) * size.y, false, Image.FORMAT_RGBA8)
+	var atlas_coords: Dictionary[Image, Vector2i] = {}
 	for image in atlas_index:
-		atlas.blit_rect(image, Rect2i(Vector2i.ZERO, size), Vector2i(atlas_index[image] * size.x, 0))
+		var index := atlas_index[image]
+		atlas_coords[image] = Vector2i(index % columns, index / columns)
+		atlas.blit_rect(image, Rect2i(Vector2i.ZERO, size), atlas_coords[image] * size)
 	var source := TileSetAtlasSource.new()
 	source.texture = ImageTexture.create_from_image(atlas)
 	source.texture_region_size = size
 	# Padding reads the atlas back from the GPU (a ReadPixels stall in the browser), and
 	# nearest sampling at whole zooms never samples a neighbouring tile anyway.
 	source.use_texture_padding = false
-	for index in atlas_index.size():
-		source.create_tile(Vector2i(index, 0))
+	for coords in atlas_coords.values():
+		source.create_tile(coords)
 	var tile_set := TileSet.new()
 	tile_set.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
 	tile_set.tile_layout = TileSet.TILE_LAYOUT_DIAMOND_DOWN
@@ -154,7 +159,7 @@ func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], offset:
 	layer.name = layer_name
 	layer.tile_set = tile_set
 	for cell in cells:
-		layer.set_cell(cell, source_id, Vector2i(atlas_index[cells[cell]], 0))
+		layer.set_cell(cell, source_id, atlas_coords[cells[cell]])
 	# Godot centres a tile's texture on map_to_local, which sits half a tile
 	# right of and below the diamond's top-left here.
 	var top_left := _projection.tile_corner(0, 0) - Vector2(size.x / 2.0, 0) + offset
