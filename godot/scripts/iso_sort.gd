@@ -36,8 +36,7 @@ static func draw_order(boxes: Array[SortBox]) -> PackedInt32Array:
 		for j in range(i + 1, count):
 			var a := boxes[i]
 			var b := boxes[j]
-			# Screen x ranges that do not overlap never occlude each other.
-			if a.start.x - a.end.y >= b.end.x - b.start.y or b.start.x - b.end.y >= a.end.x - a.start.y:
+			if not _screen_columns_overlap(a, b):
 				continue
 			var comparison := _compare(a, b)
 			if comparison < 0:
@@ -84,6 +83,10 @@ static func _shallowest_remaining(boxes: Array[SortBox], done: Array[bool]) -> i
 		if not done[i] and (pick == -1 or boxes[i].depth() < boxes[pick].depth()):
 			pick = i
 	return pick
+
+
+static func _screen_columns_overlap(a: SortBox, b: SortBox) -> bool:
+	return a.start.x - a.end.y < b.end.x - b.start.y and b.start.x - b.end.y < a.end.x - a.start.y
 
 
 static func _compare(a: SortBox, b: SortBox) -> int:
