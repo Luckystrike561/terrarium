@@ -82,6 +82,9 @@ export function everyFurnitureLayout(manifest) {
           frontCol += width + 1;
         } else if (item.placement === 'wall') {
           if (rightRow + depth > ROWS) {
+            if (rightWallCol === GLASS_WALL_COL) {
+              throw new Error('the wall items no longer fit the check layout: enlarge ROWS');
+            }
             rightWallCol = GLASS_WALL_COL;
             rightRow = 1;
           }
