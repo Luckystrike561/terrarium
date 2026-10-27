@@ -6,7 +6,7 @@
  * their limits) and draws the same office as the current client: every frame
  * it shows, at the fitted view, at each zoom step and panned to the office
  * edges, must equal the current client's office rasterised by
- * officeReference.ts, every office pixel a whole block of screen pixels.
+ * loadReferenceOffice, every office pixel a whole block of screen pixels.
  * Needs `npm run build` and `npm run godot:export` first.
  */
 import { spawn } from 'node:child_process';
@@ -39,7 +39,7 @@ const MANIFEST = path.join(DIST_ROOT, 'assets', 'office-manifest.json');
 const FRAMES_DIR = path.join(REPO_ROOT, 'test-results', 'godot-check');
 const ROUTE = '/godot/';
 const FIRST_FRAME_MARK = 'terrarium:first-frame';
-/** office.gd's VIEW_HOOK: the zoom and the pixel the office's iso origin sits on. */
+/** The Godot office's VIEW_HOOK: the zoom and the pixel the office's iso origin sits on. */
 const VIEW_HOOK = '__terrariumGodot';
 const MAX_PAYLOAD_BYTES = 25 * 1000 * 1000;
 const MAX_FIRST_FRAME_MS = 4000;
@@ -56,10 +56,10 @@ const SERVER_START_TIMEOUT_MS = 15_000;
  * automatic software fallback.
  */
 const CHROMIUM_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-/** The Godot project's fixed frame and its clear colour (project.godot). */
+/** The Godot project's fixed frame and its clear colour. */
 const GODOT_FRAME = { width: 640, height: 360 };
 const CLEAR_COLOR = [20, 22, 28, 255];
-/** office_camera.gd's ZOOM_MIN and ZOOM_MAX. */
+/** The Godot camera's ZOOM_MIN and ZOOM_MAX. */
 const GODOT_ZOOM_MIN = 1;
 const GODOT_ZOOM_MAX = 4;
 /** Twice the Godot frame, so integer scaling fills it with no letterbox. */
