@@ -228,7 +228,7 @@ func _add_in_draw_order(entities: Array[Entity]) -> void:
 	var node := Node2D.new()
 	node.name = "Entities"
 	for index in IsoSort.draw_order(boxes):
-		node.add_child(entities[index].sprite, true)
+		node.add_child(entities[index].sprite)
 	add_child(node)
 
 
