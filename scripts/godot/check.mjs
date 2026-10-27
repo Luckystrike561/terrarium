@@ -255,6 +255,11 @@ async function drag(page, dx, dy) {
  */
 async function compareFrame(page, reference, view, label) {
   const shot = PNG.sync.read(await page.locator('canvas').screenshot());
+  if (shot.width !== BROWSER_VIEWPORT.width || shot.height !== BROWSER_VIEWPORT.height) {
+    return [
+      `${label}: the canvas is ${shot.width} × ${shot.height}, not ${BROWSER_VIEWPORT.width} × ${BROWSER_VIEWPORT.height}`,
+    ];
+  }
   const expected = reference.render({ ...view, ...GODOT_FRAME, background: CLEAR_COLOR });
   let blurred = 0;
   let mismatched = 0;
