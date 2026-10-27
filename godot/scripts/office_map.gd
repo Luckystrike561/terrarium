@@ -105,7 +105,7 @@ func _add_floor(layout: OfficeLayout, tiles: TileGrid, images: Dictionary[String
 			if not diamonds.has(key):
 				diamonds[key] = _floor_diamond(tile, color, images)
 			cells[Vector2i(col, row)] = diamonds[key]
-	add_child(_tile_layer("Floor", cells, Vector2.ZERO))
+	add_child(_tile_layer("Floor", cells, _projection.tile_sprite_origin(0, 0)))
 
 
 func _floor_diamond(tile: int, color: Dictionary, images: Dictionary[String, Image]) -> Image:
@@ -129,18 +129,15 @@ func _add_carpets(layout: OfficeLayout, images: Dictionary[String, Image]) -> vo
 		while stacks.size() <= junction.stack:
 			stacks.append({})
 		stacks[junction.stack][Vector2i(junction.col, junction.row)] = junction.image
-	# A carpet piece is centred on its tile corner, half a tile above a floor tile's diamond.
-	var corner_offset := Vector2(0, -_projection.iso_tile_size.y / 2.0)
 	for stack in stacks.size():
 		var cells: Dictionary[Vector2i, Image] = {}
 		cells.assign(stacks[stack])
-		add_child(_tile_layer("Carpet%d" % stack, cells, corner_offset))
+		add_child(_tile_layer("Carpet%d" % stack, cells, _projection.carpet_piece_origin(0, 0)))
 
 
-## A tile layer drawing each cell's diamond with its top-left on the tile's
-## top vertex minus half a tile, plus `offset`, as the current client places
-## floor tiles.
-func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], offset: Vector2) -> TileMapLayer:
+## A tile layer drawing cell (0, 0)'s diamond with its top-left on `origin`
+## and every other cell's on the same grid.
+func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], origin: Vector2) -> TileMapLayer:
 	var atlas_index: Dictionary[Image, int] = {}
 	for image in cells.values():
 		if not atlas_index.has(image):
@@ -174,8 +171,7 @@ func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], offset:
 		layer.set_cell(cell, source_id, atlas_coords[cells[cell]])
 	# Godot centres a tile's texture on map_to_local, which sits half a tile
 	# right of and below the diamond's top-left here.
-	var top_left := _projection.tile_corner(0, 0) - Vector2(size.x / 2.0, 0) + offset
-	layer.position = top_left - (layer.map_to_local(Vector2i.ZERO) - Vector2(size) / 2)
+	layer.position = origin - (layer.map_to_local(Vector2i.ZERO) - Vector2(size) / 2)
 	return layer
 
 
@@ -188,10 +184,9 @@ func _wall_entities(layout: OfficeLayout, tiles: TileGrid) -> Array[Entity]:
 				continue
 			var color: Variant = layout.tile_color(col, row)
 			var base := Colorize.flat_color(color) if color is Dictionary else WallSprites.DEFAULT_WALL_COLOR
-			var top := _projection.tile_corner(col, row)
-			var offset := Vector2(_projection.iso_tile_size.x / 2.0, walls.height(tiles, col, row))
+			var origin := _projection.tile_sprite_origin(col, row, walls.height(tiles, col, row))
 			entities.append(Entity.new(
-				_sprite("Wall%d_%d" % [col, row], walls.sprite(tiles, col, row, base), top - offset),
+				_sprite("Wall%d_%d" % [col, row], walls.sprite(tiles, col, row, base), origin),
 				IsoSort.SortBox.new(Vector2(col, row), Vector2(col + 1, row + 1), IsoSort.Layer.FLOOR)))
 	return entities
 

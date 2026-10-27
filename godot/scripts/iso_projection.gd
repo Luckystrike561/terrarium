@@ -19,6 +19,16 @@ func tile_corner(col: float, row: float) -> Vector2:
 	return Vector2((col - row) * tile_size, (col + row) * tile_size / 2.0)
 
 
+## Top-left of a floor tile's diamond, or of a wall sprite `height` px tall.
+func tile_sprite_origin(col: float, row: float, height := 0.0) -> Vector2:
+	return tile_corner(col, row) - Vector2(iso_tile_size.x / 2.0, height)
+
+
+## Top-left of a carpet piece: a tile diamond centred on the junction (tile corner) col, row.
+func carpet_piece_origin(col: float, row: float) -> Vector2:
+	return tile_corner(col, row) - Vector2(iso_tile_size) / 2.0
+
+
 ## Square top-down texture → the iso diamond of a tile, nearest sampled,
 ## twice as wide as the texture is tall.
 static func project_to_diamond(square: Image) -> Image:
