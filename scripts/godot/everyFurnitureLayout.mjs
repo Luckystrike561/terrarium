@@ -15,7 +15,7 @@ const GLASS_WALL_COL = COLS - 1;
 const FIRST_FLOOR_COL = 2;
 const FIRST_FLOOR_ROW = 2;
 const LAST_FLOOR_COL = GLASS_WALL_COL - 1;
-const FLOOR_TEXTURE_COUNT = 9;
+const ROWS_PER_FLOOR_TEXTURE = 3;
 /** Every this many floor items, one is recoloured, alternating the two colour modes. */
 const RECOLOR_EVERY = 7;
 const ADJUSTED = { h: 120, s: 20, b: 10, c: 5 };
@@ -35,13 +35,19 @@ function inRange(value, [from, to]) {
 }
 
 export function everyFurnitureLayout(manifest) {
+  const floorTiles = manifest.tiles.floor.textures.map((texture) => texture.tile);
+  if (floorTiles.length > Math.ceil(ROWS / ROWS_PER_FLOOR_TEXTURE)) {
+    throw new Error('every floor texture no longer fits the check layout: enlarge ROWS');
+  }
   const tiles = [];
   const tileColors = [];
   const carpetTiles = [];
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
       const wall = row === 0 || col === 0 || col === GLASS_WALL_COL;
-      tiles.push(wall ? WALL : 1 + (Math.floor(row / 3) % FLOOR_TEXTURE_COUNT));
+      tiles.push(
+        wall ? WALL : floorTiles[Math.floor(row / ROWS_PER_FLOOR_TEXTURE) % floorTiles.length],
+      );
       tileColors.push(
         wall ? (col === 0 ? WALL_TINT : null) : FLOOR_TINTS[Math.floor(col / 11) % 2],
       );
