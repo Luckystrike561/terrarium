@@ -34,8 +34,7 @@ export function tileCorner(col: number, row: number): Point {
   return worldToIso(col * TILE_SIZE, row * TILE_SIZE);
 }
 
-/** Top-left of a floor tile's diamond or of a wall sprite `height` px tall:
- *  half a tile left of the tile's top corner, raised by the height. */
+/** Top-left of a floor tile's diamond, or of a wall sprite `height` px tall. */
 export function tileSpriteOrigin(col: number, row: number, height = 0): Point {
   const origin = tileCorner(col, row);
   origin.x -= ISO_TILE_W / 2;
