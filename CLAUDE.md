@@ -149,7 +149,9 @@ site/                                GitHub Pages website source (index.html tem
 
 godot/                               Godot 4 client (static office until cutover), web export served at /godot/
   project.godot, export_presets.cfg  Pixel-art rendering settings, the single-threaded Web preset
-  scenes/, scripts/                  office.tscn: loads the layout over /ws and the manifest and sheets from /assets/, builds the map, camera (godot-client.md)
+  scenes/, scripts/                  office.tscn + office.gd (load, first frame), office_feed.gd (/ws layout), office_assets.gd, server_origin.gd,
+                                     office_manifest.gd, office_layout.gd, tile_grid.gd, office_map.gd, office_camera.gd, and the current
+                                     client's ports colorize, wall_sprites, carpet_sprites, iso_sort, iso_projection
   web-export.sha256                  Committed checksums of the files Godot exports (siblings excluded), which must reproduce byte for byte
 
 e2e/                                 Playwright, Chromium only
