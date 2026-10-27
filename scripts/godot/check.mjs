@@ -35,6 +35,8 @@ const DIST_ROOT = path.join(REPO_ROOT, 'dist');
 const CLI = path.join(DIST_ROOT, 'cli.js');
 const EXPORT_DIR = path.join(DIST_ROOT, 'godot');
 const MANIFEST = path.join(DIST_ROOT, 'assets', 'office-manifest.json');
+/** Where a frame that differs from the current client's is saved, one directory per view. */
+const FRAMES_DIR = path.join(REPO_ROOT, 'test-results', 'godot-check');
 const ROUTE = '/godot/';
 const FIRST_FRAME_MARK = 'terrarium:first-frame';
 /** office.gd's VIEW_HOOK: the zoom and the pixel the office's iso origin sits on. */
@@ -291,7 +293,8 @@ async function compareFrame(page, reference, view, label) {
     `[godot:check] ${label}: zoom ${view.zoom}, origin (${view.offsetX}, ${view.offsetY}), ${mismatched} pixels off the current client, ${blurred} blurred`,
   );
   if (mismatched === 0 && blurred === 0) return [];
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'terrarium-godot-diff-'));
+  const dir = path.join(FRAMES_DIR, label.replaceAll(/[^\w-]+/g, '-'));
+  fs.mkdirSync(dir, { recursive: true });
   const want = new PNG(GODOT_FRAME);
   want.data.set(expected.data);
   fs.writeFileSync(path.join(dir, 'godot.png'), PNG.sync.write(actual));
@@ -542,6 +545,7 @@ if (!fs.existsSync(CLI) || !fs.existsSync(path.join(EXPORT_DIR, 'index.html'))) 
   process.exit(1);
 }
 
+fs.rmSync(FRAMES_DIR, { recursive: true, force: true });
 const browser = await chromium.launch({ args: CHROMIUM_ARGS });
 let failures;
 try {
