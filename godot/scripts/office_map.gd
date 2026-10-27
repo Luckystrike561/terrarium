@@ -104,9 +104,7 @@ func _floor_diamond(tile: int, color: Dictionary, images: Dictionary[String, Ima
 		square = Image.create_empty(_projection.tile_size, _projection.tile_size, false, Image.FORMAT_RGBA8)
 		square.fill(ERROR_TILE_COLOR)
 	else:
-		var floor_color := color.duplicate()
-		floor_color.colorize = true
-		square = Colorize.colorize(square, floor_color)
+		square = Colorize.colorize(square, color)
 	return IsoProjection.project_to_diamond(square)
 
 
