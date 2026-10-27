@@ -3,8 +3,9 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["iso-art/**/*.ts", "validate-assets.ts"],
+  "include": ["iso-art/**/*.ts", "godot/**/*.ts", "validate-assets.ts"],
   "exclude": []
 }

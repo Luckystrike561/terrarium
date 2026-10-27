@@ -1,12 +1,22 @@
 [gd_scene format=3 uid="uid://cqm3517py5ktt"]
 
 [ext_resource type="Script" uid="uid://mbqac242lhxc" path="res://scripts/office.gd" id="1_office"]
-[ext_resource type="Script" uid="uid://befyfs8vy4okc" path="res://scripts/iso_grid.gd" id="2_grid"]
+[ext_resource type="Script" uid="uid://cscpwdk2msydq" path="res://scripts/office_map.gd" id="2_map"]
+[ext_resource type="Script" uid="uid://t8vcgvuef242" path="res://scripts/office_camera.gd" id="3_camera"]
+[ext_resource type="Script" uid="uid://b8o2cbh1ilq5q" path="res://scripts/office_feed.gd" id="4_feed"]
+[ext_resource type="Script" uid="uid://2yovh2pin41w" path="res://scripts/office_assets.gd" id="5_assets"]
 
 [node name="Office" type="Node2D" unique_id=755769330]
 script = ExtResource("1_office")
 
-[node name="IsoGrid" type="Node2D" parent="." unique_id=1019104283]
-script = ExtResource("2_grid")
+[node name="OfficeMap" type="Node2D" parent="." unique_id=1019104283]
+script = ExtResource("2_map")
 
-[node name="Camera" type="Camera2D" parent="." unique_id=683589484]
+[node name="Camera" type="Node" parent="." unique_id=683589484]
+script = ExtResource("3_camera")
+
+[node name="Feed" type="Node" parent="." unique_id=1450276913]
+script = ExtResource("4_feed")
+
+[node name="Assets" type="Node" parent="." unique_id=902734615]
+script = ExtResource("5_assets")

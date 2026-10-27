@@ -68,7 +68,7 @@
     "vercel:prepare": "npm run test:report && node scripts/assemble-vercel-output.mjs",
     "site:build": "tsx scripts/build-site.ts",
     "godot:export": "node scripts/godot/export.mjs",
-    "godot:check": "node scripts/godot/check.mjs",
+    "godot:check": "tsx scripts/godot/check.mjs",
     "knip": "knip"
   },
   "devDependencies": {
