@@ -2,9 +2,10 @@
  * The current client's static office, rasterised in Node as the reference the
  * Godot client must match: the same asset cache the server sends, the
  * webview's own layout migration, colouring, wall tracer, carpet autotiling,
- * tile and furniture placement and iso draw order. Only the final compositing (the
- * part WebGL does in the browser) is reimplemented: nearest-neighbour scaling
- * and source-over blending at whole-pixel offsets.
+ * tile and furniture placement and iso draw order. The floor, wall and
+ * furniture loops follow the scene's own, and the final compositing (the part
+ * WebGL does in the browser) is reimplemented: nearest-neighbour scaling and
+ * source-over blending at whole-pixel offsets.
  */
 import { buildAssetCache } from '../../server/src/assetReload.js';
 import {
@@ -147,6 +148,8 @@ function drawables(layout: OfficeLayout): Drawable[] {
     }
   }
   for (const f of layoutToFurnitureInstances(layout.furniture)) {
+    if (f.mirrored)
+      throw new Error(`mirrored furniture ${f.uid} is not ported to the Godot client`);
     entities.push({ box: f.sort, item: { kind: 'sprite', x: f.x, y: f.y, sprite: f.sprite } });
   }
   for (const i of isoDrawOrder(entities.map((e) => e.box))) items.push(entities[i].item);
