@@ -166,6 +166,7 @@ func _add_walls_and_furniture(layout: OfficeLayout, tiles: TileGrid, images: Dic
 	var sprites: Array[Sprite2D] = []
 	var boxes: Array[IsoSort.SortBox] = []
 	var walls := WallSprites.new(_manifest)
+	var recoloured: Dictionary[String, Image] = {}
 	for row in tiles.rows:
 		for col in tiles.cols:
 			if not tiles.is_wall(col, row):
@@ -185,7 +186,11 @@ func _add_walls_and_furniture(layout: OfficeLayout, tiles: TileGrid, images: Dic
 		if image == null:
 			continue
 		if not item.color.is_empty():
-			image = Colorize.apply(image, item.color)
+			var color := item.color
+			var key := "%s:%s:%s:%s:%s:%s" % [item.type, color.h, color.s, color.b, color.c, color.get("colorize", false)]
+			if not recoloured.has(key):
+				recoloured[key] = Colorize.apply(image, color)
+			image = recoloured[key]
 		var origin := _projection.tile_corner(item.col, item.row) - Vector2(frame.anchor)
 		sprites.append(_sprite(item.type, image, origin))
 		var start := Vector2(item.col, item.row)
