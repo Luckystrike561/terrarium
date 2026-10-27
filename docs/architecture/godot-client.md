@@ -66,6 +66,8 @@ Nothing about the office is authored twice. The client reads what the server alr
 
 The sky backdrop the current client draws behind the office is not ported: the clear colour shows where it would, including through the glass partitions.
 
+Nor is the building's slab. Once a connection to another host adds a floor, the current client draws every floor, the first included, on a `BUILDING_SLAB_PX` (12) slab, while `OfficeMap` always draws a lone office's `FLOOR_SLAB_PX` (5). `godot:check` runs with no connection, so it never compares that case.
+
 ## Building the export
 
 ```bash
