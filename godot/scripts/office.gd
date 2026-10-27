@@ -22,7 +22,7 @@ func _ready() -> void:
 	if manifest == null:
 		return
 	if _layout_document == null:
-		await _feed.layout_loaded
+		_layout_document = await _feed.layout_loaded
 	var layout := OfficeLayout.parse(_layout_document, manifest)
 	if layout == null:
 		return
