@@ -22,6 +22,16 @@ var _projection: IsoProjection
 var _textures: Dictionary[Image, ImageTexture] = {}
 
 
+## A wall or furniture sprite and the box the iso sort orders it by.
+class Entity:
+	var sprite: Sprite2D
+	var box: IsoSort.SortBox
+
+	func _init(entity_sprite: Sprite2D, entity_box: IsoSort.SortBox) -> void:
+		sprite = entity_sprite
+		box = entity_box
+
+
 ## Every sheet the layout draws, for OfficeAssets to fetch.
 static func required_files(layout: OfficeLayout, manifest: OfficeManifest) -> PackedStringArray:
 	var files := {}
@@ -46,7 +56,9 @@ func build(layout: OfficeLayout, manifest: OfficeManifest, images: Dictionary[St
 	_add_slab(tiles)
 	_add_floor(layout, tiles, images)
 	_add_carpets(layout, images)
-	_add_walls_and_furniture(layout, tiles, images)
+	var entities := _wall_entities(layout, tiles)
+	entities.append_array(_furniture_entities(layout, images))
+	_add_in_draw_order(entities)
 
 
 ## Screen box of a tile rectangle: its diamond, raised by a back wall's height.
@@ -167,11 +179,9 @@ func _tile_layer(layer_name: String, cells: Dictionary[Vector2i, Image], offset:
 	return layer
 
 
-func _add_walls_and_furniture(layout: OfficeLayout, tiles: TileGrid, images: Dictionary[String, Image]) -> void:
-	var sprites: Array[Sprite2D] = []
-	var boxes: Array[IsoSort.SortBox] = []
+func _wall_entities(layout: OfficeLayout, tiles: TileGrid) -> Array[Entity]:
+	var entities: Array[Entity] = []
 	var walls := WallSprites.new(_manifest)
-	var recoloured: Dictionary[String, Image] = {}
 	for row in tiles.rows:
 		for col in tiles.cols:
 			if not tiles.is_wall(col, row):
@@ -180,8 +190,15 @@ func _add_walls_and_furniture(layout: OfficeLayout, tiles: TileGrid, images: Dic
 			var base := Colorize.flat_color(color) if color is Dictionary else WallSprites.DEFAULT_WALL_COLOR
 			var top := _projection.tile_corner(col, row)
 			var offset := Vector2(_projection.iso_tile_size.x / 2.0, walls.height(tiles, col, row))
-			sprites.append(_sprite("Wall%d_%d" % [col, row], walls.sprite(tiles, col, row, base), top - offset))
-			boxes.append(IsoSort.SortBox.new(Vector2(col, row), Vector2(col + 1, row + 1), IsoSort.Layer.FLOOR))
+			entities.append(Entity.new(
+				_sprite("Wall%d_%d" % [col, row], walls.sprite(tiles, col, row, base), top - offset),
+				IsoSort.SortBox.new(Vector2(col, row), Vector2(col + 1, row + 1), IsoSort.Layer.FLOOR)))
+	return entities
+
+
+func _furniture_entities(layout: OfficeLayout, images: Dictionary[String, Image]) -> Array[Entity]:
+	var entities: Array[Entity] = []
+	var recoloured: Dictionary[String, Image] = {}
 	for item in layout.furniture:
 		var frame: OfficeManifest.FurnitureFrame = _manifest.furniture.get(item.type)
 		if frame == null:
@@ -197,14 +214,22 @@ func _add_walls_and_furniture(layout: OfficeLayout, tiles: TileGrid, images: Dic
 				recoloured[key] = Colorize.apply(image, color)
 			image = recoloured[key]
 		var origin := _projection.tile_corner(item.col, item.row) - Vector2(frame.anchor)
-		sprites.append(_sprite(item.type, image, origin))
 		var start := Vector2(item.col, item.row)
-		boxes.append(IsoSort.SortBox.new(start, start + Vector2(frame.footprint), _furniture_layer(frame)))
-	var entities := Node2D.new()
-	entities.name = "Entities"
+		entities.append(Entity.new(
+			_sprite(item.type, image, origin),
+			IsoSort.SortBox.new(start, start + Vector2(frame.footprint), _furniture_layer(frame))))
+	return entities
+
+
+func _add_in_draw_order(entities: Array[Entity]) -> void:
+	var boxes: Array[IsoSort.SortBox] = []
+	for entity in entities:
+		boxes.append(entity.box)
+	var node := Node2D.new()
+	node.name = "Entities"
 	for index in IsoSort.draw_order(boxes):
-		entities.add_child(sprites[index], true)
-	add_child(entities)
+		node.add_child(entities[index].sprite, true)
+	add_child(node)
 
 
 ## Surface and wall items draw over what they stand on. A chair whose sitter
