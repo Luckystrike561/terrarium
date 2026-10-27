@@ -57,7 +57,7 @@ export function getCarpetColorKey(color: ColorValue): string {
 }
 
 /** Composite key for the (main, accent) color pair used to invalidate the cache. */
-export function getCarpetPaletteKey(color: ColorValue, accentColor: ColorValue): string {
+function getCarpetPaletteKey(color: ColorValue, accentColor: ColorValue): string {
   return `${getCarpetColorKey(color)}#${getCarpetColorKey(accentColor)}`;
 }
 
@@ -142,9 +142,9 @@ function getCarpetJunctionSprite(
   carpetTiles: Array<CarpetTile | null>,
   cols: number,
   rows: number,
-  color: ColorValue = CARPET_DEFAULT_COLOR,
-  accentColor: ColorValue = CARPET_DEFAULT_ACCENT_COLOR,
-  paletteKey: string = getCarpetPaletteKey(color, accentColor),
+  color: ColorValue,
+  accentColor: ColorValue,
+  paletteKey: string,
 ): SpriteData | null {
   if (variant < 0 || variant >= carpetSets.length) return null;
 
