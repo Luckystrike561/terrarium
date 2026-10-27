@@ -4,7 +4,7 @@ import { Graphics, Sprite } from 'pixi.js';
 import { FLOOR_SLAB_LEFT_COLOR, FLOOR_SLAB_RIGHT_COLOR } from '../../constants.js';
 import { floorSlabFaces } from '../floorSlab.js';
 import { getColorizedFloorSprite } from '../floorTiles.js';
-import { ISO_TILE_H, ISO_TILE_W, projectToDiamond, tileCorner } from '../iso.js';
+import { carpetPieceOrigin, projectToDiamond, tileSpriteOrigin } from '../iso.js';
 import { carpetJunctionSprites, hasCarpetSprites } from '../sprites/carpetTiles.js';
 import { getTexture } from '../sprites/textureCache.js';
 import { TileType } from '../types.js';
@@ -38,8 +38,8 @@ export function rebuildFloor(container: Container, state: FloorRenderState): voi
       const color = state.tileColors?.[r * layoutCols + c] ?? { h: 0, s: 0, b: 0, c: 0 };
       const sprite = new Sprite(getTexture(projectToDiamond(getColorizedFloorSprite(tile, color))));
       sprite.roundPixels = true;
-      const top = tileCorner(c, r);
-      sprite.position.set(top.x - ISO_TILE_W / 2, top.y);
+      const origin = tileSpriteOrigin(c, r);
+      sprite.position.set(origin.x, origin.y);
       container.addChild(sprite);
     }
   }
@@ -59,8 +59,8 @@ export function rebuildCarpet(
   for (const { jx, jy, sprite: spriteData } of carpetJunctionSprites(carpetTiles, cols, rows)) {
     const sprite = new Sprite(getTexture(projectToDiamond(spriteData)));
     sprite.roundPixels = true;
-    const center = tileCorner(jx, jy);
-    sprite.position.set(center.x - ISO_TILE_W / 2, center.y - ISO_TILE_H / 2);
+    const origin = carpetPieceOrigin(jx, jy);
+    sprite.position.set(origin.x, origin.y);
     container.addChild(sprite);
   }
 }

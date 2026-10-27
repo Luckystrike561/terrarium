@@ -2,7 +2,7 @@
  * The current client's static office, rasterised in Node as the reference the
  * Godot client must match: the same asset cache the server sends, the
  * webview's own layout migration, colouring, wall tracer, carpet autotiling,
- * furniture placement and iso draw order. Only the final compositing (the
+ * tile and furniture placement and iso draw order. Only the final compositing (the
  * part WebGL does in the browser) is reimplemented: nearest-neighbour scaling
  * and source-over blending at whole-pixel offsets.
  */
@@ -19,15 +19,14 @@ import {
   setFloorSprites,
   WALL_COLOR,
 } from '../../webview-ui/src/office/floorTiles.js';
-import { isoDrawOrder, SortLayer } from '../../webview-ui/src/office/engine/isoSort.js';
+import { isoDrawOrder } from '../../webview-ui/src/office/engine/isoSort.js';
 import type { SortBox } from '../../webview-ui/src/office/engine/isoSort.js';
 import {
-  ISO_TILE_H,
-  ISO_TILE_W,
+  carpetPieceOrigin,
   projectToDiamond,
-  tileCorner,
+  tileSpriteOrigin,
 } from '../../webview-ui/src/office/iso.js';
-import { getWallSprite } from '../../webview-ui/src/office/isoWalls.js';
+import { getWallSprite, wallSortBox } from '../../webview-ui/src/office/isoWalls.js';
 import { buildDynamicCatalog } from '../../webview-ui/src/office/layout/furnitureCatalog.js';
 import {
   layoutToFurnitureInstances,
@@ -111,9 +110,8 @@ function drawables(layout: OfficeLayout): Drawable[] {
       const tile = tileMap[r][c];
       if (tile === TileType.VOID || tile === TileType.WALL) continue;
       const color = layout.tileColors?.[r * layout.cols + c] ?? { h: 0, s: 0, b: 0, c: 0 };
-      const top = tileCorner(c, r);
       const sprite = projectToDiamond(getColorizedFloorSprite(tile, color));
-      items.push({ kind: 'sprite', x: top.x - ISO_TILE_W / 2, y: top.y, sprite });
+      items.push({ kind: 'sprite', ...tileSpriteOrigin(c, r), sprite });
     }
   }
 
@@ -123,11 +121,9 @@ function drawables(layout: OfficeLayout): Drawable[] {
       layout.cols,
       layout.rows,
     )) {
-      const center = tileCorner(jx, jy);
       items.push({
         kind: 'sprite',
-        x: center.x - ISO_TILE_W / 2,
-        y: center.y - ISO_TILE_H / 2,
+        ...carpetPieceOrigin(jx, jy),
         sprite: projectToDiamond(sprite),
       });
     }
@@ -144,10 +140,9 @@ function drawables(layout: OfficeLayout): Drawable[] {
         r,
         color ? wallColorToHex(color) : WALL_COLOR,
       );
-      const top = tileCorner(c, r);
       entities.push({
-        box: { minCol: c, minRow: r, maxCol: c + 1, maxRow: r + 1, layer: SortLayer.FLOOR },
-        item: { kind: 'sprite', x: top.x - ISO_TILE_W / 2, y: top.y - height, sprite },
+        box: wallSortBox(c, r),
+        item: { kind: 'sprite', ...tileSpriteOrigin(c, r, height), sprite },
       });
     }
   }

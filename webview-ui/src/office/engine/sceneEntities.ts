@@ -6,8 +6,8 @@ import {
   SELECTED_OUTLINE_ALPHA,
 } from '../../constants.js';
 import { WALL_COLOR } from '../floorTiles.js';
-import { ISO_TILE_W, tileCorner, worldToIso } from '../iso.js';
-import { getWallSprite } from '../isoWalls.js';
+import { tileSpriteOrigin, worldToIso } from '../iso.js';
+import { getWallSprite, wallSortBox } from '../isoWalls.js';
 import { getPetSprites } from '../sprites/petSpriteData.js';
 import { getCharacterSprites, getCtoSprites } from '../sprites/spriteData.js';
 import { getOutlineSprite, getTexture } from '../sprites/textureCache.js';
@@ -86,14 +86,11 @@ export function updateEntities(
       );
       const sprite = getOrCreateSprite(pools.wall, key, container);
       sprite.texture = getTexture(wallSprite);
-      const top = tileCorner(c, r);
-      sprite.position.set(top.x - ISO_TILE_W / 2, top.y - height);
+      const origin = tileSpriteOrigin(c, r, height);
+      sprite.position.set(origin.x, origin.y);
       sprite.scale.set(1, 1);
       sprite.visible = true;
-      drawables.push({
-        box: { minCol: c, minRow: r, maxCol: c + 1, maxRow: r + 1, layer: SortLayer.FLOOR },
-        nodes: [sprite],
-      });
+      drawables.push({ box: wallSortBox(c, r), nodes: [sprite] });
     }
   }
 
