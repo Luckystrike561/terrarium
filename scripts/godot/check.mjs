@@ -301,20 +301,36 @@ async function compareFrame(page, reference, view, label) {
   ];
 }
 
-/** Fails unless `view` is a whole zoom whose origin the current client's clampPan leaves where it is. */
-function clampFailures(view, layout, label) {
+/**
+ * The view one wheel notch from `view` to `zoom` gives with the cursor on
+ * `anchor` (browser px): the office point under the cursor stays put, then
+ * the current client's clampPan and mapOffset place the map.
+ */
+function zoomedView(layout, view, anchor, zoom) {
   const { grid, view: rect } = viewGeometry(layout);
-  const base = mapOffset(GODOT_FRAME.width, GODOT_FRAME.height, grid, view.zoom, 0, 0);
-  const pan = { x: view.offsetX - base.offsetX, y: view.offsetY - base.offsetY };
-  const clamped = clampPan(pan, grid, rect, view.zoom, GODOT_FRAME.width, GODOT_FRAME.height);
-  const failures = [];
-  if (!Number.isInteger(view.zoom)) failures.push(`${label}: zoom ${view.zoom} is not whole`);
-  if (Math.abs(clamped.x - pan.x) > 0.5 || Math.abs(clamped.y - pan.y) > 0.5) {
-    failures.push(
-      `${label}: pan (${pan.x}, ${pan.y}) is past the office edge, clamped (${clamped.x}, ${clamped.y})`,
-    );
-  }
-  return failures;
+  const cursor = { x: anchor.x / STRETCH, y: anchor.y / STRETCH };
+  const point = {
+    x: (cursor.x - view.offsetX) / view.zoom,
+    y: (cursor.y - view.offsetY) / view.zoom,
+  };
+  const base = mapOffset(GODOT_FRAME.width, GODOT_FRAME.height, grid, zoom, 0, 0);
+  const pan = clampPan(
+    { x: cursor.x - point.x * zoom - base.offsetX, y: cursor.y - point.y * zoom - base.offsetY },
+    grid,
+    rect,
+    zoom,
+    GODOT_FRAME.width,
+    GODOT_FRAME.height,
+  );
+  const { offsetX, offsetY } = mapOffset(
+    GODOT_FRAME.width,
+    GODOT_FRAME.height,
+    grid,
+    zoom,
+    pan.x,
+    pan.y,
+  );
+  return { zoom, offsetX, offsetY };
 }
 
 /** The view the current client's clampPan gives a drag far past the office edge in `direction`. */
@@ -421,16 +437,20 @@ async function checkFit(page, reference, layout, label) {
   }
 }
 
-/** Wheels in one notch at a time to the deepest zoom and back out, comparing every step. */
+/**
+ * Wheels in one notch at a time to the deepest zoom and back out, comparing
+ * every step. The cursor sits off the frame centre, where zooming around it
+ * and zooming around the centre give different views.
+ */
 async function checkZoomSteps(page, reference, layout) {
   const failures = [];
-  const center = { x: BROWSER_VIEWPORT.width / 2, y: BROWSER_VIEWPORT.height / 2 };
-  await page.mouse.move(center.x, center.y);
+  const anchor = { x: BROWSER_VIEWPORT.width / 4, y: BROWSER_VIEWPORT.height / 4 };
   let view = await readView(page);
   if (view === null) return ['wheel: Godot never published its view'];
   for (const direction of [-1, 1]) {
     for (;;) {
       const before = view;
+      await page.mouse.move(anchor.x, anchor.y);
       await page.mouse.wheel(0, direction * 100);
       try {
         view = await settledView(page, (v) => v.zoom !== before.zoom, 'wheel');
@@ -440,10 +460,12 @@ async function checkZoomSteps(page, reference, layout) {
         break;
       }
       const label = `wheel ${direction < 0 ? 'in' : 'out'} to zoom ${view.zoom}`;
-      if (view.zoom !== before.zoom - direction) {
-        failures.push(`${label}: one notch moved the zoom from ${before.zoom} to ${view.zoom}`);
+      const zoomed = zoomedView(layout, before, anchor, before.zoom - direction);
+      if (!sameView(view, zoomed)) {
+        failures.push(
+          `${label}: one notch from ${JSON.stringify(before)} gave ${JSON.stringify(view)}, expected ${JSON.stringify(zoomed)}`,
+        );
       }
-      failures.push(...clampFailures(view, layout, label));
       failures.push(...(await compareFrame(page, reference, view, label)));
       if (direction < 0 && view.zoom > before.zoom) {
         failures.push(
