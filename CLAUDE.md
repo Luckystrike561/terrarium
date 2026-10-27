@@ -22,6 +22,7 @@ Code, paths and commands use the Terrarium name too: the npm package and CLI `te
 | Hooks consent, the hook installer, the Claude status line, the `/ws` privilege gate            | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
 | Context gauge                                                                                  | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
 | Pixi iso renderer, UI styling, characters, CTO queue, seats, layout                            | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
+| Godot client: project, pinned web export, `/godot/` route, size and load-time budget           | [docs/architecture/godot-client.md](docs/architecture/godot-client.md)                                                                    |
 | Assets, generated art, catalog, office manifest, load order                                    | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
 | Test tiers, mocks, inventory, drift checks                                                     | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
 | Consent revision rule (ADR)                                                                    | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
@@ -53,7 +54,7 @@ server/                              Runtime + Fastify HTTP/WS server + CLI
     cli.ts                           `terrarium` entry (npm bin)
     server.ts                        Top-level composition (TerrariumServer)
     serverConfig.ts                  server.json record shape
-    httpServer.ts                    POST /api/hooks/:providerId, GET /api/health, GET /ws, SPA
+    httpServer.ts                    POST /api/hooks/:providerId, GET /api/health, GET /ws, /godot/ (Godot export, when built), SPA
     clientMessageHandler.ts          Single dispatch point for ClientMessage
     agentRuntime.ts                  Lifecycle core: starts modules, creates/removes agents, restores persisted agents through their module, routes hooks
     agentEventHandler.ts             Applies every module's AgentEvent to CLI-neutral agent state and broadcasts what the office shows
@@ -146,6 +147,11 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
 
 site/                                GitHub Pages website source (index.html template + style.css), built by scripts/build-site.ts
 
+godot/                               Godot 4 client (empty iso grid until cutover), web export served at /godot/
+  project.godot, export_presets.cfg  Pixel-art rendering settings, the single-threaded Web preset
+  scenes/, scripts/                  office.tscn, office.gd, iso_grid.gd
+  web-export.sha256                  Committed checksums of the files Godot exports (siblings excluded), which must reproduce byte for byte
+
 e2e/                                 Playwright, Chromium only
   playwright.config.ts, global-setup.ts, run-config.ts
   fixtures/                          standalone.ts, mock-claude(.cmd), mock-claude-runner.cjs, fake-ssh.cjs
@@ -170,6 +176,7 @@ scripts/
   iso-art/                           Generators for furniture, characters, floors, the default layout and the office manifest
   validate-assets.ts                 Validates the office manifest against every sprite sheet
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
+  godot/                             pin.mjs (pinned Godot + hashes), export.mjs (godot:export), check.mjs (godot:check), zip.mjs
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
 Dockerfile                           Standalone server image (herdr + omp)
@@ -179,6 +186,7 @@ Dockerfile                           Standalone server image (herdr + omp)
 
 - **npm package** (`terrarium`). `terrarium [--port 3100]` runs the Fastify server and serves the SPA on the same port. Nothing from this fork is published to npm, and the `terrarium` name on npm belongs to an unrelated package, so never document `npx terrarium`. Run Terrarium from source (`node dist/cli.js`) or Docker. The `package.json` `files` allowlist is `CHANGELOG.md`, `LICENSE`, `dist/cli.js`, `dist/hooks/claude-hook.js`, `dist/assets/`, `dist/webview/` and `icon.png`. `scripts/npm-package-contract.mjs` pins it.
 - **Docker image** (`Dockerfile`): multi-stage, `npm ci` + `npm run package`, then a runtime stage with only the server workspace's production dependencies plus `dist/`, running as `node` (UID 1000, `HOME=/home/node`) with `--provider herdr,omp --host 0.0.0.0 --port 8790`. herdr and omp by default, never Claude, because Claude hooks installed from a container would point at container paths. [docs/guide.md](docs/guide.md#docker) is the source of truth for the mounts.
+- **Godot export** (`dist/godot/`, `npm run godot:export`) is in neither yet: the server serves it at `/godot/` only when it was built beside `dist/cli.js`.
 
 ## Communication flow
 
@@ -268,13 +276,15 @@ npm run assets:generate    # regenerate the art and assets/office-manifest.json
 npm run assets:validate    # check every sprite sheet against the office manifest
 npm run verify:npm-package # pack, install and smoke-test the tarball
 npm run site:build         # build the website from site/ into dist/site/
+npm run godot:export       # pinned Godot → dist/godot/ (+ .br/.gz), rewrites godot/web-export.sha256
+npm run godot:check        # needs build + godot:export: browser check of /godot/ against its budget
 ```
 
 `esbuild.js` bundles the CLI (`dist/cli.js`, Fastify externals) and the hook script (`dist/hooks/claude-hook.js`, CJS with shebang), and copies `webview-ui/public/assets/` to `dist/assets/`. `process.env.TERRARIUM_VERSION` is stamped into all bundles.
 
 ## Checks
 
-No workflow runs the full checks. `.github/workflows/` holds `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release), `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`) and `assets.yml` (validates the office manifest against the sprite sheets, fails if regenerating the art changes anything committed, and runs the corrupted-sheet tests on every push and pull request). Run the checks locally before pushing:
+No workflow runs the full checks. `.github/workflows/` holds `docker.yml` (builds the image for `linux/amd64` and `linux/arm64` and pushes it to `ghcr.io/luckystrike561/terrarium`: `latest` on every push to `master`, `X.Y.Z` on each published release), `pages.yml` (builds the website on every push and pull request, deploys it to GitHub Pages from `master`), `assets.yml` (validates the office manifest against the sprite sheets, fails if regenerating the art changes anything committed, and runs the corrupted-sheet tests on every push and pull request) and `godot.yml` (exports the Godot client, fails if `godot/web-export.sha256` changes, runs `godot:check` and uploads the export, on every push and pull request). Run the checks locally before pushing:
 
 ```bash
 npm run lint && npm run check-types && npm run asyncapi:validate && npm run assets:validate

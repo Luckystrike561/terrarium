@@ -22,7 +22,7 @@ import {
   setEnabledModuleIds,
   setHooksEnabled,
 } from './configPersistence.js';
-import { MAX_PORT, MIN_PORT } from './constants.js';
+import { GODOT_EXPORT_DIR, MAX_PORT, MIN_PORT } from './constants.js';
 import { FileStateAdapter } from './fileStateAdapter.js';
 import type { HookModule } from './providers/index.js';
 import {
@@ -252,10 +252,11 @@ async function main(): Promise<void> {
     process.exit(ok ? 0 : 1);
   }
 
-  // dist/ contains both the CLI bundle and the assets/ + webview/ directories
+  // dist/ contains the CLI bundle and the assets/ + webview/ directories, and godot/ once `npm run godot:export` ran
   const distRoot = __dirname;
   const packageRoot = path.dirname(distRoot);
   const staticDir = path.join(distRoot, 'webview');
+  const godotDir = path.join(distRoot, GODOT_EXPORT_DIR);
 
   // ── Load assets on startup ──
   console.log('[Terrarium] Loading assets...');
@@ -329,6 +330,7 @@ async function main(): Promise<void> {
       host: args.host,
       port: args.port,
       staticDir,
+      godotDir,
       assetCache,
       onSetHooksEnabled,
     });

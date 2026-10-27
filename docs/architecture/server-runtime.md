@@ -41,7 +41,10 @@ Fastify v5 with `@fastify/cors`, `@fastify/websocket` and `@fastify/static` (`se
 | POST   | `/api/hooks/:providerId` | Bearer-authenticated hook event ingress |
 | GET    | `/api/health`            | Liveness: `{ ok, version, port, pid }`  |
 | GET    | `/ws`                    | Bidirectional protocol channel          |
+| GET    | `/godot/*`               | Godot client web export, when built     |
 | GET    | `/*`                     | Webview SPA                             |
+
+`/godot/` exists only when `dist/godot/` was there when the server started (`npm run godot:export`, then restart the server: `npm run dev`'s `node --watch` does not watch `dist/`). A later re-export is served at once, because the files are read per request. It serves the export's `.br` or `.gz` sibling by `Accept-Encoding`, answers a missing file with 404 rather than the SPA, and redirects `/godot` to `/godot/`. Without an export the SPA fallback answers there as it always did. Details: [godot-client.md](godot-client.md).
 
 `/ws` accepts same-origin connections and grants privileged messages only to a socket that presents the server token. The gate and why it is built that way are in [consent.md](consent.md#who-may-answer-the-ws-gate).
 

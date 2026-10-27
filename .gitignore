@@ -6,6 +6,7 @@ out
 dist
 node_modules
 *.tsbuildinfo
+/.cache
 
 # Logs
 /logs
