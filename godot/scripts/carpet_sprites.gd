@@ -146,8 +146,8 @@ static func _color_key(color: Dictionary) -> String:
 	return "%s|%s|%s|%s|%d" % [color.h, color.s, color.b, color.c, 1 if color.get("colorize", false) else 0]
 
 
-## [darkest, brightest] distinct RGB of a sheet by Rec. 601 luminance. Of
-## equal luminances the first seen is darkest and the last first seen brightest.
+## [darkest, brightest] distinct RGB of a sheet by Rec. 601 luminance. On ties,
+## the first distinct colour seen is darkest and the last one seen is brightest.
 static func _classify(pieces: Array[Image]) -> Array:
 	var luminances: Dictionary[Color, float] = {}
 	for piece in pieces:
