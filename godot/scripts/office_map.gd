@@ -11,7 +11,6 @@ const FLOOR_SLAB_LEFT_COLOR := Color8(0x4a, 0x3f, 0x5c)
 const FLOOR_SLAB_RIGHT_COLOR := Color8(0x36, 0x2d, 0x45)
 ## A floor tile value the manifest has no texture for.
 const ERROR_TILE_COLOR := Color8(0xff, 0x00, 0xff)
-const NEUTRAL_COLOR := {"h": 0, "s": 0, "b": 0, "c": 0}
 
 ## The rectangle the camera fits: the non-void tiles, raised by a back wall's height.
 var view_rect: Rect2
@@ -89,7 +88,7 @@ func _add_floor(layout: OfficeLayout, tiles: TileGrid, images: Dictionary[String
 				continue
 			var color: Variant = layout.tile_color(col, row)
 			if not color is Dictionary:
-				color = NEUTRAL_COLOR
+				color = OfficeLayout.NEUTRAL_COLOR
 			var key := "%d:%s:%s:%s:%s" % [tile, color.h, color.s, color.b, color.c]
 			if not diamonds.has(key):
 				diamonds[key] = _floor_diamond(tile, color, images)
