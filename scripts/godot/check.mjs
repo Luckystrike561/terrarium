@@ -427,6 +427,7 @@ async function checkZoomSteps(page, reference, layout) {
   const center = { x: BROWSER_VIEWPORT.width / 2, y: BROWSER_VIEWPORT.height / 2 };
   await page.mouse.move(center.x, center.y);
   let view = await readView(page);
+  if (view === null) return ['wheel: Godot never published its view'];
   for (const direction of [-1, 1]) {
     for (;;) {
       const before = view;
