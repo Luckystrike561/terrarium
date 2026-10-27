@@ -62,6 +62,72 @@ export function getCarpetPaletteKey(color: ColorValue, accentColor: ColorValue):
 }
 
 /**
+ * Every carpet piece to draw, junction by junction in row-major order. Around
+ * one junction each (variant, palette) is drawn once, with the highest order
+ * among its tiles, lowest order first.
+ */
+export function carpetJunctionSprites(
+  carpetTiles: Array<CarpetTile | null>,
+  cols: number,
+  rows: number,
+): Array<{ jx: number; jy: number; sprite: SpriteData }> {
+  const pieces: Array<{ jx: number; jy: number; sprite: SpriteData }> = [];
+  for (let jy = 0; jy <= rows; jy++) {
+    for (let jx = 0; jx <= cols; jx++) {
+      const localGroups = new Map<
+        string,
+        {
+          variant: number;
+          color: ColorValue;
+          accentColor: ColorValue;
+          paletteKey: string;
+          order: number;
+        }
+      >();
+
+      const adjacent = [
+        { col: jx - 1, row: jy - 1 },
+        { col: jx, row: jy - 1 },
+        { col: jx, row: jy },
+        { col: jx - 1, row: jy },
+      ];
+
+      for (const pos of adjacent) {
+        if (pos.col < 0 || pos.row < 0 || pos.col >= cols || pos.row >= rows) continue;
+        const tile = carpetTiles[pos.row * cols + pos.col];
+        if (!tile) continue;
+        const color = tile.color ?? CARPET_DEFAULT_COLOR;
+        const accentColor = tile.accentColor ?? CARPET_DEFAULT_ACCENT_COLOR;
+        const paletteKey = getCarpetPaletteKey(color, accentColor);
+        const key = `${tile.variant}:${paletteKey}`;
+        const order = tile.order ?? 0;
+        const existing = localGroups.get(key);
+        if (!existing || order > existing.order) {
+          localGroups.set(key, { variant: tile.variant, color, accentColor, paletteKey, order });
+        }
+      }
+
+      const ordered = [...localGroups.values()].sort((a, b) => a.order - b.order);
+      for (const { variant, color, accentColor, paletteKey } of ordered) {
+        const sprite = getCarpetJunctionSprite(
+          jx,
+          jy,
+          variant,
+          carpetTiles,
+          cols,
+          rows,
+          color,
+          accentColor,
+          paletteKey,
+        );
+        if (sprite) pieces.push({ jx, jy, sprite });
+      }
+    }
+  }
+  return pieces;
+}
+
+/**
  * Resolve and return the merged, colorized SpriteData for a single junction.
  *
  * @param jx Junction column (0..cols). Junctions sit at corners.
@@ -69,7 +135,7 @@ export function getCarpetPaletteKey(color: ColorValue, accentColor: ColorValue):
  * @returns null if the variant is unloaded, the junction's msCase is missing,
  *          or the variant's palette classification yielded no main color.
  */
-export function getCarpetJunctionSprite(
+function getCarpetJunctionSprite(
   jx: number,
   jy: number,
   variant: number,
