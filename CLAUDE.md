@@ -178,7 +178,7 @@ scripts/
   iso-art/                           Generators for furniture, characters, floors, the default layout and the office manifest
   validate-assets.ts                 Validates the office manifest against every sprite sheet
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
-  godot/                             pin.mjs (pinned Godot + hashes), export.mjs (godot:export), check.mjs (godot:check), officeReference.ts + everyFurnitureLayout.mjs (its parity reference), zip.mjs
+  godot/                             pin.mjs (pinned Godot + hashes), export.mjs (godot:export), check.mjs (godot:check), officeReference.ts (its parity reference), everyFurnitureLayout.mjs (its every-furniture layout), zip.mjs
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
 Dockerfile                           Standalone server image (herdr + omp)
