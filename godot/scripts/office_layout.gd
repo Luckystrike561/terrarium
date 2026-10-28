@@ -66,6 +66,11 @@ static func parse(document: Dictionary, manifest: OfficeManifest) -> OfficeLayou
 	if tiles.size() != int(cols) * int(rows):
 		push_error("[Godot] layout has %d tiles for %d × %d" % [tiles.size(), cols, rows])
 		return null
+	for index in furniture.size():
+		var item: Variant = furniture[index]
+		if not (item is Dictionary and item.get("type") is String and item.get("col") is float and item.get("row") is float):
+			push_error("[Godot] layout furniture[%d] %s needs a string type and numeric col and row" % [index, item])
+			return null
 	var layout := OfficeLayout.new()
 	layout._read(document, manifest)
 	return layout
