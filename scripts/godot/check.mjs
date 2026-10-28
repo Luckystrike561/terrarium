@@ -47,6 +47,8 @@ const LOAD_TIMEOUT_MS = 30_000;
 const VIEW_TIMEOUT_MS = 5000;
 /** How long the page runs after its first frame before its console is judged. */
 const SETTLE_MS = 2000;
+/** The driver warning a canvas capture can trigger: the check's own readback, not the page. */
+const READ_PIXELS_WARNING = 'GPU stall due to ReadPixels';
 const SERVER_START_TIMEOUT_MS = 15_000;
 /**
  * WebGL through SwiftShader, on every machine. A CI runner has no GPU and
@@ -163,10 +165,25 @@ async function openOffice(browser, url, { throttled }) {
       return Number.POSITIVE_INFINITY;
     });
   await page.waitForTimeout(SETTLE_MS);
-  // Capturing a WebGL canvas reads its pixels back, which Chromium reports
-  // as a "GPU stall due to ReadPixels" driver warning. That comes from this
-  // check, not the page, so the console is judged before the first capture.
-  return { page, consoleProblems: [...consoleProblems], responses, firstFrameMs };
+  // Capturing a WebGL canvas reads its pixels back, which Chromium can report
+  // as a READ_PIXELS_WARNING. That comes from this check, not the page, so the
+  // console is judged once before the first capture, and what it logs later is
+  // judged by lateConsoleFailures without that warning.
+  return {
+    page,
+    consoleProblems: [...consoleProblems],
+    liveConsoleProblems: consoleProblems,
+    responses,
+    firstFrameMs,
+  };
+}
+
+/** What the page logged after openOffice judged its console, the check's own readback warnings aside. */
+function lateConsoleFailures(office) {
+  return office.liveConsoleProblems
+    .slice(office.consoleProblems.length)
+    .filter((problem) => !problem.includes(READ_PIXELS_WARNING))
+    .map((problem) => `console ${problem}`);
 }
 
 async function transfersOf(responses) {
@@ -514,6 +531,7 @@ async function checkDefaultLayout(browser) {
       ...budgetFailures({ ...office, transfers: await transfersOf(office.responses) }),
       ...(await checkFit(office.page, reference, layout, 'default layout')),
       ...(await checkZoomSteps(office.page, reference, layout)),
+      ...lateConsoleFailures(office),
     ];
   });
 }
@@ -529,6 +547,7 @@ async function checkEveryFurniture(browser) {
     }
     failures.push(...(await checkFit(office.page, reference, layout, 'every furniture')));
     failures.push(...(await checkEdges(office.page, reference, layout, 1, 'every furniture')));
+    failures.push(...lateConsoleFailures(office));
     return failures;
   });
 }
