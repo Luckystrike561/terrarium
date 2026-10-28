@@ -3,15 +3,21 @@
  * `npm run godot:check`: wall items along the back walls and a glass wall,
  * everything else packed on the floor with a tile between neighbours. It also
  * uses every floor texture, wall colours with and without a tile colour,
- * carpets in their default colours and stacked over one another, and both
- * furniture colour modes.
+ * carpets in their default colours and stacked over one another, both
+ * furniture colour modes, and void tiles: a band in front of the office, so
+ * the office is smaller than the grid, and a notch beside the glass wall.
  */
 
 const COLS = 44;
-const ROWS = 30;
+/** Rows the office uses. The grid adds a void band in front of them. */
+const FLOOR_ROWS = 30;
+const VOID_BAND_ROWS = 2;
+const ROWS = FLOOR_ROWS + VOID_BAND_ROWS;
 const WALL = 0;
 /** The glass wall that takes the right-facing wall items the back wall has no room for. */
 const GLASS_WALL_COL = COLS - 1;
+/** A hole in the floor beside the glass wall: inner slab faces, and glass that turns into a back wall. */
+const NOTCH = { cols: [GLASS_WALL_COL - 2, GLASS_WALL_COL], rows: [20, 23] };
 const FIRST_FLOOR_COL = 2;
 const FIRST_FLOOR_ROW = 2;
 const LAST_FLOOR_COL = GLASS_WALL_COL - 1;
@@ -36,14 +42,21 @@ function inRange(value, [from, to]) {
 
 export function everyFurnitureLayout(manifest) {
   const floorTiles = manifest.tiles.floor.textures.map((texture) => texture.tile);
-  if (floorTiles.length > Math.ceil(ROWS / ROWS_PER_FLOOR_TEXTURE)) {
-    throw new Error('every floor texture no longer fits the check layout: enlarge ROWS');
+  const voidTile = manifest.tiles.voidTile;
+  if (floorTiles.length > Math.ceil(FLOOR_ROWS / ROWS_PER_FLOOR_TEXTURE)) {
+    throw new Error('every floor texture no longer fits the check layout: enlarge FLOOR_ROWS');
   }
   const tiles = [];
   const tileColors = [];
   const carpetTiles = [];
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
+      if (row >= FLOOR_ROWS || (inRange(col, NOTCH.cols) && inRange(row, NOTCH.rows))) {
+        tiles.push(voidTile);
+        tileColors.push(null);
+        carpetTiles.push(null);
+        continue;
+      }
       const wall = row === 0 || col === 0 || col === GLASS_WALL_COL;
       tiles.push(
         wall ? WALL : floorTiles[Math.floor(row / ROWS_PER_FLOOR_TEXTURE) % floorTiles.length],
@@ -87,9 +100,9 @@ export function everyFurnitureLayout(manifest) {
           place(frame.id, frontCol, 0);
           frontCol += width + 1;
         } else if (item.placement === 'wall') {
-          if (rightRow + depth > ROWS) {
+          if (rightRow + depth > FLOOR_ROWS) {
             if (rightWallCol === GLASS_WALL_COL) {
-              throw new Error('the wall items no longer fit the check layout: enlarge ROWS');
+              throw new Error('the wall items no longer fit the check layout: enlarge FLOOR_ROWS');
             }
             rightWallCol = GLASS_WALL_COL;
             rightRow = 1;
@@ -114,8 +127,8 @@ export function everyFurnitureLayout(manifest) {
       }
     }
   }
-  if (frontCol > COLS || shelf.row + shelf.depth > ROWS) {
-    throw new Error('every furniture frame no longer fits the check layout: enlarge COLS or ROWS');
+  if (frontCol > COLS || shelf.row + shelf.depth > NOTCH.rows[0]) {
+    throw new Error('every furniture frame no longer fits above the void notch: enlarge COLS');
   }
   return {
     version: 1,
