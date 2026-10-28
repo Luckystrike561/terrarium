@@ -64,6 +64,11 @@ const CLEAR_COLOR = [20, 22, 28, 255];
 /** The Godot camera's ZOOM_MIN and ZOOM_MAX. */
 const GODOT_ZOOM_MIN = 1;
 const GODOT_ZOOM_MAX = 4;
+/** The Godot camera's WHEEL_GESTURE_GAP_MS. */
+const GODOT_WHEEL_GESTURE_GAP_MS = 150;
+/** A trackpad swipe: many small wheel events in quick succession. */
+const WHEEL_BURST_EVENTS = 10;
+const WHEEL_BURST_DELTA_PX = 10;
 /** Twice the Godot frame, so integer scaling fills it with no letterbox. */
 const STRETCH = 2;
 const BROWSER_VIEWPORT = {
@@ -519,7 +524,33 @@ async function checkZoomSteps(page, reference, layout) {
       );
     }
   }
+  failures.push(...(await checkWheelBurst(page, layout, anchor)));
   return failures;
+}
+
+/**
+ * Sends a trackpad swipe's burst of small wheel events, which must zoom one
+ * step, not one per event.
+ */
+async function checkWheelBurst(page, layout, anchor) {
+  await page.waitForTimeout(GODOT_WHEEL_GESTURE_GAP_MS);
+  const before = await readView(page);
+  await page.mouse.move(anchor.x, anchor.y);
+  for (let i = 0; i < WHEEL_BURST_EVENTS; i++) await page.mouse.wheel(0, -WHEEL_BURST_DELTA_PX);
+  const expected = zoomedView(layout, before, anchor, before.zoom + 1);
+  try {
+    await settledView(page, (v) => v.zoom !== before.zoom, 'wheel burst');
+  } catch (error) {
+    return [error.message];
+  }
+  await page.waitForTimeout(GODOT_WHEEL_GESTURE_GAP_MS * 2);
+  const view = await readView(page);
+  if (!sameView(view, expected)) {
+    return [
+      `wheel burst: ${WHEEL_BURST_EVENTS} events from ${JSON.stringify(before)} gave ${JSON.stringify(view)}, expected one step to ${JSON.stringify(expected)}`,
+    ];
+  }
+  return [];
 }
 
 async function checkDefaultLayout(browser) {

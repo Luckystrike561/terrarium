@@ -4,7 +4,8 @@ extends Node
 ## Places the office map in the viewport the way the current client places
 ## its world layer: the grid centred, then panned, both in whole pixels, at a
 ## whole-number zoom. Fits the office on load, zooms one step per wheel notch
-## around the cursor, pans by dragging, and never pans past the office edge.
+## or trackpad swipe around the cursor, pans by dragging, and never pans past
+## the office edge.
 
 signal view_changed(zoom: int, offset: Vector2i)
 
@@ -12,11 +13,16 @@ const ZOOM_MIN := 1
 const ZOOM_MAX := 4
 ## The current client's pan button. The left button stays free for selection.
 const PAN_BUTTONS := MOUSE_BUTTON_MASK_MIDDLE
+## Wheel events closer together than this are one gesture and zoom one step:
+## the web export turns every DOM wheel event into a wheel press, and a
+## trackpad swipe sends dozens of them.
+const WHEEL_GESTURE_GAP_MS := 150
 
 var zoom := ZOOM_MIN
 var _map: OfficeMap
 ## Viewport px the map is moved off its centred position, kept clamped.
 var _pan := Vector2.ZERO
+var _last_wheel_ms := -WHEEL_GESTURE_GAP_MS
 
 
 func attach(map: OfficeMap) -> void:
@@ -39,12 +45,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_zoom_at(zoom + 1, event.position)
+			_wheel_at(1, event.position)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_zoom_at(zoom - 1, event.position)
+			_wheel_at(-1, event.position)
 	elif event is InputEventMouseMotion and event.button_mask & PAN_BUTTONS:
 		_pan = _clamped(_pan + event.relative)
 		_apply()
+
+
+## Zooms one step on the first wheel event of a gesture.
+func _wheel_at(step: int, anchor: Vector2) -> void:
+	var now := Time.get_ticks_msec()
+	var starts_gesture := now - _last_wheel_ms >= WHEEL_GESTURE_GAP_MS
+	_last_wheel_ms = now
+	if starts_gesture:
+		_zoom_at(zoom + step, anchor)
 
 
 ## Changes the zoom keeping the office point under `anchor` where it is.
