@@ -410,10 +410,13 @@ async function checkEdges(page, reference, layout, zoom, label) {
   return failures;
 }
 
-/** The fitted view the current client would centre: the largest whole zoom that fits, at least 1. */
+/** The fitted view the current client would centre: the largest whole zoom that fits, from GODOT_ZOOM_MIN to GODOT_ZOOM_MAX. */
 function fittedView(layout) {
   const { grid, view } = viewGeometry(layout);
-  const zoom = Math.floor(fitZoom(view, GODOT_FRAME.width, GODOT_FRAME.height));
+  const zoom = Math.min(
+    GODOT_ZOOM_MAX,
+    Math.floor(fitZoom(view, GODOT_FRAME.width, GODOT_FRAME.height)),
+  );
   const pan = centeredPan(grid, view, zoom, GODOT_FRAME.width, GODOT_FRAME.height);
   const { offsetX, offsetY } = mapOffset(
     GODOT_FRAME.width,
