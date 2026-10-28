@@ -12,24 +12,24 @@ Code, paths and commands use the Terrarium name too: the npm package and CLI `te
 
 ## Where to look
 
-| Topic                                                                                          | Document                                                                                                                                  |
-| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| User setup: per-provider quick start, Docker mounts, connections, troubleshooting              | [docs/guide.md](docs/guide.md). The website's per-agent cards come from `AGENT_COVERAGE` in `scripts/build-site.ts`, so keep both in step |
-| Agent, multiplexer and quota source modules, routing, one agent one character, adding a module | [docs/architecture/providers.md](docs/architecture/providers.md)                                                                          |
-| AgentRuntime, store, router, HTTP/WS server, persistence                                       | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                                                                |
-| Claude transcripts, hooks vs heuristics, timers, idle detection                                | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                                                              |
-| Claude teams, teammates, background agents, sub-agents                                         | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                                                                    |
-| Hooks consent, the hook installer, the Claude status line, the `/ws` privilege gate            | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
-| Context gauge                                                                                  | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
-| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout                            | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
-| Godot client: project, pinned web export, `/godot/` route, size and load-time budget           | [docs/architecture/godot-client.md](docs/architecture/godot-client.md)                                                                    |
-| Assets, generated art, catalog, office manifest, load order                                    | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
-| Test tiers, mocks, inventory, drift checks                                                     | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
-| Consent revision rule (ADR)                                                                    | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
-| Art direction                                                                                  | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
-| Claude spawn formats research                                                                  | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)                                            |
-| E2E rules and inventory                                                                        | [e2e/README.md](e2e/README.md)                                                                                                            |
-| The original, unbuilt design                                                                   | [docs/history/original-plan.md](docs/history/original-plan.md)                                                                            |
+| Topic                                                                                                      | Document                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| User setup: per-provider quick start, Docker mounts, connections, troubleshooting                          | [docs/guide.md](docs/guide.md). The website's per-agent cards come from `AGENT_COVERAGE` in `scripts/build-site.ts`, so keep both in step |
+| Agent, multiplexer and quota source modules, routing, one agent one character, adding a module             | [docs/architecture/providers.md](docs/architecture/providers.md)                                                                          |
+| AgentRuntime, store, router, HTTP/WS server, persistence                                                   | [docs/architecture/server-runtime.md](docs/architecture/server-runtime.md)                                                                |
+| Claude transcripts, hooks vs heuristics, timers, idle detection                                            | [docs/architecture/status-tracking.md](docs/architecture/status-tracking.md)                                                              |
+| Claude teams, teammates, background agents, sub-agents                                                     | [docs/architecture/claude-teams.md](docs/architecture/claude-teams.md)                                                                    |
+| Hooks consent, the hook installer, the Claude status line, the `/ws` privilege gate                        | [docs/architecture/consent.md](docs/architecture/consent.md)                                                                              |
+| Context gauge                                                                                              | [docs/architecture/context-usage.md](docs/architecture/context-usage.md)                                                                  |
+| Pixi iso renderer, UI styling, characters, CTO queue, seats, layout                                        | [docs/architecture/renderer.md](docs/architecture/renderer.md)                                                                            |
+| Godot client: project, office loading, camera, pinned web export, `/godot/` route, budget and parity check | [docs/architecture/godot-client.md](docs/architecture/godot-client.md)                                                                    |
+| Assets, generated art, catalog, office manifest, load order                                                | [docs/architecture/assets.md](docs/architecture/assets.md)                                                                                |
+| Test tiers, mocks, inventory, drift checks                                                                 | [docs/architecture/testing.md](docs/architecture/testing.md)                                                                              |
+| Consent revision rule (ADR)                                                                                | [docs/adr/0001-…](docs/adr/0001-consent-choices-send-immediately-and-revise-as-absolute-state.md)                                         |
+| Art direction                                                                                              | [docs/art-direction.md](docs/art-direction.md)                                                                                            |
+| Claude spawn formats research                                                                              | [docs/research/claude-harness-spawn-formats.md](docs/research/claude-harness-spawn-formats.md)                                            |
+| E2E rules and inventory                                                                                    | [e2e/README.md](e2e/README.md)                                                                                                            |
+| The original, unbuilt design                                                                               | [docs/history/original-plan.md](docs/history/original-plan.md)                                                                            |
 
 ## Architecture
 
@@ -124,7 +124,7 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
     office/
       iso.ts, projection.ts          Iso projection, fitted view
       backdrop.ts, isoWalls.ts       Skyline, wall boxes and glass partitions
-      colorize.ts, floorTiles.ts, wallTiles.ts, toolUtils.ts, types.ts
+      colorize.ts, floorTiles.ts, floorSlab.ts, wallTiles.ts, toolUtils.ts, types.ts
       sprites/                       spriteData.ts, textureCache.ts, carpetTiles.ts, petSpriteData.ts, *.json
       layout/                        furnitureCatalog.ts, layoutSerializer.ts, tileMap.ts
       engine/
@@ -147,9 +147,11 @@ webview-ui/                          React 19 HUD + PixiJS (WebGL) office
 
 site/                                GitHub Pages website source (index.html template + style.css), built by scripts/build-site.ts
 
-godot/                               Godot 4 client (empty iso grid until cutover), web export served at /godot/
+godot/                               Godot 4 client (static office until cutover), web export served at /godot/
   project.godot, export_presets.cfg  Pixel-art rendering settings, the single-threaded Web preset
-  scenes/, scripts/                  office.tscn, office.gd, iso_grid.gd
+  scenes/, scripts/                  office.tscn + office.gd (load, first frame), office_feed.gd (/ws layout), office_assets.gd, server_origin.gd,
+                                     office_manifest.gd, office_layout.gd, tile_grid.gd, office_map.gd, office_camera.gd, and the current
+                                     client's ports colorize, wall_sprites, carpet_sprites, iso_sort, iso_projection
   web-export.sha256                  Committed checksums of the files Godot exports (siblings excluded), which must reproduce byte for byte
 
 e2e/                                 Playwright, Chromium only
@@ -176,7 +178,7 @@ scripts/
   iso-art/                           Generators for furniture, characters, floors, the default layout and the office manifest
   validate-assets.ts                 Validates the office manifest against every sprite sheet
   asset-manager.html, wall-tile-editor.html, jsonl-viewer.html
-  godot/                             pin.mjs (pinned Godot + hashes), export.mjs (godot:export), check.mjs (godot:check), zip.mjs
+  godot/                             pin.mjs (pinned Godot + hashes), export.mjs (godot:export), check.mjs (godot:check), officeReference.ts (its parity reference), everyFurnitureLayout.mjs (its every-furniture layout), zip.mjs
 
 eslint-rules/terrarium-rules.mjs  no-inline-colors, pixel-shadow, pixel-font
 Dockerfile                           Standalone server image (herdr + omp)
@@ -277,7 +279,7 @@ npm run assets:validate    # check every sprite sheet against the office manifes
 npm run verify:npm-package # pack, install and smoke-test the tarball
 npm run site:build         # build the website from site/ into dist/site/
 npm run godot:export       # pinned Godot → dist/godot/ (+ .br/.gz), rewrites godot/web-export.sha256
-npm run godot:check        # needs build + godot:export: browser check of /godot/ against its budget
+npm run godot:check        # needs build + godot:export: browser check of /godot/ against its budget and the current client's office
 ```
 
 `esbuild.js` bundles the CLI (`dist/cli.js`, Fastify externals) and the hook script (`dist/hooks/claude-hook.js`, CJS with shebang), and copies `webview-ui/public/assets/` to `dist/assets/`. `process.env.TERRARIUM_VERSION` is stamped into all bundles.

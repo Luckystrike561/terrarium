@@ -8,6 +8,8 @@
 
 import { WALL_GLASS_HEIGHT_PX, WALL_HEIGHT_PX } from '../../../core/src/assets/constants.ts';
 import { GLASS_FRAME_COLOR, GLASS_PANE_COLOR, GLASS_SHEEN_COLOR } from '../constants.js';
+import type { SortBox } from './engine/isoSort.js';
+import { SortLayer } from './engine/isoSort.js';
 import { ISO_TILE_H, ISO_TILE_W } from './iso.js';
 import type { SpriteData, TileType as TileTypeVal } from './types.js';
 import { TileType } from './types.js';
@@ -185,8 +187,8 @@ function glassWall(runsAlongCols: boolean, runsAlongRows: boolean): SpriteData {
 
 const cache = new Map<string, SpriteData>();
 
-/** The sprite for one wall tile (top-left at the tile's iso corner minus
- *  (16, height)) and its height above the floor. */
+/** The sprite for one wall tile, drawn at `tileSpriteOrigin(col, row, height)`,
+ *  and its height above the floor. */
 export function getWallSprite(
   tileMap: TileTypeVal[][],
   col: number,
@@ -205,4 +207,8 @@ export function getWallSprite(
   let sprite = cache.get(key);
   if (!sprite) cache.set(key, (sprite = glassWall(alongCols, alongRows)));
   return { sprite, height: WALL_GLASS_HEIGHT_PX };
+}
+
+export function wallSortBox(col: number, row: number): SortBox {
+  return { minCol: col, minRow: row, maxCol: col + 1, maxRow: row + 1, layer: SortLayer.FLOOR };
 }

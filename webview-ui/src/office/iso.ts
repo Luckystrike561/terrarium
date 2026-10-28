@@ -34,6 +34,22 @@ export function tileCorner(col: number, row: number): Point {
   return worldToIso(col * TILE_SIZE, row * TILE_SIZE);
 }
 
+/** Top-left of a floor tile's diamond, or of a wall sprite `height` px tall. */
+export function tileSpriteOrigin(col: number, row: number, height = 0): Point {
+  const origin = tileCorner(col, row);
+  origin.x -= ISO_TILE_W / 2;
+  origin.y -= height;
+  return origin;
+}
+
+/** Top-left of a carpet piece: a tile diamond centred on the junction (tile corner) jx, jy. */
+export function carpetPieceOrigin(jx: number, jy: number): Point {
+  const origin = tileCorner(jx, jy);
+  origin.x -= ISO_TILE_W / 2;
+  origin.y -= ISO_TILE_H / 2;
+  return origin;
+}
+
 /** Top-left of a sprite drawn under the furniture anchor contract: an image
  *  `(fw + fh) * 16` wide whose footprint diamond touches its left, right and
  *  bottom edges. Sprites of any other width (legacy flat art) are centered on

@@ -53,6 +53,14 @@ jobs:
       - name: Check the export in a browser against its budget
         run: npm run godot:check
 
+      - name: Upload the frames that differ from the current client
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: godot-check-frames
+          path: test-results/godot-check/
+          if-no-files-found: ignore
+
       - name: Upload the export
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
