@@ -57,7 +57,7 @@ func _fetch(file: String) -> PackedByteArray:
 	var response: Array = await request.request_completed
 	request.queue_free()
 	var status: int = response[1]
-	if response[0] != HTTPRequest.RESULT_SUCCESS or status != 200:
+	if response[0] != HTTPRequest.RESULT_SUCCESS or status != HTTPClient.RESPONSE_OK:
 		push_error("[Godot] %s: result %d, HTTP %d" % [url, response[0], status])
 		return PackedByteArray()
 	return response[3]
