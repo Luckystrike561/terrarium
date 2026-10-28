@@ -58,8 +58,7 @@ func _init(manifest: OfficeManifest) -> void:
 	_glass_height = manifest.wall_glass_height
 
 
-## The wall tile's sprite, drawn with its top-left at the tile's top vertex
-## minus (half a tile, the sprite's height above the floor).
+## The wall tile's sprite: solid on a back wall, glass along the walls it joins.
 func sprite(tiles: TileGrid, col: int, row: int, base_color: Color) -> Image:
 	if tiles.is_back_wall(col, row):
 		var solid_key := "solid:" + base_color.to_html(false)
