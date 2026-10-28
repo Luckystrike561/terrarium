@@ -68,7 +68,7 @@ const BROWSER_VIEWPORT = {
   width: GODOT_FRAME.width * STRETCH,
   height: GODOT_FRAME.height * STRETCH,
 };
-/** Blending a translucent pixel rounds once in WebGL and once in the reference. */
+/** Each translucent blend rounds once in WebGL and once in the reference, and two can stack. Opaque pixels match exactly. */
 const CHANNEL_TOLERANCE = 2;
 /** A drag past any office edge, in browser px, and one of an odd number of half Godot pixels. */
 const FAR_DRAG_PX = 4000;
@@ -256,7 +256,8 @@ async function drag(page, dx, dy) {
 /**
  * Compares the canvas with the reference office at `view`. Every Godot frame
  * pixel must be one uniform STRETCH × STRETCH block on screen (no filtering,
- * no half-pixel offset) and within CHANNEL_TOLERANCE of the reference.
+ * no half-pixel offset) and equal the reference, within CHANNEL_TOLERANCE only
+ * where the reference's top layer is translucent.
  */
 async function compareFrame(page, reference, view, label) {
   const shot = PNG.sync.read(await page.locator('canvas').screenshot());
@@ -280,10 +281,9 @@ async function compareFrame(page, reference, view, label) {
       }
       const j = (y * GODOT_FRAME.width + x) * 4;
       for (let k = 0; k < 4; k++) actual.data[j + k] = k === 3 ? 255 : shot.data[corner + k];
+      const tolerance = expected.blended[j / 4] ? CHANNEL_TOLERANCE : 0;
       if (
-        [0, 1, 2].some(
-          (k) => Math.abs(shot.data[corner + k] - expected.data[j + k]) > CHANNEL_TOLERANCE,
-        )
+        [0, 1, 2].some((k) => Math.abs(shot.data[corner + k] - expected.data[j + k]) > tolerance)
       ) {
         mismatched++;
       }

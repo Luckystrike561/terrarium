@@ -54,6 +54,8 @@ export interface Raster {
   height: number;
   /** RGBA, row-major. */
   data: Uint8Array;
+  /** Per pixel, 1 where the topmost layer drawn there is translucent. */
+  blended: Uint8Array;
 }
 
 export interface ReferenceOffice {
@@ -159,11 +161,14 @@ function drawables(layout: OfficeLayout): Drawable[] {
 function composite(items: Drawable[], view: Parameters<ReferenceOffice['render']>[0]): Raster {
   const { zoom, offsetX, offsetY, width, height, background } = view;
   const data = new Uint8Array(width * height * 4);
+  const blended = new Uint8Array(width * height);
   for (let i = 0; i < width * height; i++) data.set(background, i * 4);
   const blend = (px: number, py: number, rgba: Rgba) => {
     if (px < 0 || py < 0 || px >= width || py >= height) return;
-    const i = (py * width + px) * 4;
+    const pixel = py * width + px;
+    const i = pixel * 4;
     const alpha = rgba[3] / 255;
+    blended[pixel] = alpha < 1 ? 1 : 0;
     for (let k = 0; k < 3; k++)
       data[i + k] = Math.round(rgba[k] * alpha + data[i + k] * (1 - alpha));
   };
@@ -183,7 +188,7 @@ function composite(items: Drawable[], view: Parameters<ReferenceOffice['render']
       }),
     );
   }
-  return { width, height, data };
+  return { width, height, data, blended };
 }
 
 /** Fills the screen pixels whose centre lies inside a convex quad, as a GPU rasterises it. */
