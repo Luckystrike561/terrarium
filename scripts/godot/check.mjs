@@ -265,9 +265,9 @@ const sameView = (a, b) => a.zoom === b.zoom && a.offsetX === b.offsetX && a.off
 async function drag(page, dx, dy) {
   const start = { x: BROWSER_VIEWPORT.width / 2, y: BROWSER_VIEWPORT.height / 2 };
   await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
+  await page.mouse.down({ button: 'middle' });
   await page.mouse.move(start.x + dx, start.y + dy, { steps: 4 });
-  await page.mouse.up();
+  await page.mouse.up({ button: 'middle' });
 }
 
 /**

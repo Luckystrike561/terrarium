@@ -10,7 +10,8 @@ signal view_changed(zoom: int, offset: Vector2i)
 
 const ZOOM_MIN := 1
 const ZOOM_MAX := 4
-const PAN_BUTTONS := MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_MIDDLE
+## The current client's pan button. The left button stays free for selection.
+const PAN_BUTTONS := MOUSE_BUTTON_MASK_MIDDLE
 
 var zoom := ZOOM_MIN
 var _map: OfficeMap

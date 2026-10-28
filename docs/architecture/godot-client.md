@@ -62,7 +62,7 @@ Nothing about the office is authored twice. The client reads what the server alr
 
 - **Fit.** On load, the largest whole zoom at which the office (its non-void tiles, raised by a back wall's height) fits the frame, clamped to `ZOOM_MIN` (1) and `ZOOM_MAX` (4), centred. The current client fits at a fractional zoom instead. Here the frame is scaled by whole numbers to the window, so every zoom step stays whole on screen.
 - **Zoom.** One wheel notch is one zoom step, from `ZOOM_MIN` (1) to `ZOOM_MAX` (4), keeping the office point under the cursor in place. The current client has no user zoom.
-- **Pan.** Dragging with the left or middle button pans, and every pan goes through the current client's `clampPan` rule: an axis larger than the frame scrolls but never past the office edge, a smaller one stays centred.
+- **Pan.** Dragging with the middle button pans, as in the current client, which keeps the left button for selection. Every pan goes through the current client's `clampPan` rule: an axis larger than the frame scrolls but never past the office edge, a smaller one stays centred.
 
 The sky backdrop the current client draws behind the office is not ported: the clear colour shows where it would, including through the glass partitions.
 
